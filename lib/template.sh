@@ -7,12 +7,10 @@ set -o nounset
 # Catch the error in case mysqldump fails (but gzip succeeds) in `mysqldump |gzip`
 set -o pipefail
 
-# source .env
-
 function template() {
-  local path
-  local data
-  local filename
+  local path="$1"
+  local data="$2"
+  local filename="$3"
 
   cat >"${path}/${filename}.2" <<EOF
 ${data}
@@ -26,7 +24,7 @@ EOF
       mv "${path}/${filename}.2" "${path}/${filename}"
     else
       echo ">>> ${filename/./}: No changes detected"
-      mv "${path}/${filename}.2" "${path}/${filename}"
+      rm "${path}/${filename}.2"
     fi
   else
     echo ">>> ${filename/./}: No file detected, creating new file"
