@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-function abort() {
+abort() {
   echo "$1" >&2
   exit 1
 }
 
-function setos() {
+setos() {
 
   local envfile="/tmp/os.env"
   local current_os

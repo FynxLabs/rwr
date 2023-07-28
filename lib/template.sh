@@ -7,7 +7,7 @@ set -o nounset
 # Catch the error in case mysqldump fails (but gzip succeeds) in `mysqldump |gzip`
 set -o pipefail
 
-function template() {
+template() {
   local path="$1"
   local data="$2"
   local filename="$3"

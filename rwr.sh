@@ -14,14 +14,9 @@ trap cleanup SIGINT SIGTERM ERR EXIT
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 export SCRIPT_DIR
 
-export NOFORMAT=''
-export RED=''
-export GREEN=''
-export ORANGE=''
-export BLUE=''
-export PURPLE=''
-export CYAN=''
-export YELLOW=''
+# Include the logging library
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/logging.sh"
 
 usage() {
   cat <<EOF
@@ -44,25 +39,6 @@ cleanup() {
   # script cleanup here
 }
 
-setup_colors() {
-  if [[ -t 2 ]] && [[ -z "${NO_COLOR-}" ]] && [[ "${TERM-}" != "dumb" ]]; then
-    NOFORMAT='\033[0m' RED='\033[0;31m' GREEN='\033[0;32m' ORANGE='\033[0;33m' BLUE='\033[0;34m' PURPLE='\033[0;35m' CYAN='\033[0;36m' YELLOW='\033[1;33m'
-  else
-    NOFORMAT='' RED='' GREEN='' ORANGE='' BLUE='' PURPLE='' CYAN='' YELLOW=''
-  fi
-}
-
-msg() {
-  echo >&2 -e "${1-}"
-}
-
-die() {
-  local msg=$1
-  local code=${2-1} # default exit status 1
-  msg "$msg"
-  exit "$code"
-}
-
 parse_params() {
   # default values of variables set from params
   flag=0
@@ -72,13 +48,12 @@ parse_params() {
     case "${1-}" in
     -h | --help) usage ;;
     -v | --verbose) set -x ;;
-    --no-color) NO_COLOR=1 ;;
     -f | --flag) flag=1 ;; # example flag
     -p | --param)          # example named parameter
       param="${2-}"
       shift
       ;;
-    -?*) die "Unknown option: $1" ;;
+    -?*) die "Unknown Option: $1" ;;
     *) break ;;
     esac
     shift
@@ -94,11 +69,21 @@ parse_params() {
 }
 
 parse_params "$@"
-setup_colors
 
-# script logic here
+# Parse YAML file
+declare -a depends=($(yq r config.yaml 'depends.*'))
+declare -a packages=($(yq r config.yaml 'package.install.*'))
 
-msg "${RED}Read parameters:${NOFORMAT}"
-msg "- flag: ${flag}"
-msg "- param: ${param}"
-msg "- arguments: ${args[*]-}"
+# Check for dependencies
+for dep in "${depends[@]}"; do
+  until grep -q "$dep" status_file; do
+    echo "$dep has not finished running. Waiting..."
+    sleep 10
+  done
+  echo "$dep has finished running."
+done
+
+# Install packages
+for pkg in "${packages[@]}"; do
+  package_install "$pkg" # Assuming package_install is the function from lib/package.sh
+done
