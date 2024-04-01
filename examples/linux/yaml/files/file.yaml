@@ -1,0 +1,93 @@
+## Actions Available
+# - copy
+# - move
+# - delete
+# - chmod
+# - chown
+# - chgrp
+# - symlink
+
+files:
+  - name: file.txt
+    action: copy
+    source: source/path/
+    to: path/to/copy/
+    owner: root
+    group: root
+    mode: 755
+    create: true
+  - names: [file.txt, file2.txt]
+    action: copy
+    source: [path/to/copy/, path/to/copy/other/]
+    target: path/to/copy/
+    create: true
+  - name: file.txt
+    action: move
+    source: source/path/
+    target: path/to/copy/
+    create: true
+  - name: file.txt
+    action: delete
+    source: path/to/copy/
+  - name: file.txt
+    source: path/to/copy/
+    create: true
+  - name: file.txt
+    action: chmod
+    mode: 755
+    source: path/to/copy/
+  - name: file.txt
+    action: chown
+    owner: root
+    source: path/to/copy/
+  - name: file.txt
+    action: chgrp
+    group: root
+    source: path/to/copy/
+    # Symlink needs to have option to symlink to a different name
+  - name: file.txt
+    action: symlink
+    source: path/to/copy/
+    target: path/to/copy/file.txt
+
+directories:
+  - name: path/to/copy/directory
+    action: copy
+    source: source/path/
+    target: path/to/copy/
+    create: true
+  - name: path/to/copy/directory
+    action: move
+    source: source/path/
+    target: path/to/copy/
+    create: true
+  - name: path/to/copy/directory
+    action: chmod
+    mode: 755
+    source: path/to/copy/
+  - name: path/to/copy/directory
+    action: chown
+    owner: root
+    source: path/to/copy/
+  - name: path/to/copy/directory
+    action: chgrp
+    group: root
+    source: path/to/copy/
+  - name: path/to/copy/directory
+    action: symlink
+    source: path/to/copy/
+    target: path/to/copy/directory
+  - name: path/to/copy/directory
+    action: delete
+    source: path/to/copy/
+  - name: path/to/copy/directory
+    source: path/to/copy/
+    create: true
+  - names: [path/to/copy/directory, path/to/copy/other/directory]
+    action: copy
+    owner: root
+    group: root
+    mode: 755
+    source: source/path/
+    target: path/to/copy/
+    create: true

@@ -1,0 +1,28 @@
+# Copyright (c) 2023 "Levi Smith"
+#
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+depends:
+  - init.toml
+package.install:
+  provider: yay
+  skip
+  packages:
+    - materia-gtk-theme
+      version: 1.0
+      file: /path/to/materia-gtk-theme
+      url: https://some.link/package
+    - paper-icon-theme-git
+      version: 2.2
+      file: /path/to/materia-gtk-theme
+      url: https://some.link/package
+package.remove:
+  provider: yay
+  packages:
+    - materia-gtk-theme
+    - paper-icon-theme-git
+package.repo:
+  provider: yay
+  name: repo-name
+

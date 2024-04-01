@@ -1,0 +1,22 @@
+# Set Blueprints format to expect and order of execution
+blueprints:
+  # Set format to use for blueprints, default is yaml
+  format: yaml
+  # Set location to look for blueprints, default is current directory
+  location: .
+  # Set order of execution for blueprints, by directory or file
+  order:
+      - packages
+      - files
+      - configuration
+      - configuration/gnome
+
+# Package Managers to install
+packageManagers:
+  - name: brew
+    action: install
+
+# Set Variables to reference anywhere
+variables:
+  userEmail: "john.doe@domain.com"
+  userName: "John Doe"

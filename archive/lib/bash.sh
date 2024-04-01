@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Copyright (c) 2023 "Levi Smith"
+# 
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
 
 # Check bash version
 bash_version=$(bash --version | grep '^GNU bash' | awk '{print $4}' | cut -d '.' -f1)

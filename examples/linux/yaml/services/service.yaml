@@ -1,0 +1,22 @@
+services:
+  - name: service1
+    action: enable
+    elevated: true
+  - name: service2
+    action: disable
+    elevated: true
+  - name: service3
+    action: start
+    elevated: true
+  - name: service4
+    action: stop
+    elevated: true
+  - name: service5
+    action: restart
+    elevated: true
+  - name: service6
+    action: reload
+    elevated: true
+  - name: service7
+    action: status
+    elevated: false

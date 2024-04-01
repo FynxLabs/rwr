@@ -1,4 +1,9 @@
 #!/bin/bash
+# Copyright (c) 2023 "Levi Smith"
+# 
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
 
 # Setup logging for the script
 # Includes colors and descriptive log levels

@@ -1,0 +1,16 @@
+## Actions Available
+# - install
+# - remove
+
+packages:
+  - name: neovim
+    action: install
+
+  - names:
+      - git
+      - jq
+    action: install
+
+  - name: bitwarden-cli
+    action: install
+    package_manager: brew

@@ -1,3 +1,3 @@
-# RWR - Read Wash and Repeat
+# RWR - Rinse, Wash, & Repeat
 
-Dotfile and Packer manager for *nix based systems.
+Coming Soon - A Distrohopper's One Stop CLI

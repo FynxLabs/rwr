@@ -1,0 +1,12 @@
+[[packages]]
+name = "neovim"
+action = "install"
+
+[[packages]]
+names = ["git", "jq"]
+action = "install"
+
+[[packages]]
+name = "bitwarden-cli"
+action = "install"
+package_manager = "brew"
