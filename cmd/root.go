@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/thefynx/rwr/internal/actions"
 	"os"
 	"time"
 
@@ -14,6 +15,12 @@ var rootCmd = &cobra.Command{
 	Use:   "rwr",
 	Short: "Rinse, Wash, and Repeat - Distrohopper's Friend",
 	Long:  `rwr is a cli to manage your Linux system's package manager and repositories.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if cmd.Use != "help" {
+			initializeSystemInfo()
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Welcome to rwr - The Distrohopper's Friend!")
 		err := cmd.Help()
@@ -31,10 +38,21 @@ var (
 	output           string
 	debug            bool
 	logLevel         string
+	systemInfo       *actions.InitConfig
+	initFilePath     string
 )
 
+func initializeSystemInfo() {
+	var err error
+	systemInfo, err = actions.Initialize(initFilePath)
+	if err != nil {
+		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
+	}
+}
+
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(config)
 
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
@@ -83,16 +101,19 @@ func init() {
 		return
 	}
 
-	// Adding package manager default configuration options
-	viper.SetDefault("packageManager.linux.default", "")
-	viper.SetDefault("packageManager.macos.default", "")
-	viper.SetDefault("packageManager.windows.default", "")
+	// Flag for the init.yaml file path
+	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "./init.yaml", "Path to the init.yaml file")
 
 	viper.SetEnvPrefix("RWR")
 	viper.AutomaticEnv()
+
+	if err != nil {
+		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
+	}
 }
 
-func initConfig() {
+func config() {
 	// Create a new logger
 	log.SetTimeFormat(time.Kitchen)
 	log.SetReportCaller(true)

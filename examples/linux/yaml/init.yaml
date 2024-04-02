@@ -9,9 +9,10 @@ blueprints:
       - packages
       - files
       - configuration
-      - configuration/gnome
+      - configuration/configuration.yaml
+      - configuration/configuration2.yaml
 
-# Package Managers to install
+# Additional Package Managers to install
 packageManagers:
   - name: brew
     action: install
