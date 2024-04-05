@@ -1,0 +1,69 @@
+# .goreleaser.yaml
+project_name: rwr
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    replacements:
+      darwin: macOS
+  - format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    replacements:
+      darwin: macOS
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+nfpms:
+  - file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    homepage: https://github.com/thefynx/rwr
+    description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
+    maintainer: "Levi Smith <levi@fynx.dev>"
+    license: MIT
+    formats:
+      - deb
+      - rpm
+
+#brews:
+#  - name: rwr
+#    tap:
+#      owner: thefynx
+#      name: homebrew-rwr
+#    commit_author:
+#      name: Levi Smith
+#      email: levi@fynx.dev
+#    homepage: target:https://github.com/thefynx/rwr
+#    description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
+#    license: MIT
+#
+#scoop:
+#  bucket:
+#    owner: thefynx
+#    name: scoop-rwr
+#  commit_author:
+#    name: Levi Smith
+#    email: levi@fynx.dev
+#  homepage: target:https://github.com/thefynx/rwr
+#  description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
+#  license: MIT

@@ -91,6 +91,36 @@ func CreateDefaultConfig() error {
 		viper.Set("packageManager.windows.default", windowsDefaultPMInput)
 	}
 
+	// Prompt for Repository Configuration
+	fmt.Println("Repository Configuration:")
+
+	// Prompt for Blueprints Local Path
+	defaultLocalPath := filepath.Join(homeDir, ".config", "rwr", "blueprints")
+	fmt.Printf("Enter the local path for blueprints (press enter to keep default) [%s]: ", defaultLocalPath)
+	localPathInput, _ := reader.ReadString('\n')
+	localPathInput = strings.TrimSpace(localPathInput)
+	if localPathInput == "" {
+		localPathInput = defaultLocalPath
+	}
+	viper.Set("repository.blueprints.localPath", localPathInput)
+
+	// Prompt for Remote Store Type
+	fmt.Print("Enter the remote store type (git/s3/local) (press enter to keep default) [local]: ")
+	remoteStoreTypeInput, _ := reader.ReadString('\n')
+	remoteStoreTypeInput = strings.TrimSpace(remoteStoreTypeInput)
+	if remoteStoreTypeInput == "" {
+		remoteStoreTypeInput = "local"
+	}
+	viper.Set("repository.blueprints.remoteStoreType", remoteStoreTypeInput)
+
+	// Prompt for Remote Store URL if Remote Store Type is not local
+	if remoteStoreTypeInput != "local" {
+		fmt.Print("Enter the remote store URL: ")
+		remoteStoreURLInput, _ := reader.ReadString('\n')
+		remoteStoreURLInput = strings.TrimSpace(remoteStoreURLInput)
+		viper.Set("repository.blueprints.remoteStoreURL", remoteStoreURLInput)
+	}
+
 	// Write the configuration to the specified file
 	if err := viper.WriteConfig(); err != nil {
 		return err

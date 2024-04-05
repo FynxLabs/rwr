@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"github.com/thefynx/rwr/internal/actions"
+	"github.com/thefynx/rwr/internal/helpers"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -43,7 +45,14 @@ var (
 )
 
 func initializeSystemInfo() {
-	var err error
+
+	blueprintsLocation, err := helpers.GetBlueprintsLocation(false)
+	if err != nil {
+		log.With("err", err).Errorf("Error determining blueprints location")
+		os.Exit(1)
+	}
+
+	initFilePath := filepath.Join(blueprintsLocation, "init.yaml")
 	systemInfo, err = actions.Initialize(initFilePath)
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
@@ -126,8 +135,15 @@ func config() {
 		log.With("err", err).Errorf("Error finding home directory")
 		os.Exit(1)
 	}
-	viper.AddConfigPath(homeDir)
-	viper.SetConfigName(".rwr")
+	configDir := filepath.Join(homeDir, ".config", "rwr")
+	err = os.MkdirAll(configDir, os.ModePerm)
+	if err != nil {
+		log.With("err", err).Errorf("Error creating config directory")
+		os.Exit(1)
+	}
+	viper.AddConfigPath(configDir)
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err == nil {
 		log.Debugf("Using config file: %s", viper.ConfigFileUsed())
