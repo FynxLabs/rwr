@@ -5,11 +5,36 @@ blueprints:
   # Set location to look for blueprints, default is current directory
   location: .
   # Set order of execution for blueprints, by directory or file
+  ## Default order of processors is:
+    ## - blueprints - Cannot be changed
+    ## - bootstrap - Cannot be changed
+    ## - initialize - Cannot be changed
+    ## - repositories
+    ## - packages
+    ## - files
+    ## - templates
+    ## - configuration
+    ## - services
   order:
-      - packages
-      - files
-      - configuration
-      - configuration/gnome
+    - repositories
+      - source: ./ # Look for repositories in current directory
+        - apt.yaml # Run apt.yaml first
+        - brew.yaml # Run brew.yaml second, then run the rest in the directory if any
+    - files
+      - source: ./ # Look for files in current directory
+        - dotfiles.yaml
+    - packages
+      - source: ./ # Look for packages in current directory
+        - brew.yaml
+    - services
+      - source: ./ # Look for services in current directory
+        - docker.yaml
+    - templates
+      - source: ./ # Look for templates in current directory
+        - git.yaml
+    - configuration
+      - source: ./ # Look for configuration in current directory
+        - gnome.yaml
 
 # Package Managers to install
 packageManagers:

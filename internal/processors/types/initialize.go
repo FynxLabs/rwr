@@ -9,16 +9,14 @@ type OSInfo struct {
 
 // InitConfig represents the configuration for the initialization processor.
 type InitConfig struct {
-	Blueprints struct {
-		Format   string   `mapstructure:"format"`
-		Location string   `mapstructure:"location"`
-		Order    []string `mapstructure:"order"`
-	} `mapstructure:"blueprints"`
+	Blueprint       Blueprints             `mapstructure:"blueprint"`
 	PackageManagers []PackageManagerInfo   `mapstructure:"packageManagers"`
 	Repositories    []Repository           `mapstructure:"repositories"`
 	Packages        []Package              `mapstructure:"packages"`
 	Services        []Service              `mapstructure:"services"`
 	Files           []File                 `mapstructure:"files"`
 	Directories     []Directory            `mapstructure:"directories"`
+	Templates       []Template             `mapstructure:"templates"`
+	Configuration   []Configuration        `mapstructure:"configuration"`
 	Variables       map[string]interface{} `mapstructure:"variables"`
 }

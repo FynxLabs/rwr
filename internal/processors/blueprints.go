@@ -69,18 +69,27 @@ func GetBlueprintsLocation(update bool) (string, error) {
 	return localPath, nil
 }
 
-func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
+func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]map[string]interface{}, error) {
 	// Return the run order specified in the init.yaml/toml/json
-	return initConfig.Blueprints.Order, nil
+	return initConfig.Blueprint.Order, nil
 }
 
-func GetBlueprintFileOrder(blueprintDir string, order []string) ([]string, error) {
-	// Return the order of blueprint files based on the specified order
-	// If no order is specified, return the default order
-	if len(order) == 0 {
-		// Return default order
-		return []string{"bootstrap", "packages", "configuration", "services"}, nil
+func GetBlueprintFileOrder(blueprintDir string, order []interface{}) ([]string, error) {
+	var fileOrder []string
+	for _, item := range order {
+		if str, ok := item.(string); ok {
+			fileOrder = append(fileOrder, str)
+		} else if subOrder, ok := item.(map[string]interface{}); ok {
+			for processor, files := range subOrder {
+				if filesArr, ok := files.([]interface{}); ok {
+					for _, file := range filesArr {
+						if fileStr, ok := file.(string); ok {
+							fileOrder = append(fileOrder, filepath.Join(processor, fileStr))
+						}
+					}
+				}
+			}
+		}
 	}
-	// Return specified order
-	return order, nil
+	return fileOrder, nil
 }

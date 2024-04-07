@@ -1,50 +1,13 @@
 package processors
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/processors/types"
-	"gopkg.in/yaml.v3"
-	"os"
-	"path/filepath"
-
-	"github.com/BurntSushi/toml"
 )
 
-func ProcessPackages(manifestPath string, osInfo types.OSInfo) error {
-	var config types.Config
-
-	ext := filepath.Ext(manifestPath)
-	switch ext {
-	case ".toml":
-		_, err := toml.DecodeFile(manifestPath, &config)
-		if err != nil {
-			return fmt.Errorf("error decoding TOML file: %v", err)
-		}
-	case ".yaml", ".yml":
-		data, err := os.ReadFile(manifestPath)
-		if err != nil {
-			return fmt.Errorf("error reading YAML file: %v", err)
-		}
-		err = yaml.Unmarshal(data, &config)
-		if err != nil {
-			return fmt.Errorf("error decoding YAML file: %v", err)
-		}
-	case ".json":
-		data, err := os.ReadFile(manifestPath)
-		if err != nil {
-			return fmt.Errorf("error reading JSON file: %v", err)
-		}
-		err = json.Unmarshal(data, &config)
-		if err != nil {
-			return fmt.Errorf("error decoding JSON file: %v", err)
-		}
-	default:
-		return fmt.Errorf("unsupported file format: %s", ext)
-	}
-
-	for _, pkg := range config.Packages {
+func ProcessPackages(initConfig *types.InitConfig, osInfo types.OSInfo) error {
+	for _, pkg := range initConfig.Packages {
 		var command string
 		var elevated bool
 

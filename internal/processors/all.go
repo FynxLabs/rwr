@@ -7,46 +7,39 @@ import (
 )
 
 func All(initConfig *types.InitConfig) error {
-
 	osInfo := DetectOS()
 	var err error
 
-	// Process repositories
-	err = ProcessRepositories(initConfig.Repositories, osInfo)
+	blueprintRunOrder, err := GetBlueprintRunOrder(initConfig)
 	if err != nil {
-		return fmt.Errorf("error processing repositories: %w", err)
+		return fmt.Errorf("error getting blueprint run order: %w", err)
 	}
 
-	// Process package managers
-	err = ProcessPackageManagers(initConfig.PackageManagers, osInfo)
-	if err != nil {
-		return fmt.Errorf("error processing package managers: %w", err)
-	}
+	for _, processor := range blueprintRunOrder {
+		processorName := processor.(string)
+		switch processorName {
+		case "repositories":
+			err = ProcessRepositories(initConfig.Repositories, osInfo)
+		case "packages":
+			err = ProcessPackages(initConfig, osInfo)
+		case "files":
+			err = ProcessFiles(initConfig.Files)
+		//case "templates":
+		//	err = ProcessTemplates(initConfig.Templates)
+		//case "configuration":
+		//	err = ProcessConfigurations(initConfig.Configuration)
+		case "services":
+			err = ProcessServices(initConfig.Services, osInfo)
+		default:
+			log.Warnf("Unknown processor: %s", processorName)
+			continue
+		}
 
-	// Process packages
-	err = ProcessPackages(initConfig.Packages, osInfo)
-	if err != nil {
-		return fmt.Errorf("error processing packages: %w", err)
-	}
-
-	// Process services
-	err = ProcessServices(initConfig.Services, osInfo)
-	if err != nil {
-		return fmt.Errorf("error processing services: %w", err)
-	}
-
-	// Process files
-	err = ProcessFiles(initConfig.Files)
-	if err != nil {
-		return fmt.Errorf("error processing files: %w", err)
-	}
-
-	// Process directories
-	err = ProcessDirectories(initConfig.Directories)
-	if err != nil {
-		return fmt.Errorf("error processing directories: %w", err)
+		if err != nil {
+			return fmt.Errorf("error processing %s: %w", processorName, err)
+		}
 	}
 
 	log.Info("Initialization completed")
-
+	return nil
 }
