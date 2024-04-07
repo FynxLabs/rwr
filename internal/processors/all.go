@@ -6,13 +6,18 @@ import (
 	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-func All(initConfig *types.InitConfig) error {
+func All(initConfig *types.InitConfig, runOrder []string) error {
 	osInfo := DetectOS()
 	var err error
+	var blueprintRunOrder []string
 
-	blueprintRunOrder, err := GetBlueprintRunOrder(initConfig)
-	if err != nil {
-		return fmt.Errorf("error getting blueprint run order: %w", err)
+	if runOrder != nil {
+		blueprintRunOrder = runOrder
+	} else {
+		blueprintRunOrder, err = GetBlueprintRunOrder(initConfig)
+		if err != nil {
+			return fmt.Errorf("error getting blueprint run order: %w", err)
+		}
 	}
 
 	for _, processor := range blueprintRunOrder {

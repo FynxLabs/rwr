@@ -70,6 +70,9 @@ func GetBlueprintsLocation(update bool) (string, error) {
 }
 
 func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
+	if initConfig.Blueprint.Order == nil {
+		return []string{"repositories", "packages", "files", "services"}, nil
+	}
 	// Return the run order specified in the init.yaml/toml/json
 	return initConfig.Blueprint.Order, nil
 }
