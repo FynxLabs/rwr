@@ -3,30 +3,34 @@ package helpers
 import (
 	"github.com/charmbracelet/log"
 	"github.com/spf13/viper"
+	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-func setWindowsDetails(osInfo *OSInfo) {
+// SetWindowsDetails Sets the package manager details for Windows.
+func SetWindowsDetails(osInfo *types.OSInfo) {
 	log.Debug("Setting Windows package manager details.")
 
-	if commandExists("choco") {
+	if CommandExists("choco") {
 		log.Debug("Chocolatey detected.")
-		osInfo.PackageManager.Chocolatey = PackageManagerInfo{
+		osInfo.PackageManager.Chocolatey = types.PackageManagerInfo{
 			Bin:     "choco",
 			List:    "choco list --local-only",
 			Search:  "choco search",
 			Install: "choco install -y",
+			Update:  "choco upgrade -y all",
 			Clean:   "choco cache delete",
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Chocolatey
 	}
 
-	if commandExists("scoop") {
+	if CommandExists("scoop") {
 		log.Debug("Scoop detected.")
-		osInfo.PackageManager.Scoop = PackageManagerInfo{
+		osInfo.PackageManager.Scoop = types.PackageManagerInfo{
 			Bin:     "scoop",
 			List:    "scoop list",
 			Search:  "scoop search",
 			Install: "scoop install",
+			Update:  "scoop update",
 			Clean:   "scoop cache rm *",
 		}
 		if osInfo.PackageManager.Default.Bin == "" {

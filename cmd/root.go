@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/thefynx/rwr/internal/actions"
-	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/thefynx/rwr/internal/processors"
+	"github.com/thefynx/rwr/internal/processors/types"
 	"os"
 	"path/filepath"
 	"time"
@@ -40,20 +40,20 @@ var (
 	output           string
 	debug            bool
 	logLevel         string
-	systemInfo       *actions.InitConfig
+	systemInfo       *types.InitConfig
 	initFilePath     string
 )
 
 func initializeSystemInfo() {
 
-	blueprintsLocation, err := helpers.GetBlueprintsLocation(false)
+	blueprintsLocation, err := processors.GetBlueprintsLocation(false)
 	if err != nil {
 		log.With("err", err).Errorf("Error determining blueprints location")
 		os.Exit(1)
 	}
 
 	initFilePath := filepath.Join(blueprintsLocation, "init.yaml")
-	systemInfo, err = actions.Initialize(initFilePath)
+	systemInfo, err = processors.Initialize(initFilePath)
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
 		os.Exit(1)

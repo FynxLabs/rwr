@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"github.com/thefynx/rwr/internal/processors/types"
 	"os"
 	"strings"
 
@@ -71,7 +72,8 @@ func getPackageManagerForDistro(distro string) string {
 	return ""
 }
 
-func setLinuxDetails(osInfo *OSInfo) {
+// SetLinuxDetails sets the package manager details for the Linux distribution.
+func SetLinuxDetails(osInfo *types.OSInfo) {
 	log.Debug("Setting Linux package manager details.")
 
 	defaultPackageManager := getDefaultPackageManagerFromOSRelease()
@@ -80,8 +82,23 @@ func setLinuxDetails(osInfo *OSInfo) {
 		setPackageManagerDetails(osInfo, defaultPackageManager)
 	}
 
-	for _, pm := range []string{"apt", "dnf", "eopkg", "yay", "paru", "trizen", "yaourt", "pamac", "aura", "pacman", "zypper", "emerge", "nix", "brew"} {
-		if commandExists(pm) {
+	for _, pm := range []string{
+		"apt",
+		"dnf",
+		"eopkg",
+		"yay",
+		"paru",
+		"trizen",
+		"yaourt",
+		"pamac",
+		"aura",
+		"pacman",
+		"zypper",
+		"emerge",
+		"nix",
+		"brew",
+	} {
+		if CommandExists(pm) {
 			setPackageManagerDetails(osInfo, pm)
 		}
 	}
@@ -94,158 +111,187 @@ func setLinuxDetails(osInfo *OSInfo) {
 	}
 }
 
-func setPackageManagerDetails(osInfo *OSInfo, pm string) {
+func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 	switch pm {
 	case "apt":
-		osInfo.PackageManager.Apt = PackageManagerInfo{
-			Bin:      "apt",
-			List:     "dpkg --get-selections",
-			Search:   "apt search",
-			Install:  "apt install -y",
-			Remove:   "apt remove -y",
-			Clean:    "apt clean",
-			Elevated: true,
+		// Check if nala is installed and use it instead of apt
+		if CommandExists("nala") {
+			osInfo.PackageManager.Apt = types.PackageManagerInfo{
+				Bin:      "nala",
+				List:     "nala list --installed",
+				Search:   "nala search",
+				Install:  "nala install -y",
+				Remove:   "nala remove -y",
+				Update:   "nala update && nala upgrade -y",
+				Clean:    "nala clean",
+				Elevated: true,
+			}
+			osInfo.PackageManager.Default = osInfo.PackageManager.Apt
+		} else {
+			osInfo.PackageManager.Apt = types.PackageManagerInfo{
+				Bin:      "apt",
+				List:     "dpkg --get-selections",
+				Search:   "apt search",
+				Install:  "apt install -y",
+				Remove:   "apt remove -y",
+				Update:   "apt update && apt upgrade -y",
+				Clean:    "apt clean",
+				Elevated: true,
+			}
+			osInfo.PackageManager.Default = osInfo.PackageManager.Apt
 		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Apt
 	case "dnf":
-		osInfo.PackageManager.Dnf = PackageManagerInfo{
+		osInfo.PackageManager.Dnf = types.PackageManagerInfo{
 			Bin:      "dnf",
 			List:     "dnf list installed",
 			Search:   "dnf search",
 			Install:  "dnf install -y",
 			Remove:   "dnf remove -y",
+			Update:   "dnf update -y",
 			Clean:    "dnf clean all",
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Dnf
 	case "eopkg":
-		osInfo.PackageManager.Eopkg = PackageManagerInfo{
+		osInfo.PackageManager.Eopkg = types.PackageManagerInfo{
 			Bin:      "eopkg",
 			List:     "eopkg li",
 			Search:   "eopkg sr",
 			Install:  "eopkg it -y",
 			Remove:   "eopkg rm -y",
+			Update:   "eopkg ur",
 			Clean:    "eopkg rmo -y",
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Eopkg
 	case "yay":
-		osInfo.PackageManager.Yay = PackageManagerInfo{
+		osInfo.PackageManager.Yay = types.PackageManagerInfo{
 			Bin:      "yay",
 			List:     "yay -Q",
 			Search:   "yay -Ss",
 			Install:  "yay -S --noconfirm",
 			Remove:   "yay -R --noconfirm",
+			Update:   "yay -Syu --noconfirm",
 			Clean:    "yay -Sc --noconfirm",
 			Elevated: false,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Yay
 	case "paru":
-		osInfo.PackageManager.Paru = PackageManagerInfo{
+		osInfo.PackageManager.Paru = types.PackageManagerInfo{
 			Bin:      "paru",
 			List:     "paru -Q",
 			Search:   "paru -Ss",
 			Install:  "paru -S --noconfirm",
 			Remove:   "paru -R --noconfirm",
+			Update:   "paru -Syu --noconfirm",
 			Clean:    "paru -Sc --noconfirm",
 			Elevated: false,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Paru
 	case "trizen":
-		osInfo.PackageManager.Trizen = PackageManagerInfo{
+		osInfo.PackageManager.Trizen = types.PackageManagerInfo{
 			Bin:      "trizen",
 			List:     "trizen -Q",
 			Search:   "trizen -Ss",
 			Install:  "trizen -S --noconfirm",
 			Remove:   "trizen -R --noconfirm",
+			Update:   "trizen -Syu --noconfirm",
 			Clean:    "trizen -Sc --noconfirm",
 			Elevated: false,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Trizen
 	case "yaourt":
-		osInfo.PackageManager.Yaourt = PackageManagerInfo{
+		osInfo.PackageManager.Yaourt = types.PackageManagerInfo{
 			Bin:      "yaourt",
 			List:     "yaourt -Q",
 			Search:   "yaourt -Ss",
 			Install:  "yaourt -S --noconfirm",
 			Remove:   "yaourt -R --noconfirm",
+			Update:   "yaourt -Syu --noconfirm",
 			Clean:    "yaourt -Sc --noconfirm",
 			Elevated: false,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Yaourt
 	case "pamac":
-		osInfo.PackageManager.Pamac = PackageManagerInfo{
+		osInfo.PackageManager.Pamac = types.PackageManagerInfo{
 			Bin:      "pamac",
 			List:     "pamac list -i",
 			Search:   "pamac search",
 			Install:  "pamac install -y",
 			Remove:   "pamac remove -y",
+			Update:   "pamac update",
 			Clean:    "pamac clean -y",
 			Elevated: false,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Pamac
 	case "aura":
-		osInfo.PackageManager.Aura = PackageManagerInfo{
+		osInfo.PackageManager.Aura = types.PackageManagerInfo{
 			Bin:      "aura",
 			List:     "aura -Q",
 			Search:   "aura -Ss",
 			Install:  "aura -A --noconfirm",
 			Remove:   "aura -R --noconfirm",
+			Update:   "aura -Syu --noconfirm",
 			Clean:    "aura -Sc --noconfirm",
 			Elevated: false,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Aura
 	case "pacman":
-		osInfo.PackageManager.Pacman = PackageManagerInfo{
+		osInfo.PackageManager.Pacman = types.PackageManagerInfo{
 			Bin:      "pacman",
 			List:     "pacman -Q",
 			Search:   "pacman -Ss",
 			Install:  "pacman -Sy --noconfirm",
 			Remove:   "pacman -R --noconfirm",
+			Update:   "pacman -Syu --noconfirm",
 			Clean:    "pacman -Sc --noconfirm",
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Pacman
 	case "zypper":
-		osInfo.PackageManager.Zypper = PackageManagerInfo{
+		osInfo.PackageManager.Zypper = types.PackageManagerInfo{
 			Bin:      "zypper",
 			List:     "zypper packages --installed-only",
 			Search:   "zypper search",
 			Install:  "zypper install -y",
 			Remove:   "zypper remove -y",
+			Update:   "zypper update -y",
 			Clean:    "zypper clean",
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Zypper
 	case "emerge":
-		osInfo.PackageManager.Emerge = PackageManagerInfo{
+		osInfo.PackageManager.Emerge = types.PackageManagerInfo{
 			Bin:      "emerge",
 			List:     "qlist -I",
 			Search:   "emerge -s",
 			Install:  "emerge -qv",
 			Remove:   "emerge -C",
+			Update:   "emerge -uDN @world",
 			Clean:    "emerge --depclean",
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Emerge
 	case "nix":
-		osInfo.PackageManager.Nix = PackageManagerInfo{
+		osInfo.PackageManager.Nix = types.PackageManagerInfo{
 			Bin:      "nix-env",
 			List:     "nix-env -q",
 			Search:   "nix search",
 			Install:  "nix-env -i",
 			Remove:   "nix-env -e",
+			Update:   "nix-channel --update && nix-env -u '*'",
 			Clean:    "nix-collect-garbage -d",
 			Elevated: false,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Nix
 	case "brew":
-		osInfo.PackageManager.Brew = PackageManagerInfo{
+		osInfo.PackageManager.Brew = types.PackageManagerInfo{
 			Bin:      "brew",
 			List:     "brew list",
 			Search:   "brew search",
 			Install:  "brew install -fq",
 			Remove:   "brew uninstall -fq",
+			Update:   "brew update && brew upgrade",
 			Clean:    "brew cleanup -q",
 			Elevated: false,
 		}

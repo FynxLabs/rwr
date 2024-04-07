@@ -3,31 +3,34 @@ package helpers
 import (
 	"github.com/charmbracelet/log"
 	"github.com/spf13/viper"
+	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-// Sets the package manager details for macOS.
-func setMacOSDetails(osInfo *OSInfo) {
+// SetMacOSDetails Sets the package manager details for macOS.
+func SetMacOSDetails(osInfo *types.OSInfo) {
 	log.Debug("Setting macOS package manager details.")
 
-	if commandExists("brew") {
+	if CommandExists("brew") {
 		log.Debug("Homebrew detected.")
-		osInfo.PackageManager.Brew = PackageManagerInfo{
+		osInfo.PackageManager.Brew = types.PackageManagerInfo{
 			Bin:     "brew",
 			List:    "brew list",
 			Search:  "brew search",
 			Install: "brew install -fq",
+			Update:  "brew update && brew upgrade",
 			Clean:   "brew cleanup -q",
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Brew
 	}
 
-	if commandExists("nix-env") {
+	if CommandExists("nix-env") {
 		log.Debug("Nix detected.")
-		osInfo.PackageManager.Nix = PackageManagerInfo{
+		osInfo.PackageManager.Nix = types.PackageManagerInfo{
 			Bin:     "nix-env",
 			List:    "nix-env -q",
 			Search:  "nix search",
 			Install: "nix-env -i",
+			Update:  "nix-channel --update && nix-env -u '*'",
 			Clean:   "nix-collect-garbage -d",
 		}
 		if osInfo.PackageManager.Default.Bin == "" {
@@ -35,13 +38,14 @@ func setMacOSDetails(osInfo *OSInfo) {
 		}
 	}
 
-	if commandExists("mas") {
+	if CommandExists("mas") {
 		log.Debug("Mac App Store CLI detected.")
-		osInfo.PackageManager.MAS = PackageManagerInfo{
+		osInfo.PackageManager.MAS = types.PackageManagerInfo{
 			Bin:     "mas",
 			List:    "mas list",
 			Search:  "mas search",
 			Install: "mas install",
+			Update:  "mas upgrade",
 		}
 		if osInfo.PackageManager.Default.Bin == "" {
 			osInfo.PackageManager.Default = osInfo.PackageManager.MAS

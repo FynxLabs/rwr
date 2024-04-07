@@ -1,6 +1,8 @@
-package helpers
+package processors
 
 import (
+	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/thefynx/rwr/internal/processors/types"
 	"os/exec"
 	"runtime"
 
@@ -9,23 +11,23 @@ import (
 
 // DetectOS detects the operating system and package managers, returns an OSInfo struct.
 // Can be used to make decisions based on the user's system.
-func DetectOS() OSInfo {
+func DetectOS() types.OSInfo {
 	log.Debug("Detecting operating system.")
-	var osInfo OSInfo
+	var osInfo types.OSInfo
 
 	switch runtime.GOOS {
 	case "linux":
 		log.Debug("Linux detected.")
 		osInfo.OS = "linux"
-		setLinuxDetails(&osInfo)
+		helpers.SetLinuxDetails(&osInfo)
 	case "darwin":
 		log.Debug("macOS detected.")
 		osInfo.OS = "macos"
-		setMacOSDetails(&osInfo)
+		helpers.SetMacOSDetails(&osInfo)
 	case "windows":
 		log.Debug("Windows detected.")
 		osInfo.OS = "windows"
-		setWindowsDetails(&osInfo)
+		helpers.SetWindowsDetails(&osInfo)
 	default:
 		log.Fatal("This setup only supports macOS, Linux, and Windows.")
 	}
@@ -35,15 +37,9 @@ func DetectOS() OSInfo {
 	return osInfo
 }
 
-// Checks if a command exists in the system.
-func commandExists(cmd string) bool {
-	_, err := exec.LookPath(cmd)
-	return err == nil
-}
-
 // findCommonTools finds if the listed common tools are installed and returns their information.
-func findCommonTools() ToolList {
-	var tools ToolList
+func findCommonTools() types.ToolList {
+	var tools types.ToolList
 
 	tools.Git = findTool("git")
 	tools.Pip = findTool("pip")
@@ -66,13 +62,13 @@ func findCommonTools() ToolList {
 }
 
 // findTool checks if a tool exists and returns its information.
-func findTool(name string) ToolInfo {
+func findTool(name string) types.ToolInfo {
 	log.Debugf("Checking for %s", name)
 	path, err := exec.LookPath(name)
 	if err != nil {
 		log.Debugf("%s not found", name)
-		return ToolInfo{Exists: false}
+		return types.ToolInfo{Exists: false}
 	}
 	log.Debugf("%s found at %s", name, path)
-	return ToolInfo{Exists: true, Bin: path}
+	return types.ToolInfo{Exists: true, Bin: path}
 }

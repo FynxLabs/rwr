@@ -1,30 +1,18 @@
-package actions
+package processors
 
 import (
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/spf13/viper"
+	"github.com/thefynx/rwr/internal/processors/types"
 	"os"
 	"os/user"
 	"runtime"
 	"strings"
 )
 
-type InitConfig struct {
-	Blueprints struct {
-		Format   string   `mapstructure:"format"`
-		Location string   `mapstructure:"location"`
-		Order    []string `mapstructure:"order"`
-	} `mapstructure:"blueprints"`
-	PackageManagers []struct {
-		Name   string `mapstructure:"name"`
-		Action string `mapstructure:"action"`
-	} `mapstructure:"packageManagers"`
-	Variables map[string]interface{} `mapstructure:"variables"`
-}
-
-func Initialize(initFilePath string) (*InitConfig, error) {
-	var initConfig InitConfig
+func Initialize(initFilePath string) (*types.InitConfig, error) {
+	var initConfig types.InitConfig
 
 	viper.SetConfigFile(initFilePath)
 
@@ -94,10 +82,11 @@ func Initialize(initFilePath string) (*InitConfig, error) {
 	for _, key := range viper.AllKeys() {
 		value := viper.GetString(key)
 		envKey := fmt.Sprintf("RWR_VAR_%s", strings.ToUpper(strings.ReplaceAll(key, ".", "_")))
-		os.Setenv(envKey, value)
+		err := os.Setenv(envKey, value)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	log.Info("Initialization completed")
 
 	return &initConfig, nil
 }

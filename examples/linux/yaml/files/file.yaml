@@ -2,6 +2,7 @@
 # - copy
 # - move
 # - delete
+# - create (directory or touch file)
 # - chmod
 # - chown
 # - chgrp
@@ -10,84 +11,100 @@
 files:
   - name: file.txt
     action: copy
-    source: source/path/
-    to: path/to/copy/
+    source: ./src # This is the default source path
+    target: /path/to/copy/ # File Name is expected be in this directory path
     owner: root
     group: root
     mode: 755
-    create: true
+    create: true # Creates path, like mkdir -p if the entire path doesn't exist
   - names: [file.txt, file2.txt]
     action: copy
-    source: [path/to/copy/, path/to/copy/other/]
-    target: path/to/copy/
-    create: true
+    source: ./src # This is the default source path
+    owner: root
+    group: root
+    mode: 755
+    target: /path/to/copy/ # File Name is expected be in this directory path
+    create: true # Creates path, like mkdir -p if the entire path doesn't exist
   - name: file.txt
     action: move
     source: source/path/
-    target: path/to/copy/
-    create: true
+    target: /path/to/move/ # File Name is expected be in this directory path
+    create: true # Creates path, like mkdir -p if the entire path doesn't exist
   - name: file.txt
     action: delete
-    source: path/to/copy/
+    target: /path/to/file/ # File Name is expected be in this directory path
+  - name: * # This will delete all files in the target directory
+    action: delete
+    target: /path/to/file/ # File Name is expected be in this directory path
   - name: file.txt
-    source: path/to/copy/
-    create: true
+    action: create # Creates a file if it doesn't exist, like touch file
+    target: /path/to/create/ # Creates path, like mkdir -p if the entire path doesn't exist
   - name: file.txt
     action: chmod
     mode: 755
-    source: path/to/copy/
+    target: /path/to/file/ # File Name is expected be in this directory path
   - name: file.txt
     action: chown
     owner: root
-    source: path/to/copy/
+    target: /path/to/file/ # File Name is expected be in this directory path
   - name: file.txt
     action: chgrp
     group: root
-    source: path/to/copy/
-    # Symlink needs to have option to symlink to a different name
+    target: /path/to/file/ # File Name is expected be in this directory path
   - name: file.txt
     action: symlink
-    source: path/to/copy/
-    target: path/to/copy/file.txt
+    source: ./src # This is the default source path
+    target: /path/to/copy/file.txt # Symlink to the same name just in a different directory
+  - name: file.txt
+    action: symlink
+    source: ./src # This is the default source path
+    target: /path/to/copy/file2.txt # Symlink to a different name
 
 directories:
-  - name: path/to/copy/directory
+  - name: directory/
     action: copy
-    source: source/path/
-    target: path/to/copy/
-    create: true
-  - name: path/to/copy/directory
+    owner: root
+    group: root
+    mode: 755
+    source: ./src # This is the default source path
+    target: /path/to/copy/  # Directory Name is expected be in this directory path
+    create: true # Creates path, like mkdir -p if the entire path doesn't exist
+  - name: directory/
+    action: create
+    owner: root
+    group: root
+    mode: 755
+    target: /path/to/create/directory/
+  - names: [directory01/, /directory02]
+    action: copy
+    owner: root
+    group: root
+    mode: 755
+    source: ./src # This is the default source path
+    target: /path/to/copy/directory/ # Directory Name is expected be in this directory path
+    create: true # Creates path, like mkdir -p if the entire path doesn't exist
+  - name: directory/
     action: move
-    source: source/path/
-    target: path/to/copy/
-    create: true
-  - name: path/to/copy/directory
+    source: ./src # This is the default source path
+    target: /path/to/move/directory/ # Directory Name is expected be in this directory path
+    create: true # Creates path, like mkdir -p if the entire path doesn't exist
+  - name: directory
     action: chmod
     mode: 755
-    source: path/to/copy/
-  - name: path/to/copy/directory
+    target: /path/to/directory/ # Directory Name is expected be in this directory path
+  - name: directory
     action: chown
     owner: root
-    source: path/to/copy/
-  - name: path/to/copy/directory
+    target: /path/to/directory/ # Directory Name is expected be in this directory path
+  - name: directory
     action: chgrp
     group: root
-    source: path/to/copy/
-  - name: path/to/copy/directory
+    target: /path/to/directory/ # Directory Name is expected be in this directory path
+  - name: directory
     action: symlink
-    source: path/to/copy/
-    target: path/to/copy/directory
-  - name: path/to/copy/directory
+    target: /path/to/directory/ # Directory Name is expected be in this directory path
+  - name: directory
     action: delete
-    source: path/to/copy/
-  - name: path/to/copy/directory
-    source: path/to/copy/
-    create: true
-  - names: [path/to/copy/directory, path/to/copy/other/directory]
-    action: copy
-    owner: root
-    group: root
-    mode: 755
-    source: source/path/
-    target: path/to/copy/
-    create: true
+  - name: directory
+    action: create
+    target: /path/to/directory/ # Directory Name is expected be in this directory path

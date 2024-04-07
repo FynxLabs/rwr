@@ -13,12 +13,25 @@ import (
 func CreateDefaultConfig() error {
 	reader := bufio.NewReader(os.Stdin)
 
-	// Specify and set the output file path for the configuration file
-	homeDir, err := os.UserHomeDir()
+	// Get the configuration directory from viper
+	configDir := viper.GetString("rwr.configdir")
+	if configDir == "" {
+		// If not set, use the default path
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		configDir = filepath.Join(homeDir, ".config", "rwr")
+	}
+
+	// Create the configuration directory if it doesn't exist
+	err := os.MkdirAll(configDir, os.ModePerm)
 	if err != nil {
 		return err
 	}
-	configFilePath := filepath.Join(homeDir, ".rwr.yaml")
+
+	// Set the configuration file path
+	configFilePath := filepath.Join(configDir, "config.yaml")
 	viper.SetConfigFile(configFilePath)
 
 	// Prompt for GitHub API Token
@@ -95,7 +108,7 @@ func CreateDefaultConfig() error {
 	fmt.Println("Repository Configuration:")
 
 	// Prompt for Blueprints Local Path
-	defaultLocalPath := filepath.Join(homeDir, ".config", "rwr", "blueprints")
+	defaultLocalPath := filepath.Join(configDir, "blueprints")
 	fmt.Printf("Enter the local path for blueprints (press enter to keep default) [%s]: ", defaultLocalPath)
 	localPathInput, _ := reader.ReadString('\n')
 	localPathInput = strings.TrimSpace(localPathInput)

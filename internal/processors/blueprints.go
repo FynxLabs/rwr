@@ -1,8 +1,9 @@
-package helpers
+package processors
 
 import (
 	"errors"
 	"fmt"
+	"github.com/thefynx/rwr/internal/processors/types"
 	"os"
 	"path/filepath"
 
@@ -66,4 +67,20 @@ func GetBlueprintsLocation(update bool) (string, error) {
 
 	log.Infof("Using init file: %s", initFilePath)
 	return localPath, nil
+}
+
+func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
+	// Return the run order specified in the init.yaml/toml/json
+	return initConfig.Blueprints.Order, nil
+}
+
+func GetBlueprintFileOrder(blueprintDir string, order []string) ([]string, error) {
+	// Return the order of blueprint files based on the specified order
+	// If no order is specified, return the default order
+	if len(order) == 0 {
+		// Return default order
+		return []string{"bootstrap", "packages", "configuration", "services"}, nil
+	}
+	// Return specified order
+	return order, nil
 }

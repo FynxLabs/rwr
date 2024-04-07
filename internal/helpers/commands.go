@@ -60,3 +60,9 @@ func RunCommand(command string, args ...string) error {
 
 	return nil
 }
+
+// CommandExists Checks if a command exists in the system.
+func CommandExists(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
+}

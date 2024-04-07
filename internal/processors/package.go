@@ -1,9 +1,10 @@
-package actions
+package processors
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/thefynx/rwr/internal/processors/types"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
@@ -11,20 +12,8 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-type Package struct {
-	Name           string   `toml:"name" yaml:"name" json:"name"`
-	Elevated       bool     `toml:"elevated" yaml:"elevated" json:"elevated"`
-	Action         string   `toml:"action" yaml:"action" json:"action"`
-	PackageManager string   `toml:"package_manager" yaml:"package_manager" json:"package_manager"`
-	Names          []string `toml:"names" yaml:"names" json:"names"`
-}
-
-type Config struct {
-	Packages []Package `toml:"packages" yaml:"packages" json:"packages"`
-}
-
-func ProcessPackages(manifestPath string, osInfo helpers.OSInfo) error {
-	var config Config
+func ProcessPackages(manifestPath string, osInfo types.OSInfo) error {
+	var config types.Config
 
 	ext := filepath.Ext(manifestPath)
 	switch ext {

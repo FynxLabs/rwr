@@ -1,0 +1,70 @@
+repositories:
+  - name: google-chrome
+    package_manager: apt
+    action: add
+    url: http://dl.google.com/linux/chrome/deb/
+    arch: amd64
+    key_url: https://dl.google.com/linux/linux_signing_key.pub
+    channel: stable
+    component: main
+  - name: cask
+    package_manager: brew
+    action: add
+    repository: homebrew/cask
+  - name: docker
+    package_manager: dnf
+    action: add
+    repository: https://download.docker.com/linux/fedora/docker-ce.repo
+    key_url: https://download.docker.com/linux/fedora/gpg
+#  - name: docker
+#    package_manager: apt
+#    action: add
+#    repository: "https://download.docker.com/linux/ubuntu"
+#    key: "https://download.docker.com/linux/ubuntu/gpg"
+#  - name: docker
+#    package_manager: dnf
+#    action: add
+#    repository: "https://download.docker.com/linux/fedora/docker-ce.repo"
+#    key: "https://download.docker.com/linux/fedora/gpg"
+#  - name: docker
+#    package_manager: yum
+#    action: add
+#    repository: "https://download.docker.com/linux/centos/docker-ce.repo"
+#    key: "https://download.docker.com/linux/centos/gpg"
+#  - name: docker
+#    package_manager: zypper
+#    action: add
+#    repository: "https://download.docker.com/linux/opensuse/leap/docker-ce.repo"
+#    key: "https://download.docker.com/linux/opensuse/gpg"
+#  - name: testing
+#    package_manager: apk
+#    action: add
+#    repository: "http://dl-cdn.alpinelinux.org/alpine/edge/testing"
+#  - name: community
+#    package_manager: pacman
+#    action: add
+#    repository: "http://archlinux.org/repo/community/os/x86_64"
+#  - name: extras
+#    package_manager: scoop
+#    action: add
+#    repository: "extras"
+#  - name: chocolatey-core
+#    package_manager: choco
+#    action: add
+#    repository: "https://chocolatey.org/api/v2/"
+#  - name: npmjs
+#    package_manager: npm
+#    action: add
+#    repository: "https://registry.npmjs.org/"
+#  - name: pypi
+#    package_manager: pip
+#    action: add
+#    repository: "https://pypi.org/simple"
+#  - name: rubygems
+#    package_manager: gem
+#    action: add
+#    repository: "https://rubygems.org/"
+#  - name: crates
+#    package_manager: cargo
+#    action: add
+#    repository: "https://crates.io/"

@@ -1,7 +1,7 @@
 services:
   - name: service1
     action: enable
-    elevated: true
+    elevated: true # Requires elevated permissions/sudo/administrator
   - name: service2
     action: disable
     elevated: true
@@ -19,4 +19,32 @@ services:
     elevated: true
   - name: service7
     action: status
-    elevated: false
+    elevated: false # Does not require elevated permissions/sudo/administrator
+  - name: service8
+    action: start
+    elevated: false # Does not require elevated permissions/sudo/administrator, runs service as user if possible
+  - name: service9
+    action: create
+    elevated: true
+    target: /etc/systemd/system/service9.service # Destination path
+    content: |
+        [Unit]
+        Description=Service 9
+        After=network.target
+  
+        [Service]
+        Type=simple
+        ExecStart=/usr/bin/sleep 10
+        Restart=always
+  
+        [Install]
+        WantedBy=multi-user.target
+  - name: service10
+    action: delete
+    elevated: true
+    file: /etc/systemd/system/service10.service
+  - name: service11
+    action: create
+    elevated: true
+    source: ./src/service11.service # Copy file from source to destination, source is relative to the yaml file in this case
+    target: /etc/systemd/system/service11.service # Destination path
