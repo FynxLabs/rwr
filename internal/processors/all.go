@@ -16,12 +16,12 @@ func All(initConfig *types.InitConfig) error {
 	}
 
 	for _, processor := range blueprintRunOrder {
-		processorName := processor.(string)
+		processorName := processor
 		switch processorName {
 		case "repositories":
 			err = ProcessRepositories(initConfig.Repositories, osInfo)
 		case "packages":
-			err = ProcessPackages(initConfig, osInfo)
+			err = ProcessPackages(initConfig.Packages, osInfo)
 		case "files":
 			err = ProcessFiles(initConfig.Files)
 		//case "templates":

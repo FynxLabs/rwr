@@ -69,7 +69,7 @@ func GetBlueprintsLocation(update bool) (string, error) {
 	return localPath, nil
 }
 
-func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]map[string]interface{}, error) {
+func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 	// Return the run order specified in the init.yaml/toml/json
 	return initConfig.Blueprint.Order, nil
 }

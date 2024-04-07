@@ -6,8 +6,8 @@ import (
 	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-func ProcessPackages(initConfig *types.InitConfig, osInfo types.OSInfo) error {
-	for _, pkg := range initConfig.Packages {
+func ProcessPackages(packages []types.Package, osInfo types.OSInfo) error {
+	for _, pkg := range packages {
 		var command string
 		var elevated bool
 
