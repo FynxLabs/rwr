@@ -8,6 +8,39 @@ import (
 	"path/filepath"
 )
 
+func ProcessRepositoriesFromFile(blueprintFile string, osInfo types.OSInfo) error {
+	var repositories []types.Repository
+
+	// Read the blueprint file based on the file format
+	switch filepath.Ext(blueprintFile) {
+	case ".yaml", ".yml":
+		err := helpers.ReadYAMLFile(blueprintFile, &repositories)
+		if err != nil {
+			return fmt.Errorf("error reading repository blueprint file: %w", err)
+		}
+	case ".json":
+		err := helpers.ReadJSONFile(blueprintFile, &repositories)
+		if err != nil {
+			return fmt.Errorf("error reading repository blueprint file: %w", err)
+		}
+	case ".toml":
+		err := helpers.ReadTOMLFile(blueprintFile, &repositories)
+		if err != nil {
+			return fmt.Errorf("error reading repository blueprint file: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported blueprint file format: %s", filepath.Ext(blueprintFile))
+	}
+
+	// Process the repositories
+	err := ProcessRepositories(repositories, osInfo)
+	if err != nil {
+		return fmt.Errorf("error processing repositories: %w", err)
+	}
+
+	return nil
+}
+
 func ProcessRepositories(repositories []types.Repository, osInfo types.OSInfo) error {
 	for _, repo := range repositories {
 		switch repo.PackageManager {

@@ -10,6 +10,64 @@ import (
 	"github.com/thefynx/rwr/internal/processors/types"
 )
 
+func ProcessFilesFromFile(blueprintFile string) error {
+	var files []types.File
+	var directories []types.Directory
+
+	// Read the blueprint file based on the file format
+	switch filepath.Ext(blueprintFile) {
+	case ".yaml", ".yml":
+		var data struct {
+			Files       []types.File      `yaml:"files"`
+			Directories []types.Directory `yaml:"directories"`
+		}
+		err := helpers.ReadYAMLFile(blueprintFile, &data)
+		if err != nil {
+			return fmt.Errorf("error reading file blueprint file: %w", err)
+		}
+		files = data.Files
+		directories = data.Directories
+	case ".json":
+		var data struct {
+			Files       []types.File      `json:"files"`
+			Directories []types.Directory `json:"directories"`
+		}
+		err := helpers.ReadJSONFile(blueprintFile, &data)
+		if err != nil {
+			return fmt.Errorf("error reading file blueprint file: %w", err)
+		}
+		files = data.Files
+		directories = data.Directories
+	case ".toml":
+		var data struct {
+			Files       []types.File      `toml:"files"`
+			Directories []types.Directory `toml:"directories"`
+		}
+		err := helpers.ReadTOMLFile(blueprintFile, &data)
+		if err != nil {
+			return fmt.Errorf("error reading file blueprint file: %w", err)
+		}
+		files = data.Files
+		directories = data.Directories
+	default:
+		return fmt.Errorf("unsupported blueprint file format: %s", filepath.Ext(blueprintFile))
+	}
+
+	// Process the files
+	err := ProcessFiles(files)
+	if err != nil {
+		return fmt.Errorf("error processing files: %w", err)
+	}
+
+	// Process the directories
+	err = ProcessDirectories(directories)
+	if err != nil {
+		return fmt.Errorf("error processing directories: %w", err)
+	}
+
+	return nil
+}
+
 func ProcessFiles(files []types.File) error {
 	for _, file := range files {
 		switch file.Action {

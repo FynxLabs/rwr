@@ -2,22 +2,24 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/charmbracelet/log"
+	"github.com/thefynx/rwr/internal/processors"
+	"os"
 
 	"github.com/spf13/cobra"
 )
 
-// validateCmd represents the validate command
+// validateCmd validates the RWR Blueprints
 var validateCmd = &cobra.Command{
 	Use:   "validate",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Validate the RWR Blueprints",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("validate called")
+		err := processors.ValidateBlueprints(systemInfo)
+		if err != nil {
+			log.With("err", err).Errorf("Error validating blueprints")
+			os.Exit(1)
+		}
+		fmt.Println("Blueprints validated successfully")
 	},
 }
 

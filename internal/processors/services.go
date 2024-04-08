@@ -3,6 +3,7 @@ package processors
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/charmbracelet/log"
@@ -10,7 +11,40 @@ import (
 	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-func ProcessServices(services []types.Service, osInfo types.OSInfo) error {
+func ProcessServicesFromFile(blueprintFile string) error {
+	var services []types.Service
+
+	// Read the blueprint file based on the file format
+	switch filepath.Ext(blueprintFile) {
+	case ".yaml", ".yml":
+		err := helpers.ReadYAMLFile(blueprintFile, &services)
+		if err != nil {
+			return fmt.Errorf("error reading service blueprint file: %w", err)
+		}
+	case ".json":
+		err := helpers.ReadJSONFile(blueprintFile, &services)
+		if err != nil {
+			return fmt.Errorf("error reading service blueprint file: %w", err)
+		}
+	case ".toml":
+		err := helpers.ReadTOMLFile(blueprintFile, &services)
+		if err != nil {
+			return fmt.Errorf("error reading service blueprint file: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported blueprint file format: %s", filepath.Ext(blueprintFile))
+	}
+
+	// Process the services
+	err := ProcessServices(services)
+	if err != nil {
+		return fmt.Errorf("error processing services: %w", err)
+	}
+
+	return nil
+}
+
+func ProcessServices(services []types.Service) error {
 	for _, service := range services {
 		switch runtime.GOOS {
 		case "linux":

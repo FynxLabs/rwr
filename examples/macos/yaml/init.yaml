@@ -1,9 +1,9 @@
 # Set Blueprints format to expect and order of execution
 blueprints:
   # Set format to use for blueprints, default is yaml
-  format: yaml
+  format: yaml # can be json, yaml, or toml - but lets code know that files in this blueprint setup are in yaml format
   # Set location to look for blueprints, default is current directory
-  location: .
+  location: . # Default location is current directory, but can be set to any directory - lets code know where to look for blueprints
   # Set order of execution for blueprints, by directory or file
   ## Default order of processors is:
     ## - blueprints - Cannot be changed
@@ -41,7 +41,8 @@ packageManagers:
   - name: brew
     action: install
 
-# Set Variables to reference anywhere
+# Set Variables to reference anywhere - these are just examples but can be used in any blueprint or template
+# there is no limit to the number of variables that can be set
 variables:
   userEmail: "john.doe@domain.com"
   userName: "John Doe"

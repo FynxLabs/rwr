@@ -3,6 +3,7 @@ package processors
 import (
 	"errors"
 	"fmt"
+	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/processors/types"
 	"os"
 	"path/filepath"
@@ -70,14 +71,20 @@ func GetBlueprintsLocation(update bool) (string, error) {
 }
 
 func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
-	if initConfig.Blueprint.Order == nil {
-		return []string{"repositories", "packages", "files", "services"}, nil
+	var runOrder []string
+	for _, item := range initConfig.Blueprint.Order {
+		if str, ok := item.(string); ok {
+			runOrder = append(runOrder, str)
+		} else if subOrder, ok := item.(map[string]interface{}); ok {
+			for processor := range subOrder {
+				runOrder = append(runOrder, processor)
+			}
+		}
 	}
-	// Return the run order specified in the init.yaml/toml/json
-	return initConfig.Blueprint.Order, nil
+	return runOrder, nil
 }
 
-func GetBlueprintFileOrder(blueprintDir string, order []interface{}) ([]string, error) {
+func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyListed bool, initConfig *types.InitConfig) ([]string, error) {
 	var fileOrder []string
 	for _, item := range order {
 		if str, ok := item.(string); ok {
@@ -94,5 +101,28 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}) ([]string, 
 			}
 		}
 	}
+
+	if !runOnlyListed {
+		// Add remaining files in the blueprint directories if runOnlyListed is false
+		err := filepath.Walk(blueprintDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Blueprint.Format {
+				relPath, err := filepath.Rel(blueprintDir, path)
+				if err != nil {
+					return err
+				}
+				if !helpers.Contains(fileOrder, relPath) {
+					fileOrder = append(fileOrder, relPath)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return fileOrder, nil
 }

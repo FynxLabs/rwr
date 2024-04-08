@@ -35,9 +35,6 @@ var rootCmd = &cobra.Command{
 var (
 	ghApiToken       string // Global variable for API Key
 	skipVersionCheck bool
-	highlight        bool // Initially set to true by default.
-	noHighlight      bool // Used to explicitly disable highlighting.
-	output           string
 	debug            bool
 	logLevel         string
 	systemInfo       *types.InitConfig
@@ -45,14 +42,18 @@ var (
 )
 
 func initializeSystemInfo() {
+	var err error
 
-	blueprintsLocation, err := processors.GetBlueprintsLocation(false)
-	if err != nil {
-		log.With("err", err).Errorf("Error determining blueprints location")
-		os.Exit(1)
+	// Initialize the system information
+	if initFilePath == "" {
+		log.Debugf("No init file path specified. Using default path")
+		initFilePath, err = processors.GetBlueprintsLocation(false)
+		if err != nil {
+			log.With("err", err).Errorf("Error determining blueprints location")
+			os.Exit(1)
+		}
 	}
 
-	initFilePath := filepath.Join(blueprintsLocation, "init.yaml")
 	systemInfo, err = processors.Initialize(initFilePath)
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
@@ -74,7 +75,7 @@ func init() {
 	viper.SetDefault("log.level", "info") // Default log level
 
 	// Adjusting API key flag
-	rootCmd.PersistentFlags().StringVar(&ghApiToken, "api-key", "", "Github's API Key (stored under repository.gh_api_token)")
+	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-api-key", "", "Github's API Key (stored under repository.gh_api_token)")
 	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("api-key"))
 	if err != nil {
 		return
@@ -87,31 +88,12 @@ func init() {
 		return
 	}
 
-	// Adding highlight as a global flag
-	rootCmd.PersistentFlags().BoolVar(&highlight, "highlight", true, "Highlight output for readability")
-	// Introducing no-highlight as a global flag
-	rootCmd.PersistentFlags().BoolVar(&noHighlight, "no-highlight", false, "Disable output highlighting")
-
-	// Upon flag parsing, check if no-highlight was specified and override highlight value
-	cobra.OnInitialize(func() {
-		if noHighlight {
-			highlight = false
-		}
-	})
-
-	err = viper.BindPFlag("rwr.highlight", rootCmd.PersistentFlags().Lookup("highlight"))
-	if err != nil {
-		return
-	}
-
-	rootCmd.PersistentFlags().StringVar(&output, "output", "json", "Set the output format for rwr")
-	err = viper.BindPFlag("rwr.output", rootCmd.PersistentFlags().Lookup("output"))
-	if err != nil {
-		return
-	}
-
 	// Flag for the init.yaml file path
-	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "./init.yaml", "Path to the init.yaml file")
+	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init.yaml file")
+	err = viper.BindPFlag("rwr.init-file", rootCmd.PersistentFlags().Lookup("init-file"))
+	if err != nil {
+		return
+	}
 
 	viper.SetEnvPrefix("RWR")
 	viper.AutomaticEnv()
