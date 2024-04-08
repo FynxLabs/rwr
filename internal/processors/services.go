@@ -14,29 +14,38 @@ import (
 func ProcessServicesFromFile(blueprintFile string) error {
 	var services []types.Service
 
-	// Read the blueprint file based on the file format
-	switch filepath.Ext(blueprintFile) {
-	case ".yaml", ".yml":
-		err := helpers.ReadYAMLFile(blueprintFile, &services)
-		if err != nil {
-			return fmt.Errorf("error reading service blueprint file: %w", err)
-		}
-	case ".json":
-		err := helpers.ReadJSONFile(blueprintFile, &services)
-		if err != nil {
-			return fmt.Errorf("error reading service blueprint file: %w", err)
-		}
-	case ".toml":
-		err := helpers.ReadTOMLFile(blueprintFile, &services)
-		if err != nil {
-			return fmt.Errorf("error reading service blueprint file: %w", err)
-		}
-	default:
-		return fmt.Errorf("unsupported blueprint file format: %s", filepath.Ext(blueprintFile))
+	// Read the blueprint file
+	blueprintData, err := os.ReadFile(blueprintFile)
+	if err != nil {
+		return fmt.Errorf("error reading blueprint file: %w", err)
+	}
+
+	// Unmarshal the blueprint data
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &services)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling service blueprint: %w", err)
 	}
 
 	// Process the services
-	err := ProcessServices(services)
+	err = ProcessServices(services)
+	if err != nil {
+		return fmt.Errorf("error processing services: %w", err)
+	}
+
+	return nil
+}
+
+func ProcessServicesFromData(blueprintData []byte, initConfig *types.InitConfig) error {
+	var services []types.Service
+
+	// Unmarshal the resolved blueprint data
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &services)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling service blueprint data: %w", err)
+	}
+
+	// Process the services
+	err = ProcessServices(services)
 	if err != nil {
 		return fmt.Errorf("error processing services: %w", err)
 	}

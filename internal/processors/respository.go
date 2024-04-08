@@ -11,29 +11,38 @@ import (
 func ProcessRepositoriesFromFile(blueprintFile string, osInfo types.OSInfo) error {
 	var repositories []types.Repository
 
-	// Read the blueprint file based on the file format
-	switch filepath.Ext(blueprintFile) {
-	case ".yaml", ".yml":
-		err := helpers.ReadYAMLFile(blueprintFile, &repositories)
-		if err != nil {
-			return fmt.Errorf("error reading repository blueprint file: %w", err)
-		}
-	case ".json":
-		err := helpers.ReadJSONFile(blueprintFile, &repositories)
-		if err != nil {
-			return fmt.Errorf("error reading repository blueprint file: %w", err)
-		}
-	case ".toml":
-		err := helpers.ReadTOMLFile(blueprintFile, &repositories)
-		if err != nil {
-			return fmt.Errorf("error reading repository blueprint file: %w", err)
-		}
-	default:
-		return fmt.Errorf("unsupported blueprint file format: %s", filepath.Ext(blueprintFile))
+	// Read the blueprint file
+	blueprintData, err := os.ReadFile(blueprintFile)
+	if err != nil {
+		return fmt.Errorf("error reading blueprint file: %w", err)
+	}
+
+	// Unmarshal the blueprint data
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &repositories)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling repository blueprint: %w", err)
 	}
 
 	// Process the repositories
-	err := ProcessRepositories(repositories, osInfo)
+	err = ProcessRepositories(repositories, osInfo)
+	if err != nil {
+		return fmt.Errorf("error processing repositories: %w", err)
+	}
+
+	return nil
+}
+
+func ProcessRepositoriesFromData(blueprintData []byte, initConfig *types.InitConfig, osInfo types.OSInfo) error {
+	var repositories []types.Repository
+
+	// Unmarshal the resolved blueprint data
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &repositories)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling repository blueprint data: %w", err)
+	}
+
+	// Process the repositories
+	err = ProcessRepositories(repositories, osInfo)
 	if err != nil {
 		return fmt.Errorf("error processing repositories: %w", err)
 	}
@@ -49,27 +58,27 @@ func ProcessRepositories(repositories []types.Repository, osInfo types.OSInfo) e
 				return err
 			}
 		case "brew":
-			if err := processBrewRepository(repo, osInfo); err != nil {
+			if err := processBrewRepository(repo); err != nil {
 				return err
 			}
 		case "dnf", "yum":
-			if err := processDnfYumRepository(repo, osInfo); err != nil {
+			if err := processDnfYumRepository(repo); err != nil {
 				return err
 			}
 		case "zypper":
-			if err := processZypperRepository(repo, osInfo); err != nil {
+			if err := processZypperRepository(repo); err != nil {
 				return err
 			}
 		case "pacman":
-			if err := processPacmanRepository(repo, osInfo); err != nil {
+			if err := processPacmanRepository(repo); err != nil {
 				return err
 			}
 		case "choco":
-			if err := processChocoRepository(repo, osInfo); err != nil {
+			if err := processChocoRepository(repo); err != nil {
 				return err
 			}
 		case "scoop":
-			if err := processScoopRepository(repo, osInfo); err != nil {
+			if err := processScoopRepository(repo); err != nil {
 				return err
 			}
 		default:
@@ -122,7 +131,7 @@ func processAptRepository(repo types.Repository, osInfo types.OSInfo) error {
 	return nil
 }
 
-func processBrewRepository(repo types.Repository, osInfo types.OSInfo) error {
+func processBrewRepository(repo types.Repository) error {
 	if repo.Action == "add" {
 		if err := helpers.RunCommand("brew", "tap", repo.Repository); err != nil {
 			return fmt.Errorf("error adding Homebrew repository: %v", err)
@@ -135,7 +144,7 @@ func processBrewRepository(repo types.Repository, osInfo types.OSInfo) error {
 	return nil
 }
 
-func processDnfYumRepository(repo types.Repository, osInfo types.OSInfo) error {
+func processDnfYumRepository(repo types.Repository) error {
 	if repo.Action == "add" {
 		// Download the repository file
 		repoFile := filepath.Join("/etc/yum.repos.d", repo.Name+".repo")
@@ -157,7 +166,7 @@ func processDnfYumRepository(repo types.Repository, osInfo types.OSInfo) error {
 	return nil
 }
 
-func processZypperRepository(repo types.Repository, osInfo types.OSInfo) error {
+func processZypperRepository(repo types.Repository) error {
 	if repo.Action == "add" {
 		// Add the repository
 		if err := helpers.RunCommand("zypper", "addrepo", repo.URL, repo.Name); err != nil {
@@ -177,7 +186,7 @@ func processZypperRepository(repo types.Repository, osInfo types.OSInfo) error {
 	return nil
 }
 
-func processPacmanRepository(repo types.Repository, osInfo types.OSInfo) error {
+func processPacmanRepository(repo types.Repository) error {
 	pacmanConf := "/etc/pacman.conf"
 
 	if repo.Action == "add" {
@@ -200,7 +209,7 @@ func processPacmanRepository(repo types.Repository, osInfo types.OSInfo) error {
 	return nil
 }
 
-func processChocoRepository(repo types.Repository, osInfo types.OSInfo) error {
+func processChocoRepository(repo types.Repository) error {
 	if repo.Action == "add" {
 		// Add the Chocolatey repository
 		if err := helpers.RunCommand("choco", "source", "add", "--name", repo.Name, "--source", repo.URL); err != nil {
@@ -215,7 +224,7 @@ func processChocoRepository(repo types.Repository, osInfo types.OSInfo) error {
 	return nil
 }
 
-func processScoopRepository(repo types.Repository, osInfo types.OSInfo) error {
+func processScoopRepository(repo types.Repository) error {
 	if repo.Action == "add" {
 		// Add the Scoop bucket
 		if err := helpers.RunCommand("scoop", "bucket", "add", repo.Name, repo.URL); err != nil {

@@ -67,7 +67,14 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
 
-	err := viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
+	// Flag for the init.yaml file path
+	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init.yaml file")
+	err := viper.BindPFlag("rwr.init-file", rootCmd.PersistentFlags().Lookup("init-file"))
+	if err != nil {
+		return
+	}
+
+	err = viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
 	if err != nil {
 		return
 	}
@@ -84,13 +91,6 @@ func init() {
 	// Adding skipVersionCheck as a global flag
 	rootCmd.PersistentFlags().BoolVar(&skipVersionCheck, "skip-version-check", false, "Skip checking for the latest version of rwr")
 	err = viper.BindPFlag("rwr.skipVersionCheck", rootCmd.PersistentFlags().Lookup("skip-version-check"))
-	if err != nil {
-		return
-	}
-
-	// Flag for the init.yaml file path
-	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init.yaml file")
-	err = viper.BindPFlag("rwr.init-file", rootCmd.PersistentFlags().Lookup("init-file"))
 	if err != nil {
 		return
 	}

@@ -4,31 +4,23 @@ import (
 	"fmt"
 	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/processors/types"
+	"os"
 	"path/filepath"
 )
 
 func ProcessPackagesFromFile(blueprintFile string, osInfo types.OSInfo) error {
 	var packages []types.Package
 
-	// Read the blueprint file based on the file format
-	switch filepath.Ext(blueprintFile) {
-	case ".yaml", ".yml":
-		err := helpers.ReadYAMLFile(blueprintFile, &packages)
-		if err != nil {
-			return fmt.Errorf("error reading package blueprint file: %w", err)
-		}
-	case ".json":
-		err := helpers.ReadJSONFile(blueprintFile, &packages)
-		if err != nil {
-			return fmt.Errorf("error reading package blueprint file: %w", err)
-		}
-	case ".toml":
-		err := helpers.ReadTOMLFile(blueprintFile, &packages)
-		if err != nil {
-			return fmt.Errorf("error reading package blueprint file: %w", err)
-		}
-	default:
-		return fmt.Errorf("unsupported blueprint file format: %s", filepath.Ext(blueprintFile))
+	// Read the blueprint file
+	blueprintData, err := os.ReadFile(blueprintFile)
+	if err != nil {
+		return fmt.Errorf("error reading blueprint file: %w", err)
+	}
+
+	// Unmarshal the blueprint data
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &packages)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling package blueprint: %w", err)
 	}
 
 	// Install the packages
@@ -42,6 +34,25 @@ func ProcessPackagesFromFile(blueprintFile string, osInfo types.OSInfo) error {
 	return nil
 }
 
+func ProcessPackagesFromData(blueprintData []byte, initConfig *types.InitConfig, osInfo types.OSInfo) error {
+	var packages []types.Package
+
+	// Unmarshal the resolved blueprint data
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &packages)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling package blueprint data: %w", err)
+	}
+
+	// Install the packages
+	for _, pkg := range packages {
+		err := InstallPackage(pkg, osInfo)
+		if err != nil {
+			return fmt.Errorf("error installing package %s: %w", pkg.Name, err)
+		}
+	}
+
+	return nil
+}
 func InstallPackage(pkg types.Package, osInfo types.OSInfo) error {
 	var command string
 	var elevated bool
