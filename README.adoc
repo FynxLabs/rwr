@@ -51,7 +51,7 @@ RWR provides the following commands:
 - `rwr config`: Manage RWR configuration settings.
   - `rwr config init`: Initialize the RWR configuration.
 - `rwr sync`: Synchronize the blueprints repository.
-- `rwr init`: Initialize the system based on the blueprints.
+- `rwr all`: Initialize the system by running all blueprints.
 - `rwr run`: Run individual processors.
   - `rwr run package`: Run the package processor.
   - `rwr run repository`: Run the repository processor.
