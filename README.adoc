@@ -7,7 +7,9 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 - *Blueprint-based Configuration*: RWR uses configuration files called blueprints (similar to Chef cookbooks or Ansible playbooks) to define and manage your system's configuration.
 - *Multi-format Support*: Blueprints can be written in YAML, JSON, or TOML format, providing flexibility and compatibility with your preferred configuration format.
 - *Package Management*: RWR integrates with various package managers, allowing you to easily install, remove, and manage packages across different Linux distributions.
-- *File Synchronization*: Keep your important files in sync across multiple machines using RWR's file synchronization feature. Support for Git repositories and S3 storage is built-in.
+- *File and Directory Management*: RWR provides functionality to manage files and directories, including copying, moving, deleting, creating, and modifying permissions and ownership.
+- *Service Management*: RWR allows you to manage system services, including starting, stopping, enabling, and disabling services across different operating systems.
+- *Repository Management*: RWR supports managing repositories for different package managers, such as apt, brew, dnf, zypper, and more.
 - *Variable Substitution*: Use variables in your blueprints to make your configurations more dynamic and reusable.
 - *Extensible Architecture*: RWR is built with extensibility in mind, allowing you to easily add support for new package managers, file synchronization backends, and more.
 
@@ -42,6 +44,24 @@ To get started with RWR, follow these steps:
 3. Run `rwr sync` to synchronize your blueprints repository and ensure you have the latest version.
 4. Run `rwr init` to initialize your system based on the blueprints.
 
+== Commands
+
+RWR provides the following commands:
+
+- `rwr config`: Manage RWR configuration settings.
+  - `rwr config init`: Initialize the RWR configuration.
+- `rwr sync`: Synchronize the blueprints repository.
+- `rwr init`: Initialize the system based on the blueprints.
+- `rwr run`: Run individual processors.
+  - `rwr run package`: Run the package processor.
+  - `rwr run repository`: Run the repository processor.
+  - `rwr run services`: Run the services processor.
+  - `rwr run files`: Run the files processor.
+  - `rwr run directories`: Run the directories processor.
+  - `rwr run templates`: Run the templates processor.
+  - `rwr run configuration`: Run the configuration processor.
+- `rwr validate`: Validate the RWR blueprints.
+
 == Blueprint Structure
 
 RWR blueprints are flexible and can be structured according to your needs. The `init.yaml` file serves as the main entry point for your blueprints and defines the order of execution. Here's an example blueprint structure:
@@ -58,8 +78,6 @@ RWR blueprints are flexible and can be structured according to your needs. The `
 │       └── script.sh
 ├── init.yaml
 ├── packages
-│   ├── packages.json
-│   ├── packages.toml
 │   └── packages.yaml
 ├── services
 │   └── service.yaml
@@ -76,6 +94,18 @@ In this example structure:
 - The `templates/src` directory contains template files, such as `index.html.tmpl` and `nginx.conf.tmpl`, which can be processed and rendered during the execution of the blueprints.
 
 However, RWR doesn't enforce a strict structure. You can organize your blueprints in a single folder with all YAML, TOML, or JSON files, depending on your preference. The `init.yaml` file allows you to specify the order of execution and the location of your blueprint files.
+
+== Blueprint Types
+
+RWR supports the following blueprint types:
+
+- `packages`: Defines packages to be installed or removed using various package managers.
+- `repositories`: Defines repositories to be managed for different package managers.
+- `files`: Defines files to be copied, moved, deleted, created, or modified.
+- `directories`: Defines directories to be managed, including creation, deletion, and modification of permissions and ownership.
+- `services`: Defines services to be managed, including starting, stopping, enabling, and disabling services.
+- `templates`: Defines template files to be processed and rendered during the execution of the blueprints.
+- `configuration`: Defines configuration settings to be applied to the system.
 
 == Contributing
 
