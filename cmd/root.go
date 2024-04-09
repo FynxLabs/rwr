@@ -38,26 +38,23 @@ var (
 	skipVersionCheck bool
 	debug            bool
 	logLevel         string
-	systemInfo       *types.InitConfig
+	initConfig       *types.InitConfig
 	initFilePath     string
 )
 
 func initializeSystemInfo() {
 	var err error
 
-	// Initialize the system information
-	if initFilePath == "" {
-		log.Debugf("No init file path specified. Using default path")
-		initFilePath, err = processors.GetBlueprintsLocation()
-		if err != nil {
-			log.With("err", err).Errorf("Error determining blueprints location")
-			os.Exit(1)
-		}
-	}
-
-	systemInfo, err = processors.Initialize(initFilePath)
+	initConfig, err = processors.Initialize(initFilePath)
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
+	}
+
+	log.Debugf("Checking for blueprints git configuration")
+	initFilePath, err = processors.GetBlueprints(initConfig)
+	if err != nil {
+		log.With("err", err).Errorf("Error running GetBlueprints")
 		os.Exit(1)
 	}
 }
@@ -89,8 +86,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-api-key", "", "Github's API Key (stored under repository.gh_api_token)")
 	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("api-key"))
 	if err != nil {
-		log.With("err", err).Errorf("Error initializing system information")
-		os.Exit(1)
+		return
 	}
 
 	//

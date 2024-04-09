@@ -3,6 +3,10 @@ package helpers
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/charmbracelet/log"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -10,10 +14,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/spf13/viper"
 	"github.com/thefynx/rwr/internal/processors/types"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 func HandleGitOperation(opts types.GitOptions) error {
@@ -50,10 +50,18 @@ func HandleGitClone(opts types.GitOptions) error {
 		}
 	}
 
+	// Create the target directory if it doesn't exist
+	targetDir := filepath.Dir(opts.Target)
+	err := os.MkdirAll(targetDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("error creating target directory: %v", err)
+	}
+
 	// Clone the Git repository
-	_, err := git.PlainClone(opts.Target, false, &git.CloneOptions{
+	_, err = git.PlainClone(opts.Target, false, &git.CloneOptions{
 		URL:  opts.URL,
 		Auth: auth,
+		//Branch: plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", opts.Branch)),
 	})
 	if err != nil {
 		return fmt.Errorf("error cloning Git repository: %v", err)
@@ -96,7 +104,7 @@ func HandleGitFileDownload(opts types.GitOptions) error {
 	filePath := parts[1]
 
 	// Create a temporary directory for cloning the repository
-	tempDir, err := ioutil.TempDir("", "git-clone-")
+	tempDir, err := os.MkdirTemp("", "git-clone-")
 	if err != nil {
 		return fmt.Errorf("error creating temporary directory: %v", err)
 	}
@@ -119,7 +127,7 @@ func HandleGitFileDownload(opts types.GitOptions) error {
 	}
 
 	// Read the contents of the specified file
-	fileContent, err := ioutil.ReadFile(filepath.Join(tempDir, filePath))
+	fileContent, err := os.ReadFile(filepath.Join(tempDir, filePath))
 	if err != nil {
 		return fmt.Errorf("error reading file from Git repository: %v", err)
 	}

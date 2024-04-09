@@ -4,15 +4,63 @@ import (
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/spf13/viper"
+	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/processors/types"
 	"os"
 	"os/user"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
 
 func Initialize(initFilePath string) (*types.InitConfig, error) {
 	var initConfig types.InitConfig
+	var err error
+	var fileExt string
+
+	// Check if the init file path is a URL
+	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
+		// Extract the repository URL and file path from the GitHub URL
+		if strings.Contains(initFilePath, "/blob/") {
+			parts := strings.Split(initFilePath, "/blob/")
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("invalid GitHub URL format")
+			}
+			repoURL := parts[0]
+			filePath := parts[1]
+
+			// Determine the file extension based on the file path
+			fileExt = filepath.Ext(filePath)
+
+			// Download the init file from GitHub
+			err = helpers.HandleGitFileDownload(types.GitOptions{
+				URL:    repoURL + "/blob/" + filePath,
+				Target: "init" + fileExt, // Save the file with the original extension
+			})
+			if err != nil {
+				return nil, fmt.Errorf("error downloading init file from GitHub: %w", err)
+			}
+
+			initFilePath = "init" + fileExt // Update the init file path to the downloaded file
+		} else {
+			// Determine the file extension based on the URL
+			fileExt = filepath.Ext(initFilePath)
+
+			// Download the raw init file
+			err = helpers.DownloadFile(initFilePath, "init"+fileExt)
+			if err != nil {
+				return nil, fmt.Errorf("error downloading init file: %w", err)
+			}
+
+			initFilePath = "init" + fileExt // Update the init file path to the downloaded file
+		}
+	} else {
+		// Check if the init file exists at the specified path
+		if _, err := os.Stat(initFilePath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("init file not found at path: %s", initFilePath)
+		}
+		fileExt = filepath.Ext(initFilePath)
+	}
 
 	viper.SetConfigFile(initFilePath)
 

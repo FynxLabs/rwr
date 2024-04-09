@@ -74,7 +74,12 @@ func processTemplate(tmpl types.Template) error {
 	if err != nil {
 		return fmt.Errorf("error creating target file: %w", err)
 	}
-	defer targetFile.Close()
+	defer func(targetFile *os.File) {
+		err := targetFile.Close()
+		if err != nil {
+			fmt.Printf("error closing target file: %v\n", err)
+		}
+	}(targetFile)
 
 	// Execute the template
 	err = t.Execute(targetFile, tmpl.Variables)

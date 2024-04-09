@@ -1,0 +1,46 @@
+packages:
+    - name: git
+      action: install
+    - name: vim
+      action: install
+    - name: wget
+      action: install
+    - name: curl
+      action: install
+
+directories:
+    - name: /home/name/repos/
+      action: create
+      owner: root
+      group: root
+      mode: 0755
+
+git:
+  - name: myrepo
+    action: clone
+    path: /home/name/repos/myrepo
+    url: https://github.com/myaccount/myrepo.git
+    branch: master
+    private: false
+
+services:
+    - name: sshd
+      action: start
+    - name: nginx
+      action: start
+    - name: apache2
+      action: start
+
+groups:
+  - name: docker
+    action: create
+
+users:
+  - name: john
+    action: create
+    password: "password"
+    groups:
+      - docker
+    shell: /bin/bash
+    home: /home/john
+

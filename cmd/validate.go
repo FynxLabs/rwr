@@ -14,7 +14,7 @@ var validateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validate the RWR Blueprints",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.ValidateBlueprints(systemInfo)
+		err := processors.ValidateBlueprints(initConfig)
 		if err != nil {
 			log.With("err", err).Errorf("Error validating blueprints")
 			os.Exit(1)

@@ -16,7 +16,7 @@ var runPackageCmd = &cobra.Command{
 	Use:   "package",
 	Short: "Run package processor",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(systemInfo, []string{"packages"})
+		err := processors.All(initConfig, []string{"packages"})
 		if err != nil {
 			log.With("err", err).Errorf("Error running package processor")
 			os.Exit(1)
@@ -28,7 +28,7 @@ var runRepositoryCmd = &cobra.Command{
 	Use:   "repository",
 	Short: "Run repository processor",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(systemInfo, []string{"repositories"})
+		err := processors.All(initConfig, []string{"repositories"})
 		if err != nil {
 			log.With("err", err).Errorf("Error running repository processor")
 			os.Exit(1)
@@ -40,7 +40,7 @@ var runServicesCmd = &cobra.Command{
 	Use:   "services",
 	Short: "Run services processor",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(systemInfo, []string{"services"})
+		err := processors.All(initConfig, []string{"services"})
 		if err != nil {
 			log.With("err", err).Errorf("Error running services processor")
 			os.Exit(1)
@@ -52,7 +52,7 @@ var runFilesCmd = &cobra.Command{
 	Use:   "files",
 	Short: "Run files processor",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(systemInfo, []string{"files"})
+		err := processors.All(initConfig, []string{"files"})
 		if err != nil {
 			log.With("err", err).Errorf("Error running files processor")
 			os.Exit(1)
@@ -64,7 +64,7 @@ var runDirectoriesCmd = &cobra.Command{
 	Use:   "directories",
 	Short: "Run directories processor",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(systemInfo, []string{"directories"})
+		err := processors.All(initConfig, []string{"directories"})
 		if err != nil {
 			log.With("err", err).Errorf("Error running directories processor")
 			os.Exit(1)
@@ -76,7 +76,7 @@ var runTemplatesCmd = &cobra.Command{
 	Use:   "templates",
 	Short: "Run templates processor",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(systemInfo, []string{"templates"})
+		err := processors.All(initConfig, []string{"templates"})
 		if err != nil {
 			log.With("err", err).Errorf("Error running templates processor")
 			os.Exit(1)
@@ -88,7 +88,7 @@ var runConfigurationCmd = &cobra.Command{
 	Use:   "configuration",
 	Short: "Run configuration processor",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(systemInfo, []string{"configuration"})
+		err := processors.All(initConfig, []string{"configuration"})
 		if err != nil {
 			log.With("err", err).Errorf("Error running configuration processor")
 			os.Exit(1)
