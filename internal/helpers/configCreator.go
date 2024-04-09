@@ -50,28 +50,12 @@ func CreateDefaultConfig() error {
 		viper.Set("repository.ssh_private_key", sshPrivateKeyInput)
 	}
 
-	// Prompt for Output format
-	fmt.Printf("Set the output format (json/yaml/raw) (press enter to keep default) [%s]: ", viper.GetString("rwr.output"))
-	outputInput, _ := reader.ReadString('\n')
-	outputInput = strings.TrimSpace(outputInput)
-	if outputInput != "" {
-		viper.Set("rwr.output", outputInput)
-	}
-
 	// Prompt for Skip Version Check
 	fmt.Printf("Skip version check? (true/false) (press enter to keep default) [%t]: ", viper.GetBool("rwr.skipVersionCheck"))
 	skipVersionCheckInput, _ := reader.ReadString('\n')
 	skipVersionCheckInput = strings.TrimSpace(skipVersionCheckInput)
 	if skipVersionCheckInput != "" {
 		viper.Set("rwr.skipVersionCheck", skipVersionCheckInput == "true")
-	}
-
-	// Prompt for Highlighting
-	fmt.Printf("Enable highlighting? (true/false) (press enter to keep default) [%t]: ", viper.GetBool("rwr.highlight"))
-	highlightInput, _ := reader.ReadString('\n')
-	highlightInput = strings.TrimSpace(highlightInput)
-	if highlightInput != "" {
-		viper.Set("rwr.highlight", highlightInput == "true")
 	}
 
 	// Prompt for Log Level
@@ -115,31 +99,12 @@ func CreateDefaultConfig() error {
 	// Prompt for Repository Configuration
 	fmt.Println("Repository Configuration:")
 
-	// Prompt for Blueprints Local Path
-	defaultLocalPath := filepath.Join(configDir, "blueprints")
-	fmt.Printf("Enter the local path for blueprints (press enter to keep default) [%s]: ", defaultLocalPath)
-	localPathInput, _ := reader.ReadString('\n')
-	localPathInput = strings.TrimSpace(localPathInput)
-	if localPathInput == "" {
-		localPathInput = defaultLocalPath
-	}
-	viper.Set("repository.blueprints.localPath", localPathInput)
-
-	// Prompt for Remote Store Type
-	fmt.Print("Enter the remote store type (git/s3/local) (press enter to keep default) [local]: ")
-	remoteStoreTypeInput, _ := reader.ReadString('\n')
-	remoteStoreTypeInput = strings.TrimSpace(remoteStoreTypeInput)
-	if remoteStoreTypeInput == "" {
-		remoteStoreTypeInput = "local"
-	}
-	viper.Set("repository.blueprints.remoteStoreType", remoteStoreTypeInput)
-
-	// Prompt for Remote Store URL if Remote Store Type is not local
-	if remoteStoreTypeInput != "local" {
-		fmt.Print("Enter the remote store URL: ")
-		remoteStoreURLInput, _ := reader.ReadString('\n')
-		remoteStoreURLInput = strings.TrimSpace(remoteStoreURLInput)
-		viper.Set("repository.blueprints.remoteStoreURL", remoteStoreURLInput)
+	// Prompt for Init File Location
+	fmt.Printf("Enter the location of the init file (local or url) (press enter to keep default) [%s]: ", viper.GetString("repository.init-file"))
+	initFileLocationInput, _ := reader.ReadString('\n')
+	initFileLocationInput = strings.TrimSpace(initFileLocationInput)
+	if initFileLocationInput != "" {
+		viper.Set("repository.init-file", initFileLocationInput)
 	}
 
 	// Write the configuration to the specified file

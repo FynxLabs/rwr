@@ -48,7 +48,7 @@ func initializeSystemInfo() {
 	// Initialize the system information
 	if initFilePath == "" {
 		log.Debugf("No init file path specified. Using default path")
-		initFilePath, err = processors.GetBlueprintsLocation(false)
+		initFilePath, err = processors.GetBlueprintsLocation()
 		if err != nil {
 			log.With("err", err).Errorf("Error determining blueprints location")
 			os.Exit(1)
