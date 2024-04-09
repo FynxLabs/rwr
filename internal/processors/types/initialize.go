@@ -9,14 +9,14 @@ type OSInfo struct {
 
 // InitConfig represents the configuration for the initialization processor.
 type InitConfig struct {
-	Blueprint       Blueprints             `mapstructure:"blueprint"`
-	PackageManagers []PackageManagerInfo   `mapstructure:"packageManagers"`
-	Repositories    []Repository           `mapstructure:"repositories"`
-	Packages        []Package              `mapstructure:"packages"`
-	Services        []Service              `mapstructure:"services"`
-	Files           []File                 `mapstructure:"files"`
-	Directories     []Directory            `mapstructure:"directories"`
-	Templates       []Template             `mapstructure:"templates"`
-	Configuration   []Configuration        `mapstructure:"configuration"`
-	Variables       map[string]interface{} `mapstructure:"variables"`
+	Blueprint       Blueprints             `yaml:"blueprint" json:"blueprint" toml:"blueprint"`
+	PackageManagers []PackageManagerInfo   `yaml:"packageManagers" json:"packageManagers" toml:"packageManagers"`
+	Repositories    []Repository           `yaml:"repositories" json:"repositories" toml:"repositories"`
+	Packages        []Package              `yaml:"packages" json:"packages" toml:"packages"`
+	Services        []Service              `yaml:"services" json:"services" toml:"services"`
+	Files           []File                 `yaml:"files" json:"files" toml:"files"`
+	Directories     []Directory            `mapstructure:"yaml" json:"directories" toml:"directories"`
+	Templates       []Template             `yaml:"templates" json:"templates" toml:"templates"`
+	Configuration   []Configuration        `yaml:"configuration" json:"configuration" toml:"configuration"`
+	Variables       map[string]interface{} `yaml:"variables" json:"variables" toml:"variables"`
 }

@@ -28,13 +28,15 @@ func HandleGitOperation(opts types.GitOptions) error {
 }
 
 func HandleGitClone(opts types.GitOptions) error {
-	// Determine the authentication method based on the URL scheme and private flag
 	var auth transport.AuthMethod
+
 	if opts.Private {
+		// Determine the authentication method based on the URL scheme and private flag
 		if opts.URL[0:3] == "git" {
 			// SSH authentication for private repositories
 			privateKey := viper.GetString("repository.ssh_private_key")
-			auth, err := ssh.NewPublicKeysFromFile("git", privateKey, "")
+			var err error
+			auth, err = ssh.NewPublicKeysFromFile("git", privateKey, "")
 			if err != nil {
 				return fmt.Errorf("error creating SSH authentication: %v", err)
 			}
