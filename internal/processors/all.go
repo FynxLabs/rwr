@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/charmbracelet/log"
+	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/processors/types"
 	"os"
 	"path/filepath"
@@ -11,7 +12,7 @@ import (
 )
 
 func All(initConfig *types.InitConfig, runOrder []string) error {
-	osInfo := DetectOS()
+	osInfo := helpers.DetectOS()
 	var err error
 	var blueprintRunOrder []string
 

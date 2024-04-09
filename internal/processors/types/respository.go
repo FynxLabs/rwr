@@ -1,13 +1,13 @@
 package types
 
 type Repository struct {
-	Name           string `yaml:"name"`
-	PackageManager string `yaml:"package_manager"`
-	Action         string `yaml:"action"`
-	URL            string `yaml:"url"`
-	Arch           string `yaml:"arch"`
-	KeyURL         string `yaml:"key_url"`
-	Channel        string `yaml:"channel"`
-	Component      string `yaml:"component"`
-	Repository     string `yaml:"repository"`
+	Name           string `mapstructure:"name"`
+	PackageManager string `mapstructure:"package_manager"`
+	Action         string `mapstructure:"action"`
+	URL            string `mapstructure:"url"`
+	Arch           string `mapstructure:"arch"`
+	KeyURL         string `mapstructure:"key_url"`
+	Channel        string `mapstructure:"channel"`
+	Component      string `mapstructure:"component"`
+	Repository     string `mapstructure:"repository"`
 }

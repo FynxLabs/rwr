@@ -1,6 +1,6 @@
 = Rinse, Wash, Repeat (RWR)
 
-Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed specifically for Linux desktops (and MacOS/Windows). It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines.
+Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed for those who like hop around and reinstall a lot regardless if it's Linux, macOS, and Windows. It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines.
 
 == Features
 
@@ -15,7 +15,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 
 == Packages
 
-RWR packages are available for various platforms and architectures through goreleaser. You can find the pre-built packages on the link:https://github.com/yourusername/rwr/releases[releases page] of the RWR repository.
+RWR packages are available for various platforms and architectures through goreleaser. You can find the pre-built packages on the link:https://github.com/thefynx/rwr/releases[releases page] of the RWR repository.
 
 The following package types are available:
 
@@ -29,7 +29,7 @@ The following package types are available:
 
 To install RWR, follow these steps:
 
-1. Download the latest release of RWR from the link:https://github.com/yourusername/rwr/releases[releases page].
+1. Download the latest release of RWR from the link:https://github.com/thefynx/rwr/releases[releases page].
 2. Extract the downloaded archive to a directory of your choice.
 3. Add the directory to your system's `PATH` environment variable.
 
@@ -38,7 +38,7 @@ To install RWR, follow these steps:
 To get started with RWR, follow these steps:
 
 1. Initialize the RWR configuration by running `rwr config init`. This will prompt you to enter your preferences and create a default configuration file.
-2. Set up your blueprints repository:
+2. Set up your blueprints' repository:
    - If you're using a Git repository, provide the repository URL during the configuration initialization.
    - If you're using local blueprints, place your blueprint files in the specified local path.
 3. Run `rwr sync` to synchronize your blueprints repository and ensure you have the latest version.
@@ -69,8 +69,7 @@ RWR blueprints are flexible and can be structured according to your needs. The `
 ....
 .
 ├── configuration
-│   ├── configuration.yaml
-│   └── configuration2.yaml
+│   └── configuration.yaml
 ├── files
 │   ├── file.yaml
 │   └── src
@@ -125,6 +124,6 @@ RWR is open-source software licensed under the link:LICENSE[MIT License].
 
 == Contact
 
-If you have any questions, suggestions, or feedback, please open an issue on the link:https://github.com/yourusername/rwr/issues[GitHub repository] or contact the maintainers directly.
+If you have any questions, suggestions, or feedback, please open an issue on the link:https://github.com/thefynx/rwr/issues[GitHub repository] or contact the maintainers directly.
 
 Happy distrohopping with RWR!

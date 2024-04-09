@@ -53,6 +53,7 @@ func ProcessPackagesFromData(blueprintData []byte, initConfig *types.InitConfig,
 
 	return nil
 }
+
 func InstallPackage(pkg types.Package, osInfo types.OSInfo) error {
 	var command string
 	var elevated bool

@@ -34,6 +34,7 @@ var rootCmd = &cobra.Command{
 
 var (
 	ghApiToken       string // Global variable for API Key
+	sshKey           string // Global variable for SSH Key
 	skipVersionCheck bool
 	debug            bool
 	logLevel         string
@@ -63,45 +64,53 @@ func initializeSystemInfo() {
 
 func init() {
 	cobra.OnInitialize(config)
+	var err error
 
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
 
 	// Flag for the init.yaml file path
 	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init.yaml file")
-	err := viper.BindPFlag("rwr.init-file", rootCmd.PersistentFlags().Lookup("init-file"))
+	err = viper.BindPFlag("rwr.init-file", rootCmd.PersistentFlags().Lookup("init-file"))
 	if err != nil {
-		return
+		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
 	}
 
 	err = viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
 	if err != nil {
-		return
+		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
 	}
 
 	viper.SetDefault("log.level", "info") // Default log level
 
-	// Adjusting API key flag
+	// GitHub API Key flag
 	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-api-key", "", "Github's API Key (stored under repository.gh_api_token)")
 	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("api-key"))
 	if err != nil {
-		return
+		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
+	}
+
+	//
+	rootCmd.PersistentFlags().StringVar(&sshKey, "ssh-key", "", "Pass in the ssh key Base64 encoded (stored under repository.ssh_private_key)")
+	err = viper.BindPFlag("repository.ssh_private_key", rootCmd.PersistentFlags().Lookup("ssh-key"))
+	if err != nil {
+		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
 	}
 
 	// Adding skipVersionCheck as a global flag
 	rootCmd.PersistentFlags().BoolVar(&skipVersionCheck, "skip-version-check", false, "Skip checking for the latest version of rwr")
 	err = viper.BindPFlag("rwr.skipVersionCheck", rootCmd.PersistentFlags().Lookup("skip-version-check"))
 	if err != nil {
-		return
+		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
 	}
 
 	viper.SetEnvPrefix("RWR")
 	viper.AutomaticEnv()
-
-	if err != nil {
-		log.With("err", err).Errorf("Error initializing system information")
-		os.Exit(1)
-	}
 }
 
 func config() {

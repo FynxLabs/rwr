@@ -1,7 +1,6 @@
-package processors
+package helpers
 
 import (
-	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/processors/types"
 	"os/exec"
 	"runtime"
@@ -19,15 +18,15 @@ func DetectOS() types.OSInfo {
 	case "linux":
 		log.Debug("Linux detected.")
 		osInfo.OS = "linux"
-		helpers.SetLinuxDetails(&osInfo)
+		SetLinuxDetails(&osInfo)
 	case "darwin":
 		log.Debug("macOS detected.")
 		osInfo.OS = "macos"
-		helpers.SetMacOSDetails(&osInfo)
+		SetMacOSDetails(&osInfo)
 	case "windows":
 		log.Debug("Windows detected.")
 		osInfo.OS = "windows"
-		helpers.SetWindowsDetails(&osInfo)
+		SetWindowsDetails(&osInfo)
 	default:
 		log.Fatal("This setup only supports macOS, Linux, and Windows.")
 	}

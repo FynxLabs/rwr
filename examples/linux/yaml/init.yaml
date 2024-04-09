@@ -6,11 +6,10 @@ blueprints:
   location: .
   # Set order of execution for blueprints, by directory or file
   order:
+      - repositories
       - packages
       - files
-      - configuration
-      - configuration/configuration.yaml
-      - configuration/configuration2.yaml
+      - services
 
 # Additional Package Managers to install
 packageManagers:

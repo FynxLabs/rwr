@@ -42,6 +42,14 @@ func CreateDefaultConfig() error {
 		viper.Set("repository.gh_api_token", ghApiTokenInput)
 	}
 
+	// Prompt for SSH Private Key
+	fmt.Printf("Enter SSH Private Key Base64 Encoded (press enter to keep default) [%s]: ", viper.GetString("repository.ssh_private_key"))
+	sshPrivateKeyInput, _ := reader.ReadString('\n')
+	sshPrivateKeyInput = strings.TrimSpace(sshPrivateKeyInput)
+	if sshPrivateKeyInput != "" {
+		viper.Set("repository.ssh_private_key", sshPrivateKeyInput)
+	}
+
 	// Prompt for Output format
 	fmt.Printf("Set the output format (json/yaml/raw) (press enter to keep default) [%s]: ", viper.GetString("rwr.output"))
 	outputInput, _ := reader.ReadString('\n')

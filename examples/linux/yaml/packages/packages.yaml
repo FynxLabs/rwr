@@ -3,13 +3,11 @@
 # - remove
 
 packages:
-  - name: neovim
-    action: install
-
   - names:
       - git
       - jq
     action: install
+    package_manager: apt
 
   - name: bitwarden-cli
     action: install

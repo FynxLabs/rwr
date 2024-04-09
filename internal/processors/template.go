@@ -13,25 +13,36 @@ import (
 func ProcessTemplatesFromFile(blueprintFile string) error {
 	var templates []types.Template
 
-	// Read the blueprint file based on its format
-	switch filepath.Ext(blueprintFile) {
-	case ".yaml", ".yml":
-		err := helpers.ReadYAMLFile(blueprintFile, &templates)
+	// Read the blueprint file
+	blueprintData, err := os.ReadFile(blueprintFile)
+	if err != nil {
+		return fmt.Errorf("error reading blueprint file: %w", err)
+	}
+
+	// Unmarshal the blueprint data
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &templates)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling template blueprint: %w", err)
+	}
+
+	// Process the templates
+	for _, tmpl := range templates {
+		err := processTemplate(tmpl)
 		if err != nil {
-			return fmt.Errorf("error reading template blueprint file: %w", err)
+			return fmt.Errorf("error processing template: %w", err)
 		}
-	case ".json":
-		err := helpers.ReadJSONFile(blueprintFile, &templates)
-		if err != nil {
-			return fmt.Errorf("error reading template blueprint file: %w", err)
-		}
-	case ".toml":
-		err := helpers.ReadTOMLFile(blueprintFile, &templates)
-		if err != nil {
-			return fmt.Errorf("error reading template blueprint file: %w", err)
-		}
-	default:
-		return fmt.Errorf("unsupported blueprint file format: %s", filepath.Ext(blueprintFile))
+	}
+
+	return nil
+}
+
+func ProcessTemplatesFromData(blueprintData []byte, initConfig *types.InitConfig) error {
+	var templates []types.Template
+
+	// Unmarshal the resolved blueprint data
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &templates)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling template blueprint data: %w", err)
 	}
 
 	// Process the templates
