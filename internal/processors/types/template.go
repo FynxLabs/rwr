@@ -1,15 +1,15 @@
 package types
 
 type Template struct {
-	Name      string                 `yaml:"name" json:"name" toml:"name"`
-	Names     []string               `yaml:"names" json:"names" toml:"names"`
-	Action    string                 `yaml:"action" json:"action" toml:"action"`
-	Content   string                 `yaml:"content" json:"content" toml:"content"`
-	Source    string                 `yaml:"source" json:"source" toml:"source"`
-	Target    string                 `yaml:"target" json:"target" toml:"target"`
-	Owner     int                    `yaml:"owner" json:"owner" toml:"owner"`
-	Group     int                    `yaml:"group" json:"group" toml:"group"`
-	Mode      int                    `yaml:"mode" json:"mode" toml:"mode"`
-	Create    bool                   `yaml:"create" json:"create" toml:"create"`
-	Variables map[string]interface{} `yaml:"variables" json:"variables" toml:"variables"`
+	Name      string                 `mapstructure:"name,omitempty"`      // Name of the template
+	Names     []string               `mapstructure:"names,omitempty"`     // Names of the templates
+	Action    string                 `mapstructure:"action"`              // Action to perform with the template
+	Content   string                 `mapstructure:"content,omitempty"`   // Content of the template
+	Source    string                 `mapstructure:"source,omitempty"`    // Source of the template
+	Target    string                 `mapstructure:"target"`              // Target of the template
+	Owner     int                    `mapstructure:"owner,omitempty"`     // Owner of the template
+	Group     int                    `mapstructure:"group,omitempty"`     // Group of the template
+	Mode      int                    `mapstructure:"mode,omitempty"`      // Mode of the template
+	Create    bool                   `mapstructure:"create,omitempty"`    // Whether to create the template
+	Variables map[string]interface{} `mapstructure:"variables,omitempty"` // Variables of the template
 }

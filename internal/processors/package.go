@@ -38,7 +38,7 @@ func ProcessPackagesFromData(blueprintData []byte, initConfig *types.InitConfig,
 	var packages []types.Package
 
 	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &packages)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &packages)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling package blueprint data: %w", err)
 	}
@@ -112,12 +112,12 @@ func InstallPackage(pkg types.Package, osInfo types.OSInfo) error {
 	}
 
 	if elevated {
-		err := helpers.RunWithElevatedPrivileges(command, args...)
+		err := helpers.RunWithElevatedPrivileges(command, "", args...)
 		if err != nil {
 			return fmt.Errorf("error processing package %s: %v", pkg.Name, err)
 		}
 	} else {
-		err := helpers.RunCommand(command, args...)
+		err := helpers.RunCommand(command, "", args...)
 		if err != nil {
 			return fmt.Errorf("error processing package %s: %v", pkg.Name, err)
 		}

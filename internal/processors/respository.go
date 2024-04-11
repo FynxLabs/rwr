@@ -36,7 +36,7 @@ func ProcessRepositoriesFromData(blueprintData []byte, initConfig *types.InitCon
 	var repositories []types.Repository
 
 	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &repositories)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &repositories)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling repository blueprint data: %w", err)
 	}
@@ -58,27 +58,27 @@ func ProcessRepositories(repositories []types.Repository, osInfo types.OSInfo) e
 				return err
 			}
 		case "brew":
-			if err := processBrewRepository(repo); err != nil {
+			if err := processBrewRepository(repo, osInfo); err != nil {
 				return err
 			}
 		case "dnf", "yum":
-			if err := processDnfYumRepository(repo); err != nil {
+			if err := processDnfYumRepository(repo, osInfo); err != nil {
 				return err
 			}
 		case "zypper":
-			if err := processZypperRepository(repo); err != nil {
+			if err := processZypperRepository(repo, osInfo); err != nil {
 				return err
 			}
 		case "pacman":
-			if err := processPacmanRepository(repo); err != nil {
+			if err := processPacmanRepository(repo, osInfo); err != nil {
 				return err
 			}
 		case "choco":
-			if err := processChocoRepository(repo); err != nil {
+			if err := processChocoRepository(repo, osInfo); err != nil {
 				return err
 			}
 		case "scoop":
-			if err := processScoopRepository(repo); err != nil {
+			if err := processScoopRepository(repo, osInfo); err != nil {
 				return err
 			}
 		default:
@@ -96,7 +96,7 @@ func processAptRepository(repo types.Repository, osInfo types.OSInfo) error {
 		if err := helpers.DownloadFile(repo.KeyURL, keyFile); err != nil {
 			return fmt.Errorf("error downloading GPG key: %v", err)
 		}
-		if err := helpers.RunCommand("gpg", "--dearmor", "-o", keyFile, keyFile); err != nil {
+		if err := helpers.RunCommand(osInfo.Tools.Gpg.Bin, "", "--dearmor", "-o", keyFile, keyFile); err != nil {
 			return fmt.Errorf("error dearmoring GPG key: %v", err)
 		}
 
@@ -108,7 +108,7 @@ func processAptRepository(repo types.Repository, osInfo types.OSInfo) error {
 		}
 
 		// Update package lists
-		if err := helpers.RunCommand(osInfo.PackageManager.Apt.Bin, osInfo.PackageManager.Apt.Update); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Apt.Bin, "", osInfo.PackageManager.Apt.Update); err != nil {
 			return fmt.Errorf("error updating package lists: %v", err)
 		}
 	} else if repo.Action == "remove" {
@@ -124,27 +124,27 @@ func processAptRepository(repo types.Repository, osInfo types.OSInfo) error {
 		}
 
 		// Update package lists
-		if err := helpers.RunCommand(osInfo.PackageManager.Apt.Bin, osInfo.PackageManager.Apt.Update); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Apt.Bin, "", osInfo.PackageManager.Apt.Update); err != nil {
 			return fmt.Errorf("error updating package lists: %v", err)
 		}
 	}
 	return nil
 }
 
-func processBrewRepository(repo types.Repository) error {
+func processBrewRepository(repo types.Repository, osInfo types.OSInfo) error {
 	if repo.Action == "add" {
-		if err := helpers.RunCommand("brew", "tap", repo.Repository); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Brew.Bin, "", "tap", repo.Repository); err != nil {
 			return fmt.Errorf("error adding Homebrew repository: %v", err)
 		}
 	} else if repo.Action == "remove" {
-		if err := helpers.RunCommand("brew", "untap", repo.Repository); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Brew.Bin, "", "untap", repo.Repository); err != nil {
 			return fmt.Errorf("error removing Homebrew repository: %v", err)
 		}
 	}
 	return nil
 }
 
-func processDnfYumRepository(repo types.Repository) error {
+func processDnfYumRepository(repo types.Repository, osInfo types.OSInfo) error {
 	if repo.Action == "add" {
 		// Download the repository file
 		repoFile := filepath.Join("/etc/yum.repos.d", repo.Name+".repo")
@@ -153,7 +153,7 @@ func processDnfYumRepository(repo types.Repository) error {
 		}
 
 		// Import the GPG key
-		if err := helpers.RunCommand("rpm", "--import", repo.KeyURL); err != nil {
+		if err := helpers.RunCommand(osInfo.Tools.Rpm.Bin, "", "--import", repo.KeyURL); err != nil {
 			return fmt.Errorf("error importing GPG key: %v", err)
 		}
 	} else if repo.Action == "remove" {
@@ -166,27 +166,27 @@ func processDnfYumRepository(repo types.Repository) error {
 	return nil
 }
 
-func processZypperRepository(repo types.Repository) error {
+func processZypperRepository(repo types.Repository, osInfo types.OSInfo) error {
 	if repo.Action == "add" {
 		// Add the repository
-		if err := helpers.RunCommand("zypper", "addrepo", repo.URL, repo.Name); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Zypper.Bin, "", "addrepo", repo.URL, repo.Name); err != nil {
 			return fmt.Errorf("error adding Zypper repository: %v", err)
 		}
 
 		// Refresh repositories
-		if err := helpers.RunCommand("zypper", "refresh"); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Zypper.Bin, "", "refresh"); err != nil {
 			return fmt.Errorf("error refreshing Zypper repositories: %v", err)
 		}
 	} else if repo.Action == "remove" {
 		// Remove the repository
-		if err := helpers.RunCommand("zypper", "removerepo", repo.Name); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Zypper.Bin, "", "removerepo", repo.Name); err != nil {
 			return fmt.Errorf("error removing Zypper repository: %v", err)
 		}
 	}
 	return nil
 }
 
-func processPacmanRepository(repo types.Repository) error {
+func processPacmanRepository(repo types.Repository, osInfo types.OSInfo) error {
 	pacmanConf := "/etc/pacman.conf"
 
 	if repo.Action == "add" {
@@ -197,7 +197,7 @@ func processPacmanRepository(repo types.Repository) error {
 		}
 
 		// Refresh the package database
-		if err := helpers.RunCommand("pacman", "-Sy"); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Pacman.Bin, "", "-Sy"); err != nil {
 			return fmt.Errorf("error refreshing Pacman package database: %v", err)
 		}
 	} else if repo.Action == "remove" {
@@ -209,30 +209,30 @@ func processPacmanRepository(repo types.Repository) error {
 	return nil
 }
 
-func processChocoRepository(repo types.Repository) error {
+func processChocoRepository(repo types.Repository, osInfo types.OSInfo) error {
 	if repo.Action == "add" {
 		// Add the Chocolatey repository
-		if err := helpers.RunCommand("choco", "source", "add", "--name", repo.Name, "--source", repo.URL); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Chocolatey.Bin, "", "source", "add", "--name", repo.Name, "--source", repo.URL); err != nil {
 			return fmt.Errorf("error adding Chocolatey repository: %v", err)
 		}
 	} else if repo.Action == "remove" {
 		// Remove the Chocolatey repository
-		if err := helpers.RunCommand("choco", "source", "remove", "--name", repo.Name); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Chocolatey.Bin, "", "source", "remove", "--name", repo.Name); err != nil {
 			return fmt.Errorf("error removing Chocolatey repository: %v", err)
 		}
 	}
 	return nil
 }
 
-func processScoopRepository(repo types.Repository) error {
+func processScoopRepository(repo types.Repository, osInfo types.OSInfo) error {
 	if repo.Action == "add" {
 		// Add the Scoop bucket
-		if err := helpers.RunCommand("scoop", "bucket", "add", repo.Name, repo.URL); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Scoop.Bin, "", "bucket", "add", repo.Name, repo.URL); err != nil {
 			return fmt.Errorf("error adding Scoop bucket: %v", err)
 		}
 	} else if repo.Action == "remove" {
 		// Remove the Scoop bucket
-		if err := helpers.RunCommand("scoop", "bucket", "rm", repo.Name); err != nil {
+		if err := helpers.RunCommand(osInfo.PackageManager.Scoop.Bin, "", "bucket", "rm", repo.Name); err != nil {
 			return fmt.Errorf("error removing Scoop bucket: %v", err)
 		}
 	}

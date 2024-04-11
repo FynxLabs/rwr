@@ -1,13 +1,13 @@
 package types
 
 type Repository struct {
-	Name           string `yaml:"name" json:"name" toml:"name"`
-	PackageManager string `yaml:"package_manager" json:"package_manager" toml:"package_manager"`
-	Action         string `yaml:"action" json:"action" toml:"action"`
-	URL            string `yaml:"url" json:"url" toml:"url"`
-	Arch           string `yaml:"arch" json:"arch" toml:"arch"`
-	KeyURL         string `yaml:"key_url" json:"key_url" toml:"key_url"`
-	Channel        string `yaml:"channel" json:"channel" toml:"channel"`
-	Component      string `yaml:"component" json:"component" toml:"component"`
-	Repository     string `yaml:"repository" json:"repository" toml:"repository"`
+	Name           string `mapstructure:"name"`                 // Name of the repository
+	PackageManager string `mapstructure:"package_manager"`      // Package manager to use
+	Action         string `mapstructure:"action"`               // Action to perform with the repository
+	URL            string `mapstructure:"url"`                  // URL of the repository
+	Arch           string `mapstructure:"arch,omitempty"`       // Architecture of the repository
+	KeyURL         string `mapstructure:"key_url,omitempty"`    // Key URL of the repository
+	Channel        string `mapstructure:"channel,omitempty"`    // Channel of the repository
+	Component      string `mapstructure:"component,omitempty"`  // Component of the repository
+	Repository     string `mapstructure:"repository,omitempty"` // Repository name
 }

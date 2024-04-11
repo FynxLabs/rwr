@@ -1,18 +1,18 @@
 package types
 
 type GitOptions struct {
-	URL     string `yaml:"url" json:"url" toml:"url"`
-	Private bool   `yaml:"private" json:"private" toml:"private"`
-	Target  string `yaml:"target" json:"target" toml:"target"`
-	Update  bool   `yaml:"update" json:"update" toml:"update"`
-	Branch  string `yaml:"branch" json:"branch" toml:"branch"`
+	URL     string `mapstructure:"url"`               // URL of the git repository
+	Private bool   `mapstructure:"private,omitempty"` // Whether the repository is private
+	Target  string `mapstructure:"target"`            // Target directory for the repository
+	Update  bool   `mapstructure:"update,omitempty"`  // Whether to update the repository
+	Branch  string `mapstructure:"branch,omitempty"`  // Branch of the repository
 }
 
 type Git struct {
-	Name    string `yaml:"name" json:"name" toml:"name"`
-	Action  string `yaml:"action" json:"action" toml:"action"`
-	Path    string `yaml:"path" json:"path" toml:"path"`
-	URL     string `yaml:"url" json:"url" toml:"url"`
-	Branch  string `yaml:"branch" json:"branch" toml:"branch"`
-	Private bool   `yaml:"private" json:"private" toml:"private"`
+	Name    string `mapstructure:"name"`              // Name of the git operation
+	Action  string `mapstructure:"action"`            // Action to perform with git
+	Path    string `mapstructure:"path"`              // Path for the git operation
+	URL     string `mapstructure:"url"`               // URL of the git repository
+	Branch  string `mapstructure:"branch,omitempty"`  // Branch of the repository
+	Private bool   `mapstructure:"private,omitempty"` // Whether the repository is private
 }

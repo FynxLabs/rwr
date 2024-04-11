@@ -39,7 +39,7 @@ func ProcessServicesFromData(blueprintData []byte, initConfig *types.InitConfig)
 	var services []types.Service
 
 	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &services)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &services)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling service blueprint data: %w", err)
 	}
@@ -134,11 +134,11 @@ func processLinuxService(service types.Service) error {
 	}
 
 	if service.Elevated {
-		if err := helpers.RunWithElevatedPrivileges("systemctl", args...); err != nil {
+		if err := helpers.RunWithElevatedPrivileges("systemctl", "", args...); err != nil {
 			return fmt.Errorf("error running service command: %v", err)
 		}
 	} else {
-		if err := helpers.RunCommand("systemctl", args...); err != nil {
+		if err := helpers.RunCommand("systemctl", "", args...); err != nil {
 			return fmt.Errorf("error running service command: %v", err)
 		}
 	}
@@ -212,11 +212,11 @@ func processMacOSService(service types.Service) error {
 	}
 
 	if service.Elevated {
-		if err := helpers.RunWithElevatedPrivileges("launchctl", args...); err != nil {
+		if err := helpers.RunWithElevatedPrivileges("launchctl", "", args...); err != nil {
 			return fmt.Errorf("error running service command: %v", err)
 		}
 	} else {
-		if err := helpers.RunCommand("launchctl", args...); err != nil {
+		if err := helpers.RunCommand("launchctl", "", args...); err != nil {
 			return fmt.Errorf("error running service command: %v", err)
 		}
 	}
@@ -239,7 +239,7 @@ func createWindowsService(service types.Service) error {
 	}
 
 	args := []string{"create", service.Name, "binPath=", service.Target}
-	if err := helpers.RunWithElevatedPrivileges("sc", args...); err != nil {
+	if err := helpers.RunWithElevatedPrivileges("sc", "", args...); err != nil {
 		return fmt.Errorf("error creating Windows service: %v", err)
 	}
 
@@ -248,7 +248,7 @@ func createWindowsService(service types.Service) error {
 
 func deleteWindowsService(service types.Service) error {
 	args := []string{"delete", service.Name}
-	if err := helpers.RunWithElevatedPrivileges("sc", args...); err != nil {
+	if err := helpers.RunWithElevatedPrivileges("sc", "", args...); err != nil {
 		return fmt.Errorf("error deleting Windows service: %v", err)
 	}
 
@@ -299,7 +299,7 @@ func processWindowsService(service types.Service) error {
 		return fmt.Errorf("unsupported action for service: %s", service.Action)
 	}
 
-	if err := helpers.RunWithElevatedPrivileges("sc", args...); err != nil {
+	if err := helpers.RunWithElevatedPrivileges("sc", "", args...); err != nil {
 		return fmt.Errorf("error running service command: %v", err)
 	}
 

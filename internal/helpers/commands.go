@@ -8,15 +8,27 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-func RunWithElevatedPrivileges(command string, args ...string) error {
+func RunWithElevatedPrivileges(command string, logName string, args ...string) error {
 	if runtime.GOOS == "windows" {
 		// Prepend "runas" to the command and arguments
 		runasArgs := append([]string{"/c", command}, args...)
 		cmd := exec.Command("cmd", runasArgs...)
 
 		// Set the standard output and error streams
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		if logName != "" {
+			file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				log.Errorf("Error opening log file: %v", err)
+				return err
+			}
+			defer file.Close()
+
+			cmd.Stdout = file
+			cmd.Stderr = file
+		} else {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+		}
 
 		// Run the command with runas
 		err := cmd.Run()
@@ -30,8 +42,20 @@ func RunWithElevatedPrivileges(command string, args ...string) error {
 		cmd := exec.Command("sudo", sudoArgs...)
 
 		// Set the standard output and error streams
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		if logName != "" {
+			file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				log.Errorf("Error opening log file: %v", err)
+				return err
+			}
+			defer file.Close()
+
+			cmd.Stdout = file
+			cmd.Stderr = file
+		} else {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+		}
 
 		// Run the command with sudo
 		err := cmd.Run()
@@ -44,12 +68,24 @@ func RunWithElevatedPrivileges(command string, args ...string) error {
 	return nil
 }
 
-func RunCommand(command string, args ...string) error {
+func RunCommand(command string, logName string, args ...string) error {
 	cmd := exec.Command(command, args...)
 
 	// Set the standard output and error streams
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if logName != "" {
+		file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Errorf("Error opening log file: %v", err)
+			return err
+		}
+		defer file.Close()
+
+		cmd.Stdout = file
+		cmd.Stderr = file
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	// Run the command
 	err := cmd.Run()

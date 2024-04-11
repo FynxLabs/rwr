@@ -1,26 +1,26 @@
 package types
 
 type File struct {
-	Name    string   `yaml:"name" json:"name" toml:"name"`
-	Names   []string `yaml:"names" json:"names" toml:"names"`
-	Action  string   `yaml:"action" json:"action" toml:"action"`
-	Content string   `yaml:"content" json:"content" toml:"content"`
-	Source  string   `yaml:"source" json:"source" toml:"source"`
-	Target  string   `yaml:"target" json:"target" toml:"target"`
-	Owner   int      `yaml:"owner" json:"owner" toml:"owner"`
-	Group   int      `yaml:"group" json:"group" toml:"group"`
-	Mode    int      `yaml:"mode" json:"mode" toml:"mode"`
-	Create  bool     `yaml:"create" json:"create" toml:"create"`
+	Name    string   `mapstructure:"name,omitempty"`    // Name of the file
+	Names   []string `mapstructure:"names,omitempty"`   // Names of the files
+	Action  string   `mapstructure:"action"`            // Action to perform with the file
+	Content string   `mapstructure:"content,omitempty"` // Content of the file
+	Source  string   `mapstructure:"source,omitempty"`  // Source of the file
+	Target  string   `mapstructure:"target,omitempty"`  // Target of the file
+	Owner   int      `mapstructure:"owner,omitempty"`   // Owner of the file
+	Group   int      `mapstructure:"group,omitempty"`   // Group of the file
+	Mode    int      `mapstructure:"mode,omitempty"`    // Mode of the file
+	Create  bool     `mapstructure:"create,omitempty"`  // Whether to create the file
 }
 
 type Directory struct {
-	Name   string   `yaml:"name" json:"name" toml:"name"`
-	Names  []string `yaml:"names" json:"names" toml:"names"`
-	Action string   `yaml:"action" json:"action" toml:"action"`
-	Source string   `yaml:"source" json:"source" toml:"source"`
-	Target string   `yaml:"target" json:"target" toml:"target"`
-	Owner  int      `yaml:"owner" json:"owner" toml:"owner"`
-	Group  int      `yaml:"group" json:"group" toml:"group"`
-	Mode   int      `yaml:"mode" json:"mode" toml:"mode"`
-	Create bool     `yaml:"create" json:"create" toml:"create"`
+	Name   string   `mapstructure:"name,omitempty"`   // Name of the directory
+	Names  []string `mapstructure:"names,omitempty"`  // Names of the directories
+	Action string   `mapstructure:"action"`           // Action to perform with the directory
+	Source string   `mapstructure:"source,omitempty"` // Source of the directory
+	Target string   `mapstructure:"target,omitempty"` // Target of the directory
+	Owner  int      `mapstructure:"owner,omitempty"`  // Owner of the directory
+	Group  int      `mapstructure:"group,omitempty"`  // Group of the directory
+	Mode   int      `mapstructure:"mode,omitempty"`   // Mode of the directory
+	Create bool     `mapstructure:"create,omitempty"` // Whether to create the directory
 }

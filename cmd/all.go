@@ -21,5 +21,6 @@ var allCmd = &cobra.Command{
 }
 
 func init() {
+	configCmd.Flags().BoolVar(&initFlag, "force-bootstrap", false, "Force Bootstrap to be ran again")
 	rootCmd.AddCommand(allCmd)
 }

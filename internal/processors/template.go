@@ -40,7 +40,7 @@ func ProcessTemplatesFromData(blueprintData []byte, initConfig *types.InitConfig
 	var templates []types.Template
 
 	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &templates)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &templates)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling template blueprint data: %w", err)
 	}

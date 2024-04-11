@@ -12,17 +12,14 @@ import (
 )
 
 func ProcessUsersFromFile(blueprintFile string) error {
-	var usersData struct {
-		Groups []types.Group `yaml:"groups"`
-		Users  []types.User  `yaml:"users"`
-	}
-
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
 	if err != nil {
 		log.Errorf("Error reading blueprint file: %v", err)
 		return fmt.Errorf("error reading blueprint file: %w", err)
 	}
+
+	var usersData types.UsersData
 
 	// Unmarshal the blueprint data
 	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &usersData)
@@ -49,13 +46,11 @@ func ProcessUsersFromFile(blueprintFile string) error {
 }
 
 func ProcessUsersFromData(blueprintData []byte, initConfig *types.InitConfig) error {
-	var usersData struct {
-		Groups []types.Group `yaml:"groups"`
-		Users  []types.User  `yaml:"users"`
-	}
+
+	var usersData types.UsersData
 
 	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &usersData)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &usersData)
 	if err != nil {
 		log.Errorf("Error unmarshaling users blueprint data: %v", err)
 		return fmt.Errorf("error unmarshaling users blueprint data: %w", err)
@@ -115,7 +110,7 @@ func ProcessUsers(users []types.User) error {
 func createGroup(group types.Group) error {
 	switch runtime.GOOS {
 	case "linux", "darwin":
-		err := helpers.RunCommand("groupadd", group.Name)
+		err := helpers.RunCommand("groupadd", "", group.Name)
 		if err != nil {
 			return fmt.Errorf("error creating group: %v", err)
 		}
@@ -141,7 +136,7 @@ func createUser(user types.User) error {
 		for _, group := range user.Groups {
 			args = append(args, "--groups", group)
 		}
-		err := helpers.RunCommand("useradd", args...)
+		err := helpers.RunCommand("useradd", "", args...)
 		if err != nil {
 			return fmt.Errorf("error creating user: %v", err)
 		}

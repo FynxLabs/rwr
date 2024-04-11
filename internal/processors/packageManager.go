@@ -1,15 +1,14 @@
-// packageManagerProcessor.go
-
 package processors
 
 import (
 	"fmt"
-	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
 	"os"
 	"os/user"
 	"path/filepath"
+
+	"github.com/charmbracelet/log"
+	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/thefynx/rwr/internal/processors/types"
 )
 
 func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo types.OSInfo) error {
@@ -62,17 +61,21 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo t
 func processBrew(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if osInfo.OS == "linux" || osInfo.OS == "macos" {
 		if pm.Action == "install" {
+			if helpers.FindTool("brew").Exists {
+				log.Infof("Homebrew is already installed")
+				return nil
+			}
 			var installCmd string
 			if osInfo.OS == "macos" && pm.AsUser != "" {
 				installCmd = fmt.Sprintf("sudo -u %s /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"", pm.AsUser)
 			} else {
 				installCmd = "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
 			}
-			if err := helpers.RunCommand("bash", "-c", installCmd); err != nil {
+			if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", installCmd); err != nil {
 				return fmt.Errorf("error installing Homebrew: %v", err)
 			}
 		} else if pm.Action == "remove" {
-			if err := helpers.RunCommand("bash", "-c", "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"); err != nil {
+			if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"); err != nil {
 				return fmt.Errorf("error removing Homebrew: %v", err)
 			}
 		}
@@ -83,11 +86,15 @@ func processBrew(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 func processNix(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if osInfo.OS == "linux" || osInfo.OS == "macos" {
 		if pm.Action == "install" {
-			if err := helpers.RunCommand("bash", "-c", "$(curl -L https://nixos.org/nix/install)"); err != nil {
+			if helpers.FindTool("nix").Exists {
+				log.Infof("Nix is already installed")
+				return nil
+			}
+			if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", "$(curl -L https://nixos.org/nix/install)"); err != nil {
 				return fmt.Errorf("error installing Nix: %v", err)
 			}
 		} else if pm.Action == "remove" {
-			if err := helpers.RunCommand("bash", "-c", "$(curl -L https://nixos.org/nix/uninstall)"); err != nil {
+			if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", "$(curl -L https://nixos.org/nix/uninstall)"); err != nil {
 				return fmt.Errorf("error removing Nix: %v", err)
 			}
 		}
@@ -98,11 +105,15 @@ func processNix(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 func processChocolatey(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if osInfo.OS == "windows" {
 		if pm.Action == "install" {
-			if err := helpers.RunWithElevatedPrivileges("powershell", "-Command", "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"); err != nil {
+			if helpers.FindTool("choco").Exists {
+				log.Infof("Chocolatey is already installed")
+				return nil
+			}
+			if err := helpers.RunWithElevatedPrivileges(osInfo.Tools.PowerShell.Bin, "", "-Command", "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"); err != nil {
 				return fmt.Errorf("error installing Chocolatey: %v", err)
 			}
 		} else if pm.Action == "remove" {
-			if err := helpers.RunWithElevatedPrivileges("powershell", "-Command", "choco uninstall chocolatey -y"); err != nil {
+			if err := helpers.RunWithElevatedPrivileges(osInfo.Tools.PowerShell.Bin, "", "-Command", "choco uninstall chocolatey -y"); err != nil {
 				return fmt.Errorf("error removing Chocolatey: %v", err)
 			}
 		}
@@ -113,11 +124,15 @@ func processChocolatey(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 func processScoop(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if osInfo.OS == "windows" {
 		if pm.Action == "install" {
-			if err := helpers.RunCommand("powershell", "-Command", "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force; iex (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')"); err != nil {
+			if helpers.FindTool("scoop").Exists {
+				log.Infof("Scoop is already installed")
+				return nil
+			}
+			if err := helpers.RunCommand(osInfo.Tools.PowerShell.Bin, "", "-Command", "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force; iex (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')"); err != nil {
 				return fmt.Errorf("error installing Scoop: %v", err)
 			}
 		} else if pm.Action == "remove" {
-			if err := helpers.RunCommand("powershell", "-Command", "scoop uninstall scoop -p"); err != nil {
+			if err := helpers.RunCommand(osInfo.Tools.PowerShell.Bin, "", "-Command", "scoop uninstall scoop -p"); err != nil {
 				return fmt.Errorf("error removing Scoop: %v", err)
 			}
 		}
@@ -128,6 +143,25 @@ func processScoop(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 func processAURManager(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if osInfo.OS == "linux" {
 		if pm.Action == "install" {
+			var installed bool
+			switch pm.Name {
+			case "yay":
+				installed = helpers.FindTool("yay").Exists
+			case "paru":
+				installed = helpers.FindTool("paru").Exists
+			case "trizen":
+				installed = helpers.FindTool("trizen").Exists
+			case "yaourt":
+				installed = helpers.FindTool("yaourt").Exists
+			case "pamac":
+				installed = helpers.FindTool("pamac").Exists
+			case "aura":
+				installed = helpers.FindTool("aura").Exists
+			}
+			if installed {
+				log.Infof("%s is already installed", pm.Name)
+				return nil
+			}
 			var installCmd string
 			switch pm.Name {
 			case "yay":
@@ -143,7 +177,7 @@ func processAURManager(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 			case "aura":
 				installCmd = "pacman -S --needed base-devel git && git clone https://aur.archlinux.org/aura-bin.git && cd aura-bin && makepkg -si"
 			}
-			if err := helpers.RunCommand("bash", "-c", installCmd); err != nil {
+			if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", installCmd); err != nil {
 				return fmt.Errorf("error installing %s: %v", pm.Name, err)
 			}
 		} else if pm.Action == "remove" {
@@ -162,7 +196,7 @@ func processAURManager(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 			case "aura":
 				removeCmd = "aura -Rns aura-bin"
 			}
-			if err := helpers.RunCommand("bash", "-c", removeCmd); err != nil {
+			if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", removeCmd); err != nil {
 				return fmt.Errorf("error removing %s: %v", pm.Name, err)
 			}
 		}
@@ -172,6 +206,19 @@ func processAURManager(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 
 func processNodePackageManager(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if pm.Action == "install" {
+		var installed bool
+		switch pm.Name {
+		case "npm":
+			installed = helpers.FindTool("npm").Exists
+		case "pnpm":
+			installed = helpers.FindTool("pnpm").Exists
+		case "yarn":
+			installed = helpers.FindTool("yarn").Exists
+		}
+		if installed {
+			log.Infof("%s is already installed", pm.Name)
+			return nil
+		}
 		var installCmd string
 		switch pm.Name {
 		case "npm":
@@ -181,7 +228,7 @@ func processNodePackageManager(pm types.PackageManagerInfo, osInfo types.OSInfo)
 		case "yarn":
 			installCmd = "curl -fsSL https://yarnpkg.com/install.sh | bash"
 		}
-		if err := helpers.RunCommand("bash", "-c", installCmd); err != nil {
+		if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", installCmd); err != nil {
 			return fmt.Errorf("error installing %s: %v", pm.Name, err)
 		}
 	} else if pm.Action == "remove" {
@@ -194,7 +241,7 @@ func processNodePackageManager(pm types.PackageManagerInfo, osInfo types.OSInfo)
 		case "yarn":
 			removeCmd = "yarn global remove yarn"
 		}
-		if err := helpers.RunCommand("bash", "-c", removeCmd); err != nil {
+		if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", removeCmd); err != nil {
 			return fmt.Errorf("error removing %s: %v", pm.Name, err)
 		}
 	}
@@ -203,11 +250,15 @@ func processNodePackageManager(pm types.PackageManagerInfo, osInfo types.OSInfo)
 
 func processPip(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if pm.Action == "install" {
-		if err := helpers.RunCommand("bash", "-c", "curl https://bootstrap.pypa.io/get-pip.py | python"); err != nil {
+		if helpers.FindTool("pip").Exists {
+			log.Infof("pip is already installed")
+			return nil
+		}
+		if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", "curl https://bootstrap.pypa.io/get-pip.py | python"); err != nil {
 			return fmt.Errorf("error installing pip: %v", err)
 		}
 	} else if pm.Action == "remove" {
-		if err := helpers.RunCommand("bash", "-c", "python -m pip uninstall pip -y"); err != nil {
+		if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", "python -m pip uninstall pip -y"); err != nil {
 			return fmt.Errorf("error removing pip: %v", err)
 		}
 	}
@@ -216,11 +267,15 @@ func processPip(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 
 func processGem(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if pm.Action == "install" {
-		if err := helpers.RunCommand("bash", "-c", "gem update --system"); err != nil {
+		if helpers.FindTool("gem").Exists {
+			log.Infof("RubyGems is already installed")
+			return nil
+		}
+		if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", "gem update --system"); err != nil {
 			return fmt.Errorf("error updating Ruby Gems: %v", err)
 		}
 	} else if pm.Action == "remove" {
-		if err := helpers.RunCommand("bash", "-c", "gem uninstall rubygems-update"); err != nil {
+		if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", "gem uninstall rubygems-update"); err != nil {
 			return fmt.Errorf("error removing Ruby Gems: %v", err)
 		}
 	}
@@ -229,12 +284,16 @@ func processGem(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 
 func processCargo(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 	if pm.Action == "install" {
+		if helpers.FindTool("cargo").Exists {
+			log.Infof("Cargo is already installed")
+			return nil
+		}
 		// Install Rust and Cargo
 		installCmd := "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
 		if pm.AsUser != "" {
 			installCmd = fmt.Sprintf("sudo -u %s %s", pm.AsUser, installCmd)
 		}
-		if err := helpers.RunCommand("bash", "-c", installCmd); err != nil {
+		if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", installCmd); err != nil {
 			return fmt.Errorf("error installing Cargo: %v", err)
 		}
 
@@ -254,7 +313,7 @@ func processCargo(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 		}
 
 		// Install cargo-update
-		if err := helpers.RunCommand(filepath.Join(cargoPath, "cargo"), "install", "cargo-update"); err != nil {
+		if err := helpers.RunCommand(filepath.Join(cargoPath, "cargo"), "", "install", "cargo-update"); err != nil {
 			log.Warnf("Error installing cargo-update: %v", err)
 			// Continue execution even if cargo-update installation fails
 		}
@@ -285,7 +344,7 @@ func processCargo(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 		if pm.AsUser != "" {
 			uninstallCmd = fmt.Sprintf("sudo -u %s %s", pm.AsUser, uninstallCmd)
 		}
-		if err := helpers.RunCommand("bash", "-c", uninstallCmd); err != nil {
+		if err := helpers.RunCommand(osInfo.Tools.Bash.Bin, "", "-c", uninstallCmd); err != nil {
 			return fmt.Errorf("error removing Cargo: %v", err)
 		}
 	}

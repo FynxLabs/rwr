@@ -44,3 +44,18 @@ users:
     shell: /bin/bash
     home: /home/john
 
+scripts:
+    - name: myscript
+      action: run
+      source: /home/name/myscript.sh
+      args: "arg1 arg2"
+      exec: self
+      elevated: true
+      log: /var/log/myscript.log
+    - name: myscript2
+      action: run
+      source: https://github.com/myaccount/myscript2.sh
+      args: "arg1 arg2"
+      exec: /bin/bash
+      elevated: false
+      log: /var/log/myscript2.log

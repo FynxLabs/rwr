@@ -40,28 +40,31 @@ func DetectOS() types.OSInfo {
 func findCommonTools() types.ToolList {
 	var tools types.ToolList
 
-	tools.Git = findTool("git")
-	tools.Pip = findTool("pip")
-	tools.Gem = findTool("gem")
-	tools.Npm = findTool("npm")
-	tools.Yarn = findTool("yarn")
-	tools.Pnpm = findTool("pnpm")
-	tools.Bun = findTool("bun")
-	tools.Cargo = findTool("cargo")
-	tools.Docker = findTool("docker")
-	tools.Curl = findTool("curl")
-	tools.Wget = findTool("wget")
-	tools.Make = findTool("make")
-	tools.Clang = findTool("clang")
-	tools.Python = findTool("python")
-	tools.Ruby = findTool("ruby")
-	tools.Java = findTool("java")
+	tools.Git = FindTool("git")
+	tools.Go = FindTool("go")
+	tools.Rust = FindTool("rust")
+	tools.Bun = FindTool("bun")
+	tools.Docker = FindTool("docker")
+	tools.Curl = FindTool("curl")
+	tools.Wget = FindTool("wget")
+	tools.Make = FindTool("make")
+	tools.Clang = FindTool("clang")
+	tools.Python = FindTool("python")
+	tools.Ruby = FindTool("ruby")
+	tools.Java = FindTool("java")
+	tools.Bash = FindTool("bash")
+	tools.Zsh = FindTool("zsh")
+	tools.PowerShell = FindTool("powershell")
+	tools.Perl = FindTool("perl")
+	tools.Lua = FindTool("lua")
+	tools.Gpg = FindTool("gpg")
+	tools.Rpm = FindTool("rpm")
 
 	return tools
 }
 
-// findTool checks if a tool exists and returns its information.
-func findTool(name string) types.ToolInfo {
+// FindTool checks if a tool exists and returns its information.
+func FindTool(name string) types.ToolInfo {
 	log.Debugf("Checking for %s", name)
 	path, err := exec.LookPath(name)
 	if err != nil {

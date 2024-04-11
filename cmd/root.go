@@ -18,7 +18,7 @@ var rootCmd = &cobra.Command{
 	Short: "Rinse, Wash, and Repeat - Distrohopper's Friend",
 	Long:  `rwr is a cli to manage your Linux system's package manager and repositories.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if cmd.Use != "help" {
+		if cmd.Use != "help" && cmd.Use != "config" && cmd.Use != "version" {
 			initializeSystemInfo()
 		}
 		return nil
@@ -33,18 +33,20 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	ghApiToken       string // Global variable for API Key
-	sshKey           string // Global variable for SSH Key
-	skipVersionCheck bool
-	debug            bool
-	logLevel         string
-	initConfig       *types.InitConfig
-	initFilePath     string
+	ghApiToken           string // Global variable for API Key
+	sshKey               string // Global variable for SSH Key
+	skipVersionCheck     bool
+	debug                bool
+	logLevel             string
+	initConfig           *types.InitConfig
+	initFilePath         string
+	initTemplatesEnabled bool
 )
 
 func initializeSystemInfo() {
 	var err error
 
+	log.Debugf("Initializing system information with init file: %s", initFilePath)
 	initConfig, err = processors.Initialize(initFilePath)
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
@@ -72,6 +74,13 @@ func init() {
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
 		os.Exit(1)
+	}
+
+	// Init Templates Enabled flag
+	rootCmd.PersistentFlags().BoolVarP(&initTemplatesEnabled, "init-templates-enabled", "t", false, "Enable templates for the init file")
+	err = viper.BindPFlag("rwr.initTemplatesEnabled", rootCmd.PersistentFlags().Lookup("init-templates-enabled"))
+	if err != nil {
+		log.With("err", err).Errorf("Error initializing system information")
 	}
 
 	err = viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))

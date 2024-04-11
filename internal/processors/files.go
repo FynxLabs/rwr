@@ -56,7 +56,7 @@ func ProcessFilesFromData(blueprintData []byte, initConfig *types.InitConfig) er
 		Files       []types.File      `yaml:"files" json:"files" toml:"files"`
 		Directories []types.Directory `yaml:"directories" json:"directories" toml:"directories"`
 	}
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &data)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &data)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling file blueprint data: %w", err)
 	}

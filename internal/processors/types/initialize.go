@@ -9,14 +9,14 @@ type OSInfo struct {
 
 // InitConfig represents the configuration for the initialization processor.
 type InitConfig struct {
-	Blueprint       Blueprints             `yaml:"blueprint" json:"blueprint" toml:"blueprint"`
-	PackageManagers []PackageManagerInfo   `yaml:"packageManagers" json:"packageManagers" toml:"packageManagers"`
-	Repositories    []Repository           `yaml:"repositories" json:"repositories" toml:"repositories"`
-	Packages        []Package              `yaml:"packages" json:"packages" toml:"packages"`
-	Services        []Service              `yaml:"services" json:"services" toml:"services"`
-	Files           []File                 `yaml:"files" json:"files" toml:"files"`
-	Directories     []Directory            `mapstructure:"yaml" json:"directories" toml:"directories"`
-	Templates       []Template             `yaml:"templates" json:"templates" toml:"templates"`
-	Configuration   []Configuration        `yaml:"configuration" json:"configuration" toml:"configuration"`
-	Variables       map[string]interface{} `yaml:"variables" json:"variables" toml:"variables"`
+	Init            Init                   `mapstructure:"blueprints"`
+	PackageManagers []PackageManagerInfo   `mapstructure:"packageManagers,omitempty"`
+	Repositories    []Repository           `mapstructure:"repositories,omitempty"`
+	Packages        []Package              `mapstructure:"packages,omitempty"`
+	Services        []Service              `mapstructure:"services,omitempty"`
+	Files           []File                 `mapstructure:"files,omitempty"`
+	Directories     []Directory            `mapstructure:"directories,omitempty"`
+	Templates       []Template             `mapstructure:"templates,omitempty"`
+	Configuration   []Configuration        `mapstructure:"configuration,omitempty"`
+	Variables       map[string]interface{} `mapstructure:"variables,omitempty"`
 }

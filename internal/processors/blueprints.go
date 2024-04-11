@@ -11,8 +11,8 @@ import (
 
 func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 	// Check if GitOptions is provided in the init configuration
-	if initConfig.Blueprint.Git != nil {
-		gitOpts := initConfig.Blueprint.Git
+	if initConfig.Init.Git != nil {
+		gitOpts := initConfig.Init.Git
 
 		// Check if the target directory already exists
 		if _, err := os.Stat(gitOpts.Target); os.IsNotExist(err) {
@@ -42,29 +42,60 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 
 func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 	var runOrder []string
-	for _, item := range initConfig.Blueprint.Order {
-		if str, ok := item.(string); ok {
-			runOrder = append(runOrder, str)
-		} else if subOrder, ok := item.(map[string]interface{}); ok {
-			for processor := range subOrder {
-				runOrder = append(runOrder, processor)
+
+	if initConfig.Init.Order != nil {
+		for _, item := range initConfig.Init.Order {
+			if str, ok := item.(string); ok {
+				runOrder = append(runOrder, str)
+			} else if subOrder, ok := item.(map[string]interface{}); ok {
+				for processor := range subOrder {
+					runOrder = append(runOrder, processor)
+				}
 			}
 		}
+	} else {
+		runOrder = append(runOrder, "packageManagers", "repositories", "packages", "files", "templates", "configuration", "services")
 	}
+
+	log.Debugf("Blueprint run order: %v", runOrder)
 	return runOrder, nil
 }
 
-func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyListed bool, initConfig *types.InitConfig) ([]string, error) {
-	var fileOrder []string
+func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyListed bool, initConfig *types.InitConfig) (map[string][]string, error) {
+	fileOrder := make(map[string][]string)
+
 	for _, item := range order {
 		if str, ok := item.(string); ok {
-			fileOrder = append(fileOrder, str)
+			// Check if the item is a directory
+			processorDir := filepath.Join(blueprintDir, str)
+			if _, err := os.Stat(processorDir); err == nil {
+				// If the item is a directory, scan for files and add them to the fileOrder
+				err := filepath.Walk(processorDir, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format {
+						relPath, err := filepath.Rel(blueprintDir, path)
+						if err != nil {
+							return err
+						}
+						fileOrder[str] = append(fileOrder[str], relPath)
+					}
+					return nil
+				})
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				// If the item is a file, add it directly to the fileOrder
+				fileOrder[filepath.Dir(str)] = append(fileOrder[filepath.Dir(str)], str)
+			}
 		} else if subOrder, ok := item.(map[string]interface{}); ok {
 			for processor, files := range subOrder {
 				if filesArr, ok := files.([]interface{}); ok {
 					for _, file := range filesArr {
 						if fileStr, ok := file.(string); ok {
-							fileOrder = append(fileOrder, filepath.Join(processor, fileStr))
+							fileOrder[processor] = append(fileOrder[processor], filepath.Join(processor, fileStr))
 						}
 					}
 				}
@@ -78,13 +109,16 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 			if err != nil {
 				return err
 			}
-			if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Blueprint.Format {
+			if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format {
 				relPath, err := filepath.Rel(blueprintDir, path)
 				if err != nil {
 					return err
 				}
-				if !helpers.Contains(fileOrder, relPath) {
-					fileOrder = append(fileOrder, relPath)
+				processor := filepath.Dir(relPath)
+				if _, ok := fileOrder[processor]; !ok {
+					fileOrder[processor] = []string{relPath}
+				} else if !helpers.Contains(fileOrder[processor], relPath) {
+					fileOrder[processor] = append(fileOrder[processor], relPath)
 				}
 			}
 			return nil
@@ -94,5 +128,6 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		}
 	}
 
+	log.Debugf("Blueprint file order: %v", fileOrder)
 	return fileOrder, nil
 }

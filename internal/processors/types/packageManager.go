@@ -2,17 +2,17 @@ package types
 
 // PackageManagerInfo represents a package manager with its associated commands.
 type PackageManagerInfo struct {
-	Name     string // Package manager name
-	Bin      string // Package manager binary
-	List     string // Command to list installed packages
-	Search   string // Command to search for a package
-	Install  string // Command to install a package
-	Update   string // Command to update package lists
-	Remove   string // Command to remove a package
-	Clean    string // Command to clean package cache
-	Elevated bool   // Whether the package manager requires elevated privileges
-	Action   string // Action to perform with the package manager (install, remove)
-	AsUser   string // User to run the package manager as (macOS only)
+	Name     string `mapstructure:"name,omitempty"`     // Name of the package manager
+	Bin      string `mapstructure:"bin,omitempty"`      // Package manager binary
+	List     string `mapstructure:"list,omitempty"`     // Command to list installed packages
+	Search   string `mapstructure:"search,omitempty"`   // Command to search for a package
+	Install  string `mapstructure:"install,omitempty"`  // Command to install a package
+	Update   string `mapstructure:"update,omitempty"`   // Command to update package lists
+	Remove   string `mapstructure:"remove,omitempty"`   // Command to remove a package
+	Clean    string `mapstructure:"clean,omitempty"`    // Command to clean package cache
+	Elevated bool   `mapstructure:"elevated,omitempty"` // Whether the package manager requires elevated privileges
+	Action   string `mapstructure:"action,omitempty"`   // Action to perform with the package manager (install, remove)
+	AsUser   string `mapstructure:"asUser,omitempty"`   // User to run the package manager as (macOS only)
 }
 
 type PackageManager struct {

@@ -41,7 +41,7 @@ func ProcessGitRepositoriesFromData(blueprintData []byte, initConfig *types.Init
 	var gitRepos []types.Git
 
 	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Blueprint.Format, &gitRepos)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &gitRepos)
 	if err != nil {
 		log.Errorf("Error unmarshaling Git repository blueprint data: %v", err)
 		return fmt.Errorf("error unmarshaling Git repository blueprint data: %w", err)

@@ -3,6 +3,7 @@ package helpers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/charmbracelet/log"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -10,6 +11,7 @@ import (
 )
 
 func ReadYAMLFile(filePath string, data interface{}) error {
+	log.Debugf("Reading YAML file: %s", filePath)
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("error opening YAML file: %w", err)
@@ -31,6 +33,7 @@ func ReadYAMLFile(filePath string, data interface{}) error {
 }
 
 func ReadJSONFile(filePath string, data interface{}) error {
+	log.Debugf("Reading JSON file: %s", filePath)
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("error opening JSON file: %w", err)
@@ -52,6 +55,7 @@ func ReadJSONFile(filePath string, data interface{}) error {
 }
 
 func ReadTOMLFile(filePath string, data interface{}) error {
+	log.Debugf("Reading TOML file: %s", filePath)
 	_, err := toml.DecodeFile(filePath, data)
 	if err != nil {
 		return fmt.Errorf("error decoding TOML file: %w", err)
@@ -62,17 +66,17 @@ func ReadTOMLFile(filePath string, data interface{}) error {
 
 func UnmarshalBlueprint(data []byte, format string, v interface{}) error {
 	switch format {
-	case ".yaml", ".yml":
+	case ".yaml", ".yml", "yaml", "yml":
 		err := yaml.Unmarshal(data, v)
 		if err != nil {
 			return fmt.Errorf("error unmarshaling YAML: %w", err)
 		}
-	case ".json":
+	case ".json", "json":
 		err := json.Unmarshal(data, v)
 		if err != nil {
 			return fmt.Errorf("error unmarshaling JSON: %w", err)
 		}
-	case ".toml":
+	case ".toml", "toml":
 		err := toml.Unmarshal(data, v)
 		if err != nil {
 			return fmt.Errorf("error unmarshaling TOML: %w", err)

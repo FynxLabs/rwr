@@ -18,6 +18,46 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 	var err error
 	var fileExt string
 
+	// Set default variables
+	currentUser, err := user.Current()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving current user information: %w", err)
+	}
+
+	viper.SetDefault("user.username", currentUser.Username)
+	viper.SetDefault("user.home", currentUser.HomeDir)
+	viper.SetDefault("user.shell", os.Getenv("SHELL"))
+
+	// Retrieve user's full name, first name, and last name
+	fullName := currentUser.Name
+	names := strings.Fields(fullName)
+	firstName := ""
+	lastName := ""
+	if len(names) > 0 {
+		firstName = names[0]
+	}
+	if len(names) > 1 {
+		lastName = names[len(names)-1]
+	}
+
+	viper.SetDefault("user.fullName", fullName)
+	viper.SetDefault("user.firstName", firstName)
+	viper.SetDefault("user.lastName", lastName)
+
+	// Set user's group name
+	groupName := ""
+	if runtime.GOOS != "windows" {
+		// Retrieve the user's primary group name on Unix-like systems
+		group, err := user.LookupGroupId(currentUser.Gid)
+		if err != nil {
+			log.With("err", err).Warnf("Error retrieving primary group name for user %s", currentUser.Username)
+		} else {
+			groupName = group.Name
+		}
+	}
+
+	viper.SetDefault("user.groupName", groupName)
+
 	// Check if the init file path is a URL
 	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
 		// Extract the repository URL and file path from the GitHub URL
@@ -62,6 +102,40 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 		fileExt = filepath.Ext(initFilePath)
 	}
 
+	// Get the directory of the init file
+	initFileDir := filepath.Dir(initFilePath)
+	log.Debugf("Initializing system information with init file: %s", initFilePath)
+	log.Debugf("Init file directory: %s", initFileDir)
+
+	// Check if init templates are enabled
+	if viper.GetBool("rwr.initTemplatesEnabled") {
+		// Create a temporary directory for the processed init file
+		tempDir, err := os.MkdirTemp("", "rwr-init-")
+		if err != nil {
+			return nil, fmt.Errorf("error creating temporary directory: %w", err)
+		}
+		defer func() {
+			err := os.RemoveAll(tempDir)
+			if err != nil {
+				log.Errorf("error removing temporary directory: %v", err)
+			}
+		}()
+
+		// Generate the processed init file path in the temporary directory
+		processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
+
+		// Process the init file as a template
+		err = processTemplate(types.Template{
+			Source:    initFilePath,
+			Target:    processedInitFile,
+			Variables: viper.GetStringMap("user"),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error processing init file as template: %w", err)
+		}
+		initFilePath = processedInitFile
+	}
+
 	viper.SetConfigFile(initFilePath)
 
 	if err := viper.ReadInConfig(); err != nil {
@@ -72,45 +146,21 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 		return nil, fmt.Errorf("error unmarshaling init.yaml: %w", err)
 	}
 
-	// Set default variables
-	currentUser, err := user.Current()
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving current user information: %w", err)
+	// Set the default location if not specified
+	if initConfig.Init.Location == "" {
+		log.Debugf("Location not specified in init file. Using directory of the init file")
+		initConfig.Init.Location = initFileDir
+	} else if initConfig.Init.Location == "." {
+		// If the location is ".", set it to the directory of the init file
+		log.Debugf("Location set to current directory. Using directory of the init file")
+		initConfig.Init.Location = initFileDir
+	} else if !filepath.IsAbs(initConfig.Init.Location) {
+		// If the location is relative, make it relative to the init file path
+		log.Debugf("Location is relative. Making it relative to the init file directory")
+		initConfig.Init.Location = filepath.Join(initFileDir, initConfig.Init.Location)
 	}
 
-	viper.SetDefault("user.username", currentUser.Username)
-	viper.SetDefault("user.home", currentUser.HomeDir)
-	viper.SetDefault("user.shell", os.Getenv("SHELL"))
-
-	// Retrieve user's full name, first name, and last name
-	fullName := currentUser.Name
-	names := strings.Fields(fullName)
-	firstName := ""
-	lastName := ""
-	if len(names) > 0 {
-		firstName = names[0]
-	}
-	if len(names) > 1 {
-		lastName = names[len(names)-1]
-	}
-
-	viper.SetDefault("user.fullName", fullName)
-	viper.SetDefault("user.firstName", firstName)
-	viper.SetDefault("user.lastName", lastName)
-
-	// Set user's group name
-	groupName := ""
-	if runtime.GOOS != "windows" {
-		// Retrieve the user's primary group name on Unix-like systems
-		group, err := user.LookupGroupId(currentUser.Gid)
-		if err != nil {
-			log.With("err", err).Warnf("Error retrieving primary group name for user %s", currentUser.Username)
-		} else {
-			groupName = group.Name
-		}
-	}
-
-	viper.SetDefault("user.groupName", groupName)
+	log.Debugf("Init file location: %s", initConfig.Init.Location)
 
 	// Set user-defined variables from init.yaml
 	for key, value := range initConfig.Variables {

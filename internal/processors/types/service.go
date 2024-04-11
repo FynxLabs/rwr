@@ -1,11 +1,11 @@
 package types
 
 type Service struct {
-	Name     string `yaml:"name" json:"name" toml:"name"`
-	Action   string `yaml:"action" json:"action" toml:"action"`
-	Elevated bool   `yaml:"elevated" json:"elevated" toml:"elevated"`
-	Target   string `yaml:"target" json:"target" toml:"target"`
-	Content  string `yaml:"content" json:"content" toml:"content"`
-	Source   string `yaml:"source" json:"source" toml:"source"`
-	File     string `yaml:"file" json:"file" toml:"file"`
+	Name     string `mapstructure:"name"`               // Name of the service
+	Action   string `mapstructure:"action"`             // Action to perform with the service
+	Elevated bool   `mapstructure:"elevated,omitempty"` // Whether the service requires elevated privileges
+	Target   string `mapstructure:"target,omitempty"`   // Target of the service
+	Content  string `mapstructure:"content,omitempty"`  // Content of the service
+	Source   string `mapstructure:"source,omitempty"`   // Source of the service
+	File     string `mapstructure:"file,omitempty"`     // File of the service
 }
