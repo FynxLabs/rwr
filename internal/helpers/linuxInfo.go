@@ -72,8 +72,7 @@ func getPackageManagerForDistro(distro string) string {
 	return ""
 }
 
-// SetLinuxDetails sets the package manager details for the Linux distribution.
-func SetLinuxDetails(osInfo *types.OSInfo) {
+func SetLinuxDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Linux package manager details.")
 
 	defaultPackageManager := getDefaultPackageManagerFromOSRelease()
@@ -82,24 +81,20 @@ func SetLinuxDetails(osInfo *types.OSInfo) {
 		setPackageManagerDetails(osInfo, defaultPackageManager)
 	}
 
-	for _, pm := range []string{
-		"apt",
-		"dnf",
-		"eopkg",
-		"yay",
-		"paru",
-		"trizen",
-		"yaourt",
-		"pamac",
-		"aura",
-		"pacman",
-		"zypper",
-		"emerge",
-		"nix",
-		"brew",
-	} {
+	packageManagers := getPackageManagerNames(osInfo.PackageManager)
+
+	for _, pm := range packageManagers {
+		_, err := GetPackageManagerInfo(osInfo, pm)
+		if err != nil {
+			log.Debugf("Package manager not found: %s", pm)
+			continue
+		}
+
 		if CommandExists(pm) {
+			log.Debugf("Package manager found: %s", pm)
 			setPackageManagerDetails(osInfo, pm)
+		} else {
+			log.Debugf("Package manager not found: %s", pm)
 		}
 	}
 
@@ -109,7 +104,11 @@ func SetLinuxDetails(osInfo *types.OSInfo) {
 		log.Debugf("Overriding default package manager with value from Viper: %s", viperDefault)
 		setPackageManagerDetails(osInfo, viperDefault)
 	}
+
+	return nil
 }
+
+//TODO: Move all package manager actions to a separate file to avoid duplication
 
 func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 	switch pm {
@@ -127,6 +126,7 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 				Elevated: true,
 			}
 			osInfo.PackageManager.Default = osInfo.PackageManager.Apt
+			log.Debugf("Using nala package manager for apt")
 		} else {
 			osInfo.PackageManager.Apt = types.PackageManagerInfo{
 				Bin:      "apt",
@@ -139,6 +139,7 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 				Elevated: true,
 			}
 			osInfo.PackageManager.Default = osInfo.PackageManager.Apt
+			log.Debugf("Using apt package manager")
 		}
 	case "dnf":
 		osInfo.PackageManager.Dnf = types.PackageManagerInfo{
@@ -152,6 +153,7 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Dnf
+		log.Debugf("Using dnf package manager")
 	case "eopkg":
 		osInfo.PackageManager.Eopkg = types.PackageManagerInfo{
 			Bin:      "eopkg",
@@ -164,78 +166,7 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Eopkg
-	case "yay":
-		osInfo.PackageManager.Yay = types.PackageManagerInfo{
-			Bin:      "yay",
-			List:     "yay -Q",
-			Search:   "yay -Ss",
-			Install:  "yay -S --noconfirm",
-			Remove:   "yay -R --noconfirm",
-			Update:   "yay -Syu --noconfirm",
-			Clean:    "yay -Sc --noconfirm",
-			Elevated: false,
-		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Yay
-	case "paru":
-		osInfo.PackageManager.Paru = types.PackageManagerInfo{
-			Bin:      "paru",
-			List:     "paru -Q",
-			Search:   "paru -Ss",
-			Install:  "paru -S --noconfirm",
-			Remove:   "paru -R --noconfirm",
-			Update:   "paru -Syu --noconfirm",
-			Clean:    "paru -Sc --noconfirm",
-			Elevated: false,
-		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Paru
-	case "trizen":
-		osInfo.PackageManager.Trizen = types.PackageManagerInfo{
-			Bin:      "trizen",
-			List:     "trizen -Q",
-			Search:   "trizen -Ss",
-			Install:  "trizen -S --noconfirm",
-			Remove:   "trizen -R --noconfirm",
-			Update:   "trizen -Syu --noconfirm",
-			Clean:    "trizen -Sc --noconfirm",
-			Elevated: false,
-		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Trizen
-	case "yaourt":
-		osInfo.PackageManager.Yaourt = types.PackageManagerInfo{
-			Bin:      "yaourt",
-			List:     "yaourt -Q",
-			Search:   "yaourt -Ss",
-			Install:  "yaourt -S --noconfirm",
-			Remove:   "yaourt -R --noconfirm",
-			Update:   "yaourt -Syu --noconfirm",
-			Clean:    "yaourt -Sc --noconfirm",
-			Elevated: false,
-		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Yaourt
-	case "pamac":
-		osInfo.PackageManager.Pamac = types.PackageManagerInfo{
-			Bin:      "pamac",
-			List:     "pamac list -i",
-			Search:   "pamac search",
-			Install:  "pamac install -y",
-			Remove:   "pamac remove -y",
-			Update:   "pamac update",
-			Clean:    "pamac clean -y",
-			Elevated: false,
-		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Pamac
-	case "aura":
-		osInfo.PackageManager.Aura = types.PackageManagerInfo{
-			Bin:      "aura",
-			List:     "aura -Q",
-			Search:   "aura -Ss",
-			Install:  "aura -A --noconfirm",
-			Remove:   "aura -R --noconfirm",
-			Update:   "aura -Syu --noconfirm",
-			Clean:    "aura -Sc --noconfirm",
-			Elevated: false,
-		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Aura
+		log.Debugf("Using eopkg package manager")
 	case "pacman":
 		osInfo.PackageManager.Pacman = types.PackageManagerInfo{
 			Bin:      "pacman",
@@ -248,6 +179,85 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Pacman
+		log.Debugf("Using pacman package manager")
+	case "yay":
+		osInfo.PackageManager.Yay = types.PackageManagerInfo{
+			Bin:      "yay",
+			List:     "yay -Q",
+			Search:   "yay -Ss",
+			Install:  "yay -S --noconfirm",
+			Remove:   "yay -R --noconfirm",
+			Update:   "yay -Syu --noconfirm",
+			Clean:    "yay -Sc --noconfirm",
+			Elevated: false,
+		}
+		osInfo.PackageManager.Default = osInfo.PackageManager.Yay
+		log.Debugf("Using yay package manager")
+	case "paru":
+		osInfo.PackageManager.Paru = types.PackageManagerInfo{
+			Bin:      "paru",
+			List:     "paru -Q",
+			Search:   "paru -Ss",
+			Install:  "paru -S --noconfirm",
+			Remove:   "paru -R --noconfirm",
+			Update:   "paru -Syu --noconfirm",
+			Clean:    "paru -Sc --noconfirm",
+			Elevated: false,
+		}
+		osInfo.PackageManager.Default = osInfo.PackageManager.Paru
+		log.Debugf("Using paru package manager")
+	case "trizen":
+		osInfo.PackageManager.Trizen = types.PackageManagerInfo{
+			Bin:      "trizen",
+			List:     "trizen -Q",
+			Search:   "trizen -Ss",
+			Install:  "trizen -S --noconfirm",
+			Remove:   "trizen -R --noconfirm",
+			Update:   "trizen -Syu --noconfirm",
+			Clean:    "trizen -Sc --noconfirm",
+			Elevated: false,
+		}
+		osInfo.PackageManager.Default = osInfo.PackageManager.Trizen
+		log.Debugf("Using trizen package manager")
+	case "yaourt":
+		osInfo.PackageManager.Yaourt = types.PackageManagerInfo{
+			Bin:      "yaourt",
+			List:     "yaourt -Q",
+			Search:   "yaourt -Ss",
+			Install:  "yaourt -S --noconfirm",
+			Remove:   "yaourt -R --noconfirm",
+			Update:   "yaourt -Syu --noconfirm",
+			Clean:    "yaourt -Sc --noconfirm",
+			Elevated: false,
+		}
+		osInfo.PackageManager.Default = osInfo.PackageManager.Yaourt
+		log.Debugf("Using yaourt package manager")
+	case "pamac":
+		osInfo.PackageManager.Pamac = types.PackageManagerInfo{
+			Bin:      "pamac",
+			List:     "pamac list -i",
+			Search:   "pamac search",
+			Install:  "pamac install -y",
+			Remove:   "pamac remove -y",
+			Update:   "pamac update",
+			Clean:    "pamac clean -y",
+			Elevated: false,
+		}
+		osInfo.PackageManager.Default = osInfo.PackageManager.Pamac
+		log.Debugf("Using pamac package manager")
+	case "aura":
+		osInfo.PackageManager.Aura = types.PackageManagerInfo{
+			Bin:      "aura",
+			List:     "aura -Q",
+			Search:   "aura -Ss",
+			Install:  "aura -A --noconfirm",
+			Remove:   "aura -R --noconfirm",
+			Update:   "aura -Syu --noconfirm",
+			Clean:    "aura -Sc --noconfirm",
+			Elevated: false,
+		}
+		osInfo.PackageManager.Default = osInfo.PackageManager.Aura
+		log.Debugf("Using aura package manager")
 	case "zypper":
 		osInfo.PackageManager.Zypper = types.PackageManagerInfo{
 			Bin:      "zypper",
@@ -260,6 +270,7 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Zypper
+		log.Debugf("Using zypper package manager")
 	case "emerge":
 		osInfo.PackageManager.Emerge = types.PackageManagerInfo{
 			Bin:      "emerge",
@@ -272,6 +283,7 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 			Elevated: true,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Emerge
+		log.Debugf("Using emerge package manager")
 	case "nix":
 		osInfo.PackageManager.Nix = types.PackageManagerInfo{
 			Bin:      "nix-env",
@@ -284,6 +296,7 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 			Elevated: false,
 		}
 		osInfo.PackageManager.Default = osInfo.PackageManager.Nix
+		log.Debugf("Using nix package manager")
 	case "brew":
 		osInfo.PackageManager.Brew = types.PackageManagerInfo{
 			Bin:      "brew",
@@ -295,7 +308,17 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 			Clean:    "brew cleanup -q",
 			Elevated: false,
 		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Brew
+	case "cargo":
+		osInfo.PackageManager.Cargo = types.PackageManagerInfo{
+			Bin:      "cargo",
+			List:     "cargo install --list",
+			Search:   "cargo search",
+			Install:  "cargo install",
+			Remove:   "cargo uninstall",
+			Update:   "cargo install --force",
+			Clean:    "cargo cache --autoclean",
+			Elevated: false,
+		}
 	default:
 		log.Warnf("Unknown package manager: %s", pm)
 	}

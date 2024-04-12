@@ -1,5 +1,7 @@
 = Rinse, Wash, Repeat (RWR)
 
+image::img/rwr.gif[RWR Logo, width=250]
+
 Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed for those who like hop around and reinstall a lot regardless if it's Linux, macOS, and Windows. It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines.
 
 == Features

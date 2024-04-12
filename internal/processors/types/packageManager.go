@@ -2,17 +2,17 @@ package types
 
 // PackageManagerInfo represents a package manager with its associated commands.
 type PackageManagerInfo struct {
-	Name     string `mapstructure:"name,omitempty"`     // Name of the package manager
-	Bin      string `mapstructure:"bin,omitempty"`      // Package manager binary
-	List     string `mapstructure:"list,omitempty"`     // Command to list installed packages
-	Search   string `mapstructure:"search,omitempty"`   // Command to search for a package
-	Install  string `mapstructure:"install,omitempty"`  // Command to install a package
-	Update   string `mapstructure:"update,omitempty"`   // Command to update package lists
-	Remove   string `mapstructure:"remove,omitempty"`   // Command to remove a package
-	Clean    string `mapstructure:"clean,omitempty"`    // Command to clean package cache
-	Elevated bool   `mapstructure:"elevated,omitempty"` // Whether the package manager requires elevated privileges
-	Action   string `mapstructure:"action,omitempty"`   // Action to perform with the package manager (install, remove)
-	AsUser   string `mapstructure:"asUser,omitempty"`   // User to run the package manager as (macOS only)
+	Name     string `mapstructure:"name,omitempty" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`
+	Bin      string `mapstructure:"bin,omitempty" yaml:"bin,omitempty" json:"bin,omitempty" toml:"bin,omitempty"`
+	List     string `mapstructure:"list,omitempty" yaml:"list,omitempty" json:"list,omitempty" toml:"list,omitempty"`
+	Search   string `mapstructure:"search,omitempty" yaml:"search,omitempty" json:"search,omitempty" toml:"search,omitempty"`
+	Install  string `mapstructure:"install,omitempty" yaml:"install,omitempty" json:"install,omitempty" toml:"install,omitempty"`
+	Update   string `mapstructure:"update,omitempty" yaml:"update,omitempty" json:"update,omitempty" toml:"update,omitempty"`
+	Remove   string `mapstructure:"remove,omitempty" yaml:"remove,omitempty" json:"remove,omitempty" toml:"remove,omitempty"`
+	Clean    string `mapstructure:"clean,omitempty" yaml:"clean,omitempty" json:"clean,omitempty" toml:"clean,omitempty"`
+	Elevated bool   `mapstructure:"elevated,omitempty" yaml:"elevated,omitempty" json:"elevated,omitempty" toml:"elevated,omitempty"`
+	Action   string `mapstructure:"action,omitempty" yaml:"action,omitempty" json:"action,omitempty" toml:"action,omitempty"`
+	AsUser   string `mapstructure:"asUser,omitempty" yaml:"asUser,omitempty" json:"asUser,omitempty" toml:"asUser,omitempty"`
 }
 
 type PackageManager struct {
@@ -40,4 +40,9 @@ type PackageManager struct {
 	Pip        PackageManagerInfo
 	Gem        PackageManagerInfo
 	Cargo      PackageManagerInfo
+	Snap       PackageManagerInfo
+	Flatpak    PackageManagerInfo
+	Apk        PackageManagerInfo
+	Winget     PackageManagerInfo
+	MacPorts   PackageManagerInfo
 }

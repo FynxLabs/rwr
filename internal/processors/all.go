@@ -66,56 +66,56 @@ func All(initConfig *types.InitConfig, runOrder []string) error {
 
 				switch processor {
 				case "repositories":
-					log.Debugf("Processing repositories")
+					log.Infof("Processing repositories")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessRepositoriesFromData(resolvedBlueprint, initConfig, osInfo)
 					} else {
 						err = ProcessRepositoriesFromFile(blueprintFile, osInfo)
 					}
 				case "packages":
-					log.Debugf("Processing packages")
+					log.Infof("Processing packages")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessPackagesFromData(resolvedBlueprint, initConfig, osInfo)
 					} else {
 						err = ProcessPackagesFromFile(blueprintFile, osInfo)
 					}
 				case "files":
-					log.Debugf("Processing files")
+					log.Infof("Processing files")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessFilesFromData(resolvedBlueprint, initConfig)
 					} else {
 						err = ProcessFilesFromFile(blueprintFile)
 					}
 				case "services":
-					log.Debugf("Processing services")
+					log.Infof("Processing services")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessServicesFromData(resolvedBlueprint, initConfig)
 					} else {
 						err = ProcessServicesFromFile(blueprintFile)
 					}
 				case "templates":
-					log.Debugf("Processing templates")
+					log.Infof("Processing templates")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessTemplatesFromData(resolvedBlueprint, initConfig)
 					} else {
 						err = ProcessTemplatesFromFile(blueprintFile)
 					}
 				case "users":
-					log.Debugf("Processing users")
+					log.Infof("Processing users")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessUsersFromData(resolvedBlueprint, initConfig)
 					} else {
 						err = ProcessUsersFromFile(blueprintFile)
 					}
 				case "git":
-					log.Debugf("Processing Git repositories")
+					log.Infof("Processing Git repositories")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessGitRepositoriesFromData(resolvedBlueprint, initConfig)
 					} else {
 						err = ProcessGitRepositoriesFromFile(blueprintFile)
 					}
 				case "scripts":
-					log.Debugf("Processing scripts")
+					log.Infof("Processing scripts")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessScriptsFromData(resolvedBlueprint, initConfig, osInfo)
 					} else {
@@ -133,7 +133,12 @@ func All(initConfig *types.InitConfig, runOrder []string) error {
 		}
 	}
 
-	log.Info("Initialization completed")
+	err = helpers.CleanPackageManagers(&osInfo)
+	if err != nil {
+		return fmt.Errorf("error cleaning package managers: %w", err)
+	}
+
+	log.Info("RWR Run Complete!")
 	return nil
 }
 

@@ -18,7 +18,10 @@ func DetectOS() types.OSInfo {
 	case "linux":
 		log.Debug("Linux detected.")
 		osInfo.OS = "linux"
-		SetLinuxDetails(&osInfo)
+		err := SetLinuxDetails(&osInfo)
+		if err != nil {
+			log.Fatalf("Error setting Linux details: %v", err)
+		}
 	case "darwin":
 		log.Debug("macOS detected.")
 		osInfo.OS = "macos"

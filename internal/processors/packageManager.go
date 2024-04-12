@@ -50,6 +50,10 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo t
 			if err := processCargo(pm, osInfo); err != nil {
 				return err
 			}
+		case "winget":
+			if err := processWinget(pm, osInfo); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unsupported package manager: %s", pm.Name)
 		}
@@ -115,6 +119,25 @@ func processChocolatey(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 		} else if pm.Action == "remove" {
 			if err := helpers.RunWithElevatedPrivileges(osInfo.Tools.PowerShell.Bin, "", "-Command", "choco uninstall chocolatey -y"); err != nil {
 				return fmt.Errorf("error removing Chocolatey: %v", err)
+			}
+		}
+	}
+	return nil
+}
+
+func processWinget(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
+	if osInfo.OS == "windows" {
+		if pm.Action == "install" {
+			if helpers.FindTool("winget").Exists {
+				log.Infof("Winget is already installed")
+				return nil
+			}
+			if err := helpers.RunWithElevatedPrivileges(osInfo.Tools.PowerShell.Bin, "", "-Command", "Invoke-WebRequest -Uri https://github.com/microsoft/winget-cli/releases/download/v1.5.9371.0/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.appxbundle -OutFile winget.appxbundle; Add-AppxPackage -Path winget.appxbundle"); err != nil {
+				return fmt.Errorf("error installing Winget: %v", err)
+			}
+		} else if pm.Action == "remove" {
+			if err := helpers.RunWithElevatedPrivileges(osInfo.Tools.PowerShell.Bin, "", "-Command", "Get-AppxPackage Microsoft.DesktopAppInstaller | Remove-AppxPackage"); err != nil {
+				return fmt.Errorf("error removing Winget: %v", err)
 			}
 		}
 	}
@@ -316,6 +339,12 @@ func processCargo(pm types.PackageManagerInfo, osInfo types.OSInfo) error {
 		if err := helpers.RunCommand(filepath.Join(cargoPath, "cargo"), "", "install", "cargo-update"); err != nil {
 			log.Warnf("Error installing cargo-update: %v", err)
 			// Continue execution even if cargo-update installation fails
+		}
+
+		// Install cargo-cache
+		if err := helpers.RunCommand(filepath.Join(cargoPath, "cargo"), "", "install", "cargo-cache"); err != nil {
+			log.Warnf("Error installing cargo-cache: %v", err)
+			// Continue execution even if cargo-cache installation failsD
 		}
 	} else if pm.Action == "remove" {
 		// Update PATH environment variable
