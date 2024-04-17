@@ -2,9 +2,12 @@
 
 image::img/rwr.gif[RWR Logo, width=250]
 
+:toc:
+:toc-placement!:
+
 WARNING: Rinse, Wash, Repeat (RWR) is currently in alpha stage. While the core functionality is in place, not all features have been thoroughly tested and validated across all platforms. Please refer to the <<Road to Beta/MVP>> checklist in this README to check the status of confirmed functionality. Use at your own risk, and expect potential bugs or incomplete features.
 
-:toc:
+toc::[]
 
 == Introduction
 
@@ -142,7 +145,7 @@ RWR supports the following blueprint types:
 
 To reach the beta/MVP stage, the following items need to be validated on the specified platforms:
 
-### Linux (Debian/Ubuntu, Fedora, Arch)
+=== Linux (Debian/Ubuntu, Fedora, Arch)
 
 - [ ] Bootstrap Processor (YAML/JSON/TOML)
 - [ ] Package Manager Processor (YAML/JSON/TOML)
@@ -157,7 +160,7 @@ To reach the beta/MVP stage, the following items need to be validated on the spe
 - [ ] Scripts Processor (YAML/JSON/TOML)
 - [ ] Users and Groups Processor (YAML/JSON/TOML)
 
-### macOS
+=== macOS
 
 - [ ] Bootstrap Processor (YAML/JSON/TOML)
 - [ ] Package Manager Processor (YAML/JSON/TOML)
@@ -172,7 +175,7 @@ To reach the beta/MVP stage, the following items need to be validated on the spe
 - [ ] Scripts Processor (YAML/JSON/TOML)
 - [ ] Users and Groups Processor (YAML/JSON/TOML)
 
-### Windows
+=== Windows
 
 - [ ] Bootstrap Processor (YAML/JSON/TOML)
 - [ ] Package Manager Processor (YAML/JSON/TOML)
