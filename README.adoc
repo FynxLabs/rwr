@@ -64,7 +64,7 @@ To get started with RWR, follow these steps:
 RWR provides the following commands:
 
 * `rwr config`: Manage RWR configuration settings.
-* `rwr config init`: Initialize the RWR configuration.
+** `rwr config --create`: Initialize the RWR configuration.
 * `rwr all`: Initialize the system by running all blueprints.
 * `rwr validate`: Validate the RWR blueprints.
 * `rwr run`: Run individual processors.
