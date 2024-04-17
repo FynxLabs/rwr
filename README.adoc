@@ -2,18 +2,11 @@
 
 image::img/rwr.gif[RWR Logo, width=250]
 
-:tip-caption: :bulb:
-:note-caption: :information_source:
-:important-caption: :heavy_exclamation_mark:
-:caution-caption: :fire:
 :warning-caption: :warning:
 
 WARNING: Rinse, Wash, Repeat (RWR) is currently in alpha stage. While the core functionality is in place, not all features have been thoroughly tested and validated across all platforms. Please refer to the <<Road to Beta/MVP>> checklist in this README to check the status of confirmed functionality. Use at your own risk, and expect potential bugs or incomplete features.
 
 :asciidoctor:
-:source-highlighter: rouge
-:icons: font
-:experimental:
 :toc: macro
 
 == Introduction
@@ -22,19 +15,19 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 
 == Features
 
-- *Blueprint-based Configuration*: RWR uses configuration files called blueprints (similar to Chef cookbooks or Ansible playbooks) to define and manage your system's configuration.
-- *Multi-format Support*: Blueprints can be written in YAML, JSON, or TOML format, providing flexibility and compatibility with your preferred configuration format.
-- *Package Management*: RWR integrates with various package managers, allowing you to easily install, remove, and manage packages across different Linux distributions, macOS, and Windows.
-- *File and Directory Management*: RWR provides functionality to manage files and directories, including copying, moving, deleting, creating, and modifying permissions and ownership.
-- *Service Management*: RWR allows you to manage system services, including starting, stopping, enabling, and disabling services across different operating systems.
-- *Repository Management*: RWR supports managing repositories for different package managers, such as apt, brew, dnf, zypper, and more.
-- *User and Group Management*: RWR allows you to create and manage user accounts and groups on your system.
-- *Template Rendering*: RWR supports rendering templates with variable substitution, making your configurations more dynamic and reusable.
-- *Git Repository Management*: RWR can clone and manage Git repositories as part of the configuration process.
-- *Script Execution*: RWR allows you to execute scripts as part of the configuration process, providing additional flexibility and customization options.
-- *Bootstrap Process*: RWR includes a bootstrap process that can be used to set up the initial system configuration, including installing essential packages, creating directories, and setting permissions.
-- *Variable Substitution*: Use variables in your blueprints to make your configurations more dynamic and reusable.
-- *Extensible Architecture*: RWR is built with extensibility in mind, allowing you to easily add support for new package managers, file synchronization backends, and more.
+* *Blueprint-based Configuration*: RWR uses configuration files called blueprints (similar to Chef cookbooks or Ansible playbooks) to define and manage your system's configuration.
+* *Multi-format Support*: Blueprints can be written in YAML, JSON, or TOML format, providing flexibility and compatibility with your preferred configuration format.
+* *Package Management*: RWR integrates with various package managers, allowing you to easily install, remove, and manage packages across different Linux distributions, macOS, and Windows.
+* *File and Directory Management*: RWR provides functionality to manage files and directories, including copying, moving, deleting, creating, and modifying permissions and ownership.
+* *Service Management*: RWR allows you to manage system services, including starting, stopping, enabling, and disabling services across different operating systems.
+* *Repository Management*: RWR supports managing repositories for different package managers, such as apt, brew, dnf, zypper, and more.
+* *User and Group Management*: RWR allows you to create and manage user accounts and groups on your system.
+* *Template Rendering*: RWR supports rendering templates with variable substitution, making your configurations more dynamic and reusable.
+* *Git Repository Management*: RWR can clone and manage Git repositories as part of the configuration process.
+* *Script Execution*: RWR allows you to execute scripts as part of the configuration process, providing additional flexibility and customization options.
+* *Bootstrap Process*: RWR includes a bootstrap process that can be used to set up the initial system configuration, including installing essential packages, creating directories, and setting permissions.
+* *Variable Substitution*: Use variables in your blueprints to make your configurations more dynamic and reusable.
+* *Extensible Architecture*: RWR is built with extensibility in mind, allowing you to easily add support for new package managers, file synchronization backends, and more.
 
 == Packages
 
@@ -42,11 +35,11 @@ RWR packages are available for various platforms and architectures through gorel
 
 The following package types are available:
 
-- Binary archives (`.tar.gz`, `.zip`)
-- Debian packages (`.deb`)
-- RPM packages (`.rpm`)
-- Homebrew taps
-- Scoop buckets
+* Binary archives (`.tar.gz`, `.zip`)
+* Debian packages (`.deb`)
+* RPM packages (`.rpm`)
+* Homebrew taps
+* Scoop buckets
 
 == Installation
 
@@ -62,35 +55,36 @@ To get started with RWR, follow these steps:
 
 1. Initialize the RWR configuration by running `rwr config init`. This will prompt you to enter your preferences and create a default configuration file.
 2. Set up your blueprints' repository:
-- If you're using a Git repository, provide the repository URL during the configuration initialization.
-- If you're using local blueprints, place your blueprint files in the specified local path.
+* If you're using a Git repository, provide the repository URL during the configuration initialization.
+* If you're using local blueprints, place your blueprint files in the specified local path.
 3. Run `rwr init` to initialize your system based on the blueprints.
 
 == Commands
 
 RWR provides the following commands:
 
-- `rwr config`: Manage RWR configuration settings.
-- `rwr config init`: Initialize the RWR configuration.
-- `rwr all`: Initialize the system by running all blueprints.
-- `rwr run`: Run individual processors.
-- `rwr run package`: Run the package processor.
-- `rwr run repository`: Run the repository processor.
-- `rwr run services`: Run the services processor.
-- `rwr run files`: Run the files processor.
-- `rwr run directories`: Run the directories processor.
-- `rwr run templates`: Run the templates processor.
-- `rwr run configuration`: Run the configuration processor.
-- `rwr run git`: Run the Git repository processor.
-- `rwr run scripts`: Run the scripts processor.
-- `rwr run users`: Run the users and groups processor.
-- `rwr validate`: Validate the RWR blueprints.
+* `rwr config`: Manage RWR configuration settings.
+* `rwr config init`: Initialize the RWR configuration.
+* `rwr all`: Initialize the system by running all blueprints.
+* `rwr validate`: Validate the RWR blueprints.
+* `rwr run`: Run individual processors.
+** `rwr run package`: Run the package processor.
+** `rwr run repository`: Run the repository processor.
+** `rwr run services`: Run the services processor.
+** `rwr run files`: Run the files processor.
+** `rwr run directories`: Run the directories processor.
+** `rwr run templates`: Run the templates processor.
+** `rwr run configuration`: Run the configuration processor.
+** `rwr run git`: Run the Git repository processor.
+** `rwr run scripts`: Run the scripts processor.
+** `rwr run users`: Run the users and groups processor.
 
 == Blueprint Structure
 
 RWR blueprints are flexible and can be structured according to your needs. The `init.yaml` file serves as the main entry point for your blueprints and defines the order of execution. Here's an example blueprint structure:
 
-```
+[source,text]
+----
 .
 ├── bootstrap
 │   └── bootstrap.yaml
@@ -117,18 +111,18 @@ RWR blueprints are flexible and can be structured according to your needs. The `
     │   ├── index.html.tmpl
     │   └── nginx.conf.tmpl
     └── templates.yaml
-```
+----
 
 In this example structure:
 
-- The `bootstrap` directory contains a `bootstrap.yaml` file, which defines the initial setup tasks, such as installing essential packages, creating directories, and setting permissions.
-- The `packages` directory contains separate files for different package managers, such as `apt.yaml`, `brew.yaml`, and `cargo.yaml`.
-- The `repositories` directory contains a file for managing repositories, like `apt.yaml`.
-- The `files` directory contains a `files.yaml` file for managing files and a `src` subdirectory for storing source files to be copied or used.
-- The `services` directory contains a `services.yaml` file for managing system services.
-- The `templates` directory contains a `templates.yaml` file for managing templates and a `src` subdirectory for storing template files.
-- The `git` directory contains a `git.yaml` file for managing Git repositories.
-- The `configuration` directory contains a `configuration.yaml` file for managing configuration settings.
+* The `bootstrap` directory contains a `bootstrap.yaml` file, which defines the initial setup tasks, such as installing essential packages, creating directories, and setting permissions.
+* The `packages` directory contains separate files for different package managers, such as `apt.yaml`, `brew.yaml`, and `cargo.yaml`.
+* The `repositories` directory contains a file for managing repositories, like `apt.yaml`.
+* The `files` directory contains a `files.yaml` file for managing files and a `src` subdirectory for storing source files to be copied or used.
+* The `services` directory contains a `services.yaml` file for managing system services.
+* The `templates` directory contains a `templates.yaml` file for managing templates and a `src` subdirectory for storing template files.
+* The `git` directory contains a `git.yaml` file for managing Git repositories.
+* The `configuration` directory contains a `configuration.yaml` file for managing configuration settings.
 
 However, RWR doesn't enforce a strict structure. You can organize your blueprints in a single folder with all YAML, TOML, or JSON files, depending on your preference. The `init.yaml` file allows you to specify the order of execution and the location of your blueprint files.
 
@@ -136,17 +130,17 @@ However, RWR doesn't enforce a strict structure. You can organize your blueprint
 
 RWR supports the following blueprint types:
 
-- `packages`: Defines packages to be installed or removed using various package managers.
-- `repositories`: Defines repositories to be managed for different package managers.
-- `files`: Defines files to be copied, moved, deleted, created, or modified.
-- `directories`: Defines directories to be managed, including creation, deletion, and modification of permissions and ownership.
-- `services`: Defines services to be managed, including starting, stopping, enabling, and disabling services.
-- `templates`: Defines template files to be processed and rendered during the execution of the blueprints.
-- `configuration`: Defines configuration settings to be applied to the system.
-- `git`: Defines Git repositories to be cloned or managed.
-- `scripts`: Defines scripts to be executed as part of the configuration process.
-- `users`: Defines user accounts and groups to be created or managed.
-- `bootstrap`: Defines the initial setup tasks for the system.
+* `packages`: Defines packages to be installed or removed using various package managers.
+* `repositories`: Defines repositories to be managed for different package managers.
+* `files`: Defines files to be copied, moved, deleted, created, or modified.
+* `directories`: Defines directories to be managed, including creation, deletion, and modification of permissions and ownership.
+* `services`: Defines services to be managed, including starting, stopping, enabling, and disabling services.
+* `templates`: Defines template files to be processed and rendered during the execution of the blueprints.
+* `configuration`: Defines configuration settings to be applied to the system.
+* `git`: Defines Git repositories to be cloned or managed.
+* `scripts`: Defines scripts to be executed as part of the configuration process.
+* `users`: Defines user accounts and groups to be created or managed.
+* `bootstrap`: Defines the initial setup tasks for the system.
 
 == Road to Beta/MVP
 
@@ -154,48 +148,48 @@ To reach the beta/MVP stage, the following items need to be validated on the spe
 
 === Linux (Debian/Ubuntu, Fedora, Arch)
 
-- [ ] Bootstrap Processor (YAML/JSON/TOML)
-- [ ] Package Manager Processor (YAML/JSON/TOML)
-- [ ] Repositories Processor (YAML/JSON/TOML)
-- [ ] Packages Processor (YAML/JSON/TOML)
-- [ ] Services Processor (YAML/JSON/TOML)
-- [ ] Files Processor (YAML/JSON/TOML)
-- [ ] Directories Processor (YAML/JSON/TOML)
-- [ ] Templates Processor (YAML/JSON/TOML)
-- [ ] Configuration Processor (YAML/JSON/TOML)
-- [ ] Git Repository Processor (YAML/JSON/TOML)
-- [ ] Scripts Processor (YAML/JSON/TOML)
-- [ ] Users and Groups Processor (YAML/JSON/TOML)
+* [ ] Bootstrap Processor (YAML/JSON/TOML)
+* [ ] Package Manager Processor (YAML/JSON/TOML)
+* [ ] Repositories Processor (YAML/JSON/TOML)
+* [ ] Packages Processor (YAML/JSON/TOML)
+* [ ] Services Processor (YAML/JSON/TOML)
+* [ ] Files Processor (YAML/JSON/TOML)
+* [ ] Directories Processor (YAML/JSON/TOML)
+* [ ] Templates Processor (YAML/JSON/TOML)
+* [ ] Configuration Processor (YAML/JSON/TOML)
+* [ ] Git Repository Processor (YAML/JSON/TOML)
+* [ ] Scripts Processor (YAML/JSON/TOML)
+* [ ] Users and Groups Processor (YAML/JSON/TOML)
 
 === macOS
 
-- [ ] Bootstrap Processor (YAML/JSON/TOML)
-- [ ] Package Manager Processor (YAML/JSON/TOML)
-- [ ] Repositories Processor (YAML/JSON/TOML)
-- [ ] Packages Processor (YAML/JSON/TOML)
-- [ ] Services Processor (YAML/JSON/TOML)
-- [ ] Files Processor (YAML/JSON/TOML)
-- [ ] Directories Processor (YAML/JSON/TOML)
-- [ ] Templates Processor (YAML/JSON/TOML)
-- [ ] Configuration Processor (YAML/JSON/TOML)
-- [ ] Git Repository Processor (YAML/JSON/TOML)
-- [ ] Scripts Processor (YAML/JSON/TOML)
-- [ ] Users and Groups Processor (YAML/JSON/TOML)
+* [ ] Bootstrap Processor (YAML/JSON/TOML)
+* [ ] Package Manager Processor (YAML/JSON/TOML)
+* [ ] Repositories Processor (YAML/JSON/TOML)
+* [ ] Packages Processor (YAML/JSON/TOML)
+* [ ] Services Processor (YAML/JSON/TOML)
+* [ ] Files Processor (YAML/JSON/TOML)
+* [ ] Directories Processor (YAML/JSON/TOML)
+* [ ] Templates Processor (YAML/JSON/TOML)
+* [ ] Configuration Processor (YAML/JSON/TOML)
+* [ ] Git Repository Processor (YAML/JSON/TOML)
+* [ ] Scripts Processor (YAML/JSON/TOML)
+* [ ] Users and Groups Processor (YAML/JSON/TOML)
 
 === Windows
 
-- [ ] Bootstrap Processor (YAML/JSON/TOML)
-- [ ] Package Manager Processor (YAML/JSON/TOML)
-- [ ] Repositories Processor (YAML/JSON/TOML)
-- [ ] Packages Processor (YAML/JSON/TOML)
-- [ ] Services Processor (YAML/JSON/TOML)
-- [ ] Files Processor (YAML/JSON/TOML)
-- [ ] Directories Processor (YAML/JSON/TOML)
-- [ ] Templates Processor (YAML/JSON/TOML)
-- [ ] Configuration Processor (YAML/JSON/TOML)
-- [ ] Git Repository Processor (YAML/JSON/TOML)
-- [ ] Scripts Processor (YAML/JSON/TOML)
-- [ ] Users and Groups Processor (YAML/JSON/TOML)
+* [ ] Bootstrap Processor (YAML/JSON/TOML)
+* [ ] Package Manager Processor (YAML/JSON/TOML)
+* [ ] Repositories Processor (YAML/JSON/TOML)
+* [ ] Packages Processor (YAML/JSON/TOML)
+* [ ] Services Processor (YAML/JSON/TOML)
+* [ ] Files Processor (YAML/JSON/TOML)
+* [ ] Directories Processor (YAML/JSON/TOML)
+* [ ] Templates Processor (YAML/JSON/TOML)
+* [ ] Configuration Processor (YAML/JSON/TOML)
+* [ ] Git Repository Processor (YAML/JSON/TOML)
+* [ ] Scripts Processor (YAML/JSON/TOML)
+* [ ] Users and Groups Processor (YAML/JSON/TOML)
 
 == Contributing
 
