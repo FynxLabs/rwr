@@ -2,16 +2,16 @@ package processors
 
 import (
 	"fmt"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
 	"runtime"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-func ProcessUsersFromFile(blueprintFile string) error {
+func ProcessUsersFromFile(blueprintFile string, initConfig *types.InitConfig) error {
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
 	if err != nil {
@@ -29,14 +29,14 @@ func ProcessUsersFromFile(blueprintFile string) error {
 	}
 
 	// Process the groups
-	err = ProcessGroups(usersData.Groups)
+	err = ProcessGroups(usersData.Groups, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return fmt.Errorf("error processing groups: %w", err)
 	}
 
 	// Process the users
-	err = ProcessUsers(usersData.Users)
+	err = ProcessUsers(usersData.Users, initConfig)
 	if err != nil {
 		log.Errorf("Error processing users: %v", err)
 		return fmt.Errorf("error processing users: %w", err)
@@ -57,14 +57,14 @@ func ProcessUsersFromData(blueprintData []byte, initConfig *types.InitConfig) er
 	}
 
 	// Process the groups
-	err = ProcessGroups(usersData.Groups)
+	err = ProcessGroups(usersData.Groups, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return fmt.Errorf("error processing groups: %w", err)
 	}
 
 	// Process the users
-	err = ProcessUsers(usersData.Users)
+	err = ProcessUsers(usersData.Users, initConfig)
 	if err != nil {
 		log.Errorf("Error processing users: %v", err)
 		return fmt.Errorf("error processing users: %w", err)
@@ -73,10 +73,10 @@ func ProcessUsersFromData(blueprintData []byte, initConfig *types.InitConfig) er
 	return nil
 }
 
-func ProcessGroups(groups []types.Group) error {
+func ProcessGroups(groups []types.Group, initConfig *types.InitConfig) error {
 	for _, group := range groups {
 		if group.Action == "create" {
-			err := createGroup(group)
+			err := createGroup(group, initConfig)
 			if err != nil {
 				log.Errorf("Error creating group %s: %v", group.Name, err)
 				return fmt.Errorf("error creating group %s: %w", group.Name, err)
@@ -90,10 +90,10 @@ func ProcessGroups(groups []types.Group) error {
 	return nil
 }
 
-func ProcessUsers(users []types.User) error {
+func ProcessUsers(users []types.User, initConfig *types.InitConfig) error {
 	for _, user := range users {
 		if user.Action == "create" {
-			err := createUser(user)
+			err := createUser(user, initConfig)
 			if err != nil {
 				log.Errorf("Error creating user %s: %v", user.Name, err)
 				return fmt.Errorf("error creating user %s: %w", user.Name, err)
@@ -107,10 +107,14 @@ func ProcessUsers(users []types.User) error {
 	return nil
 }
 
-func createGroup(group types.Group) error {
+func createGroup(group types.Group, initConfig *types.InitConfig) error {
 	switch runtime.GOOS {
 	case "linux", "darwin":
-		err := helpers.RunCommand("groupadd", "", group.Name)
+		createGroupCmd := types.Command{
+			Exec: "groupadd",
+			Args: []string{group.Name},
+		}
+		err := helpers.RunCommand(createGroupCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error creating group: %v", err)
 		}
@@ -123,20 +127,23 @@ func createGroup(group types.Group) error {
 	return nil
 }
 
-func createUser(user types.User) error {
+func createUser(user types.User, initConfig *types.InitConfig) error {
 	switch runtime.GOOS {
 	case "linux", "darwin":
-		args := []string{
-			"--create-home",
-			"--password", user.Password,
-			"--shell", user.Shell,
-			"--home-dir", user.Home,
-			user.Name,
+		createUserCmd := types.Command{
+			Exec: "useradd",
+			Args: []string{
+				"--create-home",
+				"--password", user.Password,
+				"--shell", user.Shell,
+				"--home-dir", user.Home,
+				user.Name,
+			},
 		}
 		for _, group := range user.Groups {
-			args = append(args, "--groups", group)
+			createUserCmd.Args = append(createUserCmd.Args, "--groups", group)
 		}
-		err := helpers.RunCommand("useradd", "", args...)
+		err := helpers.RunCommand(createUserCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error creating user: %v", err)
 		}

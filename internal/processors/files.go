@@ -2,12 +2,12 @@ package processors
 
 import (
 	"fmt"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
 )
 
 func ProcessFilesFromFile(blueprintFile string) error {
@@ -172,7 +172,7 @@ func copyFile(file types.File) error {
 	source := filepath.Join(file.Source, file.Name)
 	target := filepath.Join(file.Target, file.Name)
 
-	if err := helpers.CopyFile(source, target); err != nil {
+	if err := helpers.CopyFile(source, target, file.Elevated); err != nil {
 		return fmt.Errorf("error copying file: %v", err)
 	}
 
@@ -289,7 +289,7 @@ func copyDirectory(dir types.Directory) error {
 	source := filepath.Join(dir.Source, dir.Name)
 	target := filepath.Join(dir.Target, dir.Name)
 
-	if err := helpers.CopyDirectory(source, target); err != nil {
+	if err := helpers.CopyDirectory(source, target, dir.Elevated); err != nil {
 		return fmt.Errorf("error copying directory: %v", err)
 	}
 

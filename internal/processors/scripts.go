@@ -2,15 +2,15 @@ package processors
 
 import (
 	"fmt"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-func ProcessScriptsFromFile(blueprintFile string, osInfo types.OSInfo) error {
+func ProcessScriptsFromFile(blueprintFile string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var scripts []types.Script
 
 	// Read the blueprint file
@@ -28,7 +28,7 @@ func ProcessScriptsFromFile(blueprintFile string, osInfo types.OSInfo) error {
 	}
 
 	// Process the scripts
-	err = ProcessScripts(scripts, osInfo)
+	err = ProcessScripts(scripts, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
@@ -37,7 +37,7 @@ func ProcessScriptsFromFile(blueprintFile string, osInfo types.OSInfo) error {
 	return nil
 }
 
-func ProcessScriptsFromData(blueprintData []byte, initConfig *types.InitConfig, osInfo types.OSInfo) error {
+func ProcessScriptsFromData(blueprintData []byte, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var scripts []types.Script
 
 	// Unmarshal the resolved blueprint data
@@ -48,7 +48,7 @@ func ProcessScriptsFromData(blueprintData []byte, initConfig *types.InitConfig, 
 	}
 
 	// Process the scripts
-	err = ProcessScripts(scripts, osInfo)
+	err = ProcessScripts(scripts, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
@@ -57,10 +57,10 @@ func ProcessScriptsFromData(blueprintData []byte, initConfig *types.InitConfig, 
 	return nil
 }
 
-func ProcessScripts(scripts []types.Script, osInfo types.OSInfo) error {
+func ProcessScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	for _, script := range scripts {
 		if script.Action == "run" {
-			err := runScript(script, osInfo)
+			err := runScript(script, osInfo, initConfig)
 			if err != nil {
 				log.Errorf("Error running script %s: %v", script.Name, err)
 				return fmt.Errorf("error running script %s: %w", script.Name, err)
@@ -74,52 +74,65 @@ func ProcessScripts(scripts []types.Script, osInfo types.OSInfo) error {
 	return nil
 }
 
-func runScript(script types.Script, osInfo types.OSInfo) error {
-	var cmdArgs []string
+func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	var scriptCmd types.Command
 
 	// Determine the script executor based on the "exec" field
-	var executor string
 	switch script.Exec {
 	case "self":
-		executor = script.Source
+		scriptCmd = types.Command{
+			Exec: script.Source,
+			Args: []string{},
+		}
 	case "bash", "/bin/bash":
-		executor = osInfo.Tools.Bash.Bin
-		cmdArgs = append(cmdArgs, script.Source)
+		scriptCmd = types.Command{
+			Exec: osInfo.Tools.Bash.Bin,
+			Args: []string{script.Source},
+		}
 	case "python":
-		executor = osInfo.Tools.Python.Bin
-		cmdArgs = append(cmdArgs, script.Source)
+		scriptCmd = types.Command{
+			Exec: osInfo.Tools.Python.Bin,
+			Args: []string{script.Source},
+		}
 	case "ruby":
-		executor = osInfo.Tools.Ruby.Bin
-		cmdArgs = append(cmdArgs, script.Source)
+		scriptCmd = types.Command{
+			Exec: osInfo.Tools.Ruby.Bin,
+			Args: []string{script.Source},
+		}
 	case "perl":
-		executor = osInfo.Tools.Perl.Bin
-		cmdArgs = append(cmdArgs, script.Source)
+		scriptCmd = types.Command{
+			Exec: osInfo.Tools.Perl.Bin,
+			Args: []string{script.Source},
+		}
 	case "lua":
-		executor = osInfo.Tools.Lua.Bin
-		cmdArgs = append(cmdArgs, script.Source)
+		scriptCmd = types.Command{
+			Exec: osInfo.Tools.Lua.Bin,
+			Args: []string{script.Source},
+		}
 	case "powershell":
-		executor = osInfo.Tools.PowerShell.Bin
-		cmdArgs = append(cmdArgs, "-File", script.Source)
+		scriptCmd = types.Command{
+			Exec: osInfo.Tools.PowerShell.Bin,
+			Args: []string{"-File", script.Source},
+		}
 	default:
 		return fmt.Errorf("unsupported script executor: %s", script.Exec)
 	}
 
 	// Append the script arguments
 	if script.Args != "" {
-		cmdArgs = append(cmdArgs, script.Args)
+		scriptCmd.Args = append(scriptCmd.Args, script.Args)
 	}
 
+	// Set the log name
+	scriptCmd.LogName = script.Log
+
+	// Set the elevated flag
+	scriptCmd.Elevated = script.Elevated
+
 	// Run the script
-	if script.Elevated {
-		err := helpers.RunWithElevatedPrivileges(executor, script.Log, cmdArgs...)
-		if err != nil {
-			return fmt.Errorf("error running script with elevated privileges: %v", err)
-		}
-	} else {
-		err := helpers.RunCommand(executor, script.Log, cmdArgs...)
-		if err != nil {
-			return fmt.Errorf("error running script: %v", err)
-		}
+	err := helpers.RunCommand(scriptCmd, initConfig.Variables.Flags.Debug)
+	if err != nil {
+		return fmt.Errorf("error running script: %v", err)
 	}
 
 	return nil

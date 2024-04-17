@@ -1,11 +1,7 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/processors"
-	"os"
-
 	"github.com/spf13/cobra"
 )
 
@@ -14,12 +10,13 @@ var validateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validate the RWR Blueprints",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.ValidateBlueprints(initConfig)
-		if err != nil {
-			log.With("err", err).Errorf("Error validating blueprints")
-			os.Exit(1)
-		}
-		fmt.Println("Blueprints validated successfully")
+		//err := processors.ValidateBlueprints(initConfig)
+		//if err != nil {
+		//	log.With("err", err).Errorf("Error validating blueprints")
+		//	os.Exit(1)
+		//}
+		//fmt.Println("Blueprints validated successfully")
+		log.Warn("Blueprint Validation is not implemented yet")
 	},
 }
 

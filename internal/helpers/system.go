@@ -1,35 +1,38 @@
 package helpers
 
 import (
-	"github.com/thefynx/rwr/internal/processors/types"
+	"github.com/thefynx/rwr/internal/types"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/charmbracelet/log"
 )
 
 // DetectOS detects the operating system and package managers, returns an OSInfo struct.
 // Can be used to make decisions based on the user's system.
-func DetectOS() types.OSInfo {
+func DetectOS() *types.OSInfo {
 	log.Debug("Detecting operating system.")
-	var osInfo types.OSInfo
+	osInfo := &types.OSInfo{} // Create a new instance of types.OSInfo
 
 	switch runtime.GOOS {
 	case "linux":
 		log.Debug("Linux detected.")
 		osInfo.OS = "linux"
-		err := SetLinuxDetails(&osInfo)
+		err := SetLinuxDetails(osInfo)
 		if err != nil {
 			log.Fatalf("Error setting Linux details: %v", err)
 		}
 	case "darwin":
 		log.Debug("macOS detected.")
 		osInfo.OS = "macos"
-		SetMacOSDetails(&osInfo)
+		SetMacOSDetails(osInfo)
 	case "windows":
 		log.Debug("Windows detected.")
 		osInfo.OS = "windows"
-		SetWindowsDetails(&osInfo)
+		SetWindowsDetails(osInfo)
 	default:
 		log.Fatal("This setup only supports macOS, Linux, and Windows.")
 	}
@@ -62,6 +65,10 @@ func findCommonTools() types.ToolList {
 	tools.Lua = FindTool("lua")
 	tools.Gpg = FindTool("gpg")
 	tools.Rpm = FindTool("rpm")
+	tools.Dpkg = FindTool("dpkg")
+	tools.Cat = FindTool("cat")
+	tools.Ls = FindTool("ls")
+	tools.Lsof = FindTool("lsof")
 
 	return tools
 }
@@ -69,6 +76,17 @@ func findCommonTools() types.ToolList {
 // FindTool checks if a tool exists and returns its information.
 func FindTool(name string) types.ToolInfo {
 	log.Debugf("Checking for %s", name)
+
+	// Add common paths to the PATH environment variable
+	updatedPath := AddCommonPaths()
+
+	// Save the original PATH environment variable
+	originalPath := os.Getenv("PATH")
+	defer os.Setenv("PATH", originalPath)
+
+	// Set the updated PATH environment variable
+	os.Setenv("PATH", updatedPath)
+
 	path, err := exec.LookPath(name)
 	if err != nil {
 		log.Debugf("%s not found", name)
@@ -76,4 +94,69 @@ func FindTool(name string) types.ToolInfo {
 	}
 	log.Debugf("%s found at %s", name, path)
 	return types.ToolInfo{Exists: true, Bin: path}
+}
+
+// AddCommonPaths checks for common paths and appends them to the existing PATH environment variable.
+func AddCommonPaths() string {
+	var paths []string
+	existingPath := os.Getenv("PATH")
+	if existingPath != "" {
+		paths = append(paths, existingPath)
+	}
+
+	var commonPaths []string
+
+	switch runtime.GOOS {
+	case "windows":
+		commonPaths = []string{
+			"%USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps", // Path for Windows Store apps
+			"%USERPROFILE%\\scoop\\shims",                           // Path for Scoop package manager
+			"%PROGRAMFILES%\\Git\\bin",                              // Path for Git
+			"%PROGRAMFILES%\\Go\\bin",                               // Path for Go
+			"%PROGRAMFILES%\\nodejs",                                // Path for Node.js
+			"%PROGRAMFILES%\\Rust\\.cargo\\bin",                     // Path for Cargo (Rust package manager)
+		}
+	default: // Unix-like systems (macOS, Linux)
+		commonPaths = []string{
+			"/usr/local/bin",                    // Common path for Homebrew, Nix, and other tools
+			"/opt/homebrew/bin",                 // Alternative path for Homebrew on macOS
+			"/nix/var/nix/profiles/default/bin", // Common path for Nix
+			"/home/linuxbrew/.linuxbrew/bin",    // Common path for Homebrew on Linux
+			"/usr/bin",                          // Common system path
+			"/bin",                              // Common system path
+			"/usr/local/go/bin",                 // Common path for Go
+			"/usr/local/cargo/bin",              // Common path for Cargo (Rust package manager)
+			"/home/linuxbrew/.linuxbrew/bin",    // Common path for Linuxbrew (Homebrew on Linux)
+			"/home/linuxbrew/.linuxbrew/sbin",   // Common path for Linuxbrew (Homebrew on Linux)
+			"/snap/bin",                         // Common path for Snap packages
+			"/var/lib/flatpak/exports/bin",      // Common path for Flatpak
+		}
+	}
+
+	for _, p := range commonPaths {
+		path, err := filepath.EvalSymlinks(p)
+		if err != nil {
+			continue
+		}
+		if _, err := os.Stat(path); err == nil {
+			paths = append(paths, path)
+		} else if os.IsNotExist(err) {
+			log.Debugf("Path %s does not exist", path)
+		} else {
+			continue
+		}
+	}
+
+	return strings.Join(paths, string(os.PathListSeparator))
+}
+
+// SetPaths sets the PATH environment variable with the common paths appended.
+func SetPaths() error {
+	newPath := AddCommonPaths()
+	switch runtime.GOOS {
+	case "windows":
+		return os.Setenv("Path", newPath)
+	default:
+		return os.Setenv("PATH", newPath)
+	}
 }

@@ -5,7 +5,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/spf13/viper"
 	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func Initialize(initFilePath string) (*types.InitConfig, error) {
+func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, error) {
 	var initConfig types.InitConfig
 	var err error
 	var fileExt string
@@ -24,11 +24,6 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 		return nil, fmt.Errorf("error retrieving current user information: %w", err)
 	}
 
-	viper.SetDefault("user.username", currentUser.Username)
-	viper.SetDefault("user.home", currentUser.HomeDir)
-	viper.SetDefault("user.shell", os.Getenv("SHELL"))
-
-	// Retrieve user's full name, first name, and last name
 	fullName := currentUser.Name
 	names := strings.Fields(fullName)
 	firstName := ""
@@ -39,10 +34,6 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 	if len(names) > 1 {
 		lastName = names[len(names)-1]
 	}
-
-	viper.SetDefault("user.fullName", fullName)
-	viper.SetDefault("user.firstName", firstName)
-	viper.SetDefault("user.lastName", lastName)
 
 	// Set user's group name
 	groupName := ""
@@ -56,7 +47,19 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 		}
 	}
 
-	viper.SetDefault("user.groupName", groupName)
+	userInfo := types.UserInfo{
+		Username:  currentUser.Username,
+		FirstName: firstName,
+		LastName:  lastName,
+		FullName:  currentUser.Name,
+		GroupName: groupName,
+		Home:      currentUser.HomeDir,
+		Shell:     os.Getenv("SHELL"),
+	}
+
+	variables := types.Variables{
+		User: userInfo,
+	}
 
 	// Check if the init file path is a URL
 	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
@@ -87,7 +90,7 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 			fileExt = filepath.Ext(initFilePath)
 
 			// Download the raw init file
-			err = helpers.DownloadFile(initFilePath, "init"+fileExt)
+			err = helpers.DownloadFile(initFilePath, "init"+fileExt, false)
 			if err != nil {
 				return nil, fmt.Errorf("error downloading init file: %w", err)
 			}
@@ -108,8 +111,9 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 	log.Debugf("Init file directory: %s", initFileDir)
 
 	// Check if init templates are enabled
-	if viper.GetBool("rwr.initTemplatesEnabled") {
+	if flags.InitTemplatesEnabled {
 		// Create a temporary directory for the processed init file
+		log.Debugf("Processing init file as a template")
 		tempDir, err := os.MkdirTemp("", "rwr-init-")
 		if err != nil {
 			return nil, fmt.Errorf("error creating temporary directory: %w", err)
@@ -125,14 +129,19 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 		processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
 
 		// Process the init file as a template
-		err = processTemplate(types.Template{
-			Source:    initFilePath,
-			Target:    processedInitFile,
-			Variables: viper.GetStringMap("user"),
-		})
+		processedInit, err := RenderTemplate(initFilePath, variables)
 		if err != nil {
-			return nil, fmt.Errorf("error processing init file as template: %w", err)
+			log.Errorf("error processing init file as a template: %v", err)
+			return nil, err
 		}
+
+		// Write the processed init file to the temporary directory
+		err = os.WriteFile(processedInitFile, processedInit, 0644)
+		if err != nil {
+			log.Errorf("error writing processed init file: %v", err)
+			return nil, err
+		}
+
 		initFilePath = processedInitFile
 	}
 
@@ -142,9 +151,17 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 		return nil, fmt.Errorf("error reading init file: %w", err)
 	}
 
+	// Unmarshal the init file into the InitConfig struct
 	if err := viper.Unmarshal(&initConfig); err != nil {
 		return nil, fmt.Errorf("error unmarshaling init.yaml: %w", err)
 	}
+
+	// Set default values
+	initConfig.Variables.User = userInfo
+
+	initConfig.Variables.UserDefined = make(map[string]interface{})
+
+	initConfig.Variables.Flags = flags
 
 	// Set the default location if not specified
 	if initConfig.Init.Location == "" {
@@ -163,8 +180,8 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 	log.Debugf("Init file location: %s", initConfig.Init.Location)
 
 	// Set user-defined variables from init.yaml
-	for key, value := range initConfig.Variables {
-		viper.Set(fmt.Sprintf("userDefined.%s", key), value)
+	for key, value := range initConfig.Variables.UserDefined {
+		initConfig.Variables.UserDefined[key] = value
 	}
 
 	// Read environment variables with RWR_ prefix and set them in userDefined
@@ -172,7 +189,7 @@ func Initialize(initFilePath string) (*types.InitConfig, error) {
 		if strings.HasPrefix(env, "RWR_") {
 			parts := strings.SplitN(env, "=", 2)
 			key := strings.TrimPrefix(parts[0], "RWR_")
-			viper.Set(fmt.Sprintf("userDefined.%s", key), parts[1])
+			initConfig.Variables.UserDefined[key] = parts[1]
 		}
 	}
 

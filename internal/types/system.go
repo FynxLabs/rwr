@@ -27,4 +27,8 @@ type ToolList struct {
 	Rust       ToolInfo
 	Gpg        ToolInfo
 	Rpm        ToolInfo
+	Dpkg       ToolInfo
+	Cat        ToolInfo
+	Ls         ToolInfo
+	Lsof       ToolInfo
 }

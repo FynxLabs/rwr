@@ -1,91 +1,116 @@
 package processors
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/charmbracelet/log"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
-	"path/filepath"
 	"text/template"
 
 	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-func ProcessTemplatesFromFile(blueprintFile string) error {
-	var templates []types.Template
-
+func ProcessTemplatesFromFile(blueprintFile string, initConfig *types.InitConfig) error {
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
 	if err != nil {
-		return fmt.Errorf("error reading blueprint file: %w", err)
+		log.Errorf("error reading blueprint file: %v", err)
+		return err
 	}
 
-	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &templates)
+	_, err = processTemplates(blueprintData, initConfig)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling template blueprint: %w", err)
-	}
-
-	// Process the templates
-	for _, tmpl := range templates {
-		err := processTemplate(tmpl)
-		if err != nil {
-			return fmt.Errorf("error processing template: %w", err)
-		}
+		log.Errorf("error processing templates: %v", err)
+		return err
 	}
 
 	return nil
 }
 
 func ProcessTemplatesFromData(blueprintData []byte, initConfig *types.InitConfig) error {
-	var templates []types.Template
-
-	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &templates)
+	_, err := processTemplates(blueprintData, initConfig)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling template blueprint data: %w", err)
-	}
-
-	// Process the templates
-	for _, tmpl := range templates {
-		err := processTemplate(tmpl)
-		if err != nil {
-			return fmt.Errorf("error processing template: %w", err)
-		}
+		log.Errorf("error processing templates: %v", err)
+		return err
 	}
 
 	return nil
 }
 
-func processTemplate(tmpl types.Template) error {
-	// Read the template file
-	tmplContent, err := os.ReadFile(tmpl.Source)
+func processTemplates(blueprintData []byte, initConfig *types.InitConfig) ([]byte, error) {
+	var templates []types.Template
+
+	// Unmarshal the blueprint data
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &templates)
 	if err != nil {
-		return fmt.Errorf("error reading template file: %w", err)
+		log.Errorf("error unmarshaling template blueprint: %v", err)
+		return nil, err
 	}
 
-	// Create a new template
-	t, err := template.New(filepath.Base(tmpl.Source)).Parse(string(tmplContent))
-	if err != nil {
-		return fmt.Errorf("error parsing template: %w", err)
-	}
+	var renderedTemplates []byte
 
-	// Create the target file
-	targetFile, err := os.Create(tmpl.Target)
-	if err != nil {
-		return fmt.Errorf("error creating target file: %w", err)
-	}
-	defer func(targetFile *os.File) {
-		err := targetFile.Close()
+	// Process the templates
+	for _, tmpl := range templates {
+		renderedTemplate, err := RenderTemplate(tmpl.Source, initConfig.Variables)
 		if err != nil {
-			fmt.Printf("error closing target file: %v\n", err)
+			log.Errorf("error processing template: %v", err)
+			return nil, err
 		}
-	}(targetFile)
+
+		// Write the rendered template to a file if the target is specified
+		if tmpl.Target != "" {
+			err = os.WriteFile(tmpl.Target, renderedTemplate, os.FileMode(tmpl.Mode))
+			if err != nil {
+				log.Errorf("error writing rendered template to file: %v", err)
+				return nil, err
+			}
+		}
+
+		// Append the rendered template data
+		renderedTemplates = append(renderedTemplates, renderedTemplate...)
+	}
+	return renderedTemplates, nil
+}
+
+func RenderTemplate(templateFile string, variables types.Variables) ([]byte, error) {
+	// Read the template file
+	tmplContent, err := os.ReadFile(templateFile)
+	if err != nil {
+		return nil, fmt.Errorf("error reading template file: %w", err)
+	}
+
+	return RenderTemplateString(string(tmplContent), variables)
+}
+
+func RenderTemplateString(templateString string, variables types.Variables) ([]byte, error) {
+	// Create a new template
+	t, err := template.New("template").Parse(templateString)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing template: %w", err)
+	}
+
+	// Merge the User, Flags, and UserDefined maps into a single map
+	data := make(map[string]interface{})
+	for k, v := range variables.User.ToMap() {
+		log.Debugf("User: %s: %s", k, v)
+		data[k] = v
+	}
+	for k, v := range variables.Flags.ToMap() {
+		log.Debugf("Flags: %s: %s", k, v)
+		data[k] = v
+	}
+	for k, v := range variables.UserDefined {
+		log.Debugf("UserDefined: %s: %s", k, v)
+		data[k] = v
+	}
 
 	// Execute the template
-	err = t.Execute(targetFile, tmpl.Variables)
+	var renderedTemplate bytes.Buffer
+	err = t.Execute(&renderedTemplate, data)
 	if err != nil {
-		return fmt.Errorf("error executing template: %w", err)
+		return nil, fmt.Errorf("error executing template: %w", err)
 	}
 
-	return nil
+	return renderedTemplate.Bytes(), nil
 }

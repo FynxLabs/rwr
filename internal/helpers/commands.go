@@ -1,65 +1,129 @@
 package helpers
 
 import (
-	"github.com/spf13/viper"
+	"bytes"
+	"fmt"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/charmbracelet/log"
 )
 
-func RunWithElevatedPrivileges(command string, logName string, args ...string) error {
-	var cmd *exec.Cmd
+func RunCommand(cmd types.Command, debug bool) error {
+	var command *exec.Cmd
 
-	if runtime.GOOS == "windows" {
-		// Prepend "runas" to the command and arguments
-		runasArgs := append([]string{"/c", command}, args...)
-		cmd := exec.Command("cmd", runasArgs...)
-
-		// Set the standard output and error streams
-		setOutputStreams(cmd, logName)
+	if cmd.Elevated {
+		if runtime.GOOS == "windows" {
+			log.Debugf("Running command as elevated - Running Command: %v %v", cmd.Exec, cmd.Args)
+			command = exec.Command("cmd", "/C", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
+		} else {
+			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
+			command = exec.Command("sudo", "sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
+		}
+	} else if cmd.AsUser != "" {
+		log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.Args)
+		command = exec.Command("sudo", "-u", cmd.AsUser, "sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
 	} else {
-		// Prepend "sudo" to the command and arguments
-		sudoArgs := append([]string{command}, args...)
-		cmd := exec.Command("sudo", sudoArgs...)
-
-		// Set the standard output and error streams
-		setOutputStreams(cmd, logName)
+		log.Debugf("Running command: %v %v", cmd.Exec, cmd.Args)
+		command = exec.Command("sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
 	}
 
-	// Run the command
-	err := cmd.Run()
+	// Get the current environment variables
+	env := os.Environ()
+
+	// Append the additional variables from cmd.Variables
+	for key, value := range cmd.Variables {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	// Add common paths to the PATH environment variable
+	updatedPath := AddCommonPaths()
+	env = append(env, fmt.Sprintf("PATH=%s", updatedPath))
+
+	// Set the environment variables for the command
+	command.Env = env
+
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
+
+	if cmd.Interactive {
+		command.Stdin = os.Stdin
+		command.Stdout = os.Stdout
+	} else {
+		setOutputStreams(command, debug, cmd.LogName)
+	}
+
+	err := command.Run()
 	if err != nil {
-		log.Errorf("Error running command: %v", err)
-		return err
+		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
+		log.Error(errMsg)
+		return fmt.Errorf(errMsg)
 	}
 
 	return nil
 }
 
-func RunCommand(command string, logName string, args ...string) error {
-	cmd := exec.Command(command, args...)
+// RunCommandOutput runs a command and returns the output as a string.
+func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
+	var command *exec.Cmd
 
-	// Set the standard output and error streams
-	setOutputStreams(cmd, logName)
-
-	// Run the command
-	err := cmd.Run()
-	if err != nil {
-		log.Errorf("Error running command: %v", err)
-		return err
+	if cmd.Elevated {
+		if runtime.GOOS == "windows" {
+			log.Debugf("Running command as elevated - Running Command: %v %v", cmd.Exec, cmd.Args)
+			command = exec.Command("cmd", "/C", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
+		} else {
+			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
+			command = exec.Command("sudo", "sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
+		}
+	} else if cmd.AsUser != "" {
+		log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.Args)
+		command = exec.Command("sudo", "-u", cmd.AsUser, "sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
+	} else {
+		log.Debugf("Running command: %v %v", cmd.Exec, cmd.Args)
+		command = exec.Command("sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
 	}
 
-	return nil
+	// Get the current environment variables
+	env := os.Environ()
+
+	// Append the additional variables from cmd.Variables
+	for key, value := range cmd.Variables {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	// Add common paths to the PATH environment variable
+	updatedPath := AddCommonPaths()
+	env = append(env, fmt.Sprintf("PATH=%s", updatedPath))
+
+	// Set the environment variables for the command
+	command.Env = env
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+
+	err := command.Run()
+	if err != nil {
+		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
+		log.Error(errMsg)
+		return "", fmt.Errorf(errMsg)
+	}
+
+	return stdout.String(), nil
 }
 
-// setOutputStreams sets the standard output and error streams for a command based on the log level and log name.
-func setOutputStreams(cmd *exec.Cmd, logName string) {
-	if lvl, err := log.ParseLevel(viper.GetString("log.level")); err == nil && lvl == log.DebugLevel {
-		log.Debugf("Debug set, configuring output streams for command: %v", cmd.Path)
+// setOutputStreams sets the standard output stream for a command based on the log level and log name.
+func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) {
+	log.Debugf("Debug: %v", debug)
+	log.Debugf("Log Name: %v", logName)
+	if debug {
+		log.Debugf("Debug set, configuring stdout for command: %v", cmd.Path)
 		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
 	} else if logName != "" {
 		file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
@@ -74,7 +138,6 @@ func setOutputStreams(cmd *exec.Cmd, logName string) {
 		}(file)
 
 		cmd.Stdout = file
-		cmd.Stderr = file
 	}
 }
 
@@ -82,4 +145,12 @@ func setOutputStreams(cmd *exec.Cmd, logName string) {
 func CommandExists(cmd string) bool {
 	_, err := exec.LookPath(cmd)
 	return err == nil
+}
+
+func GetBinPath(binName string) (string, error) {
+	path, err := exec.LookPath(binName)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Clean(path), nil
 }

@@ -1,85 +1,98 @@
 package processors
 
 import (
-	"fmt"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
 )
 
-func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo types.OSInfo, forceBootstrap bool) error {
+func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo *types.OSInfo, forceBootstrap bool) error {
 	if !forceBootstrap && helpers.IsBootstrapped() {
 		log.Info("System is already bootstrapped. Skipping bootstrap process.")
 		return nil
 	}
 
-	var bootstrapData types.BootstrapData
+	log.Info("Starting bootstrap processor...")
 
-	// Read the blueprint file
-	blueprintData, err := os.ReadFile(blueprintFile)
-	if err != nil {
-		log.Errorf("Error reading blueprint file: %v", err)
-		return fmt.Errorf("error reading blueprint file: %w", err)
+	var bootstrapData types.BootstrapData
+	var blueprintData []byte
+
+	// Resolve variables in the blueprint file if templates are enabled
+	if initConfig.Init.TemplatesEnabled {
+		var err error
+		blueprintData, err = RenderTemplate(blueprintFile, initConfig.Variables)
+		if err != nil {
+			log.Errorf("Error resolving variables in bootstrap file: %v", err)
+			return err
+		}
+	} else {
+		// Read the blueprint file without resolving variables
+		var err error
+		blueprintData, err = os.ReadFile(blueprintFile)
+		if err != nil {
+			log.Errorf("Error reading blueprint file: %v", err)
+			return err
+		}
 	}
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &bootstrapData)
+	err := helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &bootstrapData)
 	if err != nil {
 		log.Errorf("Error unmarshaling bootstrap blueprint: %v", err)
-		return fmt.Errorf("error unmarshaling bootstrap blueprint: %w", err)
+		return err
 	}
 
 	// Process packages
-	err = ProcessPackagesFromFile(blueprintFile, osInfo)
+	err = ProcessPackagesFromFile(blueprintFile, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing packages: %v", err)
-		return fmt.Errorf("error processing packages: %w", err)
+		return err
 	}
 
 	// Process directories
 	err = ProcessFiles(bootstrapData.Files)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
-		return fmt.Errorf("error processing directories: %w", err)
+		return err
 	}
 
 	// Process Git repositories
 	err = ProcessGitRepositories(bootstrapData.Git)
 	if err != nil {
 		log.Errorf("Error processing Git repositories: %v", err)
-		return fmt.Errorf("error processing Git repositories: %w", err)
+		return err
 	}
 
 	// Process services
-	err = ProcessServices(bootstrapData.Services)
+	err = ProcessServices(bootstrapData.Services, initConfig)
 	if err != nil {
 		log.Errorf("Error processing services: %v", err)
-		return fmt.Errorf("error processing services: %w", err)
+		return err
 	}
 
 	// Process users/groups
-	err = ProcessUsers(bootstrapData.Users)
+	err = ProcessUsers(bootstrapData.Users, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
-		return fmt.Errorf("error processing groups: %w", err)
+		return err
 	}
 
-	err = ProcessGroups(bootstrapData.Groups)
+	err = ProcessGroups(bootstrapData.Groups, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
-		return fmt.Errorf("error processing groups: %w", err)
+		return err
 	}
 
 	// Set the bootstrap file
 	err = helpers.Bootstrap()
 	if err != nil {
 		log.Errorf("Error setting bootstrap file: %v", err)
-		return fmt.Errorf("error setting bootstrap file: %w", err)
+		return err
 	}
 
-	log.Info("Bootstrap process completed successfully.")
+	log.Info("Bootstrap processor completed successfully.")
 	return nil
 }

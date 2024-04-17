@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/processors"
-	"github.com/thefynx/rwr/internal/processors/types"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
 	"time"
@@ -25,6 +26,7 @@ var rootCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Welcome to rwr - The Distrohopper's Friend!")
+		log.Debugf("Variables: %+v", initConfig.Variables)
 		err := cmd.Help()
 		if err != nil {
 			return
@@ -41,13 +43,29 @@ var (
 	initConfig           *types.InitConfig
 	initFilePath         string
 	initTemplatesEnabled bool
+	osInfo               *types.OSInfo
 )
 
 func initializeSystemInfo() {
 	var err error
 
+	flags := types.Flags{
+		Debug:                debug,
+		LogLevel:             logLevel,
+		GHAPIToken:           ghApiToken,
+		SSHKey:               sshKey,
+		SkipVersionCheck:     skipVersionCheck,
+		InitTemplatesEnabled: initTemplatesEnabled,
+	}
+
+	err = helpers.SetPaths()
+	if err != nil {
+		log.With("err", err).Errorf("Error setting paths")
+		os.Exit(1)
+	}
+
 	log.Debugf("Initializing system information with init file: %s", initFilePath)
-	initConfig, err = processors.Initialize(initFilePath)
+	initConfig, err = processors.Initialize(initFilePath, flags)
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
 		os.Exit(1)
@@ -59,6 +77,8 @@ func initializeSystemInfo() {
 		log.With("err", err).Errorf("Error running GetBlueprints")
 		os.Exit(1)
 	}
+
+	osInfo = helpers.DetectOS()
 }
 
 func init() {
@@ -116,6 +136,7 @@ func init() {
 
 	viper.SetEnvPrefix("RWR")
 	viper.AutomaticEnv()
+
 }
 
 func config() {

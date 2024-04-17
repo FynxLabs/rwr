@@ -2,12 +2,12 @@ package processors
 
 import (
 	"fmt"
+	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
 )
 
 func ProcessGitRepositoriesFromFile(blueprintFile string) error {

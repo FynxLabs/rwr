@@ -3,7 +3,7 @@ package helpers
 import (
 	"github.com/charmbracelet/log"
 	"github.com/spf13/viper"
-	"github.com/thefynx/rwr/internal/processors/types"
+	"github.com/thefynx/rwr/internal/types"
 )
 
 // SetWindowsDetails Sets the package manager details for Windows.

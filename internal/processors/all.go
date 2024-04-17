@@ -1,19 +1,15 @@
 package processors
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/charmbracelet/log"
 	"github.com/spf13/viper"
 	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors/types"
-	"os"
+	"github.com/thefynx/rwr/internal/types"
 	"path/filepath"
-	"text/template"
 )
 
-func All(initConfig *types.InitConfig, runOrder []string) error {
-	osInfo := helpers.DetectOS()
+func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
 	var err error
 	var blueprintRunOrder []string
 
@@ -38,7 +34,7 @@ func All(initConfig *types.InitConfig, runOrder []string) error {
 	// Process package managers
 	if initConfig.PackageManagers != nil {
 		log.Debugf("Processing package managers")
-		err = ProcessPackageManagers(initConfig.PackageManagers, osInfo)
+		err = ProcessPackageManagers(initConfig.PackageManagers, osInfo, initConfig)
 		if err != nil {
 			return fmt.Errorf("error processing package managers: %w", err)
 		}
@@ -57,10 +53,11 @@ func All(initConfig *types.InitConfig, runOrder []string) error {
 				var resolvedBlueprint []byte
 				// Resolve variables in the blueprint file
 				if initConfig.Init.TemplatesEnabled {
-					resolvedBlueprint, err = resolveVariables(blueprintFile, initConfig.Variables)
+					resolvedBlueprint, err := RenderTemplate(blueprintFile, initConfig.Variables)
 					log.Debugf("Resolved blueprint: %s", resolvedBlueprint)
 					if err != nil {
-						return fmt.Errorf("error resolving variables in blueprint file: %w", err)
+						log.Errorf("error resolving variables in %s: %v", processor, err)
+						return err
 					}
 				}
 
@@ -68,16 +65,16 @@ func All(initConfig *types.InitConfig, runOrder []string) error {
 				case "repositories":
 					log.Infof("Processing repositories")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessRepositoriesFromData(resolvedBlueprint, initConfig, osInfo)
+						err = ProcessRepositoriesFromData(resolvedBlueprint, osInfo, initConfig)
 					} else {
-						err = ProcessRepositoriesFromFile(blueprintFile, osInfo)
+						err = ProcessRepositoriesFromFile(blueprintFile, osInfo, initConfig)
 					}
 				case "packages":
 					log.Infof("Processing packages")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessPackagesFromData(resolvedBlueprint, initConfig, osInfo)
+						err = ProcessPackagesFromData(resolvedBlueprint, osInfo, initConfig)
 					} else {
-						err = ProcessPackagesFromFile(blueprintFile, osInfo)
+						err = ProcessPackagesFromFile(blueprintFile, osInfo, initConfig)
 					}
 				case "files":
 					log.Infof("Processing files")
@@ -91,21 +88,21 @@ func All(initConfig *types.InitConfig, runOrder []string) error {
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessServicesFromData(resolvedBlueprint, initConfig)
 					} else {
-						err = ProcessServicesFromFile(blueprintFile)
+						err = ProcessServicesFromFile(blueprintFile, initConfig)
 					}
 				case "templates":
 					log.Infof("Processing templates")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessTemplatesFromData(resolvedBlueprint, initConfig)
 					} else {
-						err = ProcessTemplatesFromFile(blueprintFile)
+						err = ProcessTemplatesFromFile(blueprintFile, initConfig)
 					}
 				case "users":
 					log.Infof("Processing users")
 					if initConfig.Init.TemplatesEnabled {
 						err = ProcessUsersFromData(resolvedBlueprint, initConfig)
 					} else {
-						err = ProcessUsersFromFile(blueprintFile)
+						err = ProcessUsersFromFile(blueprintFile, initConfig)
 					}
 				case "git":
 					log.Infof("Processing Git repositories")
@@ -117,9 +114,9 @@ func All(initConfig *types.InitConfig, runOrder []string) error {
 				case "scripts":
 					log.Infof("Processing scripts")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessScriptsFromData(resolvedBlueprint, initConfig, osInfo)
+						err = ProcessScriptsFromData(resolvedBlueprint, osInfo, initConfig)
 					} else {
-						err = ProcessScriptsFromFile(blueprintFile, osInfo)
+						err = ProcessScriptsFromFile(blueprintFile, osInfo, initConfig)
 					}
 				default:
 					log.Warnf("Unknown processor: %s", processor)
@@ -133,34 +130,12 @@ func All(initConfig *types.InitConfig, runOrder []string) error {
 		}
 	}
 
-	err = helpers.CleanPackageManagers(&osInfo)
+	log.Infof("Cleaning up package managers")
+	err = helpers.CleanPackageManagers(osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error cleaning package managers: %w", err)
 	}
 
 	log.Info("RWR Run Complete!")
 	return nil
-}
-
-func resolveVariables(blueprintFile string, variables map[string]interface{}) ([]byte, error) {
-	// Read the blueprint file
-	blueprintData, err := os.ReadFile(blueprintFile)
-	if err != nil {
-		return nil, fmt.Errorf("error reading blueprint file: %w", err)
-	}
-
-	// Create a new template
-	t, err := template.New(filepath.Base(blueprintFile)).Parse(string(blueprintData))
-	if err != nil {
-		return nil, fmt.Errorf("error parsing blueprint template: %w", err)
-	}
-
-	// Execute the template
-	var resolvedData bytes.Buffer
-	err = t.Execute(&resolvedData, variables)
-	if err != nil {
-		return nil, fmt.Errorf("error executing blueprint template: %w", err)
-	}
-
-	return resolvedData.Bytes(), nil
 }

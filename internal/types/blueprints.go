@@ -1,8 +1,8 @@
 package types
 
 type Init struct {
-	Format           string        `mapstructure:"format" yaml:"format,omitempty" json:"format,omitempty" toml:"format,omitempty"`
-	Location         string        `mapstructure:"location" yaml:"location,omitempty" json:"location,omitempty" toml:"location,omitempty"`
+	Format           string        `mapstructure:"format" yaml:"format" json:"format" toml:"format"`
+	Location         string        `mapstructure:"location,omitempty" yaml:"location,omitempty" json:"location,omitempty" toml:"location,omitempty"`
 	Order            []interface{} `mapstructure:"order,omitempty" yaml:"order,omitempty" json:"order,omitempty" toml:"order,omitempty"`
 	Git              *GitOptions   `mapstructure:"git,omitempty" yaml:"git,omitempty" json:"git,omitempty" toml:"git,omitempty"`
 	RunOnlyListed    bool          `mapstructure:"runOnlyListed,omitempty" yaml:"runOnlyListed,omitempty" json:"runOnlyListed,omitempty" toml:"runOnlyListed,omitempty"`

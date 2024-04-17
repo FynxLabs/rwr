@@ -12,7 +12,7 @@ var allCmd = &cobra.Command{
 	Use:   "all",
 	Short: "Run All Blueprints - New System Initialization",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(initConfig, nil)
+		err := processors.All(initConfig, osInfo, nil)
 		if err != nil {
 			log.With("err", err).Errorf("Error initializing system information")
 			os.Exit(1)
