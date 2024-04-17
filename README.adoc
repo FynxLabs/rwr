@@ -8,12 +8,13 @@ image::img/rwr.gif[RWR Logo, width=250]
 :caution-caption: :fire:
 :warning-caption: :warning:
 
-:toc:
-:toc-placement!:
-
 WARNING: Rinse, Wash, Repeat (RWR) is currently in alpha stage. While the core functionality is in place, not all features have been thoroughly tested and validated across all platforms. Please refer to the <<Road to Beta/MVP>> checklist in this README to check the status of confirmed functionality. Use at your own risk, and expect potential bugs or incomplete features.
 
-toc::[]
+:asciidoctor:
+:source-highlighter: rouge
+:icons: font
+:experimental:
+:toc: macro
 
 == Introduction
 
