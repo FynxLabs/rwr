@@ -75,6 +75,10 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 		}
 
 		osInfo = helpers.DetectOS()
+		err = helpers.SetPaths()
+		if err != nil {
+			return fmt.Errorf("error setting paths: %v", err)
+		}
 	}
 
 	return nil
