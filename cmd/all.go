@@ -12,6 +12,7 @@ var allCmd = &cobra.Command{
 	Use:   "all",
 	Short: "Run All Blueprints - New System Initialization",
 	Run: func(cmd *cobra.Command, args []string) {
+		log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 		err := processors.All(initConfig, osInfo, nil)
 		if err != nil {
 			log.With("err", err).Errorf("Error initializing system information")
@@ -21,6 +22,5 @@ var allCmd = &cobra.Command{
 }
 
 func init() {
-	configCmd.Flags().BoolVar(&initFlag, "force-bootstrap", false, "Force Bootstrap to be ran again")
 	rootCmd.AddCommand(allCmd)
 }

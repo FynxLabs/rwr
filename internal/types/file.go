@@ -7,10 +7,9 @@ type File struct {
 	Content  string   `mapstructure:"content,omitempty" yaml:"content,omitempty" json:"content,omitempty" toml:"content,omitempty"` // Content of the file
 	Source   string   `mapstructure:"source,omitempty" yaml:"source,omitempty" json:"source,omitempty" toml:"source,omitempty"`     // Source of the file
 	Target   string   `mapstructure:"target" yaml:"target" json:"target" toml:"target"`                                             // Target of the file
-	Owner    int      `mapstructure:"owner,omitempty" yaml:"owner,omitempty" json:"owner,omitempty" toml:"owner,omitempty"`         // Owner of the file
-	Group    int      `mapstructure:"group,omitempty" yaml:"group,omitempty" json:"group,omitempty" toml:"group,omitempty"`         // Group of the file
+	Owner    string   `mapstructure:"owner,omitempty" yaml:"owner,omitempty" json:"owner,omitempty" toml:"owner,omitempty"`         // Owner of the file
+	Group    string   `mapstructure:"group,omitempty" yaml:"group,omitempty" json:"group,omitempty" toml:"group,omitempty"`         // Group of the file
 	Mode     int      `mapstructure:"mode,omitempty" yaml:"mode,omitempty" json:"mode,omitempty" toml:"mode,omitempty"`             // Mode of the file
-	Create   bool     `mapstructure:"create,omitempty" yaml:"create,omitempty" json:"create,omitempty" toml:"create,omitempty"`     // Whether to create the file
 	Elevated bool     `mapstructure:"elevated" yaml:"elevated" json:"elevated" toml:"elevated"`                                     // Whether to perform the action with elevated privileges
 }
 
@@ -20,9 +19,8 @@ type Directory struct {
 	Action   string   `mapstructure:"action" yaml:"action" json:"action" toml:"action"`                                         // Action to perform with the directory
 	Source   string   `mapstructure:"source,omitempty" yaml:"source,omitempty" json:"source,omitempty" toml:"source,omitempty"` // Source of the directory
 	Target   string   `mapstructure:"target" yaml:"target" json:"target" toml:"target"`                                         // Target of the directory
-	Owner    int      `mapstructure:"owner,omitempty" yaml:"owner,omitempty" json:"owner,omitempty" toml:"owner,omitempty"`     // Owner of the directory
-	Group    int      `mapstructure:"group,omitempty" yaml:"group,omitempty" json:"group,omitempty" toml:"group,omitempty"`     // Group of the directory
+	Owner    string   `mapstructure:"owner,omitempty" yaml:"owner,omitempty" json:"owner,omitempty" toml:"owner,omitempty"`     // Owner of the directory
+	Group    string   `mapstructure:"group,omitempty" yaml:"group,omitempty" json:"group,omitempty" toml:"group,omitempty"`     // Group of the directory
 	Mode     int      `mapstructure:"mode,omitempty" yaml:"mode,omitempty" json:"mode,omitempty" toml:"mode,omitempty"`         // Mode of the directory
-	Create   bool     `mapstructure:"create,omitempty" yaml:"create,omitempty" json:"create,omitempty" toml:"create,omitempty"` // Whether to create the directory
 	Elevated bool     `mapstructure:"elevated" yaml:"elevated" json:"elevated" toml:"elevated"`                                 // Whether to perform the action with elevated privileges
 }

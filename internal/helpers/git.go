@@ -30,6 +30,8 @@ func HandleGitOperation(opts types.GitOptions) error {
 func HandleGitClone(opts types.GitOptions) error {
 	var auth transport.AuthMethod
 
+	log.Debugf("Cloning Git repository: %s", opts.URL)
+
 	if opts.Private {
 		// Determine the authentication method based on the URL scheme and private flag
 		if opts.URL[0:3] == "git" {
@@ -72,6 +74,7 @@ func HandleGitClone(opts types.GitOptions) error {
 }
 
 func HandleGitPull(opts types.GitOptions) error {
+	log.Debugf("Pulling changes from Git repository: %s", opts.Target)
 	repo, err := git.PlainOpen(opts.Target)
 	if err != nil {
 		log.Errorf("Error opening Git repository: %v", err)
@@ -95,6 +98,7 @@ func HandleGitPull(opts types.GitOptions) error {
 }
 
 func HandleGitFileDownload(opts types.GitOptions) error {
+	log.Debugf("Downloading file from Git repository: %s", opts.URL)
 	// Extract the repository URL and file path from the opts.URL
 	parts := strings.Split(opts.URL, "/blob/")
 	if len(parts) != 2 {

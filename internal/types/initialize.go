@@ -20,6 +20,8 @@ type UserInfo struct {
 type Flags struct {
 	Debug                bool
 	LogLevel             string
+	Interactive          bool
+	ForceBootstrap       bool
 	GHAPIToken           string
 	SSHKey               string
 	SkipVersionCheck     bool
@@ -62,6 +64,8 @@ func (f Flags) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"debug":                f.Debug,
 		"logLevel":             f.LogLevel,
+		"interactive":          f.Interactive,
+		"forceBootstrap":       f.ForceBootstrap,
 		"ghAPIToken":           f.GHAPIToken,
 		"sshKey":               f.SSHKey,
 		"skipVersionCheck":     f.SkipVersionCheck,

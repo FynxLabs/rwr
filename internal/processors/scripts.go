@@ -10,7 +10,7 @@ import (
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
-func ProcessScriptsFromFile(blueprintFile string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessScriptsFromFile(blueprintFile string, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var scripts []types.Script
 
 	// Read the blueprint file
@@ -37,7 +37,7 @@ func ProcessScriptsFromFile(blueprintFile string, osInfo *types.OSInfo, initConf
 	return nil
 }
 
-func ProcessScriptsFromData(blueprintData []byte, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessScriptsFromData(blueprintData []byte, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var scripts []types.Script
 
 	// Unmarshal the resolved blueprint data

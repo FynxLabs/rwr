@@ -11,7 +11,7 @@ import (
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
-func ProcessTemplatesFromFile(blueprintFile string, initConfig *types.InitConfig) error {
+func ProcessTemplatesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
 	if err != nil {
@@ -28,7 +28,7 @@ func ProcessTemplatesFromFile(blueprintFile string, initConfig *types.InitConfig
 	return nil
 }
 
-func ProcessTemplatesFromData(blueprintData []byte, initConfig *types.InitConfig) error {
+func ProcessTemplatesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
 	_, err := processTemplates(blueprintData, initConfig)
 	if err != nil {
 		log.Errorf("error processing templates: %v", err)

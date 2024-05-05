@@ -8,7 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -65,6 +67,8 @@ func moveFileWithElevatedPrivileges(source, target string) error {
 }
 
 func DownloadFile(url, filePath string, elevated bool) error {
+
+	log.Debugf("Downloading file from %s to %s", url, filePath)
 	// Create a temporary file to download the content
 	tempFile, err := os.CreateTemp("", "download-")
 	if err != nil {
@@ -91,6 +95,8 @@ func DownloadFile(url, filePath string, elevated bool) error {
 }
 
 func AppendToFile(filePath, content string, elevated bool) error {
+
+	log.Debugf("Appending content to file %s", filePath)
 	// Read the existing file content
 	existingContent, err := os.ReadFile(filePath)
 	if err != nil && !os.IsNotExist(err) {
@@ -127,6 +133,8 @@ func AppendToFile(filePath, content string, elevated bool) error {
 }
 
 func WriteToFile(filePath, content string, elevated bool) error {
+
+	log.Debugf("Writing content to file %s", filePath)
 	// Create a temporary file
 	tempFile, err := os.CreateTemp("", "temp-")
 	if err != nil {
@@ -153,6 +161,8 @@ func WriteToFile(filePath, content string, elevated bool) error {
 }
 
 func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
+
+	log.Debugf("Removing line %s from file %s", lineToRemove, filePath)
 	// Open the file for reading
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -211,6 +221,8 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 }
 
 func CopyFile(source, target string, elevated bool) error {
+
+	log.Debugf("Copying file from %s to %s", source, target)
 	// Create a temporary file to copy the content
 	tempFile, err := os.CreateTemp("", "copy-")
 	if err != nil {
@@ -315,27 +327,64 @@ func copyDirectoryContent(source, target string) error {
 	return nil
 }
 
-func CopyDirectory(source, target string, elevated bool) error {
-	// Create a temporary directory to copy the content
-	tempDir, err := os.MkdirTemp("", "copy-dir-")
-	if err != nil {
-		return fmt.Errorf("error creating temporary directory: %v", err)
-	}
+func CopyDirectory(source, target string, elevated, interactive bool) error {
+	log.Debugf("Copying directory from %s to %s", source, target)
 
-	// Copy the source directory content to the temporary directory
-	err = copyDirectoryContent(source, tempDir)
-	if err != nil {
-		return err
-	}
+	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 
-	// Move the temporary directory to the target location
-	if elevated {
-		err = moveDirectoryWithElevatedPrivileges(tempDir, target)
-	} else {
-		err = os.Rename(tempDir, target)
-	}
+		relPath, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+
+		targetPath := filepath.Join(target, relPath)
+
+		if info.IsDir() {
+			err := os.MkdirAll(targetPath, info.Mode())
+			if err != nil {
+				return err
+			}
+		} else {
+			// Check if the file already exists at the target path
+			_, err := os.Stat(targetPath)
+			if err == nil {
+				// File exists, prompt for confirmation if interactive mode is enabled
+				if interactive {
+					fmt.Printf("File '%s' already exists at the target location.\n", targetPath)
+					fmt.Printf("Diff:\n")
+					err := ShowDiff(path, targetPath)
+					if err != nil {
+						log.Errorf("Failed to show diff: %v", err)
+					}
+					overwrite := promptOverwrite()
+					if !overwrite {
+						log.Infof("Skipping file: %s", targetPath)
+						return nil
+					}
+				}
+
+				// Overwrite the file
+				err := os.Remove(targetPath)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Copy the file
+			err = copyFileContent(path, targetPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return fmt.Errorf("error moving directory: %v", err)
+		return fmt.Errorf("error copying directory: %v", err)
 	}
 
 	return nil
@@ -344,4 +393,38 @@ func CopyDirectory(source, target string, elevated bool) error {
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
+}
+
+func LookupUID(owner string) (int, error) {
+	u, err := user.Lookup(owner)
+	if err != nil {
+		return -1, err
+	}
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return -1, err
+	}
+	return uid, nil
+}
+
+func LookupGID(group string) (int, error) {
+	g, err := user.LookupGroup(group)
+	if err != nil {
+		return -1, err
+	}
+	gid, err := strconv.Atoi(g.Gid)
+	if err != nil {
+		return -1, err
+	}
+	return gid, nil
+}
+
+func promptOverwrite() bool {
+	var input string
+	fmt.Print("Do you want to overwrite the file? (y/n): ")
+	_, err := fmt.Scanln(&input)
+	if err != nil {
+		log.Fatalf("error reading input: %v", err)
+	}
+	return strings.EqualFold(input, "y") || strings.EqualFold(input, "yes")
 }

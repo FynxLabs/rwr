@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-func ProcessPackagesFromFile(blueprintFile string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var packages []types.Package
 	var PackagesData types.PackagesData
 	var failedPackages []string
@@ -31,11 +31,12 @@ func ProcessPackagesFromFile(blueprintFile string, osInfo *types.OSInfo, initCon
 	packages = PackagesData.Packages
 
 	log.Infof("Processing packages from %s", blueprintFile)
+	log.Debugf("Packages: %v", packages)
 
 	// Install the packages
 	for _, pkg := range packages {
-		log.Infof("Processing %d packages", len(pkg.Names))
 		if len(pkg.Names) > 0 {
+			log.Infof("Processing %d packages", len(pkg.Names))
 			for _, name := range pkg.Names {
 				log.Debugf("Processing package %s", name)
 				log.Debugf("PackageManager: %s", pkg.PackageManager)
@@ -52,6 +53,11 @@ func ProcessPackagesFromFile(blueprintFile string, osInfo *types.OSInfo, initCon
 				}
 			}
 		} else {
+			log.Infof("Processing 1 packages")
+			log.Debugf("Processing package %s", pkg.Name)
+			log.Debugf("PackageManager: %s", pkg.PackageManager)
+			log.Debugf("Elevated: %t", pkg.Elevated)
+			log.Debugf("Action: %s", pkg.Action)
 			err := HandlePackage(pkg, osInfo, initConfig)
 			if err != nil {
 				failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
@@ -69,7 +75,7 @@ func ProcessPackagesFromFile(blueprintFile string, osInfo *types.OSInfo, initCon
 	return nil
 }
 
-func ProcessPackagesFromData(blueprintData []byte, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessPackagesFromData(blueprintData []byte, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var packages []types.Package
 	var PackagesData types.PackagesData
 	var failedPackages []string

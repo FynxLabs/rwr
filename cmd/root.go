@@ -39,6 +39,8 @@ var (
 	sshKey               string // Global variable for SSH Key
 	skipVersionCheck     bool
 	debug                bool
+	interactive          bool
+	forceBootstrap       bool
 	logLevel             string
 	initConfig           *types.InitConfig
 	initFilePath         string
@@ -52,6 +54,8 @@ func initializeSystemInfo() {
 	flags := types.Flags{
 		Debug:                debug,
 		LogLevel:             logLevel,
+		ForceBootstrap:       forceBootstrap,
+		Interactive:          interactive,
 		GHAPIToken:           ghApiToken,
 		SSHKey:               sshKey,
 		SkipVersionCheck:     skipVersionCheck,
@@ -87,6 +91,9 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().BoolVar(&forceBootstrap, "force-bootstrap", false, "Force Bootstrap to be ran again")
+
+	rootCmd.PersistentFlags().BoolVar(&interactive, "interactive", false, "Enable interactive mode")
 
 	// Flag for the init.yaml file path
 	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init.yaml file")

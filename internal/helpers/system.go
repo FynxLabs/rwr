@@ -16,6 +16,12 @@ import (
 func DetectOS() *types.OSInfo {
 	log.Debug("Detecting operating system.")
 	osInfo := &types.OSInfo{} // Create a new instance of types.OSInfo
+	err := SetPaths()
+	if err != nil {
+		log.Fatalf("Error setting PATH: %v", err)
+	}
+
+	osInfo.Tools = findCommonTools()
 
 	switch runtime.GOOS {
 	case "linux":
@@ -36,8 +42,6 @@ func DetectOS() *types.OSInfo {
 	default:
 		log.Fatal("This setup only supports macOS, Linux, and Windows.")
 	}
-
-	osInfo.Tools = findCommonTools()
 
 	return osInfo
 }
@@ -82,10 +86,18 @@ func FindTool(name string) types.ToolInfo {
 
 	// Save the original PATH environment variable
 	originalPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", originalPath)
+	defer func(key, value string) {
+		err := os.Setenv(key, value)
+		if err != nil {
+			log.Warnf("Error setting %s: %v", key, err)
+		}
+	}("PATH", originalPath)
 
 	// Set the updated PATH environment variable
-	os.Setenv("PATH", updatedPath)
+	err := os.Setenv("PATH", updatedPath)
+	if err != nil {
+		log.Warnf("Error setting PATH: %v", err)
+	}
 
 	path, err := exec.LookPath(name)
 	if err != nil {
@@ -118,12 +130,15 @@ func AddCommonPaths() string {
 		}
 	default: // Unix-like systems (macOS, Linux)
 		commonPaths = []string{
-			"/usr/local/bin",                    // Common path for Homebrew, Nix, and other tools
+			"/usr/local/bin",                    // Common system path
+			"/usr/local/sbin",                   // Common system path
 			"/opt/homebrew/bin",                 // Alternative path for Homebrew on macOS
 			"/nix/var/nix/profiles/default/bin", // Common path for Nix
 			"/home/linuxbrew/.linuxbrew/bin",    // Common path for Homebrew on Linux
 			"/usr/bin",                          // Common system path
+			"/usr/sbin",                         // Common system path
 			"/bin",                              // Common system path
+			"/sbin",                             // Common system path
 			"/usr/local/go/bin",                 // Common path for Go
 			"/usr/local/cargo/bin",              // Common path for Cargo (Rust package manager)
 			"/home/linuxbrew/.linuxbrew/bin",    // Common path for Linuxbrew (Homebrew on Linux)

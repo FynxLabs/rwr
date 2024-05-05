@@ -10,7 +10,7 @@ import (
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
-func ProcessGitRepositoriesFromFile(blueprintFile string) error {
+func ProcessGitRepositoriesFromFile(blueprintFile string, blueprintDir string) error {
 	var gitRepos []types.Git
 
 	// Read the blueprint file
@@ -37,7 +37,7 @@ func ProcessGitRepositoriesFromFile(blueprintFile string) error {
 	return nil
 }
 
-func ProcessGitRepositoriesFromData(blueprintData []byte, initConfig *types.InitConfig) error {
+func ProcessGitRepositoriesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
 	var gitRepos []types.Git
 
 	// Unmarshal the resolved blueprint data

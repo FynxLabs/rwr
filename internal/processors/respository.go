@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-func ProcessRepositoriesFromFile(blueprintFile string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessRepositoriesFromFile(blueprintFile string, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var repositoriesBlueprint types.RepositoriesData
 
 	log.Infof("Processing repositories from file: %s", blueprintFile)
@@ -35,7 +35,7 @@ func ProcessRepositoriesFromFile(blueprintFile string, osInfo *types.OSInfo, ini
 	return nil
 }
 
-func ProcessRepositoriesFromData(blueprintData []byte, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessRepositoriesFromData(blueprintData []byte, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var repositoriesBlueprint types.RepositoriesData
 
 	log.Infof("Processing repositories from data")

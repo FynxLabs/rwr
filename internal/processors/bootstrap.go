@@ -9,8 +9,8 @@ import (
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
-func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo *types.OSInfo, forceBootstrap bool) error {
-	if !forceBootstrap && helpers.IsBootstrapped() {
+func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo *types.OSInfo) error {
+	if !initConfig.Variables.Flags.ForceBootstrap && helpers.IsBootstrapped() {
 		log.Info("System is already bootstrapped. Skipping bootstrap process.")
 		return nil
 	}
@@ -38,7 +38,10 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		}
 	}
 
+	blueprintDir := filepath.Dir(blueprintFile)
+
 	// Unmarshal the blueprint data
+	log.Debugf("Unmarshaling bootstrap data from %s", blueprintFile)
 	err := helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &bootstrapData)
 	if err != nil {
 		log.Errorf("Error unmarshaling bootstrap blueprint: %v", err)
@@ -46,20 +49,31 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	}
 
 	// Process packages
-	err = ProcessPackagesFromFile(blueprintFile, osInfo, initConfig)
+	log.Debugf("Processing packages from %s", blueprintFile)
+	err = ProcessPackagesFromFile(blueprintFile, blueprintDir, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing packages: %v", err)
 		return err
 	}
 
 	// Process directories
-	err = ProcessFiles(bootstrapData.Files)
+	log.Debugf("Processing directories from %s", blueprintFile)
+	err = ProcessDirectories(bootstrapData.Directories, blueprintDir, initConfig)
+	if err != nil {
+		log.Errorf("Error processing directories: %v", err)
+		return err
+	}
+
+	// Process Files
+	log.Debugf("Processing files from %s", blueprintFile)
+	err = ProcessFiles(bootstrapData.Files, blueprintDir)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err
 	}
 
 	// Process Git repositories
+	log.Debugf("Processing Git repositories from %s", blueprintFile)
 	err = ProcessGitRepositories(bootstrapData.Git)
 	if err != nil {
 		log.Errorf("Error processing Git repositories: %v", err)
@@ -67,6 +81,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	}
 
 	// Process services
+	log.Debugf("Processing services from %s", blueprintFile)
 	err = ProcessServices(bootstrapData.Services, initConfig)
 	if err != nil {
 		log.Errorf("Error processing services: %v", err)
@@ -74,12 +89,15 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	}
 
 	// Process users/groups
+	log.Debugf("Processing users/groups from %s", blueprintFile)
 	err = ProcessUsers(bootstrapData.Users, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return err
 	}
 
+	// Process groups
+	log.Debugf("Processing groups from %s", blueprintFile)
 	err = ProcessGroups(bootstrapData.Groups, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
@@ -87,6 +105,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	}
 
 	// Set the bootstrap file
+	log.Debugf("Setting bootstrap fileProcessDirectories")
 	err = helpers.Bootstrap()
 	if err != nil {
 		log.Errorf("Error setting bootstrap file: %v", err)

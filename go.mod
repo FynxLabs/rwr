@@ -6,8 +6,10 @@ require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/charmbracelet/log v0.3.1
 	github.com/go-git/go-git/v5 v5.12.0
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
+	golang.org/x/term v0.18.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

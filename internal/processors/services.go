@@ -11,7 +11,7 @@ import (
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
-func ProcessServicesFromFile(blueprintFile string, initConfig *types.InitConfig) error {
+func ProcessServicesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
 	var services []types.Service
 
 	// Read the blueprint file
@@ -35,7 +35,7 @@ func ProcessServicesFromFile(blueprintFile string, initConfig *types.InitConfig)
 	return nil
 }
 
-func ProcessServicesFromData(blueprintData []byte, initConfig *types.InitConfig) error {
+func ProcessServicesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
 	var services []types.Service
 
 	// Unmarshal the resolved blueprint data

@@ -3,7 +3,6 @@ package processors
 import (
 	"fmt"
 	"github.com/charmbracelet/log"
-	"github.com/spf13/viper"
 	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/types"
 	"path/filepath"
@@ -12,6 +11,8 @@ import (
 func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
 	var err error
 	var blueprintRunOrder []string
+
+	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
 	if runOrder != nil {
 		blueprintRunOrder = append(runOrder)
@@ -24,8 +25,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 	// Run the bootstrap processor first if it exists
 	if helpers.FileExists(filepath.Join(initConfig.Init.Location, "bootstrap.yaml")) {
-		forceBootstrap := viper.GetBool("force-bootstrap")
-		err = ProcessBootstrap(filepath.Join(initConfig.Init.Location, "bootstrap.yaml"), initConfig, osInfo, forceBootstrap)
+		err = ProcessBootstrap(filepath.Join(initConfig.Init.Location, "bootstrap.yaml"), initConfig, osInfo)
 		if err != nil {
 			return fmt.Errorf("error processing bootstrap: %w", err)
 		}
@@ -49,6 +49,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		if files, ok := fileOrder[processor]; ok {
 			for _, file := range files {
 				blueprintFile := filepath.Join(initConfig.Init.Location, file)
+				blueprintDir := filepath.Dir(blueprintFile)
 				log.Debugf("Processing %s from file: %s", processor, blueprintFile)
 				var resolvedBlueprint []byte
 				// Resolve variables in the blueprint file
@@ -65,58 +66,58 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				case "repositories":
 					log.Infof("Processing repositories")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessRepositoriesFromData(resolvedBlueprint, osInfo, initConfig)
+						err = ProcessRepositoriesFromData(resolvedBlueprint, blueprintDir, osInfo, initConfig)
 					} else {
-						err = ProcessRepositoriesFromFile(blueprintFile, osInfo, initConfig)
+						err = ProcessRepositoriesFromFile(blueprintFile, blueprintDir, osInfo, initConfig)
 					}
 				case "packages":
 					log.Infof("Processing packages")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessPackagesFromData(resolvedBlueprint, osInfo, initConfig)
+						err = ProcessPackagesFromData(resolvedBlueprint, blueprintDir, osInfo, initConfig)
 					} else {
-						err = ProcessPackagesFromFile(blueprintFile, osInfo, initConfig)
+						err = ProcessPackagesFromFile(blueprintFile, blueprintDir, osInfo, initConfig)
 					}
 				case "files":
 					log.Infof("Processing files")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessFilesFromData(resolvedBlueprint, initConfig)
+						err = ProcessFilesFromData(resolvedBlueprint, blueprintDir, initConfig)
 					} else {
-						err = ProcessFilesFromFile(blueprintFile)
+						err = ProcessFilesFromFile(blueprintFile, blueprintDir, initConfig)
 					}
 				case "services":
 					log.Infof("Processing services")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessServicesFromData(resolvedBlueprint, initConfig)
+						err = ProcessServicesFromData(resolvedBlueprint, blueprintDir, initConfig)
 					} else {
-						err = ProcessServicesFromFile(blueprintFile, initConfig)
+						err = ProcessServicesFromFile(blueprintFile, blueprintDir, initConfig)
 					}
 				case "templates":
 					log.Infof("Processing templates")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessTemplatesFromData(resolvedBlueprint, initConfig)
+						err = ProcessTemplatesFromData(resolvedBlueprint, blueprintDir, initConfig)
 					} else {
-						err = ProcessTemplatesFromFile(blueprintFile, initConfig)
+						err = ProcessTemplatesFromFile(blueprintFile, blueprintDir, initConfig)
 					}
 				case "users":
 					log.Infof("Processing users")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessUsersFromData(resolvedBlueprint, initConfig)
+						err = ProcessUsersFromData(resolvedBlueprint, blueprintDir, initConfig)
 					} else {
-						err = ProcessUsersFromFile(blueprintFile, initConfig)
+						err = ProcessUsersFromFile(blueprintFile, blueprintDir, initConfig)
 					}
 				case "git":
 					log.Infof("Processing Git repositories")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessGitRepositoriesFromData(resolvedBlueprint, initConfig)
+						err = ProcessGitRepositoriesFromData(resolvedBlueprint, blueprintDir, initConfig)
 					} else {
-						err = ProcessGitRepositoriesFromFile(blueprintFile)
+						err = ProcessGitRepositoriesFromFile(blueprintFile, blueprintDir)
 					}
 				case "scripts":
 					log.Infof("Processing scripts")
 					if initConfig.Init.TemplatesEnabled {
-						err = ProcessScriptsFromData(resolvedBlueprint, osInfo, initConfig)
+						err = ProcessScriptsFromData(resolvedBlueprint, blueprintDir, osInfo, initConfig)
 					} else {
-						err = ProcessScriptsFromFile(blueprintFile, osInfo, initConfig)
+						err = ProcessScriptsFromFile(blueprintFile, blueprintDir, osInfo, initConfig)
 					}
 				default:
 					log.Warnf("Unknown processor: %s", processor)

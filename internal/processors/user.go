@@ -11,7 +11,7 @@ import (
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
-func ProcessUsersFromFile(blueprintFile string, initConfig *types.InitConfig) error {
+func ProcessUsersFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
 	if err != nil {
@@ -45,7 +45,7 @@ func ProcessUsersFromFile(blueprintFile string, initConfig *types.InitConfig) er
 	return nil
 }
 
-func ProcessUsersFromData(blueprintData []byte, initConfig *types.InitConfig) error {
+func ProcessUsersFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
 
 	var usersData types.UsersData
 

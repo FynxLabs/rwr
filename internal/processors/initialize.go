@@ -106,7 +106,10 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	}
 
 	// Get the directory of the init file
-	initFileDir := filepath.Dir(initFilePath)
+	initFileDir, err := filepath.Abs(filepath.Dir(initFilePath))
+	if err != nil {
+		return nil, fmt.Errorf("error getting absolute path of init file directory: %w", err)
+	}
 	log.Debugf("Initializing system information with init file: %s", initFilePath)
 	log.Debugf("Init file directory: %s", initFileDir)
 
@@ -171,9 +174,17 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		// If the location is ".", set it to the directory of the init file
 		log.Debugf("Location set to current directory. Using directory of the init file")
 		initConfig.Init.Location = initFileDir
+	} else if initConfig.Init.Location == "~" || strings.HasPrefix(initConfig.Init.Location, "~/") {
+		// If the location is "~" or starts with "~/", expand it to the user's home directory
+		log.Debugf("Location is relative to the user's home directory. Expanding it")
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("error expanding home directory: %v", err)
+		}
+		initConfig.Init.Location = filepath.Join(homeDir, initConfig.Init.Location[2:])
 	} else if !filepath.IsAbs(initConfig.Init.Location) {
-		// If the location is relative, make it relative to the init file path
-		log.Debugf("Location is relative. Making it relative to the init file directory")
+		// If the location is relative, make it an absolute path relative to the init file path
+		log.Debugf("Location is relative. Converting it to an absolute path relative to the init file directory")
 		initConfig.Init.Location = filepath.Join(initFileDir, initConfig.Init.Location)
 	}
 

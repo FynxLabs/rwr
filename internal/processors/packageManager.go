@@ -73,14 +73,13 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 		default:
 			return fmt.Errorf("unsupported package manager: %s", pm.Name)
 		}
-
-		osInfo = helpers.DetectOS()
-		err = helpers.SetPaths()
-		if err != nil {
-			return fmt.Errorf("error setting paths: %v", err)
-		}
 	}
 
+	osInfo = helpers.DetectOS()
+	err = helpers.SetPaths()
+	if err != nil {
+		return fmt.Errorf("error setting paths: %v", err)
+	}
 	return nil
 }
 
@@ -143,6 +142,14 @@ func processBrew(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *
 			err = helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug)
 			if err != nil {
 				return fmt.Errorf("error installing Homebrew: %v", err)
+			}
+
+			log.Infof("Homebrew installed successfully")
+
+			osInfo = helpers.DetectOS()
+			err = helpers.SetPaths()
+			if err != nil {
+				return fmt.Errorf("error setting paths: %v", err)
 			}
 		} else if pm.Action == "remove" {
 			// Create a temporary file for the removal script
@@ -215,6 +222,14 @@ func processNix(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 			if err := helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug); err != nil {
 				return fmt.Errorf("error installing Nix: %v", err)
 			}
+
+			log.Infof("Nix installed successfully")
+
+			osInfo = helpers.DetectOS()
+			err := helpers.SetPaths()
+			if err != nil {
+				return fmt.Errorf("error setting paths: %v", err)
+			}
 		} else if pm.Action == "remove" {
 			removeCmd := types.Command{
 				Exec: osInfo.Tools.Bash.Bin,
@@ -248,6 +263,14 @@ func processChocolatey(pm types.PackageManagerInfo, osInfo *types.OSInfo, initCo
 			}
 			if err := helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug); err != nil {
 				return fmt.Errorf("error installing Chocolatey: %v", err)
+			}
+
+			log.Infof("Chocolatey installed successfully")
+
+			osInfo = helpers.DetectOS()
+			err := helpers.SetPaths()
+			if err != nil {
+				return fmt.Errorf("error setting paths: %v", err)
 			}
 		} else if pm.Action == "remove" {
 			removeCmd := types.Command{
@@ -284,6 +307,14 @@ func processWinget(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig
 			if err := helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug); err != nil {
 				return fmt.Errorf("error installing Winget: %v", err)
 			}
+
+			log.Infof("Winget installed successfully")
+
+			osInfo = helpers.DetectOS()
+			err := helpers.SetPaths()
+			if err != nil {
+				return fmt.Errorf("error setting paths: %v", err)
+			}
 		} else if pm.Action == "remove" {
 			removeCmd := types.Command{
 				Exec: osInfo.Tools.PowerShell.Bin,
@@ -318,7 +349,14 @@ func processScoop(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 			if err := helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug); err != nil {
 				return fmt.Errorf("error installing Scoop: %v", err)
 			}
+
 			log.Infof("Scoop installed successfully")
+
+			osInfo = helpers.DetectOS()
+			err := helpers.SetPaths()
+			if err != nil {
+				return fmt.Errorf("error setting paths: %v", err)
+			}
 		} else if pm.Action == "remove" {
 			removeCmd := types.Command{
 				Exec: osInfo.Tools.PowerShell.Bin,
@@ -414,6 +452,12 @@ func processAURManager(pm types.PackageManagerInfo, osInfo *types.OSInfo, initCo
 				return fmt.Errorf("error installing %s: %v", pm.Name, err)
 			}
 			log.Infof("%s installed successfully", pm.Name)
+
+			osInfo = helpers.DetectOS()
+			err := helpers.SetPaths()
+			if err != nil {
+				return fmt.Errorf("error setting paths: %v", err)
+			}
 		} else if pm.Action == "remove" {
 			var removeCmd types.Command
 			switch pm.Name {
@@ -522,6 +566,12 @@ func processNodePackageManager(pm types.PackageManagerInfo, osInfo *types.OSInfo
 			return fmt.Errorf("error installing %s: %v", pm.Name, err)
 		}
 		log.Infof("%s installed successfully", pm.Name)
+
+		osInfo = helpers.DetectOS()
+		err := helpers.SetPaths()
+		if err != nil {
+			return fmt.Errorf("error setting paths: %v", err)
+		}
 	} else if pm.Action == "remove" {
 		var removeCmd types.Command
 		switch pm.Name {
@@ -575,6 +625,12 @@ func processPip(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 			return fmt.Errorf("error installing pip: %v", err)
 		}
 		log.Infof("pip installed successfully")
+
+		osInfo = helpers.DetectOS()
+		err := helpers.SetPaths()
+		if err != nil {
+			return fmt.Errorf("error setting paths: %v", err)
+		}
 	} else if pm.Action == "remove" {
 		removeCmd := types.Command{
 			Exec: osInfo.Tools.Bash.Bin,
@@ -608,6 +664,12 @@ func processGem(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 			return fmt.Errorf("error updating Ruby Gems: %v", err)
 		}
 		log.Infof("RubyGems installed successfully")
+
+		osInfo = helpers.DetectOS()
+		err := helpers.SetPaths()
+		if err != nil {
+			return fmt.Errorf("error setting paths: %v", err)
+		}
 	} else if pm.Action == "remove" {
 		removeCmd := types.Command{
 			Exec: osInfo.Tools.Bash.Bin,
@@ -722,6 +784,12 @@ func processCargo(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 			// Continue execution even if cargo-cache installation fails
 		}
 		log.Infof("Cargo installed successfully")
+
+		osInfo = helpers.DetectOS()
+		err = helpers.SetPaths()
+		if err != nil {
+			return fmt.Errorf("error setting paths: %v", err)
+		}
 	} else if pm.Action == "remove" {
 		// Update PATH environment variable
 		cargoPath := filepath.Join(os.Getenv("HOME"), ".cargo", "bin")
