@@ -37,7 +37,7 @@ changelog:
 
 nfpms:
   - file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    homepage: https://github.com/thefynx/rwr
+    homepage: https://github.com/fynxlabs/rwr
     description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
     maintainer: "Levi Smith <levi@fynx.dev>"
     license: MIT
@@ -45,25 +45,26 @@ nfpms:
       - deb
       - rpm
 
-#brews:
-#  - name: rwr
-#    tap:
-#      owner: thefynx
-#      name: homebrew-rwr
-#    commit_author:
-#      name: Levi Smith
-#      email: levi@fynx.dev
-#    homepage: target:https://github.com/thefynx/rwr
-#    description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
-#    license: MIT
-#
+brews:
+  - name: rwr
+    tap:
+      owner: FynxLabs
+      name: brew
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: Levi Smith
+      email: levi@fynx.dev
+    homepage: "https://github.com/fynxlabs/rwr"
+    description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
+    license: MIT
+
 #scoop:
 #  bucket:
-#    owner: thefynx
+#    owner: FynxLabs
 #    name: scoop-rwr
 #  commit_author:
 #    name: Levi Smith
 #    email: levi@fynx.dev
-#  homepage: target:https://github.com/thefynx/rwr
+#  homepage: target:https://github.com/fynxlabs/rwr
 #  description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
 #  license: MIT
