@@ -127,7 +127,6 @@ brews:
   - repository:
       owner: FynxLabs
       name: brew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     goarm: "7"
     homepage: "https://github.com/fynxlabs/rwr"
