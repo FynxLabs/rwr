@@ -133,9 +133,6 @@ brews:
     description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
     license: MIT
 
-sboms:
-  - artifacts: archive
-
 #scoop:
 #  bucket:
 #    owner: FynxLabs
