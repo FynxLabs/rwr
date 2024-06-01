@@ -28,4 +28,4 @@ jobs:
           version: '~> v1'
           args: release --clean
         env:
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
