@@ -33,6 +33,11 @@ func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *
 	log.Infof("Processing packages from %s", blueprintFile)
 	log.Debugf("Packages: %v", packages)
 
+	err = helpers.SetPaths()
+	if err != nil {
+		return fmt.Errorf("error setting paths: %v", err)
+	}
+
 	// Install the packages
 	for _, pkg := range packages {
 		if len(pkg.Names) > 0 {
@@ -94,6 +99,11 @@ func ProcessPackagesFromData(blueprintData []byte, blueprintDir string, osInfo *
 
 	log.Debugf("Processing %d packages", len(packages))
 	log.Debugf("Packages: %v", packages)
+
+	err = helpers.SetPaths()
+	if err != nil {
+		return fmt.Errorf("error setting paths: %v", err)
+	}
 
 	// Install the packages
 	for _, pkg := range packages {

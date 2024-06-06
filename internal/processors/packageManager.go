@@ -2,12 +2,13 @@ package processors
 
 import (
 	"fmt"
-	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"os/user"
 	"path/filepath"
+
+	"github.com/charmbracelet/log"
+	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/thefynx/rwr/internal/types"
 )
 
 func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
@@ -74,12 +75,6 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 			return fmt.Errorf("unsupported package manager: %s", pm.Name)
 		}
 	}
-
-	osInfo = helpers.DetectOS()
-	err = helpers.SetPaths()
-	if err != nil {
-		return fmt.Errorf("error setting paths: %v", err)
-	}
 	return nil
 }
 
@@ -144,12 +139,31 @@ func processBrew(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *
 				return fmt.Errorf("error installing Homebrew: %v", err)
 			}
 
-			log.Infof("Homebrew installed successfully")
+			var brewPath string
 
-			osInfo = helpers.DetectOS()
-			err = helpers.SetPaths()
-			if err != nil {
-				return fmt.Errorf("error setting paths: %v", err)
+			if osInfo.OS == "linux" {
+				brewPath = "/home/linuxbrew/.linuxbrew/bin/"
+			} else if osInfo.OS == "macos" {
+				currentUser, err := user.Current()
+				if err != nil {
+					log.Warnf("Error getting current user: %v", err)
+					return err
+				}
+				brewPath = filepath.Join(currentUser.HomeDir, ".brew/bin/")
+			}
+
+			log.Infof("Homebrew installed successfully")
+			// Populate the Brew package manager struct based on the operating system
+			osInfo.PackageManager.Brew = types.PackageManagerInfo{
+				Name:     "brew",
+				Bin:      filepath.Join(brewPath, "brew"),
+				List:     filepath.Join(brewPath, "brew list"),
+				Search:   filepath.Join(brewPath, "brew search"),
+				Install:  filepath.Join(brewPath, "brew install -fq"),
+				Remove:   filepath.Join(brewPath, "brew uninstall -fq"),
+				Update:   filepath.Join(brewPath, "brew update && ", brewPath, "brew upgrade"),
+				Clean:    filepath.Join(brewPath, "brew cleanup -q"),
+				Elevated: false,
 			}
 		} else if pm.Action == "remove" {
 			// Create a temporary file for the removal script
@@ -224,11 +238,17 @@ func processNix(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 			}
 
 			log.Infof("Nix installed successfully")
-
-			osInfo = helpers.DetectOS()
-			err := helpers.SetPaths()
-			if err != nil {
-				return fmt.Errorf("error setting paths: %v", err)
+			nixBinDir := "/nix/var/nix/profiles/default/bin/"
+			osInfo.PackageManager.Nix = types.PackageManagerInfo{
+				Name:     "nix",
+				Bin:      filepath.Join(nixBinDir, "nix-env"),
+				List:     filepath.Join(nixBinDir, "nix-env -q"),
+				Search:   filepath.Join(nixBinDir, "nix search"),
+				Install:  filepath.Join(nixBinDir, "nix-env -i"),
+				Remove:   filepath.Join(nixBinDir, "nix-env -e"),
+				Update:   filepath.Join(nixBinDir, "nix-channel --update && ", nixBinDir, "nix-env -u '*'"),
+				Clean:    filepath.Join(nixBinDir, "nix-collect-garbage -d"),
+				Elevated: false,
 			}
 		} else if pm.Action == "remove" {
 			removeCmd := types.Command{
@@ -266,11 +286,17 @@ func processChocolatey(pm types.PackageManagerInfo, osInfo *types.OSInfo, initCo
 			}
 
 			log.Infof("Chocolatey installed successfully")
-
-			osInfo = helpers.DetectOS()
-			err := helpers.SetPaths()
-			if err != nil {
-				return fmt.Errorf("error setting paths: %v", err)
+			// Populate the Chocolatey package manager struct
+			osInfo.PackageManager.Chocolatey = types.PackageManagerInfo{
+				Name:     "chocolatey",
+				Bin:      "choco",
+				List:     "choco list --local-only",
+				Search:   "choco search",
+				Install:  "choco install -y",
+				Remove:   "choco uninstall -y",
+				Update:   "choco upgrade all -y",
+				Clean:    "choco uninstall --allversions -y",
+				Elevated: true,
 			}
 		} else if pm.Action == "remove" {
 			removeCmd := types.Command{
@@ -309,11 +335,17 @@ func processWinget(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig
 			}
 
 			log.Infof("Winget installed successfully")
-
-			osInfo = helpers.DetectOS()
-			err := helpers.SetPaths()
-			if err != nil {
-				return fmt.Errorf("error setting paths: %v", err)
+			// Populate the Winget package manager struct
+			osInfo.PackageManager.Winget = types.PackageManagerInfo{
+				Name:     "winget",
+				Bin:      "winget",
+				List:     "winget list --installed",
+				Search:   "winget search",
+				Install:  "winget install --silent",
+				Remove:   "winget uninstall --silent",
+				Update:   "winget upgrade --all",
+				Clean:    "winget source reset",
+				Elevated: false,
 			}
 		} else if pm.Action == "remove" {
 			removeCmd := types.Command{
@@ -351,11 +383,17 @@ func processScoop(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 			}
 
 			log.Infof("Scoop installed successfully")
-
-			osInfo = helpers.DetectOS()
-			err := helpers.SetPaths()
-			if err != nil {
-				return fmt.Errorf("error setting paths: %v", err)
+			// Populate the Scoop package manager struct
+			osInfo.PackageManager.Scoop = types.PackageManagerInfo{
+				Name:     "scoop",
+				Bin:      "scoop",
+				List:     "scoop list",
+				Search:   "scoop search",
+				Install:  "scoop install",
+				Remove:   "scoop uninstall",
+				Update:   "scoop update",
+				Clean:    "scoop cleanup",
+				Elevated: false,
 			}
 		} else if pm.Action == "remove" {
 			removeCmd := types.Command{
@@ -452,12 +490,6 @@ func processAURManager(pm types.PackageManagerInfo, osInfo *types.OSInfo, initCo
 				return fmt.Errorf("error installing %s: %v", pm.Name, err)
 			}
 			log.Infof("%s installed successfully", pm.Name)
-
-			osInfo = helpers.DetectOS()
-			err := helpers.SetPaths()
-			if err != nil {
-				return fmt.Errorf("error setting paths: %v", err)
-			}
 		} else if pm.Action == "remove" {
 			var removeCmd types.Command
 			switch pm.Name {
@@ -566,12 +598,6 @@ func processNodePackageManager(pm types.PackageManagerInfo, osInfo *types.OSInfo
 			return fmt.Errorf("error installing %s: %v", pm.Name, err)
 		}
 		log.Infof("%s installed successfully", pm.Name)
-
-		osInfo = helpers.DetectOS()
-		err := helpers.SetPaths()
-		if err != nil {
-			return fmt.Errorf("error setting paths: %v", err)
-		}
 	} else if pm.Action == "remove" {
 		var removeCmd types.Command
 		switch pm.Name {
@@ -625,12 +651,6 @@ func processPip(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 			return fmt.Errorf("error installing pip: %v", err)
 		}
 		log.Infof("pip installed successfully")
-
-		osInfo = helpers.DetectOS()
-		err := helpers.SetPaths()
-		if err != nil {
-			return fmt.Errorf("error setting paths: %v", err)
-		}
 	} else if pm.Action == "remove" {
 		removeCmd := types.Command{
 			Exec: osInfo.Tools.Bash.Bin,
@@ -664,12 +684,6 @@ func processGem(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 			return fmt.Errorf("error updating Ruby Gems: %v", err)
 		}
 		log.Infof("RubyGems installed successfully")
-
-		osInfo = helpers.DetectOS()
-		err := helpers.SetPaths()
-		if err != nil {
-			return fmt.Errorf("error setting paths: %v", err)
-		}
 	} else if pm.Action == "remove" {
 		removeCmd := types.Command{
 			Exec: osInfo.Tools.Bash.Bin,
@@ -734,7 +748,7 @@ func processCargo(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 			return fmt.Errorf("error making cargo installation script executable: %v", err)
 		}
 
-		log.Infof("Installing Cargo")
+		log.Debugf("Running Cargo Install Command")
 		// Run the installation script
 		installCmd := types.Command{
 			Exec: osInfo.Tools.Bash.Bin,
@@ -785,10 +799,16 @@ func processCargo(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 		}
 		log.Infof("Cargo installed successfully")
 
-		osInfo = helpers.DetectOS()
-		err = helpers.SetPaths()
-		if err != nil {
-			return fmt.Errorf("error setting paths: %v", err)
+		osInfo.PackageManager.Cargo = types.PackageManagerInfo{
+			Name:     "cargo",
+			Bin:      filepath.Join(cargoPath, "cargo"),
+			List:     filepath.Join(cargoPath, "cargo install --list"),
+			Search:   filepath.Join(cargoPath, "cargo search"),
+			Install:  filepath.Join(cargoPath, "cargo install"),
+			Remove:   filepath.Join(cargoPath, "cargo uninstall"),
+			Update:   filepath.Join(cargoPath, "cargo install --force"),
+			Clean:    filepath.Join(cargoPath, "cargo cache --autoclean"),
+			Elevated: false,
 		}
 	} else if pm.Action == "remove" {
 		// Update PATH environment variable

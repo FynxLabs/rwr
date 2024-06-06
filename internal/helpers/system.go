@@ -4,6 +4,7 @@ import (
 	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -129,22 +130,28 @@ func AddCommonPaths() string {
 			"%PROGRAMFILES%\\Rust\\.cargo\\bin",                     // Path for Cargo (Rust package manager)
 		}
 	default: // Unix-like systems (macOS, Linux)
-		commonPaths = []string{
-			"/usr/local/bin",                    // Common system path
-			"/usr/local/sbin",                   // Common system path
-			"/opt/homebrew/bin",                 // Alternative path for Homebrew on macOS
-			"/nix/var/nix/profiles/default/bin", // Common path for Nix
-			"/home/linuxbrew/.linuxbrew/bin",    // Common path for Homebrew on Linux
-			"/usr/bin",                          // Common system path
-			"/usr/sbin",                         // Common system path
-			"/bin",                              // Common system path
-			"/sbin",                             // Common system path
-			"/usr/local/go/bin",                 // Common path for Go
-			"/usr/local/cargo/bin",              // Common path for Cargo (Rust package manager)
-			"/home/linuxbrew/.linuxbrew/bin",    // Common path for Linuxbrew (Homebrew on Linux)
-			"/home/linuxbrew/.linuxbrew/sbin",   // Common path for Linuxbrew (Homebrew on Linux)
-			"/snap/bin",                         // Common path for Snap packages
-			"/var/lib/flatpak/exports/bin",      // Common path for Flatpak
+		currentUser, err := user.Current()
+		if err != nil {
+			log.Warnf("Error getting current user: %v", err)
+		} else {
+			homeDir := currentUser.HomeDir
+			commonPaths = []string{
+				"/usr/local/bin",                     // Common system path
+				"/usr/local/sbin",                    // Common system path
+				filepath.Join(homeDir, ".brew/bin"),  // Path for Homebrew
+				filepath.Join(homeDir, ".cargo/bin"), // Path for Cargo
+				"/nix/var/nix/profiles/default/bin",  // Common path for Nix
+				"/usr/bin",                           // Common system path
+				"/usr/sbin",                          // Common system path
+				"/bin",                               // Common system path
+				"/sbin",                              // Common system path
+				"/usr/local/go/bin",                  // Common path for Go
+				"/usr/local/cargo/bin",               // Common path for Cargo (Rust package manager)
+				"/home/linuxbrew/.linuxbrew/bin",     // Common path for Linuxbrew (Homebrew on Linux)
+				"/home/linuxbrew/.linuxbrew/sbin",    // Common path for Linuxbrew (Homebrew on Linux)
+				"/snap/bin",                          // Common path for Snap packages
+				"/var/lib/flatpak/exports/bin",       // Common path for Flatpak
+			}
 		}
 	}
 
