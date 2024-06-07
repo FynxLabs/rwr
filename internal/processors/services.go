@@ -2,17 +2,18 @@ package processors
 
 import (
 	"fmt"
-	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/thefynx/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
 func ProcessServicesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
-	var services []types.Service
+	var servicesBlueprint types.ServiceData
 
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
@@ -21,15 +22,15 @@ func ProcessServicesFromFile(blueprintFile string, blueprintDir string, initConf
 	}
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &services)
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &servicesBlueprint)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling service blueprint: %w", err)
+		return fmt.Errorf("error unmarshaling repository blueprint: %w", err)
 	}
 
-	// Process the services
-	err = ProcessServices(services, initConfig)
+	// Process the repositories
+	err = ProcessServices(servicesBlueprint.Services, initConfig)
 	if err != nil {
-		return fmt.Errorf("error processing services: %w", err)
+		return fmt.Errorf("error processing repositories: %w", err)
 	}
 
 	return nil

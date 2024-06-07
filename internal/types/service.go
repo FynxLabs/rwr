@@ -9,3 +9,7 @@ type Service struct {
 	Source   string `mapstructure:"source,omitempty" yaml:"source,omitempty" json:"source,omitempty" toml:"source,omitempty"`         // Source of the service
 	File     string `mapstructure:"file,omitempty" yaml:"file,omitempty" json:"file,omitempty" toml:"file,omitempty"`                 // File of the service
 }
+
+type ServiceData struct {
+	Services []Service `mapstructure:"services" yaml:"services" json:"services" toml:"services"`
+}

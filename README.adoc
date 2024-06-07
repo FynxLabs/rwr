@@ -142,54 +142,176 @@ RWR supports the following blueprint types:
 * `users`: Defines user accounts and groups to be created or managed.
 * `bootstrap`: Defines the initial setup tasks for the system.
 
-== Road to Beta/MVP
+== Road to 1.0
 
-To reach the beta/MVP stage, the following items need to be validated on the specified platforms:
+For Beta/MVP (0.1.0):
+- Only YAML format needs to be tested and validated
+- Only the Linux platform needs to be tested and validated
+
+For 0.2.0:
+- Add support for either macOS or Windows platform
+- Only YAML format needs to be tested and validated for the new platform
+
+For 0.3.0:
+- Add support for the remaining platform (macOS or Windows)
+- Only YAML format needs to be tested and validated for the new platform
+
+For 1.0.0:
+- All items listed in the "Road to 1.0" section need to be tested and validated across all platforms (Linux, macOS, and Windows)
+- This includes testing and validating YAML, JSON, and TOML formats for each blueprint type on each platform
 
 === Linux (Debian/Ubuntu, Fedora, Arch)
 
-* [ ] Bootstrap Processor (YAML/JSON/TOML)
-* [ ] Package Manager Processor (YAML/JSON/TOML)
-* [ ] Repositories Processor (YAML/JSON/TOML)
-* [ ] Packages Processor (YAML/JSON/TOML)
-* [ ] Services Processor (YAML/JSON/TOML)
-* [ ] Files Processor (YAML/JSON/TOML)
-* [ ] Directories Processor (YAML/JSON/TOML)
-* [ ] Templates Processor (YAML/JSON/TOML)
-* [ ] Configuration Processor (YAML/JSON/TOML)
-* [ ] Git Repository Processor (YAML/JSON/TOML)
-* [ ] Scripts Processor (YAML/JSON/TOML)
-* [ ] Users and Groups Processor (YAML/JSON/TOML)
+* [ ] Bootstrap Processor
+** - [X] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Package Manager Processor
+** - [X] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Repositories Processor
+** - [X] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Packages Processor
+** - [X] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Services Processor
+** - [X] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Files Processor
+** - [X] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Directories Processor
+** - [X] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Templates Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Configuration Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Git Repository Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Scripts Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Users and Groups Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
 
 === macOS
 
-* [ ] Bootstrap Processor (YAML/JSON/TOML)
-* [ ] Package Manager Processor (YAML/JSON/TOML)
-* [ ] Repositories Processor (YAML/JSON/TOML)
-* [ ] Packages Processor (YAML/JSON/TOML)
-* [ ] Services Processor (YAML/JSON/TOML)
-* [ ] Files Processor (YAML/JSON/TOML)
-* [ ] Directories Processor (YAML/JSON/TOML)
-* [ ] Templates Processor (YAML/JSON/TOML)
-* [ ] Configuration Processor (YAML/JSON/TOML)
-* [ ] Git Repository Processor (YAML/JSON/TOML)
-* [ ] Scripts Processor (YAML/JSON/TOML)
-* [ ] Users and Groups Processor (YAML/JSON/TOML)
+* [ ] Bootstrap Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Package Manager Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Repositories Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Packages Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Services Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Files Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Directories Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Templates Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Configuration Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Git Repository Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Scripts Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Users and Groups Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
 
 === Windows
 
-* [ ] Bootstrap Processor (YAML/JSON/TOML)
-* [ ] Package Manager Processor (YAML/JSON/TOML)
-* [ ] Repositories Processor (YAML/JSON/TOML)
-* [ ] Packages Processor (YAML/JSON/TOML)
-* [ ] Services Processor (YAML/JSON/TOML)
-* [ ] Files Processor (YAML/JSON/TOML)
-* [ ] Directories Processor (YAML/JSON/TOML)
-* [ ] Templates Processor (YAML/JSON/TOML)
-* [ ] Configuration Processor (YAML/JSON/TOML)
-* [ ] Git Repository Processor (YAML/JSON/TOML)
-* [ ] Scripts Processor (YAML/JSON/TOML)
-* [ ] Users and Groups Processor (YAML/JSON/TOML)
+* [ ] Bootstrap Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Package Manager Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Repositories Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Packages Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Services Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Files Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Directories Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Templates Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Configuration Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Git Repository Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Scripts Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
+* [ ] Users and Groups Processor
+** - [ ] YAML
+** - [ ] JSON
+** - [ ] TOML
 
 == Contributing
 
