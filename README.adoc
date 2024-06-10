@@ -194,16 +194,12 @@ RWR supports the following blueprint types:
 ** [*] YAML
 ** [ ] JSON
 ** [ ] TOML
-* [ ] Configuration Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Git Repository Processor
 ** [*] YAML
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Scripts Processor
-** [ ] YAML
+** [*] YAML
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Users and Groups Processor
@@ -242,10 +238,6 @@ RWR supports the following blueprint types:
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Templates Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Configuration Processor
 ** [ ] YAML
 ** [ ] JSON
 ** [ ] TOML
@@ -296,10 +288,6 @@ RWR supports the following blueprint types:
 ** [ ] YAML
 ** [ ] JSON
 ** [ ] TOML
-* [ ] Configuration Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Git Repository Processor
 ** [ ] YAML
 ** [ ] JSON
@@ -309,6 +297,13 @@ RWR supports the following blueprint types:
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Users and Groups Processor
+** [ ] YAML
+** [ ] JSON
+** [ ] TOML
+
+== Stretch Goals
+
+* [ ] Configuration Processor (e.g. linux/dconf, macos/defaults)
 ** [ ] YAML
 ** [ ] JSON
 ** [ ] TOML
