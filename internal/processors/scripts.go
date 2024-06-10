@@ -30,12 +30,10 @@ func ProcessScriptsFromFile(blueprintFile string, blueprintDir string, osInfo *t
 		return fmt.Errorf("error unmarshaling scripts blueprint: %w", err)
 	}
 
-	log.Debugf("Unmarshaled scriptsData: %+v", scriptData)
-
 	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
 	// Process the scripts
-	err = ProcessScripts(scriptData.Scripts, osInfo, initConfig)
+	err = ProcessScripts(scriptData.Scripts, osInfo, initConfig, blueprintDir)
 	if err != nil {
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
@@ -59,7 +57,7 @@ func ProcessScriptsFromData(blueprintData []byte, blueprintDir string, osInfo *t
 	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
 	// Process the scripts
-	err = ProcessScripts(scriptData.Scripts, osInfo, initConfig)
+	err = ProcessScripts(scriptData.Scripts, osInfo, initConfig, blueprintDir)
 	if err != nil {
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
@@ -68,12 +66,12 @@ func ProcessScriptsFromData(blueprintData []byte, blueprintDir string, osInfo *t
 	return nil
 }
 
-func ProcessScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig, blueprintDir string) error {
 	for _, script := range scripts {
 		log.Debugf("Processing script: %+v", script)
 
 		if script.Action == "run" {
-			err := runScript(script, osInfo, initConfig)
+			err := runScript(script, osInfo, initConfig, blueprintDir)
 			if err != nil {
 				log.Errorf("Error running script %s: %v", script.Name, err)
 				return fmt.Errorf("error running script %s: %w", script.Name, err)
@@ -87,7 +85,7 @@ func ProcessScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *ty
 	return nil
 }
 
-func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig, blueprintDir string) error {
 	var scriptCmd types.Command
 
 	log.Debugf("Running script: %s", script.Name)
@@ -95,7 +93,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	// Determine the script source (from file or content)
 	var scriptPath string
 	if script.Source != "" {
-		scriptPath = script.Source
+		scriptPath = filepath.Join(blueprintDir, script.Source, script.Name)
 	} else if script.Content != "" {
 		// Write the script content to a temporary file
 		tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.sh", script.Name))
@@ -118,6 +116,11 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	switch script.Exec {
 	case "self":
 		log.Debugf("Using 'self' executor for script: %s", script.Name)
+		// Make the script executable
+		err := os.Chmod(scriptPath, 0755)
+		if err != nil {
+			return fmt.Errorf("error setting script as executable: %v", err)
+		}
 		scriptCmd = types.Command{
 			Exec: scriptPath,
 			Args: []string{},
@@ -132,31 +135,31 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		log.Debugf("Using 'python' executor for script: %s", script.Name)
 		scriptCmd = types.Command{
 			Exec: osInfo.Tools.Python.Bin,
-			Args: []string{script.Source},
+			Args: []string{scriptPath},
 		}
 	case "ruby":
 		log.Debugf("Using 'ruby' executor for script: %s", script.Name)
 		scriptCmd = types.Command{
 			Exec: osInfo.Tools.Ruby.Bin,
-			Args: []string{script.Source},
+			Args: []string{scriptPath},
 		}
 	case "perl":
 		log.Debugf("Using 'perl' executor for script: %s", script.Name)
 		scriptCmd = types.Command{
 			Exec: osInfo.Tools.Perl.Bin,
-			Args: []string{script.Source},
+			Args: []string{scriptPath},
 		}
 	case "lua":
 		log.Debugf("Using 'lua' executor for script: %s", script.Name)
 		scriptCmd = types.Command{
 			Exec: osInfo.Tools.Lua.Bin,
-			Args: []string{script.Source},
+			Args: []string{scriptPath},
 		}
 	case "powershell":
 		log.Debugf("Using 'powershell' executor for script: %s", script.Name)
 		scriptCmd = types.Command{
 			Exec: osInfo.Tools.PowerShell.Bin,
-			Args: []string{"-File", script.Source},
+			Args: []string{"-File", scriptPath},
 		}
 	default:
 		return fmt.Errorf("unsupported script executor: %s", script.Exec)
