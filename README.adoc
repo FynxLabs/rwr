@@ -191,7 +191,7 @@ RWR supports the following blueprint types:
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Templates Processor
-** [ ] YAML
+** [*] YAML
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Configuration Processor
@@ -199,7 +199,7 @@ RWR supports the following blueprint types:
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Git Repository Processor
-** [ ] YAML
+** [*] YAML
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Scripts Processor
@@ -207,7 +207,7 @@ RWR supports the following blueprint types:
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Users and Groups Processor
-** [ ] YAML
+** [*] YAML
 ** [ ] JSON
 ** [ ] TOML
 

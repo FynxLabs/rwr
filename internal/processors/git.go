@@ -29,7 +29,7 @@ func ProcessGitRepositoriesFromFile(blueprintFile string, blueprintDir string) e
 		return fmt.Errorf("error unmarshaling Git repository blueprint: %w", err)
 	}
 
-	gitRepos = gitData.Git
+	gitRepos = gitData.Repos
 
 	// Process the Git repositories
 	err = ProcessGitRepositories(gitRepos)
@@ -52,7 +52,7 @@ func ProcessGitRepositoriesFromData(blueprintData []byte, blueprintDir string, i
 		return fmt.Errorf("error unmarshaling Git repository blueprint data: %w", err)
 	}
 
-	gitRepos = gitData.Git
+	gitRepos = gitData.Repos
 
 	// Process the Git repositories
 	err = ProcessGitRepositories(gitRepos)

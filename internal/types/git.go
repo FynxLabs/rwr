@@ -18,5 +18,5 @@ type Git struct {
 }
 
 type GitData struct {
-	Git []Git `mapstructure:"git" yaml:"git,omitempty" json:"git,omitempty" toml:"git,omitempty"` // Slice of Git configurations
+	Repos []Git `mapstructure:"git" yaml:"git,omitempty" json:"git,omitempty" toml:"git,omitempty"` // Slice of Git configurations
 }

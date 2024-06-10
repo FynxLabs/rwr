@@ -2,16 +2,17 @@ package processors
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/types"
-	"os"
-	"path/filepath"
 )
 
 func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var packages []types.Package
-	var PackagesData types.PackagesData
+	var packagesData types.PackagesData
 	var failedPackages []string
 
 	// Read the blueprint file
@@ -23,12 +24,12 @@ func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *
 
 	// Unmarshal the blueprint data
 	log.Debugf("Unmarshaling blueprint data from %s", blueprintFile)
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &PackagesData)
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &packagesData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling package blueprint: %w", err)
 	}
 
-	packages = PackagesData.Packages
+	packages = packagesData.Packages
 
 	log.Infof("Processing packages from %s", blueprintFile)
 	log.Debugf("Packages: %v", packages)
@@ -82,20 +83,20 @@ func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *
 
 func ProcessPackagesFromData(blueprintData []byte, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var packages []types.Package
-	var PackagesData types.PackagesData
+	var packagesData types.PackagesData
 	var failedPackages []string
 
 	log.Debugf("Processing packages from data")
 
 	// Unmarshal the resolved blueprint data
 	log.Debugf("Unmarshaling package blueprint data")
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &PackagesData)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &packagesData)
 	if err != nil {
 		log.Errorf("Error unmarshaling package blueprint data: %v", err)
 		return fmt.Errorf("error unmarshaling package blueprint data: %w", err)
 	}
 
-	packages = PackagesData.Packages
+	packages = packagesData.Packages
 
 	log.Debugf("Processing %d packages", len(packages))
 	log.Debugf("Packages: %v", packages)

@@ -55,11 +55,11 @@ func processTemplates(blueprintData []byte, blueprintDir string, initConfig *typ
 		return nil, err
 	}
 
-	log.Debugf("Unmarshaled templates: %+v", templateData.Template)
+	log.Debugf("Unmarshaled templates: %+v", templateData.Templates)
 
 	var renderedTemplates []byte
 
-	templates = templateData.Template
+	templates = templateData.Templates
 
 	// Process the templates
 	for _, tmpl := range templates {

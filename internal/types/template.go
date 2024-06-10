@@ -14,5 +14,5 @@ type Template struct {
 }
 
 type TemplateData struct {
-	Template []Template `mapstructure:"template,omitempty" yaml:"template,omitempty" json:"template" toml:"template,omitempty"` // Templates to create
+	Templates []Template `mapstructure:"template,omitempty" yaml:"template,omitempty" json:"template" toml:"template,omitempty"` // Templates to create
 }
