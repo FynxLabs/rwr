@@ -13,7 +13,7 @@ import (
 )
 
 func ProcessServicesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
-	var servicesBlueprint types.ServiceData
+	var servicesData types.ServiceData
 
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
@@ -22,13 +22,13 @@ func ProcessServicesFromFile(blueprintFile string, blueprintDir string, initConf
 	}
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &servicesBlueprint)
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &servicesData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling repository blueprint: %w", err)
 	}
 
 	// Process the repositories
-	err = ProcessServices(servicesBlueprint.Services, initConfig)
+	err = ProcessServices(servicesData.Services, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing repositories: %w", err)
 	}
@@ -37,16 +37,16 @@ func ProcessServicesFromFile(blueprintFile string, blueprintDir string, initConf
 }
 
 func ProcessServicesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
-	var services []types.Service
+	var servicesData types.ServiceData
 
 	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &services)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &servicesData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling service blueprint data: %w", err)
 	}
 
 	// Process the services
-	err = ProcessServices(services, initConfig)
+	err = ProcessServices(servicesData.Services, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing services: %w", err)
 	}

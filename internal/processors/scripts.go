@@ -15,7 +15,6 @@ func ProcessScriptsFromFile(blueprintFile string, blueprintDir string, osInfo *t
 	log.Debugf("Processing scripts from file: %s", blueprintFile)
 
 	var scriptData types.ScriptData
-	var scripts []types.Script
 
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
@@ -31,11 +30,12 @@ func ProcessScriptsFromFile(blueprintFile string, blueprintDir string, osInfo *t
 		return fmt.Errorf("error unmarshaling scripts blueprint: %w", err)
 	}
 
-	scripts = scriptData.Scripts
-	log.Debugf("Unmarshaled scripts: %+v", scripts)
+	log.Debugf("Unmarshaled scriptsData: %+v", scriptData)
+
+	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
 	// Process the scripts
-	err = ProcessScripts(scripts, osInfo, initConfig)
+	err = ProcessScripts(scriptData.Scripts, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
@@ -48,7 +48,6 @@ func ProcessScriptsFromData(blueprintData []byte, blueprintDir string, osInfo *t
 	log.Debugf("Processing scripts from data")
 
 	var scriptData types.ScriptData
-	var scripts []types.Script
 
 	// Unmarshal the resolved blueprint data
 	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &scriptData)
@@ -57,11 +56,10 @@ func ProcessScriptsFromData(blueprintData []byte, blueprintDir string, osInfo *t
 		return fmt.Errorf("error unmarshaling scripts blueprint data: %w", err)
 	}
 
-	scripts = scriptData.Scripts
-	log.Debugf("Unmarshaled scripts: %+v", scripts)
+	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
 	// Process the scripts
-	err = ProcessScripts(scripts, osInfo, initConfig)
+	err = ProcessScripts(scriptData.Scripts, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
@@ -94,19 +92,41 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 
 	log.Debugf("Running script: %s", script.Name)
 
+	// Determine the script source (from file or content)
+	var scriptPath string
+	if script.Source != "" {
+		scriptPath = script.Source
+	} else if script.Content != "" {
+		// Write the script content to a temporary file
+		tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.sh", script.Name))
+		if err != nil {
+			return fmt.Errorf("error creating temporary file for script: %v", err)
+		}
+		defer os.Remove(tempFile.Name())
+
+		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0755)
+		if err != nil {
+			return fmt.Errorf("error writing script content to temporary file: %v", err)
+		}
+
+		scriptPath = tempFile.Name()
+	} else {
+		return fmt.Errorf("either source or content must be provided for script %s", script.Name)
+	}
+
 	// Determine the script executor based on the "exec" field
 	switch script.Exec {
 	case "self":
 		log.Debugf("Using 'self' executor for script: %s", script.Name)
 		scriptCmd = types.Command{
-			Exec: script.Source,
+			Exec: scriptPath,
 			Args: []string{},
 		}
 	case "bash", "/bin/bash":
 		log.Debugf("Using 'bash' executor for script: %s", script.Name)
 		scriptCmd = types.Command{
 			Exec: osInfo.Tools.Bash.Bin,
-			Args: []string{script.Source},
+			Args: []string{scriptPath},
 		}
 	case "python":
 		log.Debugf("Using 'python' executor for script: %s", script.Name)
