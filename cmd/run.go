@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/processors"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -104,6 +105,45 @@ var runConfigurationCmd = &cobra.Command{
 	},
 }
 
+var runUsersCmd = &cobra.Command{
+	Use:   "users",
+	Short: "Run users processor",
+	Run: func(cmd *cobra.Command, args []string) {
+
+		err := processors.All(initConfig, osInfo, []string{"users"})
+		if err != nil {
+			log.With("err", err).Errorf("Error running users processor")
+			os.Exit(1)
+		}
+	},
+}
+
+var runGitCmd = &cobra.Command{
+	Use:   "git",
+	Short: "Run git processor",
+	Run: func(cmd *cobra.Command, args []string) {
+
+		err := processors.All(initConfig, osInfo, []string{"git"})
+		if err != nil {
+			log.With("err", err).Errorf("Error running git processor")
+			os.Exit(1)
+		}
+	},
+}
+
+var runScriptsCmd = &cobra.Command{
+	Use:   "scripts",
+	Short: "Run scripts processor",
+	Run: func(cmd *cobra.Command, args []string) {
+
+		err := processors.All(initConfig, osInfo, []string{"scripts"})
+		if err != nil {
+			log.With("err", err).Errorf("Error running scripts processor")
+			os.Exit(1)
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runPackageCmd)
@@ -113,4 +153,7 @@ func init() {
 	runCmd.AddCommand(runDirectoriesCmd)
 	runCmd.AddCommand(runTemplatesCmd)
 	runCmd.AddCommand(runConfigurationCmd)
+	runCmd.AddCommand(runUsersCmd)
+	runCmd.AddCommand(runGitCmd)
+	runCmd.AddCommand(runScriptsCmd)
 }

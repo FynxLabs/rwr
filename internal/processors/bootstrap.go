@@ -1,9 +1,10 @@
 package processors
 
 import (
-	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
+
+	"github.com/thefynx/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
@@ -19,18 +20,23 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	var bootstrapData types.BootstrapData
 	var blueprintData []byte
+	var err error
 
 	// Resolve variables in the blueprint file if templates are enabled
 	if initConfig.Init.TemplatesEnabled {
-		var err error
-		blueprintData, err = RenderTemplate(blueprintFile, initConfig.Variables)
+		blueprintData, err = os.ReadFile(blueprintFile)
+		if err != nil {
+			log.Errorf("Error reading blueprint file: %v", err)
+			return err
+		}
+
+		blueprintData, err = processTemplates(blueprintData, filepath.Dir(blueprintFile), initConfig)
 		if err != nil {
 			log.Errorf("Error resolving variables in bootstrap file: %v", err)
 			return err
 		}
 	} else {
 		// Read the blueprint file without resolving variables
-		var err error
 		blueprintData, err = os.ReadFile(blueprintFile)
 		if err != nil {
 			log.Errorf("Error reading blueprint file: %v", err)
@@ -42,7 +48,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Unmarshal the blueprint data
 	log.Debugf("Unmarshaling bootstrap data from %s", blueprintFile)
-	err := helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &bootstrapData)
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &bootstrapData)
 	if err != nil {
 		log.Errorf("Error unmarshaling bootstrap blueprint: %v", err)
 		return err

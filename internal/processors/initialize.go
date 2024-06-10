@@ -2,15 +2,16 @@ package processors
 
 import (
 	"fmt"
-	"github.com/charmbracelet/log"
-	"github.com/spf13/viper"
-	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/charmbracelet/log"
+	"github.com/spf13/viper"
+	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/thefynx/rwr/internal/types"
 )
 
 func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, error) {
@@ -132,7 +133,12 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
 
 		// Process the init file as a template
-		processedInit, err := RenderTemplate(initFilePath, variables)
+		initFileData, err := os.ReadFile(initFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("error reading init file: %w", err)
+		}
+
+		processedInit, err := processTemplates(initFileData, initFileDir, &types.InitConfig{Variables: variables})
 		if err != nil {
 			log.Errorf("error processing init file as a template: %v", err)
 			return nil, err

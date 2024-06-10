@@ -16,3 +16,7 @@ type Git struct {
 	Branch  string `mapstructure:"branch,omitempty" yaml:"branch,omitempty" json:"branch,omitempty" toml:"branch,omitempty"`     // Branch of the repository
 	Private bool   `mapstructure:"private,omitempty" yaml:"private,omitempty" json:"private,omitempty" toml:"private,omitempty"` // Whether the repository is private
 }
+
+type GitData struct {
+	Git []Git `mapstructure:"git" yaml:"git,omitempty" json:"git,omitempty" toml:"git,omitempty"` // Slice of Git configurations
+}

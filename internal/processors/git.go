@@ -2,15 +2,17 @@ package processors
 
 import (
 	"fmt"
-	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
+
+	"github.com/thefynx/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
 func ProcessGitRepositoriesFromFile(blueprintFile string, blueprintDir string) error {
+	var gitData types.GitData
 	var gitRepos []types.Git
 
 	// Read the blueprint file
@@ -21,11 +23,13 @@ func ProcessGitRepositoriesFromFile(blueprintFile string, blueprintDir string) e
 	}
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &gitRepos)
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &gitData)
 	if err != nil {
 		log.Errorf("Error unmarshaling Git repository blueprint: %v", err)
 		return fmt.Errorf("error unmarshaling Git repository blueprint: %w", err)
 	}
+
+	gitRepos = gitData.Git
 
 	// Process the Git repositories
 	err = ProcessGitRepositories(gitRepos)
@@ -38,14 +42,17 @@ func ProcessGitRepositoriesFromFile(blueprintFile string, blueprintDir string) e
 }
 
 func ProcessGitRepositoriesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
+	var gitData types.GitData
 	var gitRepos []types.Git
 
 	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &gitRepos)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &gitData)
 	if err != nil {
 		log.Errorf("Error unmarshaling Git repository blueprint data: %v", err)
 		return fmt.Errorf("error unmarshaling Git repository blueprint data: %w", err)
 	}
+
+	gitRepos = gitData.Git
 
 	// Process the Git repositories
 	err = ProcessGitRepositories(gitRepos)
@@ -82,7 +89,18 @@ func cloneGitRepository(repo types.Git) error {
 		Branch:  repo.Branch,
 	}
 
-	err := helpers.HandleGitClone(gitOpts)
+	_, err := os.Stat(gitOpts.Target)
+	if err == nil {
+		// Repository already exists
+		log.Infof("Git repository %s already exists at %s", repo.Name, gitOpts.Target)
+		return nil
+	} else if !os.IsNotExist(err) {
+		// Some other error occurred
+		log.Errorf("Error checking Git repository %s: %v", repo.Name, err)
+		return fmt.Errorf("error checking Git repository %s: %w", repo.Name, err)
+	}
+
+	err = helpers.HandleGitClone(gitOpts)
 	if err != nil {
 		log.Errorf("Error cloning Git repository %s: %v", repo.Name, err)
 		return fmt.Errorf("error cloning Git repository %s: %w", repo.Name, err)

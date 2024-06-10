@@ -2,10 +2,12 @@ package processors
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
 	"github.com/thefynx/rwr/internal/types"
-	"path/filepath"
 )
 
 func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
@@ -15,7 +17,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
 	if runOrder != nil {
-		blueprintRunOrder = append(runOrder)
+		blueprintRunOrder = append([]string(nil), runOrder...)
 	} else {
 		blueprintRunOrder, err = GetBlueprintRunOrder(initConfig)
 		if err != nil {
@@ -54,8 +56,13 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				var resolvedBlueprint []byte
 				// Resolve variables in the blueprint file
 				if initConfig.Init.TemplatesEnabled {
-					resolvedBlueprint, err := RenderTemplate(blueprintFile, initConfig.Variables)
-					log.Debugf("Resolved blueprint: %s", resolvedBlueprint)
+					blueprintData, err := os.ReadFile(blueprintFile)
+					if err != nil {
+						log.Errorf("error reading blueprint file %s: %v", blueprintFile, err)
+						return err
+					}
+
+					resolvedBlueprint, err = processTemplates(blueprintData, blueprintDir, initConfig)
 					if err != nil {
 						log.Errorf("error resolving variables in %s: %v", processor, err)
 						return err

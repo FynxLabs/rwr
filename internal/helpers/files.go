@@ -3,8 +3,6 @@ package helpers
 import (
 	"bufio"
 	"fmt"
-	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/types"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +10,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/log"
+	"github.com/thefynx/rwr/internal/types"
 )
 
 func downloadFileContent(url, filePath string) error {
@@ -246,6 +247,14 @@ func CopyFile(source, target string, elevated bool) error {
 	}
 
 	return nil
+}
+
+func ExpandPath(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		homeDir, _ := os.UserHomeDir()
+		path = filepath.Join(homeDir, path[2:])
+	}
+	return path
 }
 
 func copyFileContent(source, target string) error {

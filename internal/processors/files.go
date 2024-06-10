@@ -2,10 +2,10 @@ package processors
 
 import (
 	"fmt"
-	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/thefynx/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
@@ -14,6 +14,7 @@ import (
 func ProcessFilesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
 	var files []types.File
 	var directories []types.Directory
+	var FileData types.FileData
 
 	log.Debugf("Processing files from blueprint file: %s", blueprintFile)
 
@@ -23,18 +24,12 @@ func ProcessFilesFromFile(blueprintFile string, blueprintDir string, initConfig 
 		log.Fatalf("error reading blueprint file: %v", err)
 	}
 
-	// Unmarshal the blueprint data
-	var data struct {
-		Files       []types.File      `yaml:"files" json:"files" toml:"files"`
-		Directories []types.Directory `yaml:"directories" json:"directories" toml:"directories"`
-	}
-
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &data)
+	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &FileData)
 	if err != nil {
 		log.Fatalf("error unmarshaling file blueprint data: %v", err)
 	}
-	files = data.Files
-	directories = data.Directories
+	files = FileData.Files
+	directories = FileData.Directories
 
 	// Process the files
 	err = ProcessFiles(files, blueprintDir)
@@ -54,20 +49,16 @@ func ProcessFilesFromFile(blueprintFile string, blueprintDir string, initConfig 
 func ProcessFilesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
 	var files []types.File
 	var directories []types.Directory
+	var FileData types.FileData
 
 	log.Debugf("Processing files from blueprint data")
 
-	// Unmarshal the resolved blueprint data
-	var data struct {
-		Files       []types.File      `yaml:"files" json:"files" toml:"files"`
-		Directories []types.Directory `yaml:"directories" json:"directories" toml:"directories"`
-	}
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &data)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &FileData)
 	if err != nil {
 		log.Fatalf("error unmarshaling file blueprint data: %v", err)
 	}
-	files = data.Files
-	directories = data.Directories
+	files = FileData.Files
+	directories = FileData.Directories
 
 	// Process the files
 	err = ProcessFiles(files, blueprintDir)
@@ -101,14 +92,6 @@ func ProcessFiles(files []types.File, blueprintDir string) error {
 		}
 	}
 	return nil
-}
-
-func expandPath(path string) string {
-	if strings.HasPrefix(path, "~/") {
-		homeDir, _ := os.UserHomeDir()
-		path = filepath.Join(homeDir, path[2:])
-	}
-	return path
 }
 
 func processFile(file types.File, blueprintDir string) error {
@@ -203,7 +186,7 @@ func ProcessDirectories(directories []types.Directory, blueprintDir string, init
 
 func copyFile(file types.File, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, file.Source, file.Name)
-	target := filepath.Join(expandPath(file.Target), file.Name)
+	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
 	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(target)
@@ -225,7 +208,7 @@ func copyFile(file types.File, blueprintDir string) error {
 
 func moveFile(file types.File, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, file.Source, file.Name)
-	target := filepath.Join(expandPath(file.Target), file.Name)
+	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
 	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(target)
@@ -242,7 +225,7 @@ func moveFile(file types.File, blueprintDir string) error {
 }
 
 func deleteFile(file types.File) error {
-	target := filepath.Join(expandPath(file.Target), file.Name)
+	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
 	if err := os.Remove(target); err != nil {
 		log.Fatalf("error deleting file: %v", err)
@@ -253,7 +236,7 @@ func deleteFile(file types.File) error {
 }
 
 func createFile(file types.File) error {
-	target := filepath.Join(expandPath(file.Target), file.Name)
+	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
 	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(target)
@@ -274,7 +257,7 @@ func createFile(file types.File) error {
 }
 
 func chmodFile(file types.File) error {
-	target := filepath.Join(expandPath(file.Target), file.Name)
+	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
 	if err := os.Chmod(target, os.FileMode(file.Mode)); err != nil {
 		log.Fatalf("error changing file permissions: %v", err)
@@ -285,7 +268,7 @@ func chmodFile(file types.File) error {
 }
 
 func chownFile(file types.File) error {
-	target := filepath.Join(expandPath(file.Target), file.Name)
+	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
 	if file.Owner != "" {
 		uid, err := helpers.LookupUID(file.Owner)
@@ -312,7 +295,7 @@ func chownFile(file types.File) error {
 }
 
 func chgrpFile(file types.File) error {
-	target := filepath.Join(expandPath(file.Target), file.Name)
+	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
 	if file.Group != "" {
 		gid, err := helpers.LookupGID(file.Group)
@@ -330,7 +313,7 @@ func chgrpFile(file types.File) error {
 
 func symlinkFile(file types.File, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, file.Source, file.Name)
-	target := expandPath(file.Target)
+	target := helpers.ExpandPath(file.Target)
 
 	if err := os.Symlink(source, target); err != nil {
 		log.Fatalf("error creating symlink: %v", err)
@@ -342,7 +325,7 @@ func symlinkFile(file types.File, blueprintDir string) error {
 
 func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
-	target := filepath.Join(expandPath(dir.Target), dir.Name)
+	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
 	// Create the target directory if it doesn't exist
 	if err := os.MkdirAll(target, os.ModePerm); err != nil {
@@ -363,7 +346,7 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 
 func moveDirectory(dir types.Directory, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
-	target := filepath.Join(expandPath(dir.Target), dir.Name)
+	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
 	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(target)
@@ -380,7 +363,7 @@ func moveDirectory(dir types.Directory, blueprintDir string) error {
 }
 
 func deleteDirectory(dir types.Directory) error {
-	target := filepath.Join(expandPath(dir.Target), dir.Name)
+	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
 	if err := os.RemoveAll(target); err != nil {
 		log.Fatalf("error deleting directory: %v", err)
@@ -391,7 +374,7 @@ func deleteDirectory(dir types.Directory) error {
 }
 
 func createDirectory(dir types.Directory) error {
-	target := filepath.Join(expandPath(dir.Target), dir.Name)
+	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
 	if err := os.MkdirAll(target, os.ModePerm); err != nil {
 		log.Fatalf("error creating directory: %v", err)
@@ -406,7 +389,7 @@ func createDirectory(dir types.Directory) error {
 }
 
 func chmodDirectory(dir types.Directory) error {
-	target := filepath.Join(expandPath(dir.Target), dir.Name)
+	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
 	if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil {
 		log.Fatalf("error changing directory permissions: %v", err)
@@ -417,7 +400,7 @@ func chmodDirectory(dir types.Directory) error {
 }
 
 func chownDirectory(dir types.Directory) error {
-	target := filepath.Join(expandPath(dir.Target), dir.Name)
+	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
 	if dir.Owner != "" {
 		uid, err := helpers.LookupUID(dir.Owner)
@@ -444,7 +427,7 @@ func chownDirectory(dir types.Directory) error {
 }
 
 func chgrpDirectory(dir types.Directory) error {
-	target := filepath.Join(expandPath(dir.Target), dir.Name)
+	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
 	if dir.Group != "" {
 		gid, err := helpers.LookupGID(dir.Group)
@@ -462,7 +445,7 @@ func chgrpDirectory(dir types.Directory) error {
 
 func symlinkDirectory(dir types.Directory, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
-	target := expandPath(dir.Target)
+	target := helpers.ExpandPath(dir.Target)
 
 	if err := os.Symlink(source, target); err != nil {
 		log.Fatalf("error creating symlink: %v", err)
@@ -473,7 +456,7 @@ func symlinkDirectory(dir types.Directory, blueprintDir string) error {
 }
 
 func applyFileAttributes(file types.File) error {
-	target := filepath.Join(expandPath(file.Target), file.Name)
+	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
 	if file.Mode != 0 {
 		if err := os.Chmod(target, os.FileMode(file.Mode)); err != nil {
@@ -491,7 +474,7 @@ func applyFileAttributes(file types.File) error {
 }
 
 func applyDirectoryAttributes(dir types.Directory) error {
-	target := filepath.Join(expandPath(dir.Target), dir.Name)
+	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
 	if dir.Mode != 0 {
 		if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil {

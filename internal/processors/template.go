@@ -3,15 +3,19 @@ package processors
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
+	"text/template"
+
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/types"
-	"os"
-	"text/template"
 
 	"github.com/thefynx/rwr/internal/helpers"
 )
 
 func ProcessTemplatesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
+	log.Debugf("Processing templates from file: %s", blueprintFile)
+
 	// Read the blueprint file
 	blueprintData, err := os.ReadFile(blueprintFile)
 	if err != nil {
@@ -19,7 +23,7 @@ func ProcessTemplatesFromFile(blueprintFile string, blueprintDir string, initCon
 		return err
 	}
 
-	_, err = processTemplates(blueprintData, initConfig)
+	_, err = processTemplates(blueprintData, blueprintDir, initConfig)
 	if err != nil {
 		log.Errorf("error processing templates: %v", err)
 		return err
@@ -29,7 +33,9 @@ func ProcessTemplatesFromFile(blueprintFile string, blueprintDir string, initCon
 }
 
 func ProcessTemplatesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
-	_, err := processTemplates(blueprintData, initConfig)
+	log.Debugf("Processing templates from data")
+
+	_, err := processTemplates(blueprintData, blueprintDir, initConfig)
 	if err != nil {
 		log.Errorf("error processing templates: %v", err)
 		return err
@@ -38,29 +44,41 @@ func ProcessTemplatesFromData(blueprintData []byte, blueprintDir string, initCon
 	return nil
 }
 
-func processTemplates(blueprintData []byte, initConfig *types.InitConfig) ([]byte, error) {
+func processTemplates(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) ([]byte, error) {
+	var templateData types.TemplateData
 	var templates []types.Template
 
 	// Unmarshal the blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &templates)
+	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &templateData)
 	if err != nil {
 		log.Errorf("error unmarshaling template blueprint: %v", err)
 		return nil, err
 	}
 
+	log.Debugf("Unmarshaled templates: %+v", templateData.Template)
+
 	var renderedTemplates []byte
+
+	templates = templateData.Template
 
 	// Process the templates
 	for _, tmpl := range templates {
-		renderedTemplate, err := RenderTemplate(tmpl.Source, initConfig.Variables)
+		log.Debugf("Processing template: %s", tmpl.Source)
+		log.Debugf("Template source path (relative to %s): %s", blueprintDir, filepath.Join(blueprintDir, tmpl.Source))
+
+		renderedTemplate, err := RenderTemplate(filepath.Join(blueprintDir, tmpl.Source), initConfig.Variables, tmpl)
 		if err != nil {
 			log.Errorf("error processing template: %v", err)
 			return nil, err
 		}
 
+		log.Debugf("Rendered template: %s", renderedTemplate)
+
 		// Write the rendered template to a file if the target is specified
 		if tmpl.Target != "" {
-			err = os.WriteFile(tmpl.Target, renderedTemplate, os.FileMode(tmpl.Mode))
+			log.Debugf("Writing rendered template to file: %s", tmpl.Target)
+			targetPath := helpers.ExpandPath(tmpl.Target)
+			err = helpers.WriteToFile(targetPath, string(renderedTemplate), false)
 			if err != nil {
 				log.Errorf("error writing rendered template to file: %v", err)
 				return nil, err
@@ -73,44 +91,51 @@ func processTemplates(blueprintData []byte, initConfig *types.InitConfig) ([]byt
 	return renderedTemplates, nil
 }
 
-func RenderTemplate(templateFile string, variables types.Variables) ([]byte, error) {
+func RenderTemplate(templateFile string, variables types.Variables, tmpl types.Template) ([]byte, error) {
+	log.Debugf("Rendering template: %s", templateFile)
+
 	// Read the template file
 	tmplContent, err := os.ReadFile(templateFile)
 	if err != nil {
 		return nil, fmt.Errorf("error reading template file: %w", err)
 	}
 
-	return RenderTemplateString(string(tmplContent), variables)
+	return RenderTemplateString(string(tmplContent), variables, tmpl)
 }
 
-func RenderTemplateString(templateString string, variables types.Variables) ([]byte, error) {
+func RenderTemplateString(templateString string, variables types.Variables, tmpl types.Template) ([]byte, error) {
 	// Create a new template
-	t, err := template.New("template").Parse(templateString)
+	t, err := template.New("template").Option("missingkey=error").Parse(templateString)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing template: %w", err)
 	}
 
 	// Merge the User, Flags, and UserDefined maps into a single map
 	data := make(map[string]interface{})
-	for k, v := range variables.User.ToMap() {
-		log.Debugf("User: %s: %s", k, v)
-		data[k] = v
-	}
-	for k, v := range variables.Flags.ToMap() {
-		log.Debugf("Flags: %s: %s", k, v)
-		data[k] = v
-	}
+	data["User"] = variables.User.ToMap()
+	data["Flags"] = variables.Flags.ToMap()
+	data["UserDefined"] = make(map[string]interface{})
+
+	// Merge top-level UserDefined variables
 	for k, v := range variables.UserDefined {
-		log.Debugf("UserDefined: %s: %s", k, v)
-		data[k] = v
+		data["UserDefined"].(map[string]interface{})[k] = v
 	}
+
+	// Add the custom variables from the Template struct to the UserDefined map
+	for k, v := range tmpl.Variables {
+		data["UserDefined"].(map[string]interface{})[k] = v
+	}
+
+	log.Debugf("Data for template execution: %+v", data)
 
 	// Execute the template
 	var renderedTemplate bytes.Buffer
-	err = t.Execute(&renderedTemplate, data)
+	err = t.Option("missingkey=invalid").Execute(&renderedTemplate, data)
 	if err != nil {
 		return nil, fmt.Errorf("error executing template: %w", err)
 	}
+
+	log.Debugf("Rendered template: %s", renderedTemplate.String())
 
 	return renderedTemplate.Bytes(), nil
 }

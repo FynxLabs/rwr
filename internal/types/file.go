@@ -24,3 +24,8 @@ type Directory struct {
 	Mode     int      `mapstructure:"mode,omitempty" yaml:"mode,omitempty" json:"mode,omitempty" toml:"mode,omitempty"`         // Mode of the directory
 	Elevated bool     `mapstructure:"elevated" yaml:"elevated" json:"elevated" toml:"elevated"`                                 // Whether to perform the action with elevated privileges
 }
+
+type FileData struct {
+	Files       []File      `yaml:"files" json:"files" toml:"files"`
+	Directories []Directory `yaml:"directories" json:"directories" toml:"directories"`
+}

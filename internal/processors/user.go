@@ -2,10 +2,11 @@ package processors
 
 import (
 	"fmt"
-	"github.com/thefynx/rwr/internal/types"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/thefynx/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/thefynx/rwr/internal/helpers"
@@ -75,14 +76,22 @@ func ProcessUsersFromData(blueprintData []byte, blueprintDir string, initConfig 
 
 func ProcessGroups(groups []types.Group, initConfig *types.InitConfig) error {
 	for _, group := range groups {
-		if group.Action == "create" {
+		switch group.Action {
+		case "create":
 			err := createGroup(group, initConfig)
 			if err != nil {
 				log.Errorf("Error creating group %s: %v", group.Name, err)
 				return fmt.Errorf("error creating group %s: %w", group.Name, err)
 			}
 			log.Infof("Group %s created successfully", group.Name)
-		} else {
+		case "modify":
+			err := modifyGroup(group, initConfig)
+			if err != nil {
+				log.Errorf("Error modifying group %s: %v", group.Name, err)
+				return fmt.Errorf("error modifying group %s: %w", group.Name, err)
+			}
+			log.Infof("Group %s modified successfully", group.Name)
+		default:
 			log.Errorf("Unsupported action for group %s: %s", group.Name, group.Action)
 			return fmt.Errorf("unsupported action for group %s: %s", group.Name, group.Action)
 		}
@@ -92,14 +101,29 @@ func ProcessGroups(groups []types.Group, initConfig *types.InitConfig) error {
 
 func ProcessUsers(users []types.User, initConfig *types.InitConfig) error {
 	for _, user := range users {
-		if user.Action == "create" {
+		switch user.Action {
+		case "create":
 			err := createUser(user, initConfig)
 			if err != nil {
 				log.Errorf("Error creating user %s: %v", user.Name, err)
 				return fmt.Errorf("error creating user %s: %w", user.Name, err)
 			}
 			log.Infof("User %s created successfully", user.Name)
-		} else {
+		case "modify":
+			err := modifyUser(user, initConfig)
+			if err != nil {
+				log.Errorf("Error modifying user %s: %v", user.Name, err)
+				return fmt.Errorf("error modifying user %s: %w", user.Name, err)
+			}
+			log.Infof("User %s modified successfully", user.Name)
+		case "remove":
+			err := removeUser(user, initConfig)
+			if err != nil {
+				log.Errorf("Error removing user %s: %v", user.Name, err)
+				return fmt.Errorf("error removing user %s: %w", user.Name, err)
+			}
+			log.Infof("User %s removed successfully", user.Name)
+		default:
 			log.Errorf("Unsupported action for user %s: %s", user.Name, user.Action)
 			return fmt.Errorf("unsupported action for user %s: %s", user.Name, user.Action)
 		}
@@ -111,8 +135,9 @@ func createGroup(group types.Group, initConfig *types.InitConfig) error {
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		createGroupCmd := types.Command{
-			Exec: "groupadd",
-			Args: []string{group.Name},
+			Exec:     "groupadd",
+			Args:     []string{group.Name},
+			Elevated: true,
 		}
 		err := helpers.RunCommand(createGroupCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
@@ -139,6 +164,7 @@ func createUser(user types.User, initConfig *types.InitConfig) error {
 				"--home-dir", user.Home,
 				user.Name,
 			},
+			Elevated: true,
 		}
 		for _, group := range user.Groups {
 			createUserCmd.Args = append(createUserCmd.Args, "--groups", group)
@@ -150,6 +176,95 @@ func createUser(user types.User, initConfig *types.InitConfig) error {
 	case "windows":
 		// Not supported on Windows
 		log.Warnf("Creating users is not supported on Windows")
+	default:
+		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+	return nil
+}
+
+func modifyGroup(group types.Group, initConfig *types.InitConfig) error {
+	switch runtime.GOOS {
+	case "linux", "darwin":
+		modifyGroupCmd := types.Command{
+			Exec:     "groupmod",
+			Args:     []string{group.Name},
+			Elevated: true,
+		}
+		if group.NewName != "" {
+			modifyGroupCmd.Args = append(modifyGroupCmd.Args, "--new-name", group.NewName)
+		}
+		// TODO: More groupmod options
+
+		err := helpers.RunCommand(modifyGroupCmd, initConfig.Variables.Flags.Debug)
+		if err != nil {
+			return fmt.Errorf("error modifying group: %v", err)
+		}
+	case "windows":
+		// Not supported on Windows
+		log.Warnf("Modifying groups is not supported on Windows")
+	default:
+		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+	return nil
+}
+
+func modifyUser(user types.User, initConfig *types.InitConfig) error {
+	switch runtime.GOOS {
+	case "linux", "darwin":
+		modifyUserCmd := types.Command{
+			Exec:     "usermod",
+			Args:     []string{user.Name},
+			Elevated: true,
+		}
+		if user.NewName != "" {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--login", user.NewName)
+		}
+		if user.NewHome != "" {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--move-home", "--home", user.NewHome)
+		}
+		if user.NewShell != "" {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--shell", user.NewShell)
+		}
+		if len(user.AddGroups) > 0 {
+			for _, group := range user.AddGroups {
+				modifyUserCmd.Args = append(modifyUserCmd.Args, "--append", "--groups", group)
+			}
+		}
+		// TODO: More usermod options
+
+		err := helpers.RunCommand(modifyUserCmd, initConfig.Variables.Flags.Debug)
+		if err != nil {
+			return fmt.Errorf("error modifying user: %v", err)
+		}
+	case "windows":
+		// Not supported on Windows
+		log.Warnf("Modifying users is not supported on Windows")
+	default:
+		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+	}
+	return nil
+}
+
+func removeUser(user types.User, initConfig *types.InitConfig) error {
+	switch runtime.GOOS {
+	case "linux", "darwin":
+		removeUserCmd := types.Command{
+			Exec:     "userdel",
+			Args:     []string{user.Name},
+			Elevated: true,
+		}
+		if user.RemoveHome {
+			removeUserCmd.Args = append(removeUserCmd.Args, "--remove")
+		}
+		// Add other options for removing users here
+
+		err := helpers.RunCommand(removeUserCmd, initConfig.Variables.Flags.Debug)
+		if err != nil {
+			return fmt.Errorf("error removing user: %v", err)
+		}
+	case "windows":
+		// Not supported on Windows
+		log.Warnf("Removing users is not supported on Windows")
 	default:
 		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
