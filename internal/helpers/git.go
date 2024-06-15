@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/go-git/go-git/v5"
 	"os"
 	"path/filepath"
 	"strings"
