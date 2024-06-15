@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/processors"
+	"github.com/fynxlabs/rwr/internal/processors"
 	"os"
 
 	"github.com/spf13/cobra"

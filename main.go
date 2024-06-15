@@ -1,6 +1,6 @@
 package main
 
-import "github.com/thefynx/rwr/cmd"
+import "github.com/fynxlabs/rwr/cmd"
 
 func main() {
 	cmd.Execute()

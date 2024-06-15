@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func downloadFileContent(url, filePath string) error {

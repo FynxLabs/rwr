@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
 func ProcessServicesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {

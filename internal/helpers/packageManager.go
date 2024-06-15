@@ -3,7 +3,7 @@ package helpers
 import (
 	"fmt"
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/types"
 	"reflect"
 	"strings"
 )

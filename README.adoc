@@ -31,7 +31,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 
 == Packages
 
-RWR packages are available for various platforms and architectures through goreleaser. You can find the pre-built packages on the link:https://github.com/thefynx/rwr/releases[releases page] of the RWR repository.
+RWR packages are available for various platforms and architectures through goreleaser. You can find the pre-built packages on the link:https://github.com/fynxlabs/rwr/releases[releases page] of the RWR repository.
 
 The following package types are available:
 
@@ -45,7 +45,7 @@ The following package types are available:
 
 To install RWR, follow these steps:
 
-1. Download the latest release of RWR from the link:https://github.com/thefynx/rwr/releases[releases page].
+1. Download the latest release of RWR from the link:https://github.com/fynxlabs/rwr/releases[releases page].
 2. Extract the downloaded archive to a directory of your choice.
 3. Add the directory to your system's `PATH` environment variable.
 
@@ -326,6 +326,6 @@ RWR is open-source software licensed under the link:LICENSE[MIT License].
 
 == Contact
 
-If you have any questions, suggestions, or feedback, please open an issue on the link:https://github.com/thefynx/rwr/issues[GitHub repository] or contact the maintainers directly.
+If you have any questions, suggestions, or feedback, please open an issue on the link:https://github.com/fynxlabs/rwr/issues[GitHub repository] or contact the maintainers directly.
 
 Happy distrohopping with RWR!

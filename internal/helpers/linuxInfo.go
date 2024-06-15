@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"strings"
 

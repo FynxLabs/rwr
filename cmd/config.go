@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/spf13/cobra"
-	"github.com/thefynx/rwr/internal/helpers"
 )
 
 var initFlag bool

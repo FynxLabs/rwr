@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/processors"
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/processors"
+	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"path/filepath"
 	"time"

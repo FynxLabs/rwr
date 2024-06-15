@@ -8,9 +8,9 @@ import (
 	"text/template"
 
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/types"
 
-	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
 func ProcessTemplatesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {

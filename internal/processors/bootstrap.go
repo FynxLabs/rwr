@@ -4,10 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
 func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo *types.OSInfo) error {

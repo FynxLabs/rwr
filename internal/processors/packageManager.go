@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {

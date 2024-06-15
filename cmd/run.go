@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/processors"
+	"github.com/fynxlabs/rwr/internal/processors"
 
 	"github.com/spf13/cobra"
 )

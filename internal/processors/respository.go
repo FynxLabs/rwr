@@ -3,8 +3,8 @@ package processors
 import (
 	"fmt"
 	"github.com/charmbracelet/log"
-	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"path/filepath"
 )

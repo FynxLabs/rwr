@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"os/exec"
 	"os/user"

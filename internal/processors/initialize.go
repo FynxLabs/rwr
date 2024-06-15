@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
-	"github.com/thefynx/rwr/internal/helpers"
-	"github.com/thefynx/rwr/internal/types"
 )
 
 func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, error) {

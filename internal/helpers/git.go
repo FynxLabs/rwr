@@ -3,13 +3,12 @@ package helpers
 import (
 	"errors"
 	"fmt"
-	"github.com/thefynx/rwr/internal/types"
+	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
