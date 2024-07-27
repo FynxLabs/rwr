@@ -2,45 +2,34 @@ package processors
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var packages []types.Package
-	var packagesData types.PackagesData
+func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var failedPackages []string
+	var err error
 
-	// Read the blueprint file
-	log.Debugf("Reading blueprint file %s", blueprintFile)
-	blueprintData, err := os.ReadFile(blueprintFile)
-	if err != nil {
-		return fmt.Errorf("error reading blueprint file: %w", err)
+	log.Debugf("Processing packages from blueprint")
+
+	if packagesData == nil {
+		// Unmarshal the blueprint data
+		err = helpers.UnmarshalBlueprint(blueprintData, format, &packagesData)
+		if err != nil {
+			return fmt.Errorf("error unmarshaling package blueprint: %w", err)
+		}
 	}
-
-	// Unmarshal the blueprint data
-	log.Debugf("Unmarshaling blueprint data from %s", blueprintFile)
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &packagesData)
-	if err != nil {
-		return fmt.Errorf("error unmarshaling package blueprint: %w", err)
-	}
-
-	packages = packagesData.Packages
-
-	log.Infof("Processing packages from %s", blueprintFile)
-	log.Debugf("Packages: %v", packages)
+	log.Debugf("Processing %d packages", len(packagesData.Packages))
+	log.Debugf("Packages: %v", packagesData.Packages)
 
 	err = helpers.SetPaths()
 	if err != nil {
-		return fmt.Errorf("error setting paths: %v", err)
+		return fmt.Errorf("error setting paths: %w", err)
 	}
 
 	// Install the packages
-	for _, pkg := range packages {
+	for _, pkg := range packagesData.Packages {
 		if len(pkg.Names) > 0 {
 			log.Infof("Processing %d packages", len(pkg.Names))
 			for _, name := range pkg.Names {
@@ -48,7 +37,7 @@ func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *
 				log.Debugf("PackageManager: %s", pkg.PackageManager)
 				log.Debugf("Elevated: %t", pkg.Elevated)
 				log.Debugf("Action: %s", pkg.Action)
-				err := HandlePackage(types.Package{
+				err := ProcessPackage(types.Package{
 					Name:           name,
 					Elevated:       pkg.Elevated,
 					Action:         pkg.Action,
@@ -59,12 +48,11 @@ func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *
 				}
 			}
 		} else {
-			log.Infof("Processing 1 packages")
-			log.Debugf("Processing package %s", pkg.Name)
+			log.Infof("Processing package %s", pkg.Name)
 			log.Debugf("PackageManager: %s", pkg.PackageManager)
 			log.Debugf("Elevated: %t", pkg.Elevated)
 			log.Debugf("Action: %s", pkg.Action)
-			err := HandlePackage(pkg, osInfo, initConfig)
+			err := ProcessPackage(pkg, osInfo, initConfig)
 			if err != nil {
 				failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
 			}
@@ -72,7 +60,7 @@ func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *
 	}
 
 	if len(failedPackages) > 0 {
-		log.Warnf("Failed to install the following packages:")
+		log.Warnf("Failed to process the following packages:")
 		for _, failedPackage := range failedPackages {
 			log.Warn(failedPackage)
 		}
@@ -81,69 +69,7 @@ func ProcessPackagesFromFile(blueprintFile string, blueprintDir string, osInfo *
 	return nil
 }
 
-func ProcessPackagesFromData(blueprintData []byte, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var packages []types.Package
-	var packagesData types.PackagesData
-	var failedPackages []string
-
-	log.Debugf("Processing packages from data")
-
-	// Unmarshal the resolved blueprint data
-	log.Debugf("Unmarshaling package blueprint data")
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &packagesData)
-	if err != nil {
-		log.Errorf("Error unmarshaling package blueprint data: %v", err)
-		return fmt.Errorf("error unmarshaling package blueprint data: %w", err)
-	}
-
-	packages = packagesData.Packages
-
-	log.Debugf("Processing %d packages", len(packages))
-	log.Debugf("Packages: %v", packages)
-
-	err = helpers.SetPaths()
-	if err != nil {
-		return fmt.Errorf("error setting paths: %v", err)
-	}
-
-	// Install the packages
-	for _, pkg := range packages {
-		log.Debugf("Processing package(s): %v", pkg.Names)
-		if len(pkg.Names) > 0 {
-			for _, name := range pkg.Names {
-				log.Debugf("Processing package %s", name)
-				log.Debugf("PackageManager: %s", pkg.PackageManager)
-				log.Debugf("Elevated: %t", pkg.Elevated)
-				log.Debugf("Action: %s", pkg.Action)
-				err := HandlePackage(types.Package{
-					Name:           name,
-					Elevated:       pkg.Elevated,
-					Action:         pkg.Action,
-					PackageManager: pkg.PackageManager,
-				}, osInfo, initConfig)
-				if err != nil {
-					failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", name, err))
-				}
-			}
-		} else {
-			err := HandlePackage(pkg, osInfo, initConfig)
-			if err != nil {
-				failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
-			}
-		}
-	}
-
-	if len(failedPackages) > 0 {
-		log.Warnf("Failed to install the following packages:")
-		for _, failedPackage := range failedPackages {
-			log.Warn(failedPackage)
-		}
-	}
-
-	return nil
-}
-
-func HandlePackage(pkg types.Package, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessPackage(pkg types.Package, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var command string
 	var install string
 	var remove string

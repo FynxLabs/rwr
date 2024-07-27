@@ -3,7 +3,6 @@ package processors
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/fynxlabs/rwr/internal/types"
@@ -12,41 +11,18 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
-func ProcessServicesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
+func ProcessServices(blueprintData []byte, format string, initConfig *types.InitConfig) error {
 	var servicesData types.ServiceData
-
-	// Read the blueprint file
-	blueprintData, err := os.ReadFile(blueprintFile)
-	if err != nil {
-		return fmt.Errorf("error reading blueprint file: %w", err)
-	}
+	var err error
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &servicesData)
+	err = helpers.UnmarshalBlueprint(blueprintData, format, &servicesData)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling repository blueprint: %w", err)
-	}
-
-	// Process the repositories
-	err = ProcessServices(servicesData.Services, initConfig)
-	if err != nil {
-		return fmt.Errorf("error processing repositories: %w", err)
-	}
-
-	return nil
-}
-
-func ProcessServicesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
-	var servicesData types.ServiceData
-
-	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &servicesData)
-	if err != nil {
-		return fmt.Errorf("error unmarshaling service blueprint data: %w", err)
+		return fmt.Errorf("error unmarshaling service blueprint: %w", err)
 	}
 
 	// Process the services
-	err = ProcessServices(servicesData.Services, initConfig)
+	err = processServices(servicesData.Services, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing services: %w", err)
 	}
@@ -54,7 +30,7 @@ func ProcessServicesFromData(blueprintData []byte, blueprintDir string, initConf
 	return nil
 }
 
-func ProcessServices(services []types.Service, initConfig *types.InitConfig) error {
+func processServices(services []types.Service, initConfig *types.InitConfig) error {
 	for _, service := range services {
 		switch runtime.GOOS {
 		case "linux":

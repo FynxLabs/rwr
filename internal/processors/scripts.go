@@ -11,20 +11,12 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
-func ProcessScriptsFromFile(blueprintFile string, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	log.Debugf("Processing scripts from file: %s", blueprintFile)
-
+func ProcessScripts(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var scriptData types.ScriptData
-
-	// Read the blueprint file
-	blueprintData, err := os.ReadFile(blueprintFile)
-	if err != nil {
-		log.Errorf("Error reading blueprint file: %v", err)
-		return fmt.Errorf("error reading blueprint file: %w", err)
-	}
+	var err error
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &scriptData)
+	err = helpers.UnmarshalBlueprint(blueprintData, format, &scriptData)
 	if err != nil {
 		log.Errorf("Error unmarshaling scripts blueprint: %v", err)
 		return fmt.Errorf("error unmarshaling scripts blueprint: %w", err)
@@ -33,7 +25,7 @@ func ProcessScriptsFromFile(blueprintFile string, blueprintDir string, osInfo *t
 	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
 	// Process the scripts
-	err = ProcessScripts(scriptData.Scripts, osInfo, initConfig, blueprintDir)
+	err = processScripts(scriptData.Scripts, osInfo, initConfig, blueprintDir)
 	if err != nil {
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
@@ -42,31 +34,7 @@ func ProcessScriptsFromFile(blueprintFile string, blueprintDir string, osInfo *t
 	return nil
 }
 
-func ProcessScriptsFromData(blueprintData []byte, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	log.Debugf("Processing scripts from data")
-
-	var scriptData types.ScriptData
-
-	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &scriptData)
-	if err != nil {
-		log.Errorf("Error unmarshaling scripts blueprint data: %v", err)
-		return fmt.Errorf("error unmarshaling scripts blueprint data: %w", err)
-	}
-
-	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
-
-	// Process the scripts
-	err = ProcessScripts(scriptData.Scripts, osInfo, initConfig, blueprintDir)
-	if err != nil {
-		log.Errorf("Error processing scripts: %v", err)
-		return fmt.Errorf("error processing scripts: %w", err)
-	}
-
-	return nil
-}
-
-func ProcessScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig, blueprintDir string) error {
+func processScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig, blueprintDir string) error {
 	for _, script := range scripts {
 		log.Debugf("Processing script: %+v", script)
 

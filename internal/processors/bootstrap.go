@@ -23,28 +23,24 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	var err error
 
 	// Resolve variables in the blueprint file if templates are enabled
-	if initConfig.Init.TemplatesEnabled {
-		blueprintData, err = os.ReadFile(blueprintFile)
-		if err != nil {
-			log.Errorf("Error reading blueprint file: %v", err)
-			return err
-		}
+	blueprintData, err = os.ReadFile(blueprintFile)
+	if err != nil {
+		log.Errorf("Error reading blueprint file: %v", err)
+		return err
+	}
 
-		blueprintData, err = processTemplates(blueprintData, filepath.Dir(blueprintFile), initConfig)
-		if err != nil {
-			log.Errorf("Error resolving variables in bootstrap file: %v", err)
-			return err
-		}
-	} else {
-		// Read the blueprint file without resolving variables
-		blueprintData, err = os.ReadFile(blueprintFile)
-		if err != nil {
-			log.Errorf("Error reading blueprint file: %v", err)
-			return err
-		}
+	blueprintData, err = helpers.ResolveTemplate(blueprintData, initConfig.Variables)
+	if err != nil {
+		log.Errorf("Error resolving variables in bootstrap file: %v", err)
+		return err
 	}
 
 	blueprintDir := filepath.Dir(blueprintFile)
+
+	format := initConfig.Init.Format
+	if blueprintFile != "" {
+		format = filepath.Ext(blueprintFile)
+	}
 
 	// Unmarshal the blueprint data
 	log.Debugf("Unmarshaling bootstrap data from %s", blueprintFile)
@@ -56,7 +52,10 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process packages
 	log.Debugf("Processing packages from %s", blueprintFile)
-	err = ProcessPackagesFromFile(blueprintFile, blueprintDir, osInfo, initConfig)
+	packagesData := &types.PackagesData{
+		Packages: bootstrapData.Packages,
+	}
+	err = ProcessPackages(nil, packagesData, format, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing packages: %v", err)
 		return err
@@ -64,7 +63,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process directories
 	log.Debugf("Processing directories from %s", blueprintFile)
-	err = ProcessDirectories(bootstrapData.Directories, blueprintDir, initConfig)
+	err = processDirectories(bootstrapData.Directories, blueprintDir, initConfig)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err
@@ -72,7 +71,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process Files
 	log.Debugf("Processing files from %s", blueprintFile)
-	err = ProcessFiles(bootstrapData.Files, blueprintDir)
+	err = processFiles(bootstrapData.Files, blueprintDir, initConfig)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err
@@ -80,7 +79,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process Git repositories
 	log.Debugf("Processing Git repositories from %s", blueprintFile)
-	err = ProcessGitRepositories(bootstrapData.Git)
+	err = processGitRepositories(bootstrapData.Git)
 	if err != nil {
 		log.Errorf("Error processing Git repositories: %v", err)
 		return err
@@ -88,7 +87,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process services
 	log.Debugf("Processing services from %s", blueprintFile)
-	err = ProcessServices(bootstrapData.Services, initConfig)
+	err = processServices(bootstrapData.Services, initConfig)
 	if err != nil {
 		log.Errorf("Error processing services: %v", err)
 		return err
@@ -96,7 +95,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process users/groups
 	log.Debugf("Processing users/groups from %s", blueprintFile)
-	err = ProcessUsers(bootstrapData.Users, initConfig)
+	err = processUsers(bootstrapData.Users, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return err
@@ -104,7 +103,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process groups
 	log.Debugf("Processing groups from %s", blueprintFile)
-	err = ProcessGroups(bootstrapData.Groups, initConfig)
+	err = processGroups(bootstrapData.Groups, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return err

@@ -9,25 +9,20 @@ import (
 	"path/filepath"
 )
 
-func ProcessRepositoriesFromFile(blueprintFile string, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var repositoriesBlueprint types.RepositoriesData
+	var err error
 
-	log.Infof("Processing repositories from file: %s", blueprintFile)
-
-	// Read the blueprint file
-	blueprintData, err := os.ReadFile(blueprintFile)
-	if err != nil {
-		return fmt.Errorf("error reading blueprint file: %w", err)
-	}
+	log.Debugf("Processing repositories from blueprint")
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &repositoriesBlueprint)
+	err = helpers.UnmarshalBlueprint(blueprintData, format, &repositoriesBlueprint)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling repository blueprint: %w", err)
 	}
 
 	// Process the repositories
-	err = ProcessRepositories(repositoriesBlueprint.Repositories, osInfo, initConfig)
+	err = processRepositories(repositoriesBlueprint.Repositories, osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing repositories: %w", err)
 	}
@@ -35,27 +30,7 @@ func ProcessRepositoriesFromFile(blueprintFile string, blueprintDir string, osIn
 	return nil
 }
 
-func ProcessRepositoriesFromData(blueprintData []byte, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var repositoriesBlueprint types.RepositoriesData
-
-	log.Infof("Processing repositories from data")
-
-	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &repositoriesBlueprint)
-	if err != nil {
-		return fmt.Errorf("error unmarshaling repository blueprint data: %w", err)
-	}
-
-	// Process the repositories
-	err = ProcessRepositories(repositoriesBlueprint.Repositories, osInfo, initConfig)
-	if err != nil {
-		return fmt.Errorf("error processing repositories: %w", err)
-	}
-
-	return nil
-}
-
-func ProcessRepositories(repositories []types.Repository, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	for _, repo := range repositories {
 		log.Infof("Processing repository %s", repo.Name)
 
