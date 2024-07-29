@@ -75,20 +75,28 @@ func processFile(file types.File, blueprintDir string, initConfig *types.InitCon
 
 	switch file.Action {
 	case "copy":
+		log.Debugf("Copying file: %s", file.Name)
 		return copyFile(file, blueprintDir)
 	case "move":
+		log.Debugf("Moving file: %s", file.Name)
 		return moveFile(file, blueprintDir)
 	case "delete":
+		log.Debugf("Deleting file: %s", file.Name)
 		return deleteFile(file)
 	case "create":
+		log.Debugf("Creating file: %s", file.Name)
 		return createFile(file)
 	case "chmod":
+		log.Debugf("Changing file permissions: %s", file.Name)
 		return chmodFile(file)
 	case "chown":
+		log.Debugf("Changing file owner: %s", file.Name)
 		return chownFile(file)
 	case "chgrp":
+		log.Debugf("Changing file group: %s", file.Name)
 		return chgrpFile(file)
 	case "symlink":
+		log.Debugf("Symlinking file: %s", file.Name)
 		return symlinkFile(file, blueprintDir)
 	default:
 		return fmt.Errorf("unsupported action for file: %s", file.Action)

@@ -72,20 +72,28 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 				switch processor {
 				case "repositories":
+					log.Infof("Processing repositories")
 					err = ProcessRepositories(resolvedBlueprint, format, osInfo, initConfig)
 				case "packages":
+					log.Infof("Processing packages")
 					err = ProcessPackages(resolvedBlueprint, nil, format, osInfo, initConfig)
 				case "files":
+					log.Infof("Processing files")
 					err = ProcessFiles(resolvedBlueprint, blueprintDir, format, initConfig)
 				case "services":
+					log.Infof("Processing services")
 					err = ProcessServices(resolvedBlueprint, format, initConfig)
 				case "users":
+					log.Infof("Processing users")
 					err = ProcessUsers(resolvedBlueprint, format, initConfig)
 				case "git":
+					log.Infof("Processing git repositories")
 					err = ProcessGitRepositories(resolvedBlueprint, format, initConfig)
 				case "scripts":
+					log.Infof("Processing scripts")
 					err = ProcessScripts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case "ssh_keys":
+					log.Infof("Processing ssh keys")
 					err = ProcessSSHKeys(resolvedBlueprint, format, osInfo, initConfig)
 				default:
 					log.Warnf("Unknown processor: %s", processor)
