@@ -79,19 +79,6 @@ var runDirectoriesCmd = &cobra.Command{
 	},
 }
 
-var runTemplatesCmd = &cobra.Command{
-	Use:   "templates",
-	Short: "Run templates processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"templates"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running templates processor")
-			os.Exit(1)
-		}
-	},
-}
-
 var runConfigurationCmd = &cobra.Command{
 	Use:   "configuration",
 	Short: "Run configuration processor",
@@ -163,7 +150,6 @@ func init() {
 	runCmd.AddCommand(runServicesCmd)
 	runCmd.AddCommand(runFilesCmd)
 	runCmd.AddCommand(runDirectoriesCmd)
-	runCmd.AddCommand(runTemplatesCmd)
 	runCmd.AddCommand(runConfigurationCmd)
 	runCmd.AddCommand(runUsersCmd)
 	runCmd.AddCommand(runGitCmd)

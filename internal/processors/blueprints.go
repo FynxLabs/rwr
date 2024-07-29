@@ -54,7 +54,7 @@ func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 			}
 		}
 	} else {
-		runOrder = append(runOrder, "packageManagers", "repositories", "packages", "files", "templates", "configuration", "services")
+		runOrder = append(runOrder, "packageManagers", "repositories", "packages", "files", "configuration", "services")
 	}
 
 	log.Debugf("Blueprint run order: %v", runOrder)
