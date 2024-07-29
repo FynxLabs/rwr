@@ -91,10 +91,13 @@ func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error
 }
 
 func generateSSHKey(sshKey types.SSHKey) error {
+
+	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
+
 	args := []string{
 		"-t", sshKey.Type,
 		"-C", sshKey.Comment,
-		"-f", sshKey.Path,
+		"-f", sshPath,
 	}
 
 	if sshKey.NoPassphrase {
@@ -111,7 +114,7 @@ func generateSSHKey(sshKey types.SSHKey) error {
 		return fmt.Errorf("error generating SSH key: %v", err)
 	}
 
-	log.Infof("SSH key generated: %s", sshKey.Path)
+	log.Infof("SSH key generated: %s", sshPath)
 	return nil
 }
 
@@ -127,14 +130,26 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	tc := oauth2.NewClient(context.TODO(), ts)
 	client := github.NewClient(tc)
 
-	publicKeyPath := sshKey.Path + ".pub"
+	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
+
+	publicKeyPath := sshPath + ".pub"
 	publicKeyBytes, err := os.ReadFile(publicKeyPath)
 	if err != nil {
 		return fmt.Errorf("error reading public key file: %v", err)
 	}
 
 	key := string(publicKeyBytes)
-	title := filepath.Base(sshKey.Path)
+
+	var title string
+	if sshKey.GithubTitle != "" {
+		title = sshKey.GithubTitle
+	} else {
+		hostname, err := os.Hostname()
+		if err != nil {
+			return fmt.Errorf("error getting hostname: %v", err)
+		}
+		title = hostname
+	}
 
 	_, _, err = client.Users.CreateKey(context.TODO(), &github.Key{
 		Title: &title,

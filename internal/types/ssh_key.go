@@ -7,6 +7,7 @@ type SSHKey struct {
 	Comment      string `mapstructure:"comment" yaml:"comment" json:"comment" toml:"comment"`
 	NoPassphrase bool   `mapstructure:"no_passphrase" yaml:"no_passphrase" json:"no_passphrase" toml:"no_passphrase"`
 	CopyToGitHub bool   `mapstructure:"copy_to_github" yaml:"copy_to_github" json:"copy_to_github" toml:"copy_to_github"`
+	GithubTitle  string `mapstructure:"github_title" yaml:"github_title" json:"github_title" toml:"github_title"`
 }
 
 type SSHKeyData struct {

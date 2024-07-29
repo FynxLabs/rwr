@@ -95,6 +95,90 @@ func processFile(file types.File, blueprintDir string, initConfig *types.InitCon
 	}
 }
 
+func processTemplates(templates []types.File, blueprintDir string, initConfig *types.InitConfig) error {
+	log.Info("Starting to process templates")
+	for i, tmpl := range templates {
+		log.Debugf("Processing template %d: %+v", i, tmpl)
+		if tmpl.Name == "" && len(tmpl.Names) == 0 {
+			log.Warn("Skipping empty template")
+			continue
+		}
+		if len(tmpl.Names) > 0 {
+			log.Debugf("Template has multiple names: %v", tmpl.Names)
+			for _, name := range tmpl.Names {
+				log.Infof("Processing template with name: %s", name)
+				fileWithName := tmpl
+				fileWithName.Name = name
+				err := processTemplate(fileWithName, blueprintDir, initConfig)
+				if err != nil {
+					log.Errorf("Error processing template to file %s: %v", fileWithName.Name, err)
+					return fmt.Errorf("error processing template to file %s: %w", fileWithName.Name, err)
+				}
+			}
+		} else {
+			log.Infof("Processing single template: %s", tmpl.Name)
+			err := processTemplate(tmpl, blueprintDir, initConfig)
+			if err != nil {
+				log.Errorf("Error processing template to file %s: %v", tmpl.Name, err)
+				return fmt.Errorf("error processing template to file %s: %w", tmpl.Name, err)
+			}
+		}
+	}
+	log.Info("Finished processing all templates")
+	return nil
+}
+
+func processTemplate(template types.File, blueprintDir string, initConfig *types.InitConfig) error {
+	log.Infof("Processing template: %s", template.Name)
+	log.Debugf("Template details: Source=%s, Target=%s, Action=%s", template.Source, template.Target, template.Action)
+
+	if template.Name == "" || template.Source == "" || template.Target == "" {
+		log.Warnf("Skipping template with missing required fields: %+v", template)
+		return nil
+	}
+
+	sourcePath := filepath.Join(blueprintDir, template.Source, template.Name)
+	log.Debugf("Full source path: %s", sourcePath)
+
+	content, err := os.ReadFile(sourcePath)
+	if err != nil {
+		log.Errorf("Error reading template file %s: %v", sourcePath, err)
+		return fmt.Errorf("error reading template file %s: %w", sourcePath, err)
+	}
+	log.Debugf("Successfully read template file, content length: %d bytes", len(content))
+
+	log.Debug("Resolving template variables")
+	resolvedContent, err := helpers.ResolveTemplate(content, initConfig.Variables)
+	if err != nil {
+		log.Errorf("Error resolving template %s: %v", sourcePath, err)
+		return fmt.Errorf("error resolving template %s: %w", sourcePath, err)
+	}
+	log.Debugf("Successfully resolved template, new content length: %d bytes", len(resolvedContent))
+
+	// Create a File struct from the Template
+	file := types.File{
+		Name:     template.Name,
+		Action:   template.Action,
+		Content:  string(resolvedContent),
+		Source:   template.Source,
+		Target:   template.Target,
+		Owner:    template.Owner,
+		Group:    template.Group,
+		Mode:     template.Mode,
+		Elevated: template.Elevated,
+	}
+
+	// Process the template as a file
+	err = processFile(file, blueprintDir, initConfig)
+	if err != nil {
+		log.Errorf("Error processing template as file %s: %v", template.Name, err)
+		return fmt.Errorf("error processing template as file %s: %w", template.Name, err)
+	}
+
+	log.Infof("Template processed successfully: %s", template.Name)
+	return nil
+}
+
 func processDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
 	for _, dir := range directories {
 		switch dir.Action {
@@ -441,31 +525,5 @@ func applyDirectoryAttributes(dir types.Directory) error {
 		}
 	}
 
-	return nil
-}
-
-func processTemplates(templates []types.Template, blueprintDir string, initConfig *types.InitConfig) error {
-	for _, tmpl := range templates {
-		log.Debugf("Processing template: %s", tmpl.Source)
-
-		content, err := os.ReadFile(filepath.Join(blueprintDir, tmpl.Source))
-		if err != nil {
-			return fmt.Errorf("error reading template file %s: %w", tmpl.Source, err)
-		}
-
-		resolvedContent, err := helpers.ResolveTemplate(content, initConfig.Variables)
-		if err != nil {
-			return fmt.Errorf("error resolving template %s: %w", tmpl.Source, err)
-		}
-
-		if tmpl.Target != "" {
-			targetPath := helpers.ExpandPath(tmpl.Target)
-			err = helpers.WriteToFile(targetPath, string(resolvedContent), false)
-			if err != nil {
-				return fmt.Errorf("error writing rendered template to file %s: %w", targetPath, err)
-			}
-			log.Infof("Template processed and written to: %s", targetPath)
-		}
-	}
 	return nil
 }
