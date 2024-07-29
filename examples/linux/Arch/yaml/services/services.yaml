@@ -1,0 +1,7 @@
+services:
+  - name: docker
+    action: enable
+    elevated: true
+  - name: docker
+    action: start
+    elevated: true

@@ -1,0 +1,14 @@
+{
+  "services": [
+    {
+      "name": "com.docker.docker",
+      "action": "enable",
+      "elevated": true
+    },
+    {
+      "name": "com.docker.docker",
+      "action": "start",
+      "elevated": true
+    }
+  ]
+}

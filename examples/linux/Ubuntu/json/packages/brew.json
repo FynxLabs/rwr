@@ -1,0 +1,12 @@
+{
+  "packages": [
+    {
+      "names": [
+        "neovim",
+        "jq"
+      ],
+      "action": "install",
+      "package_manager": "brew"
+    }
+  ]
+}

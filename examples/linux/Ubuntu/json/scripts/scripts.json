@@ -1,0 +1,9 @@
+{
+  "scripts": [
+    {
+      "name": "hello_world",
+      "action": "run",
+      "content": "#!/bin/bash\necho \"Hello, from this example!\""
+    }
+  ]
+}

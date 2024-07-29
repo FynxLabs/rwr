@@ -1,0 +1,31 @@
+[[files]]
+name = ".gitconfig"
+action = "create"
+target = "{{ .User.home }}/"
+content = """
+[user]
+  name = Your Name
+  email = your.email@example.com
+"""
+
+[[files]]
+name = ".gitignore"
+action = "copy"
+target = "{{ .User.home }}/"
+source = "./src/"
+
+[[directories]]
+name = "RWR"
+action = "create"
+target = "{{ .User.home }}/AppData/Local/"
+
+[[directories]]
+name = "WindowsPowerShell"
+action = "create"
+target = "{{ .User.home }}/Documents/"
+
+[[templates]]
+name = ".profile"
+action = "copy"
+source = "./src/"
+target = "{{ .User.home }}/"

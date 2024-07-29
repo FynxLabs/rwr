@@ -1,0 +1,7 @@
+ssh_keys:
+  - name: id_rsa
+    type: ed25519
+    path: {{ .User.home }}/.ssh/
+    comment: "{{ .User.username }}@github"
+    no_passphrase: true
+    copy_to_github: false

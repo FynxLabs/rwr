@@ -1,0 +1,25 @@
+{
+  "blueprints": {
+    "format": "json",
+    "location": ".",
+    "order": [
+      "bootstrap",
+      "packages",
+      "files",
+      "services",
+      "git",
+      "scripts",
+      "ssh_keys"
+    ]
+  },
+  "packageManagers": [
+    {
+      "name": "cargo",
+      "action": "install"
+    },
+    {
+      "name": "brew",
+      "action": "install"
+    }
+  ]
+}

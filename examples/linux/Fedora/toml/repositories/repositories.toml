@@ -1,0 +1,12 @@
+[[repositories]]
+name = "vscode"
+package_manager = "dnf"
+action = "add"
+url = "https://packages.microsoft.com/yumrepos/vscode"
+key_url = "https://packages.microsoft.com/keys/microsoft.asc"
+
+[[repositories]]
+name = "docker"
+package_manager = "dnf"
+action = "add"
+url = "https://download.docker.com/linux/fedora/docker-ce.repo"
