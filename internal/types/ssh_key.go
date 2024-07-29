@@ -1,6 +1,7 @@
 package types
 
 type SSHKey struct {
+	Name         string `mapstructure:"name" yaml:"name" json:"name" toml:"name"`
 	Type         string `mapstructure:"type" yaml:"type" json:"type" toml:"type"`
 	Path         string `mapstructure:"path" yaml:"path" json:"path" toml:"path"`
 	Comment      string `mapstructure:"comment" yaml:"comment" json:"comment" toml:"comment"`

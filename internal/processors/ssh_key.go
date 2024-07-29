@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,8 +27,18 @@ func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, i
 		return fmt.Errorf("error unmarshaling SSH key blueprint: %v", err)
 	}
 
+	err = processSSHKeys(sshKeyData.SSHKeys, osInfo, initConfig)
+	if err != nil {
+		log.Errorf("Error processing SSH Keys: %v", err)
+		return fmt.Errorf("error processing SSHE Keys: %w", err)
+	}
+
+	return nil
+}
+
+func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Process the SSH keys
-	for _, sshKey := range sshKeyData.SSHKeys {
+	for _, sshKey := range sshKeys {
 		// Ensure required packages are installed
 		err := ensureSSHPackages(osInfo, initConfig)
 		if err != nil {
@@ -113,7 +124,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
-	tc := oauth2.NewClient(oauth2.NoContext, ts)
+	tc := oauth2.NewClient(context.TODO(), ts)
 	client := github.NewClient(tc)
 
 	publicKeyPath := sshKey.Path + ".pub"
@@ -125,7 +136,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	key := string(publicKeyBytes)
 	title := filepath.Base(sshKey.Path)
 
-	_, _, err = client.Users.CreateKey(oauth2.NoContext, &github.Key{
+	_, _, err = client.Users.CreateKey(context.TODO(), &github.Key{
 		Title: &title,
 		Key:   &key,
 	})

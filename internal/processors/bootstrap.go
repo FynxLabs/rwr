@@ -77,6 +77,14 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
+	// Process SSH
+	log.Debugf("Processing files from %s", blueprintFile)
+	err = processSSHKeys(bootstrapData.SSHKeys, osInfo, initConfig)
+	if err != nil {
+		log.Errorf("Error processing directories: %v", err)
+		return err
+	}
+
 	// Process Git repositories
 	log.Debugf("Processing Git repositories from %s", blueprintFile)
 	err = processGitRepositories(bootstrapData.Git)
