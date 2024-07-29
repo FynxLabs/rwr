@@ -114,47 +114,42 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	log.Debugf("Initializing system information with init file: %s", initFilePath)
 	log.Debugf("Init file directory: %s", initFileDir)
 
-	// Check if init templates are enabled
-	if flags.InitTemplatesEnabled {
-		// Create a temporary directory for the processed init file
-		log.Debugf("Processing init file as a template")
-		tempDir, err := os.MkdirTemp("", "rwr-init-")
+	// Create a temporary directory for the processed init file
+	log.Debugf("Processing init file as a template")
+	tempDir, err := os.MkdirTemp("", "rwr-init-")
+	if err != nil {
+		return nil, fmt.Errorf("error creating temporary directory: %w", err)
+	}
+	defer func() {
+		err := os.RemoveAll(tempDir)
 		if err != nil {
-			return nil, fmt.Errorf("error creating temporary directory: %w", err)
+			log.Errorf("error removing temporary directory: %v", err)
 		}
-		defer func() {
-			err := os.RemoveAll(tempDir)
-			if err != nil {
-				log.Errorf("error removing temporary directory: %v", err)
-			}
-		}()
+	}()
 
-		// Generate the processed init file path in the temporary directory
-		processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
+	// Generate the processed init file path in the temporary directory
+	processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
 
-		// Process the init file as a template
-		initFileData, err := os.ReadFile(initFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading init file: %w", err)
-		}
-
-		processedInit, err := processTemplates(initFileData, initFileDir, &types.InitConfig{Variables: variables})
-		if err != nil {
-			log.Errorf("error processing init file as a template: %v", err)
-			return nil, err
-		}
-
-		// Write the processed init file to the temporary directory
-		err = os.WriteFile(processedInitFile, processedInit, 0644)
-		if err != nil {
-			log.Errorf("error writing processed init file: %v", err)
-			return nil, err
-		}
-
-		initFilePath = processedInitFile
+	// Process the init file as a template
+	initFileData, err := os.ReadFile(initFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading init file: %w", err)
 	}
 
-	viper.SetConfigFile(initFilePath)
+	processedInit, err := helpers.ResolveTemplate(initFileData, variables)
+	if err != nil {
+		log.Errorf("Error processing init file as a template: %v", err)
+		return nil, err
+	}
+
+	// Write the processed init file to the temporary directory
+	err = os.WriteFile(processedInitFile, processedInit, 0644)
+	if err != nil {
+		log.Errorf("error writing processed init file: %v", err)
+		return nil, err
+	}
+
+	viper.SetConfigFile(processedInitFile)
 
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("error reading init file: %w", err)

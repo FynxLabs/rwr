@@ -96,14 +96,6 @@ func CreateDefaultConfig() error {
 		viper.Set("packageManager.windows.default", windowsDefaultPMInput)
 	}
 
-	// Prompt for Init Templates Enabled
-	fmt.Printf("Enable templates for the init file? (true/false) (press enter to keep default) [%t]: ", viper.GetBool("rwr.initTemplatesEnabled"))
-	initTemplatesEnabledInput, _ := reader.ReadString('\n')
-	initTemplatesEnabledInput = strings.TrimSpace(initTemplatesEnabledInput)
-	if initTemplatesEnabledInput != "" {
-		viper.Set("rwr.initTemplatesEnabled", initTemplatesEnabledInput == "true")
-	}
-
 	// Prompt for Repository Configuration
 	fmt.Println("Repository Configuration:")
 

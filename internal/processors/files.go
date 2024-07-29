@@ -2,147 +2,192 @@ package processors
 
 import (
 	"fmt"
+	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"path/filepath"
-
-	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
-func ProcessFilesFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
-	var files []types.File
-	var directories []types.Directory
-	var FileData types.FileData
+func ProcessFiles(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
+	var fileData types.FileData
+	var err error
 
-	log.Debugf("Processing files from blueprint file: %s", blueprintFile)
+	log.Debugf("Processing files from blueprint")
 
-	// Read the blueprint file
-	blueprintData, err := os.ReadFile(blueprintFile)
+	// Unmarshal the blueprint data
+	err = helpers.UnmarshalBlueprint(blueprintData, format, &fileData)
 	if err != nil {
-		log.Fatalf("error reading blueprint file: %v", err)
+		return fmt.Errorf("error unmarshaling file blueprint data: %w", err)
 	}
 
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &FileData)
+	// Process regular files
+	err = processFiles(fileData.Files, blueprintDir, initConfig)
 	if err != nil {
-		log.Fatalf("error unmarshaling file blueprint data: %v", err)
-	}
-	files = FileData.Files
-	directories = FileData.Directories
-
-	// Process the files
-	err = ProcessFiles(files, blueprintDir)
-	if err != nil {
-		log.Fatalf("error processing files: %v", err)
+		return fmt.Errorf("error processing files: %w", err)
 	}
 
-	// Process the directories
-	err = ProcessDirectories(directories, blueprintDir, initConfig)
+	// Process directories
+	err = processDirectories(fileData.Directories, blueprintDir, initConfig)
 	if err != nil {
-		log.Fatalf("error processing directories: %v", err)
+		return fmt.Errorf("error processing directories: %w", err)
 	}
 
-	return nil
-}
-
-func ProcessFilesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
-	var files []types.File
-	var directories []types.Directory
-	var FileData types.FileData
-
-	log.Debugf("Processing files from blueprint data")
-
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &FileData)
+	// Process templates
+	err = processTemplates(fileData.Templates, blueprintDir, initConfig)
 	if err != nil {
-		log.Fatalf("error unmarshaling file blueprint data: %v", err)
-	}
-	files = FileData.Files
-	directories = FileData.Directories
-
-	// Process the files
-	err = ProcessFiles(files, blueprintDir)
-	if err != nil {
-		log.Fatalf("error processing files: %v", err)
-	}
-
-	// Process the directories
-	err = ProcessDirectories(directories, blueprintDir, initConfig)
-	if err != nil {
-		log.Fatalf("error processing directories: %v", err)
+		return fmt.Errorf("error processing templates: %w", err)
 	}
 
 	return nil
 }
 
-func ProcessFiles(files []types.File, blueprintDir string) error {
+func processFiles(files []types.File, blueprintDir string, initConfig *types.InitConfig) error {
 	for _, file := range files {
 		if len(file.Names) > 0 {
 			for _, name := range file.Names {
 				fileWithName := file
 				fileWithName.Name = name
-				if err := processFile(fileWithName, blueprintDir); err != nil {
-					log.Fatalf("error processing file: %v", err)
+				if err := processFile(fileWithName, blueprintDir, initConfig); err != nil {
+					return fmt.Errorf("error processing file %s: %w", name, err)
 				}
 			}
 		} else {
-			if err := processFile(file, blueprintDir); err != nil {
-				log.Fatalf("error processing file: %v", err)
+			if err := processFile(file, blueprintDir, initConfig); err != nil {
+				return fmt.Errorf("error processing file %s: %w", file.Name, err)
 			}
 		}
 	}
 	return nil
 }
 
-func processFile(file types.File, blueprintDir string) error {
+func processFile(file types.File, blueprintDir string, initConfig *types.InitConfig) error {
+	if file.Content != "" {
+		renderedContent, err := helpers.ResolveTemplate([]byte(file.Content), initConfig.Variables)
+		if err != nil {
+			log.Errorf("Error rendering template for file %s: %v", file.Target, err)
+			return err
+		}
+
+		file.Content = string(renderedContent)
+	}
+
 	switch file.Action {
 	case "copy":
 		log.Debugf("Copying file: %s", file.Name)
-		if err := copyFile(file, blueprintDir); err != nil {
-			log.Fatalf("error copying file: %v", err)
-		}
+		return copyFile(file, blueprintDir)
 	case "move":
 		log.Debugf("Moving file: %s", file.Name)
-		if err := moveFile(file, blueprintDir); err != nil {
-			log.Fatalf("error moving file: %v", err)
-		}
+		return moveFile(file, blueprintDir)
 	case "delete":
 		log.Debugf("Deleting file: %s", file.Name)
-		if err := deleteFile(file); err != nil {
-			log.Fatalf("error deleting file: %v", err)
-		}
+		return deleteFile(file)
 	case "create":
 		log.Debugf("Creating file: %s", file.Name)
-		if err := createFile(file); err != nil {
-			log.Fatalf("error creating file: %v", err)
-		}
+		return createFile(file)
 	case "chmod":
 		log.Debugf("Changing file permissions: %s", file.Name)
-		if err := chmodFile(file); err != nil {
-			log.Fatalf("error changing file permissions: %v", err)
-		}
+		return chmodFile(file)
 	case "chown":
 		log.Debugf("Changing file owner: %s", file.Name)
-		if err := chownFile(file); err != nil {
-			log.Fatalf("error changing file owner: %v", err)
-		}
+		return chownFile(file)
 	case "chgrp":
 		log.Debugf("Changing file group: %s", file.Name)
-		if err := chgrpFile(file); err != nil {
-			log.Fatalf("error changing file group: %v", err)
-		}
+		return chgrpFile(file)
 	case "symlink":
-		log.Debugf("Creating symlink: %s", file.Name)
-		if err := symlinkFile(file, blueprintDir); err != nil {
-			log.Fatalf("error creating symlink: %v", err)
-		}
+		log.Debugf("Symlinking file: %s", file.Name)
+		return symlinkFile(file, blueprintDir)
 	default:
 		return fmt.Errorf("unsupported action for file: %s", file.Action)
 	}
+}
+
+func processTemplates(templates []types.File, blueprintDir string, initConfig *types.InitConfig) error {
+	log.Info("Starting to process templates")
+	for i, tmpl := range templates {
+		log.Debugf("Processing template %d: %+v", i, tmpl)
+		if tmpl.Name == "" && len(tmpl.Names) == 0 {
+			log.Warn("Skipping empty template")
+			continue
+		}
+		if len(tmpl.Names) > 0 {
+			log.Debugf("Template has multiple names: %v", tmpl.Names)
+			for _, name := range tmpl.Names {
+				log.Infof("Processing template with name: %s", name)
+				fileWithName := tmpl
+				fileWithName.Name = name
+				err := processTemplate(fileWithName, blueprintDir, initConfig)
+				if err != nil {
+					log.Errorf("Error processing template to file %s: %v", fileWithName.Name, err)
+					return fmt.Errorf("error processing template to file %s: %w", fileWithName.Name, err)
+				}
+			}
+		} else {
+			log.Infof("Processing single template: %s", tmpl.Name)
+			err := processTemplate(tmpl, blueprintDir, initConfig)
+			if err != nil {
+				log.Errorf("Error processing template to file %s: %v", tmpl.Name, err)
+				return fmt.Errorf("error processing template to file %s: %w", tmpl.Name, err)
+			}
+		}
+	}
+	log.Info("Finished processing all templates")
 	return nil
 }
 
-func ProcessDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
+func processTemplate(template types.File, blueprintDir string, initConfig *types.InitConfig) error {
+	log.Infof("Processing template: %s", template.Name)
+	log.Debugf("Template details: Source=%s, Target=%s, Action=%s", template.Source, template.Target, template.Action)
+
+	if template.Name == "" || template.Source == "" || template.Target == "" {
+		log.Warnf("Skipping template with missing required fields: %+v", template)
+		return nil
+	}
+
+	sourcePath := filepath.Join(blueprintDir, template.Source, template.Name)
+	log.Debugf("Full source path: %s", sourcePath)
+
+	content, err := os.ReadFile(sourcePath)
+	if err != nil {
+		log.Errorf("Error reading template file %s: %v", sourcePath, err)
+		return fmt.Errorf("error reading template file %s: %w", sourcePath, err)
+	}
+	log.Debugf("Successfully read template file, content length: %d bytes", len(content))
+
+	log.Debug("Resolving template variables")
+	resolvedContent, err := helpers.ResolveTemplate(content, initConfig.Variables)
+	if err != nil {
+		log.Errorf("Error resolving template %s: %v", sourcePath, err)
+		return fmt.Errorf("error resolving template %s: %w", sourcePath, err)
+	}
+	log.Debugf("Successfully resolved template, new content length: %d bytes", len(resolvedContent))
+
+	// Create a File struct from the Template
+	file := types.File{
+		Name:     template.Name,
+		Action:   template.Action,
+		Content:  string(resolvedContent),
+		Source:   template.Source,
+		Target:   template.Target,
+		Owner:    template.Owner,
+		Group:    template.Group,
+		Mode:     template.Mode,
+		Elevated: template.Elevated,
+	}
+
+	// Process the template as a file
+	err = processFile(file, blueprintDir, initConfig)
+	if err != nil {
+		log.Errorf("Error processing template as file %s: %v", template.Name, err)
+		return fmt.Errorf("error processing template as file %s: %w", template.Name, err)
+	}
+
+	log.Infof("Template processed successfully: %s", template.Name)
+	return nil
+}
+
+func processDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
 	for _, dir := range directories {
 		switch dir.Action {
 		case "copy":

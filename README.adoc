@@ -28,6 +28,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 * *Bootstrap Process*: RWR includes a bootstrap process that can be used to set up the initial system configuration, including installing essential packages, creating directories, and setting permissions.
 * *Variable Substitution*: Use variables in your blueprints to make your configurations more dynamic and reusable.
 * *Extensible Architecture*: RWR is built with extensibility in mind, allowing you to easily add support for new package managers, file synchronization backends, and more.
+* *SSH Key Management*: RWR can generate and manage SSH keys, including copying public keys to GitHub.
 
 == Packages
 
@@ -73,30 +74,32 @@ RWR provides the following commands:
 ** `rwr run services`: Run the services processor.
 ** `rwr run files`: Run the files processor.
 ** `rwr run directories`: Run the directories processor.
-** `rwr run templates`: Run the templates processor.
 ** `rwr run configuration`: Run the configuration processor.
 ** `rwr run git`: Run the Git repository processor.
 ** `rwr run scripts`: Run the scripts processor.
 ** `rwr run users`: Run the users and groups processor.
+** `rwr run ssh_keys`: Run the SSH key processor.
 
 == Blueprint Structure
 
-RWR blueprints are flexible and can be structured according to your needs. The `init.yaml` file serves as the main entry point for your blueprints and defines the order of execution. Here's an example blueprint structure:
+RWR blueprints are organized in a structured directory hierarchy. Here's the current blueprint structure:
 
 [source,text]
 ----
 .
-├── bootstrap
-│   └── bootstrap.yaml
-├── configuration
-│   └── configuration.yaml
+├── bootstrap.yaml
 ├── files
+│   ├── dots.yaml
 │   ├── files.yaml
 │   └── src
-│       ├── config.ini
-│       └── script.sh
+│       ├── .config
+│       ├── desktop
+│       ├── dotFiles
+│       ├── ssh
+│       └── Wallpapers
 ├── git
-│   └── git.yaml
+│   ├── org.yaml
+│   └── personal.yaml
 ├── init.yaml
 ├── packages
 │   ├── apt.yaml
@@ -104,27 +107,31 @@ RWR blueprints are flexible and can be structured according to your needs. The `
 │   └── cargo.yaml
 ├── repositories
 │   └── apt.yaml
+├── scripts
+│   ├── files
+│   │   └── nerd.sh
+│   └── scripts.yaml
 ├── services
 │   └── services.yaml
-└── templates
-    ├── src
-    │   ├── index.html.tmpl
-    │   └── nginx.conf.tmpl
-    └── templates.yaml
+└── users
+    └── users.yaml
 ----
 
-In this example structure:
+In this structure:
 
-* The `bootstrap` directory contains a `bootstrap.yaml` file, which defines the initial setup tasks, such as installing essential packages, creating directories, and setting permissions.
-* The `packages` directory contains separate files for different package managers, such as `apt.yaml`, `brew.yaml`, and `cargo.yaml`.
-* The `repositories` directory contains a file for managing repositories, like `apt.yaml`.
-* The `files` directory contains a `files.yaml` file for managing files and a `src` subdirectory for storing source files to be copied or used.
-* The `services` directory contains a `services.yaml` file for managing system services.
-* The `templates` directory contains a `templates.yaml` file for managing templates and a `src` subdirectory for storing template files.
-* The `git` directory contains a `git.yaml` file for managing Git repositories.
-* The `configuration` directory contains a `configuration.yaml` file for managing configuration settings.
+* `bootstrap.yaml`: Defines the initial setup tasks, such as installing essential packages and creating directories.
+* `init.yaml`: The main entry point that defines the blueprint configuration and order of execution.
+* `files/`: Contains blueprints for managing files, dotfiles, and related resources.
+* `git/`: Manages Git repositories for both organizational and personal use.
+* `packages/`: Defines packages to be installed using different package managers (apt, brew, cargo).
+* `repositories/`: Manages package repositories (currently for apt).
+* `scripts/`: Contains scripts to be executed and their configurations.
+* `services/`: Manages system services.
+* `users/`: Manages user accounts and groups.
 
-However, RWR doesn't enforce a strict structure. You can organize your blueprints in a single folder with all YAML, TOML, or JSON files, depending on your preference. The `init.yaml` file allows you to specify the order of execution and the location of your blueprint files.
+This structure allows for a clean separation of concerns and makes it easy to maintain and extend your system configuration.
+
+NOTE: All configuration files (`.yaml`, `.json`, or `.toml`) can be in YAML, JSON, or TOML format, depending on your preference. The examples shown use the `.yaml` extension, but you can use `.json` or `.toml` as well.
 
 == Blueprint Types
 
@@ -132,15 +139,17 @@ RWR supports the following blueprint types:
 
 * `packages`: Defines packages to be installed or removed using various package managers.
 * `repositories`: Defines repositories to be managed for different package managers.
-* `files`: Defines files to be copied, moved, deleted, created, or modified.
-* `directories`: Defines directories to be managed, including creation, deletion, and modification of permissions and ownership.
+* Files Blueprints (All fall under files processor)
+** `files`: Defines files to be copied, moved, deleted, created, or modified.
+** `directories`: Defines directories to be managed, including creation, deletion, and modification of permissions and ownership.
+** `templates`: Defines template files to be processed and rendered during the execution of the blueprints.
 * `services`: Defines services to be managed, including starting, stopping, enabling, and disabling services.
-* `templates`: Defines template files to be processed and rendered during the execution of the blueprints.
 * `configuration`: Defines configuration settings to be applied to the system.
 * `git`: Defines Git repositories to be cloned or managed.
 * `scripts`: Defines scripts to be executed as part of the configuration process.
 * `users`: Defines user accounts and groups to be created or managed.
 * `bootstrap`: Defines the initial setup tasks for the system.
+* `ssh_keys`: Defines SSH keys to be generated and managed.
 
 == Road to 1.0
 
@@ -190,10 +199,6 @@ RWR supports the following blueprint types:
 ** [*] YAML
 ** [ ] JSON
 ** [ ] TOML
-* [ ] Templates Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Git Repository Processor
 ** [*] YAML
 ** [ ] JSON
@@ -237,10 +242,6 @@ RWR supports the following blueprint types:
 ** [ ] YAML
 ** [ ] JSON
 ** [ ] TOML
-* [ ] Templates Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Git Repository Processor
 ** [ ] YAML
 ** [ ] JSON
@@ -281,10 +282,6 @@ RWR supports the following blueprint types:
 ** [ ] JSON
 ** [ ] TOML
 * [ ] Directories Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Templates Processor
 ** [ ] YAML
 ** [ ] JSON
 ** [ ] TOML

@@ -2,37 +2,27 @@ package processors
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/fynxlabs/rwr/internal/types"
+	"os"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
-func ProcessGitRepositoriesFromFile(blueprintFile string, blueprintDir string) error {
+func ProcessGitRepositories(blueprintData []byte, format string, initConfig *types.InitConfig) error {
 	var gitData types.GitData
-	var gitRepos []types.Git
+	var err error
 
-	// Read the blueprint file
-	blueprintData, err := os.ReadFile(blueprintFile)
-	if err != nil {
-		log.Errorf("Error reading blueprint file: %v", err)
-		return fmt.Errorf("error reading blueprint file: %w", err)
-	}
+	log.Debugf("Processing Git repositories from blueprint")
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &gitData)
+	err = helpers.UnmarshalBlueprint(blueprintData, format, &gitData)
 	if err != nil {
-		log.Errorf("Error unmarshaling Git repository blueprint: %v", err)
 		return fmt.Errorf("error unmarshaling Git repository blueprint: %w", err)
 	}
 
-	gitRepos = gitData.Repos
-
 	// Process the Git repositories
-	err = ProcessGitRepositories(gitRepos)
+	err = processGitRepositories(gitData.Repos)
 	if err != nil {
 		log.Errorf("Error processing Git repositories: %v", err)
 		return fmt.Errorf("error processing Git repositories: %w", err)
@@ -41,30 +31,7 @@ func ProcessGitRepositoriesFromFile(blueprintFile string, blueprintDir string) e
 	return nil
 }
 
-func ProcessGitRepositoriesFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
-	var gitData types.GitData
-	var gitRepos []types.Git
-
-	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &gitData)
-	if err != nil {
-		log.Errorf("Error unmarshaling Git repository blueprint data: %v", err)
-		return fmt.Errorf("error unmarshaling Git repository blueprint data: %w", err)
-	}
-
-	gitRepos = gitData.Repos
-
-	// Process the Git repositories
-	err = ProcessGitRepositories(gitRepos)
-	if err != nil {
-		log.Errorf("Error processing Git repositories: %v", err)
-		return fmt.Errorf("error processing Git repositories: %w", err)
-	}
-
-	return nil
-}
-
-func ProcessGitRepositories(gitRepos []types.Git) error {
+func processGitRepositories(gitRepos []types.Git) error {
 	for _, repo := range gitRepos {
 		if repo.Action == "clone" {
 			err := cloneGitRepository(repo)
@@ -96,13 +63,11 @@ func cloneGitRepository(repo types.Git) error {
 		return nil
 	} else if !os.IsNotExist(err) {
 		// Some other error occurred
-		log.Errorf("Error checking Git repository %s: %v", repo.Name, err)
 		return fmt.Errorf("error checking Git repository %s: %w", repo.Name, err)
 	}
 
 	err = helpers.HandleGitClone(gitOpts)
 	if err != nil {
-		log.Errorf("Error cloning Git repository %s: %v", repo.Name, err)
 		return fmt.Errorf("error cloning Git repository %s: %w", repo.Name, err)
 	}
 

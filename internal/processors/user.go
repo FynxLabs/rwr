@@ -2,8 +2,6 @@ package processors
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/fynxlabs/rwr/internal/types"
@@ -12,32 +10,26 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
-func ProcessUsersFromFile(blueprintFile string, blueprintDir string, initConfig *types.InitConfig) error {
-	// Read the blueprint file
-	blueprintData, err := os.ReadFile(blueprintFile)
-	if err != nil {
-		log.Errorf("Error reading blueprint file: %v", err)
-		return fmt.Errorf("error reading blueprint file: %w", err)
-	}
-
+func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitConfig) error {
 	var usersData types.UsersData
+	var err error
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &usersData)
+	err = helpers.UnmarshalBlueprint(blueprintData, format, &usersData)
 	if err != nil {
 		log.Errorf("Error unmarshaling users blueprint: %v", err)
 		return fmt.Errorf("error unmarshaling users blueprint: %w", err)
 	}
 
 	// Process the groups
-	err = ProcessGroups(usersData.Groups, initConfig)
+	err = processGroups(usersData.Groups, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return fmt.Errorf("error processing groups: %w", err)
 	}
 
 	// Process the users
-	err = ProcessUsers(usersData.Users, initConfig)
+	err = processUsers(usersData.Users, initConfig)
 	if err != nil {
 		log.Errorf("Error processing users: %v", err)
 		return fmt.Errorf("error processing users: %w", err)
@@ -46,35 +38,7 @@ func ProcessUsersFromFile(blueprintFile string, blueprintDir string, initConfig 
 	return nil
 }
 
-func ProcessUsersFromData(blueprintData []byte, blueprintDir string, initConfig *types.InitConfig) error {
-
-	var usersData types.UsersData
-
-	// Unmarshal the resolved blueprint data
-	err := helpers.UnmarshalBlueprint(blueprintData, initConfig.Init.Format, &usersData)
-	if err != nil {
-		log.Errorf("Error unmarshaling users blueprint data: %v", err)
-		return fmt.Errorf("error unmarshaling users blueprint data: %w", err)
-	}
-
-	// Process the groups
-	err = ProcessGroups(usersData.Groups, initConfig)
-	if err != nil {
-		log.Errorf("Error processing groups: %v", err)
-		return fmt.Errorf("error processing groups: %w", err)
-	}
-
-	// Process the users
-	err = ProcessUsers(usersData.Users, initConfig)
-	if err != nil {
-		log.Errorf("Error processing users: %v", err)
-		return fmt.Errorf("error processing users: %w", err)
-	}
-
-	return nil
-}
-
-func ProcessGroups(groups []types.Group, initConfig *types.InitConfig) error {
+func processGroups(groups []types.Group, initConfig *types.InitConfig) error {
 	for _, group := range groups {
 		switch group.Action {
 		case "create":
@@ -99,7 +63,7 @@ func ProcessGroups(groups []types.Group, initConfig *types.InitConfig) error {
 	return nil
 }
 
-func ProcessUsers(users []types.User, initConfig *types.InitConfig) error {
+func processUsers(users []types.User, initConfig *types.InitConfig) error {
 	for _, user := range users {
 		switch user.Action {
 		case "create":

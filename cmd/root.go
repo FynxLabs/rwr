@@ -35,31 +35,29 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	ghApiToken           string // Global variable for API Key
-	sshKey               string // Global variable for SSH Key
-	skipVersionCheck     bool
-	debug                bool
-	interactive          bool
-	forceBootstrap       bool
-	logLevel             string
-	initConfig           *types.InitConfig
-	initFilePath         string
-	initTemplatesEnabled bool
-	osInfo               *types.OSInfo
+	ghApiToken       string // Global variable for API Key
+	sshKey           string // Global variable for SSH Key
+	skipVersionCheck bool
+	debug            bool
+	interactive      bool
+	forceBootstrap   bool
+	logLevel         string
+	initConfig       *types.InitConfig
+	initFilePath     string
+	osInfo           *types.OSInfo
 )
 
 func initializeSystemInfo() {
 	var err error
 
 	flags := types.Flags{
-		Debug:                debug,
-		LogLevel:             logLevel,
-		ForceBootstrap:       forceBootstrap,
-		Interactive:          interactive,
-		GHAPIToken:           ghApiToken,
-		SSHKey:               sshKey,
-		SkipVersionCheck:     skipVersionCheck,
-		InitTemplatesEnabled: initTemplatesEnabled,
+		Debug:            debug,
+		LogLevel:         logLevel,
+		ForceBootstrap:   forceBootstrap,
+		Interactive:      interactive,
+		GHAPIToken:       ghApiToken,
+		SSHKey:           sshKey,
+		SkipVersionCheck: skipVersionCheck,
 	}
 
 	err = helpers.SetPaths()
@@ -101,13 +99,6 @@ func init() {
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
 		os.Exit(1)
-	}
-
-	// Init Templates Enabled flag
-	rootCmd.PersistentFlags().BoolVarP(&initTemplatesEnabled, "init-templates-enabled", "t", false, "Enable templates for the init file")
-	err = viper.BindPFlag("rwr.initTemplatesEnabled", rootCmd.PersistentFlags().Lookup("init-templates-enabled"))
-	if err != nil {
-		log.With("err", err).Errorf("Error initializing system information")
 	}
 
 	err = viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
