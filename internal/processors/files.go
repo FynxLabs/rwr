@@ -3,8 +3,10 @@ package processors
 import (
 	"fmt"
 	"github.com/fynxlabs/rwr/internal/types"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -69,34 +71,68 @@ func processFile(file types.File, blueprintDir string, initConfig *types.InitCon
 			log.Errorf("Error rendering template for file %s: %v", file.Target, err)
 			return err
 		}
-
 		file.Content = string(renderedContent)
 	}
 
+	// Handle URL source
+	if isURL(file.Source) {
+		tempDir, err := os.MkdirTemp("", "rwr-download-")
+		if err != nil {
+			return fmt.Errorf("error creating temporary directory: %v", err)
+		}
+		defer func() {
+			if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+				log.Errorf("Error removing temporary directory: %v", removeErr)
+				if err == nil {
+					err = removeErr
+				}
+			}
+		}()
+
+		downloadPath := filepath.Join(tempDir, filepath.Base(file.Source))
+		err = helpers.DownloadFile(file.Source, downloadPath, false)
+		if err != nil {
+			return fmt.Errorf("error downloading file: %v", err)
+		}
+		file.Source = filepath.Dir(downloadPath)
+		file.Name = filepath.Base(downloadPath)
+	}
+
+	// Determine source and target paths
+	sourcePath, targetPath, err := determineSourceAndTargetPaths(file, blueprintDir)
+	if err != nil {
+		return err
+	}
+
+	// Update file struct with new paths
+	file.Source = filepath.Dir(sourcePath)
+	file.Name = filepath.Base(sourcePath)
+	file.Target = targetPath
+
 	switch file.Action {
 	case "copy":
-		log.Debugf("Copying file: %s", file.Name)
-		return copyFile(file, blueprintDir)
+		log.Debugf("Copying file: %s to %s", sourcePath, targetPath)
+		return helpers.CopyFile(sourcePath, targetPath, file.Elevated)
 	case "move":
-		log.Debugf("Moving file: %s", file.Name)
+		log.Debugf("Moving file: %s to %s", sourcePath, targetPath)
 		return moveFile(file, blueprintDir)
 	case "delete":
-		log.Debugf("Deleting file: %s", file.Name)
+		log.Debugf("Deleting file: %s", targetPath)
 		return deleteFile(file)
 	case "create":
-		log.Debugf("Creating file: %s", file.Name)
+		log.Debugf("Creating file: %s", targetPath)
 		return createFile(file)
 	case "chmod":
-		log.Debugf("Changing file permissions: %s", file.Name)
+		log.Debugf("Changing file permissions: %s", targetPath)
 		return chmodFile(file)
 	case "chown":
-		log.Debugf("Changing file owner: %s", file.Name)
+		log.Debugf("Changing file owner: %s", targetPath)
 		return chownFile(file)
 	case "chgrp":
-		log.Debugf("Changing file group: %s", file.Name)
+		log.Debugf("Changing file group: %s", targetPath)
 		return chgrpFile(file)
 	case "symlink":
-		log.Debugf("Symlinking file: %s", file.Name)
+		log.Debugf("Symlinking file: %s to %s", sourcePath, targetPath)
 		return symlinkFile(file, blueprintDir)
 	default:
 		return fmt.Errorf("unsupported action for file: %s", file.Action)
@@ -226,28 +262,6 @@ func processDirectories(directories []types.Directory, blueprintDir string, init
 			return fmt.Errorf("unsupported action for directory: %s", dir.Action)
 		}
 	}
-	return nil
-}
-
-func copyFile(file types.File, blueprintDir string) error {
-	source := filepath.Join(blueprintDir, file.Source, file.Name)
-	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
-
-	// Create the target directory if it doesn't exist
-	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
-		log.Fatalf("error creating target directory: %v", err)
-	}
-
-	if err := helpers.CopyFile(source, target, file.Elevated); err != nil {
-		log.Fatalf("error copying file: %v", err)
-	}
-
-	if err := applyFileAttributes(file); err != nil {
-		log.Fatalf("error applying file attributes: %v", err)
-	}
-
-	log.Infof("File copied: %s -> %s", source, target)
 	return nil
 }
 
@@ -534,4 +548,61 @@ func applyDirectoryAttributes(dir types.Directory) error {
 	}
 
 	return nil
+}
+
+func isURL(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func determineSourceAndTargetPaths(file types.File, blueprintDir string) (string, string, error) {
+	var sourcePath, targetPath string
+
+	// Determine source path
+	if file.Source != "" {
+		if isURL(file.Source) {
+			sourcePath = file.Source
+		} else {
+			sourcePath = filepath.Join(blueprintDir, file.Source, file.Name)
+		}
+	} else {
+		sourcePath = filepath.Join(blueprintDir, file.Name)
+	}
+
+	// Determine target path
+	targetPath = helpers.ExpandPath(file.Target)
+	if !strings.HasSuffix(targetPath, string(os.PathSeparator)) {
+		// If target doesn't end with a separator, it's a rename
+		targetPath = filepath.Join(filepath.Dir(targetPath), filepath.Base(targetPath))
+	} else {
+		// If target ends with a separator, use the original file name
+		targetPath = filepath.Join(targetPath, file.Name)
+	}
+
+	// Handle intelligent rename
+	if filepath.Base(sourcePath) != filepath.Base(targetPath) {
+		sourceDir := filepath.Dir(sourcePath)
+		sourceBase := filepath.Base(sourcePath)
+		targetBase := filepath.Base(targetPath)
+
+		// Check if the source file exists with the original name
+		if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
+			// If not, try to find a file with a similar name
+			files, err := os.ReadDir(sourceDir)
+			if err != nil {
+				return "", "", fmt.Errorf("error reading source directory: %v", err)
+			}
+			for _, f := range files {
+				if strings.EqualFold(f.Name(), sourceBase) {
+					sourcePath = filepath.Join(sourceDir, f.Name())
+					break
+				}
+			}
+		}
+
+		// Update the target path with the new name
+		targetPath = filepath.Join(filepath.Dir(targetPath), targetBase)
+	}
+
+	return sourcePath, targetPath, nil
 }

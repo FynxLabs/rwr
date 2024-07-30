@@ -3,74 +3,102 @@ package helpers
 import (
 	"errors"
 	"fmt"
-	"github.com/fynxlabs/rwr/internal/types"
-	"github.com/go-git/go-git/v5"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/spf13/viper"
 )
 
-func HandleGitOperation(opts types.GitOptions) error {
-	// Determine the Git operation based on the URL
+func HandleGitOperation(opts types.GitOptions, initConfig *types.InitConfig) error {
 	if filepath.Ext(opts.URL) != "" {
-		// Individual file download/read
-		return HandleGitFileDownload(opts)
+		return HandleGitFileDownload(opts, initConfig)
 	} else {
-		// Clone the Git repository
-		return HandleGitClone(opts)
+		return HandleGitClone(opts, initConfig)
 	}
 }
 
-func HandleGitClone(opts types.GitOptions) error {
+func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 	var auth transport.AuthMethod
 
 	log.Debugf("Cloning Git repository: %s", opts.URL)
 
 	if opts.Private {
-		// Determine the authentication method based on the URL scheme and private flag
-		if opts.URL[0:3] == "git" {
-			// SSH authentication for private repositories
-			privateKey := viper.GetString("repository.ssh_private_key")
-			var err error
-			auth, err = ssh.NewPublicKeysFromFile("git", privateKey, "")
-			if err != nil {
-				return fmt.Errorf("error creating SSH authentication: %v", err)
-			}
-		} else {
-			// HTTPS authentication for private repositories
-			token := viper.GetString("repository.gh_api_token")
-			auth = &http.BasicAuth{
-				Username: "git",
-				Password: token,
-			}
-		}
+		auth = getAuthMethod(opts.URL, initConfig)
 	}
 
-	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(opts.Target)
 	err := os.MkdirAll(targetDir, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
-	// Clone the Git repository
 	_, err = git.PlainClone(opts.Target, false, &git.CloneOptions{
 		URL:  opts.URL,
 		Auth: auth,
-		//Branch: plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", opts.Branch)),
 	})
 	if err != nil {
 		return fmt.Errorf("error cloning Git repository: %v", err)
 	}
 
 	log.Infof("Git repository cloned to: %s", opts.Target)
+
+	// Check and update remote URL if necessary
+	err = CheckAndUpdateRemoteURL(opts.Target, opts.URL)
+	if err != nil {
+		return fmt.Errorf("error checking/updating remote URL: %v", err)
+	}
+
 	return nil
+}
+
+func CheckAndUpdateRemoteURL(repoPath, desiredURL string) error {
+	repo, err := git.PlainOpen(repoPath)
+	if err != nil {
+		return fmt.Errorf("error opening Git repository: %v", err)
+	}
+
+	remoteConfig, err := repo.Remote("origin")
+	if err != nil {
+		return fmt.Errorf("error getting remote 'origin': %v", err)
+	}
+
+	currentURL := remoteConfig.Config().URLs[0]
+	if currentURL != desiredURL {
+		log.Infof("Updating remote URL from %s to %s", currentURL, desiredURL)
+		_, err = repo.CreateRemote(&config.RemoteConfig{
+			Name: "origin",
+			URLs: []string{desiredURL},
+		})
+		if err != nil {
+			return fmt.Errorf("error updating remote URL: %v", err)
+		}
+		log.Infof("Remote URL updated successfully")
+	}
+
+	return nil
+}
+
+func getAuthMethod(url string, initConfig *types.InitConfig) transport.AuthMethod {
+	if strings.HasPrefix(url, "git@") {
+		auth, err := ssh.NewPublicKeysFromFile("git", initConfig.Variables.Flags.SSHKey, "")
+		if err != nil {
+			log.Errorf("Error creating SSH authentication: %v", err)
+			return nil
+		}
+		return auth
+	} else {
+		return &http.BasicAuth{
+			Username: "git",
+			Password: initConfig.Variables.Flags.GHAPIToken,
+		}
+	}
 }
 
 func HandleGitPull(opts types.GitOptions) error {
@@ -97,7 +125,7 @@ func HandleGitPull(opts types.GitOptions) error {
 	return nil
 }
 
-func HandleGitFileDownload(opts types.GitOptions) error {
+func HandleGitFileDownload(opts types.GitOptions, initConfig *types.InitConfig) error {
 	log.Debugf("Downloading file from Git repository: %s", opts.URL)
 	// Extract the repository URL and file path from the opts.URL
 	parts := strings.Split(opts.URL, "/blob/")
@@ -125,7 +153,7 @@ func HandleGitFileDownload(opts types.GitOptions) error {
 		Private: opts.Private,
 		Target:  tempDir,
 	}
-	err = HandleGitClone(cloneOpts)
+	err = HandleGitClone(cloneOpts, initConfig)
 	if err != nil {
 		return fmt.Errorf("error cloning Git repository: %v", err)
 	}

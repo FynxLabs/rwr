@@ -17,8 +17,8 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 
 * *Blueprint-based Configuration*: RWR uses configuration files called blueprints (similar to Chef cookbooks or Ansible playbooks) to define and manage your system's configuration.
 * *Multi-format Support*: Blueprints can be written in YAML, JSON, or TOML format, providing flexibility and compatibility with your preferred configuration format.
-* *Package Management*: RWR integrates with various package managers, allowing you to easily install, remove, and manage packages across different Linux distributions, macOS, and Windows.
-* *File and Directory Management*: RWR provides functionality to manage files and directories, including copying, moving, deleting, creating, and modifying permissions and ownership.
+* *Package Management*: RWR integrates with various package managers, allowing you to easily install, remove, and manage packages across different Linux distributions, macOS, and Windows. Now supports specifying additional arguments for package installation.
+* *File and Directory Management*: RWR provides functionality to manage files and directories, including copying, moving, deleting, creating, and modifying permissions and ownership. Supports URL sources for files and intelligent renaming.
 * *Service Management*: RWR allows you to manage system services, including starting, stopping, enabling, and disabling services across different operating systems.
 * *Repository Management*: RWR supports managing repositories for different package managers, such as apt, brew, dnf, zypper, and more.
 * *User and Group Management*: RWR allows you to create and manage user accounts and groups on your system.
@@ -28,8 +28,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 * *Bootstrap Process*: RWR includes a bootstrap process that can be used to set up the initial system configuration, including installing essential packages, creating directories, and setting permissions.
 * *Variable Substitution*: Use variables in your blueprints to make your configurations more dynamic and reusable.
 * *Extensible Architecture*: RWR is built with extensibility in mind, allowing you to easily add support for new package managers, file synchronization backends, and more.
-* *SSH Key Management*: RWR can generate and manage SSH keys, including copying public keys to GitHub.
-
+* *SSH Key Management*: RWR can generate and manage SSH keys, including copying public keys to GitHub and setting a key as the default RWR SSH key for operations.
 
 == Quick Install
 
@@ -163,10 +162,10 @@ NOTE: All configuration files (`.yaml`, `.json`, or `.toml`) can be in YAML, JSO
 
 RWR supports the following blueprint types:
 
-* `packages`: Defines packages to be installed or removed using various package managers.
+* `packages`: Defines packages to be installed or removed using various package managers. Supports additional arguments for installation.
 * `repositories`: Defines repositories to be managed for different package managers.
 * Files Blueprints (All fall under files processor)
-** `files`: Defines files to be copied, moved, deleted, created, or modified.
+** `files`: Defines files to be copied, moved, deleted, created, or modified. Supports URL sources and intelligent renaming.
 ** `directories`: Defines directories to be managed, including creation, deletion, and modification of permissions and ownership.
 ** `templates`: Defines template files to be processed and rendered during the execution of the blueprints.
 * `services`: Defines services to be managed, including starting, stopping, enabling, and disabling services.
@@ -175,7 +174,7 @@ RWR supports the following blueprint types:
 * `scripts`: Defines scripts to be executed as part of the configuration process.
 * `users`: Defines user accounts and groups to be created or managed.
 * `bootstrap`: Defines the initial setup tasks for the system.
-* `ssh_keys`: Defines SSH keys to be generated and managed.
+* `ssh_keys`: Defines SSH keys to be generated and managed, with the ability to set a key as the default RWR SSH key.
 
 == Documentation Wiki
 

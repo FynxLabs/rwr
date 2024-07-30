@@ -87,7 +87,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process Git repositories
 	log.Debugf("Processing Git repositories from %s", blueprintFile)
-	err = processGitRepositories(bootstrapData.Git)
+	err = processGitRepositories(bootstrapData.Git, initConfig)
 	if err != nil {
 		log.Errorf("Error processing Git repositories: %v", err)
 		return err

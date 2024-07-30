@@ -82,7 +82,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 			err = helpers.HandleGitFileDownload(types.GitOptions{
 				URL:    repoURL + "/blob/" + filePath,
 				Target: "init" + fileExt, // Save the file with the original extension
-			})
+			}, &initConfig)
 			if err != nil {
 				return nil, fmt.Errorf("error downloading init file from GitHub: %w", err)
 			}

@@ -18,7 +18,7 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 		if _, err := os.Stat(gitOpts.Target); os.IsNotExist(err) {
 			// If the target directory doesn't exist, clone the Git repository
 			log.Debugf("Directory %s does not exist. Cloning Git repository", gitOpts.Target)
-			err := helpers.HandleGitClone(*gitOpts)
+			err := helpers.HandleGitClone(*gitOpts, initConfig)
 			if err != nil {
 				return "", fmt.Errorf("error cloning Git repository: %v", err)
 			}
