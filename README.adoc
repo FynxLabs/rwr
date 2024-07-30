@@ -213,156 +213,62 @@ For more detailed information on each topic, please visit the corresponding Wiki
 == Road to 1.0
 
 * For Beta/MVP (0.1.0):
-** Only YAML format needs to be tested and validated
-** Only the Linux platform needs to be tested and validated
+** Linux Tested/Validate - Ubuntu/Fedora/Arch are goal for tested support
 
 * For 0.2.0:
-** Add support for either macOS or Windows platform
-** Only YAML format needs to be tested and validated for the new platform
+** Test/Validate macOS or Windows
 
 * For 0.3.0:
-** Add support for the remaining platform (macOS or Windows)
-** Only YAML format needs to be tested and validated for the new platform
+** Test/Validate final OS macOS or Windows
 
 * For 1.0.0:
 ** All items listed in the "Road to 1.0" section need to be tested and validated across all platforms (Linux, macOS, and Windows)
-** This includes testing and validating YAML, JSON, and TOML formats for each blueprint type on each platform
 
 === Linux (Debian/Ubuntu, Fedora, Arch)
 
-* [ ] Bootstrap Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Package Manager Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Repositories Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Packages Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Services Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Files Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Directories Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Git Repository Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Scripts Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
-* [ ] Users and Groups Processor
-** [*] YAML
-** [ ] JSON
-** [ ] TOML
+* [*] Bootstrap Processor
+* [*] Package Manager Processor
+* [*] Repositories Processor
+* [*] Packages Processor
+* [*] Services Processor
+* [*] Files Processor
+* [*] Directories Processor
+* [*] Git Repository Processor
+* [*] Scripts Processor
+* [*] Users and Groups Processor
+* [*] SSH Keys
 
 === macOS
 
 * [ ] Bootstrap Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Package Manager Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Repositories Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Packages Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Services Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Files Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Directories Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Git Repository Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Scripts Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Users and Groups Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
+* [ ] SSH Keys
 
 === Windows
 
 * [ ] Bootstrap Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Package Manager Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Repositories Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Packages Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Services Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Files Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Directories Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Git Repository Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Scripts Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 * [ ] Users and Groups Processor
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
+* [ ] SSH Keys
 
 == Stretch Goals
 
 * [ ] Configuration Processor (e.g. linux/dconf, macos/defaults)
-** [ ] YAML
-** [ ] JSON
-** [ ] TOML
 
 == Contributing
 
