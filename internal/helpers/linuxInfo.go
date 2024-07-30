@@ -493,7 +493,7 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 			Remove:   fmt.Sprintf("%s remove", binPath),
 			Update:   fmt.Sprintf("%s refresh", binPath),
 			Clean:    fmt.Sprintf("%s refresh", binPath),
-			Elevated: false,
+			Elevated: true,
 		}
 		log.Debugf("Setting snap package manager")
 	case "flatpak":

@@ -21,4 +21,4 @@ templates:
   - name: .profile
     action: copy
     source: ./src/
-    target: { { .User.home } }/
+    target: {{ .User.home }}/

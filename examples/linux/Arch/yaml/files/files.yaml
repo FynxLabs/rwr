@@ -8,8 +8,8 @@ files:
       export PATH=$PATH:$HOME/.local/bin
   - name: .gitignore
     action: copy
-    target: {{ .User.home }}/
     source: ./src/
+    target: {{ .User.home }}/
 
 directories:
   - name: .config
@@ -21,4 +21,4 @@ templates:
   - name: .profile
     action: copy
     source: ./src/
-    target: { { .User.home } }/
+    target: {{ .User.home }}/

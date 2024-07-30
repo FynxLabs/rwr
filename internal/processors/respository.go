@@ -7,6 +7,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
@@ -230,25 +232,36 @@ func processBrewRepository(repo types.Repository, osInfo *types.OSInfo, initConf
 
 func processDnfYumRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	if repo.Action == "add" {
-		// Download the repository file
-		repoFile := filepath.Join("/etc/yum.repos.d", repo.Name+".repo")
-		if err := helpers.DownloadFile(repo.Repository, repoFile, true); err != nil {
-			return fmt.Errorf("error downloading repository file: %v", err)
-		}
-
-		// Import the GPG key
-		importCmd := types.Command{
-			Exec:     osInfo.Tools.Rpm.Bin,
-			Args:     []string{"--import", repo.KeyURL},
+		// Use dnf config-manager to add the repository
+		addCmd := types.Command{
+			Exec:     "dnf",
+			Args:     []string{"config-manager", "--add-repo", repo.URL},
 			Elevated: true,
 		}
-		if err := helpers.RunCommand(importCmd, initConfig.Variables.Flags.Debug); err != nil {
-			return fmt.Errorf("error importing GPG key: %v", err)
+		if err := helpers.RunCommand(addCmd, initConfig.Variables.Flags.Debug); err != nil {
+			return fmt.Errorf("error adding DNF/Yum repository: %v", err)
+		}
+
+		// Import the GPG key if provided
+		if repo.KeyURL != "" {
+			importCmd := types.Command{
+				Exec:     "rpm",
+				Args:     []string{"--import", repo.KeyURL},
+				Elevated: true,
+			}
+			if err := helpers.RunCommand(importCmd, initConfig.Variables.Flags.Debug); err != nil {
+				return fmt.Errorf("error importing GPG key: %v", err)
+			}
 		}
 	} else if repo.Action == "remove" {
 		// Remove the repository file
 		repoFile := filepath.Join("/etc/yum.repos.d", repo.Name+".repo")
-		if err := os.Remove(repoFile); err != nil {
+		removeCmd := types.Command{
+			Exec:     "rm",
+			Args:     []string{"-f", repoFile},
+			Elevated: true,
+		}
+		if err := helpers.RunCommand(removeCmd, initConfig.Variables.Flags.Debug); err != nil {
 			return fmt.Errorf("error removing repository file: %v", err)
 		}
 	}
@@ -304,10 +317,30 @@ func processPacmanRepository(repo types.Repository, osInfo *types.OSInfo, initCo
 	pacmanConf := "/etc/pacman.conf"
 
 	if repo.Action == "add" {
-		// Add the repository to pacman.conf
-		repoLine := fmt.Sprintf("\n[%s]\nServer = %s\n", repo.Name, repo.URL)
-		if err := helpers.AppendToFile(pacmanConf, repoLine, true); err != nil {
-			return fmt.Errorf("error adding Pacman repository: %v", err)
+		// Check if the repository already exists
+		content, err := os.ReadFile(pacmanConf)
+		if err != nil {
+			return fmt.Errorf("error reading pacman.conf: %v", err)
+		}
+
+		repoSection := fmt.Sprintf("[%s]", repo.Name)
+		existingConfig := string(content)
+
+		if strings.Contains(existingConfig, repoSection) {
+			// Repository already exists, update it
+			newRepoConfig := fmt.Sprintf("[%s]\nServer = %s\n", repo.Name, repo.URL)
+			updatedConfig := regexp.MustCompile(fmt.Sprintf(`(?s)\[%s\].*?\n\[`, repo.Name)).
+				ReplaceAllString(existingConfig, newRepoConfig+"[")
+
+			if err := helpers.WriteToFile(pacmanConf, updatedConfig, true); err != nil {
+				return fmt.Errorf("error updating Pacman repository: %v", err)
+			}
+		} else {
+			// Repository doesn't exist, add it
+			repoLine := fmt.Sprintf("\n[%s]\nServer = %s\n", repo.Name, repo.URL)
+			if err := helpers.AppendToFile(pacmanConf, repoLine, true); err != nil {
+				return fmt.Errorf("error adding Pacman repository: %v", err)
+			}
 		}
 
 		// Refresh the package database
@@ -321,8 +354,21 @@ func processPacmanRepository(repo types.Repository, osInfo *types.OSInfo, initCo
 		}
 	} else if repo.Action == "remove" {
 		// Remove the repository from pacman.conf
-		if err := helpers.RemoveLineFromFile(pacmanConf, fmt.Sprintf("[%s]", repo.Name), true); err != nil {
-			return fmt.Errorf("error removing Pacman repository: %v", err)
+		content, err := os.ReadFile(pacmanConf)
+		if err != nil {
+			return fmt.Errorf("error reading pacman.conf: %v", err)
+		}
+
+		repoSection := fmt.Sprintf("[%s]", repo.Name)
+		existingConfig := string(content)
+
+		if strings.Contains(existingConfig, repoSection) {
+			updatedConfig := regexp.MustCompile(fmt.Sprintf(`(?s)\[%s\].*?\n\[`, repo.Name)).
+				ReplaceAllString(existingConfig, "[")
+
+			if err := helpers.WriteToFile(pacmanConf, updatedConfig, true); err != nil {
+				return fmt.Errorf("error removing Pacman repository: %v", err)
+			}
 		}
 	}
 	return nil
