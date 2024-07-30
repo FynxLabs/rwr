@@ -1,0 +1,10 @@
+{
+  "repositories": [
+    {
+      "name": "archlinuxcn",
+      "package_manager": "pacman",
+      "action": "add",
+      "url": "https://repo.archlinuxcn.org/$arch"
+    }
+  ]
+}

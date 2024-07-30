@@ -1,0 +1,8 @@
+packages:
+  - names:
+      - docker
+      - code
+      - vim
+      - tree
+    action: install
+    package_manager: pacman

@@ -1,0 +1,19 @@
+packages:
+  - name: git
+    action: install
+  - name: curl
+    action: install
+
+directories:
+  - name: {{ .User.home }}/git
+    action: create
+    owner: {{ .User.username }}
+    group: {{ .User.username }}
+
+ssh_keys:
+  - name: github
+    type: ed25519
+    path: {{ .User.home }}/.ssh/
+    comment: "{{ .User.username }}@example.com"
+    no_passphrase: true
+    copy_to_github: false

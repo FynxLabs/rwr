@@ -222,31 +222,52 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 }
 
 func CopyFile(source, target string, elevated bool) error {
-
 	log.Debugf("Copying file from %s to %s", source, target)
-	// Create a temporary file to copy the content
-	tempFile, err := os.CreateTemp("", "copy-")
+
+	sourceFile, err := os.Open(source)
 	if err != nil {
-		return fmt.Errorf("error creating temporary file: %v", err)
+		return fmt.Errorf("error opening source file: %v", err)
+	}
+	defer func() {
+		if cerr := sourceFile.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("error closing source file: %v", cerr)
+		}
+	}()
+
+	// Ensure the target directory exists
+	targetDir := filepath.Dir(target)
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
-	// Copy the source file content to the temporary file
-	err = copyFileContent(source, tempFile.Name())
+	targetFile, err := os.Create(target)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating target file: %v", err)
+	}
+	defer func() {
+		if cerr := targetFile.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("error closing target file: %v", cerr)
+		}
+	}()
+
+	_, err = io.Copy(targetFile, sourceFile)
+	if err != nil {
+		return fmt.Errorf("error copying file content: %v", err)
 	}
 
-	// Move the temporary file to the target location
+	// If elevated privileges are required, adjust permissions
 	if elevated {
-		err = moveFileWithElevatedPrivileges(tempFile.Name(), target)
-	} else {
-		err = os.Rename(tempFile.Name(), target)
-	}
-	if err != nil {
-		return fmt.Errorf("error moving file: %v", err)
+		cmd := types.Command{
+			Exec:     "chmod",
+			Args:     []string{"--reference=" + source, target},
+			Elevated: true,
+		}
+		if err := RunCommand(cmd, false); err != nil {
+			return fmt.Errorf("error setting file permissions: %v", err)
+		}
 	}
 
-	return nil
+	return err
 }
 
 func ExpandPath(path string) string {
@@ -262,30 +283,28 @@ func copyFileContent(source, target string) error {
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
-	defer func(sourceFile *os.File) {
-		err := sourceFile.Close()
-		if err != nil {
-			log.Errorf("error closing source file: %v", err)
+	defer func() {
+		if err := sourceFile.Close(); err != nil && err == nil {
+			err = fmt.Errorf("error closing source file: %v", err)
 		}
-	}(sourceFile)
+	}()
 
 	targetFile, err := os.Create(target)
 	if err != nil {
 		return fmt.Errorf("error creating target file: %v", err)
 	}
-	defer func(targetFile *os.File) {
-		err := targetFile.Close()
-		if err != nil {
-			log.Errorf("error closing target file: %v", err)
+	defer func() {
+		if err := targetFile.Close(); err != nil && err == nil {
+			err = fmt.Errorf("error closing target file: %v", err)
 		}
-	}(targetFile)
+	}()
 
 	_, err = io.Copy(targetFile, sourceFile)
 	if err != nil {
 		return fmt.Errorf("error copying file: %v", err)
 	}
 
-	return nil
+	return err
 }
 
 func moveDirectoryWithElevatedPrivileges(source, target string) error {

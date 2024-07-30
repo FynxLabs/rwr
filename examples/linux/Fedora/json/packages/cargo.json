@@ -1,0 +1,12 @@
+{
+  "packages": [
+    {
+      "names": [
+        "bat",
+        "bottom"
+      ],
+      "action": "install",
+      "package_manager": "cargo"
+    }
+  ]
+}

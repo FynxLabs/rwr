@@ -1,0 +1,22 @@
+[blueprints]
+format = "toml"
+location = "."
+order = [
+    "bootstrap",
+    "repositories",
+    "packages",
+    "files",
+    "services",
+    "git",
+    "scripts",
+    "users",
+    "ssh_keys"
+]
+
+[[packageManagers]]
+name = "cargo"
+action = "install"
+
+[[packageManagers]]
+name = "chocolatey"
+action = "install"

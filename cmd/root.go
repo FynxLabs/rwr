@@ -93,8 +93,8 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVar(&interactive, "interactive", false, "Enable interactive mode")
 
-	// Flag for the init.yaml file path
-	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init.yaml file")
+	// Flag for the init file path
+	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init file")
 	err = viper.BindPFlag("rwr.init-file", rootCmd.PersistentFlags().Lookup("init-file"))
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")

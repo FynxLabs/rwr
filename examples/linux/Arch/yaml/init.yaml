@@ -1,0 +1,18 @@
+blueprints:
+  format: yaml
+  location: '.'
+  order:
+    - bootstrap
+    - repositories
+    - packages
+    - files
+    - services
+    - git
+    - scripts
+    - users
+    - ssh_keys
+packageManagers:
+  - name: cargo
+    action: install
+  - name: brew
+    action: install

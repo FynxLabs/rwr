@@ -1,0 +1,21 @@
+{
+  "packages": [
+    {
+      "names": [
+        "docker-desktop",
+        "vscode",
+        "vim",
+        "tree"
+      ],
+      "action": "install",
+      "package_manager": "chocolatey"
+    },
+    {
+      "names": [
+        "Microsoft.WindowsTerminal"
+      ],
+      "action": "install",
+      "package_manager": "winget"
+    }
+  ]
+}

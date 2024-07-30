@@ -1,0 +1,4 @@
+[[packages]]
+names = ["neovim", "jq", "docker", "visual-studio-code", "vim", "tree"]
+action = "install"
+package_manager = "brew"

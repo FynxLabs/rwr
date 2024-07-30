@@ -1,0 +1,9 @@
+[[services]]
+name = "com.docker.docker"
+action = "enable"
+elevated = true
+
+[[services]]
+name = "com.docker.docker"
+action = "start"
+elevated = true

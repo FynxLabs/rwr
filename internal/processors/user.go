@@ -47,7 +47,7 @@ func processGroups(groups []types.Group, initConfig *types.InitConfig) error {
 				log.Errorf("Error creating group %s: %v", group.Name, err)
 				return fmt.Errorf("error creating group %s: %w", group.Name, err)
 			}
-			log.Infof("Group %s created successfully", group.Name)
+			log.Infof("Group %s processed successfully", group.Name)
 		case "modify":
 			err := modifyGroup(group, initConfig)
 			if err != nil {
@@ -98,12 +98,26 @@ func processUsers(users []types.User, initConfig *types.InitConfig) error {
 func createGroup(group types.Group, initConfig *types.InitConfig) error {
 	switch runtime.GOOS {
 	case "linux", "darwin":
+		// Check if the group already exists
+		checkGroupCmd := types.Command{
+			Exec:     "getent",
+			Args:     []string{"group", group.Name},
+			Elevated: false,
+		}
+		err := helpers.RunCommand(checkGroupCmd, initConfig.Variables.Flags.Debug)
+		if err == nil {
+			// Group already exists, log a message and return without error
+			log.Infof("Group %s already exists, skipping creation", group.Name)
+			return nil
+		}
+
+		// If the group doesn't exist, create it
 		createGroupCmd := types.Command{
 			Exec:     "groupadd",
 			Args:     []string{group.Name},
 			Elevated: true,
 		}
-		err := helpers.RunCommand(createGroupCmd, initConfig.Variables.Flags.Debug)
+		err = helpers.RunCommand(createGroupCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error creating group: %v", err)
 		}

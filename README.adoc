@@ -30,7 +30,33 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 * *Extensible Architecture*: RWR is built with extensibility in mind, allowing you to easily add support for new package managers, file synchronization backends, and more.
 * *SSH Key Management*: RWR can generate and manage SSH keys, including copying public keys to GitHub.
 
-== Packages
+
+== Quick Install
+
+For a quick installation of RWR, you can use the following one-liners:
+
+=== Unix-based Systems (Linux and macOS)
+
+[source,bash]
+----
+curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/main/install.sh | sudo bash
+----
+
+=== Windows
+
+Open PowerShell as an administrator and run:
+
+[source,powershell]
+----
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/main/install.ps1'))
+----
+
+These scripts will download and install the latest version of RWR appropriate for your system. They will also set up the necessary paths and permissions.
+
+NOTE: Always review scripts before running them with elevated privileges. The install scripts are available for inspection in the RWR repository.
+
+== Installation
+=== Packages
 
 RWR packages are available for various platforms and architectures through goreleaser. You can find the pre-built packages on the link:https://github.com/fynxlabs/rwr/releases[releases page] of the RWR repository.
 
@@ -42,7 +68,7 @@ The following package types are available:
 * Homebrew taps
 * Scoop buckets
 
-== Installation
+=== From Releases
 
 To install RWR, follow these steps:
 
@@ -150,6 +176,39 @@ RWR supports the following blueprint types:
 * `users`: Defines user accounts and groups to be created or managed.
 * `bootstrap`: Defines the initial setup tasks for the system.
 * `ssh_keys`: Defines SSH keys to be generated and managed.
+
+== Documentation Wiki
+
+For detailed documentation on how to use RWR, please refer to our https://github.com/FynxLabs/rwr/wiki[Wiki]. Here's an overview of the topics covered:
+
+=== Getting Started
+* https://github.com/FynxLabs/rwr/wiki/Home[Home]
+* https://github.com/FynxLabs/rwr/wiki/Quick-Start[Quick Start Guide]
+* https://github.com/FynxLabs/rwr/wiki/Blueprints-General[What are Blueprints?]
+* https://github.com/FynxLabs/rwr/wiki/Init-File[Init File - The Entrypoint]
+* https://github.com/FynxLabs/rwr/wiki/Bootstrap[Bootstrap - System Prerequisites]
+
+=== RWR Command Line Interface
+* https://github.com/FynxLabs/rwr/wiki/Command-&-Flags[CLI & Flags]
+* https://github.com/FynxLabs/rwr/wiki/Configuration[Config File]
+
+=== Blueprints
+* https://github.com/FynxLabs/rwr/wiki/Best-Practices[Blueprint Best Practices]
+* Blueprint Types
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Packages[Packages Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Repositories[Repositories Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Files[Files Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Directories[Directories Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Services[Services Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Users-&-Groups[Users and Groups Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Git[Git Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Scripts[Scripts Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-SSH-Keys[SSH Keys Blueprint]
+
+=== Advanced Topics
+* https://github.com/FynxLabs/rwr/wiki/Variables[Template Variables]
+
+For more detailed information on each topic, please visit the corresponding Wiki page.
 
 == Road to 1.0
 

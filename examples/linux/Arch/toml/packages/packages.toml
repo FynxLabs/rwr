@@ -1,0 +1,4 @@
+[[packages]]
+names = ["docker.io", "code", "vim", "tree"]
+action = "install"
+package_manager = "pacman"

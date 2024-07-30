@@ -1,0 +1,8 @@
+services:
+  - name: Docker Desktop Service
+    action: set_startup
+    startup_type: automatic
+    elevated: true
+  - name: Docker Desktop Service
+    action: start
+    elevated: true

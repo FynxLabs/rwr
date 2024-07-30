@@ -1,0 +1,4 @@
+[[packages]]
+names = ["docker-ce", "code", "vim", "tree"]
+action = "install"
+package_manager = "dnf"

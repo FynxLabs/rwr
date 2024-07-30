@@ -8,10 +8,12 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, error) {
@@ -133,13 +135,28 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	// Process the init file as a template
 	initFileData, err := os.ReadFile(initFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("error reading init file: %w", err)
+		return nil, fmt.Errorf("error reading init file %s: %w", initFilePath, err)
 	}
 
 	processedInit, err := helpers.ResolveTemplate(initFileData, variables)
 	if err != nil {
 		log.Errorf("Error processing init file as a template: %v", err)
 		return nil, err
+	}
+
+	// If it's a TOML file, convert it to YAML
+	if fileExt == ".toml" {
+		var tempMap map[string]interface{}
+		if _, err := toml.Decode(string(processedInit), &tempMap); err != nil {
+			return nil, fmt.Errorf("error decoding TOML: %w", err)
+		}
+		processedInit, err = yaml.Marshal(tempMap)
+		if err != nil {
+			return nil, fmt.Errorf("error converting TOML to YAML: %w", err)
+		}
+		// Update the file extension and processed file path
+		fileExt = ".yaml"
+		processedInitFile = filepath.Join(tempDir, "init-processed"+fileExt)
 	}
 
 	// Write the processed init file to the temporary directory
@@ -152,12 +169,12 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	viper.SetConfigFile(processedInitFile)
 
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("error reading init file: %w", err)
+		return nil, fmt.Errorf("error reading init file into viper: %w", err)
 	}
 
 	// Unmarshal the init file into the InitConfig struct
 	if err := viper.Unmarshal(&initConfig); err != nil {
-		return nil, fmt.Errorf("error unmarshaling init.yaml: %w", err)
+		return nil, fmt.Errorf("error unmarshaling %s: %w", initFilePath, err)
 	}
 
 	// Set default values
@@ -191,7 +208,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 
 	log.Debugf("Init file location: %s", initConfig.Init.Location)
 
-	// Set user-defined variables from init.yaml
+	// Set user-defined variables from init file
 	for key, value := range initConfig.Variables.UserDefined {
 		initConfig.Variables.UserDefined[key] = value
 	}

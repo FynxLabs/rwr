@@ -1,6 +1,0 @@
-templates:
-  - name: template1
-    action: copy
-    from: source/path/
-    to: path/to/copy/
-    create: true

@@ -48,14 +48,16 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 		// Generate SSH key
 		err = generateSSHKey(sshKey)
 		if err != nil {
-			return fmt.Errorf("error generating SSH key: %v", err)
+			log.Errorf("Error generating SSH key %s: %v", sshKey.Name, err)
+			continue // Continue with the next key instead of returning
 		}
 
 		// Copy public key to GitHub if requested
 		if sshKey.CopyToGitHub {
 			err = copySSHKeyToGitHub(sshKey, initConfig)
 			if err != nil {
-				return fmt.Errorf("error copying SSH key to GitHub: %v", err)
+				log.Errorf("Error copying SSH key %s to GitHub: %v", sshKey.Name, err)
+				continue // Continue with the next key instead of returning
 			}
 		}
 	}
@@ -91,8 +93,13 @@ func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error
 }
 
 func generateSSHKey(sshKey types.SSHKey) error {
-
 	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
+
+	// Check if the SSH key already exists
+	if _, err := os.Stat(sshPath); err == nil {
+		log.Warnf("SSH key %s already exists. Skipping generation.", sshPath)
+		return nil
+	}
 
 	args := []string{
 		"-t", sshKey.Type,

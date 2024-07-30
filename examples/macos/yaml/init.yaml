@@ -1,48 +1,16 @@
-# Set Blueprints format to expect and order of execution
 blueprints:
-  # Set format to use for blueprints, default is yaml
-  format: yaml # can be json, yaml, or toml - but lets code know that files in this blueprint setup are in yaml format
-  # Set location to look for blueprints, default is current directory
-  location: . # Default location is current directory, but can be set to any directory - lets code know where to look for blueprints
-  # Set order of execution for blueprints, by directory or file
-  ## Default order of processors is:
-    ## - blueprints - Cannot be changed
-    ## - bootstrap - Cannot be changed
-    ## - initialize - Cannot be changed
-    ## - repositories
-    ## - packages
-    ## - files
-    ## - templates
-    ## - configuration
-    ## - services
+  format: yaml
+  location: '.'
   order:
-    - repositories
-      - source: ./ # Look for repositories in current directory
-        - apt.yaml # Run apt.yaml first
-        - brew.yaml # Run brew.yaml second, then run the rest in the directory if any
-    - files
-      - source: ./ # Look for files in current directory
-        - dotfiles.yaml
+    - bootstrap
     - packages
-      - source: ./ # Look for packages in current directory
-        - brew.yaml
+    - files
     - services
-      - source: ./ # Look for services in current directory
-        - docker.yaml
-    - templates
-      - source: ./ # Look for templates in current directory
-        - git.yaml
-    - configuration
-      - source: ./ # Look for configuration in current directory
-        - gnome.yaml
-
-# Package Managers to install
+    - git
+    - scripts
+    - ssh_keys
 packageManagers:
+  - name: cargo
+    action: install
   - name: brew
     action: install
-
-# Set Variables to reference anywhere - these are just examples but can be used in any blueprint or template
-# there is no limit to the number of variables that can be set
-variables:
-  userEmail: "john.doe@domain.com"
-  userName: "John Doe"

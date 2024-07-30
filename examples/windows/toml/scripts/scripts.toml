@@ -1,0 +1,7 @@
+[[scripts]]
+name = "hello_world"
+action = "run"
+content = """
+#!/bin/bash
+echo "Hello, from this example!"
+"""
