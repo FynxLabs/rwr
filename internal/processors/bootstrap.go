@@ -71,7 +71,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process Files
 	log.Debugf("Processing files from %s", blueprintFile)
-	err = processFiles(bootstrapData.Files, blueprintDir, initConfig)
+	err = processFiles(bootstrapData.Files, blueprintDir)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err

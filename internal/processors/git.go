@@ -2,8 +2,9 @@ package processors
 
 import (
 	"fmt"
-	"github.com/fynxlabs/rwr/internal/types"
 	"os"
+
+	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -65,28 +66,28 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 	return nil
 }
 
-func cloneGitRepository(repo types.Git, initConfig *types.InitConfig) error {
-	gitOpts := types.GitOptions{
-		URL:     repo.URL,
-		Private: repo.Private,
-		Target:  repo.Path,
-		Branch:  repo.Branch,
-	}
+// func cloneGitRepository(repo types.Git, initConfig *types.InitConfig) error {
+// 	gitOpts := types.GitOptions{
+// 		URL:     repo.URL,
+// 		Private: repo.Private,
+// 		Target:  repo.Path,
+// 		Branch:  repo.Branch,
+// 	}
 
-	_, err := os.Stat(gitOpts.Target)
-	if err == nil {
-		// Repository already exists
-		log.Infof("Git repository %s already exists at %s", repo.Name, gitOpts.Target)
-		return nil
-	} else if !os.IsNotExist(err) {
-		// Some other error occurred
-		return fmt.Errorf("error checking Git repository %s: %w", repo.Name, err)
-	}
+// 	_, err := os.Stat(gitOpts.Target)
+// 	if err == nil {
+// 		// Repository already exists
+// 		log.Infof("Git repository %s already exists at %s", repo.Name, gitOpts.Target)
+// 		return nil
+// 	} else if !os.IsNotExist(err) {
+// 		// Some other error occurred
+// 		return fmt.Errorf("error checking Git repository %s: %w", repo.Name, err)
+// 	}
 
-	err = helpers.HandleGitClone(gitOpts, initConfig)
-	if err != nil {
-		return fmt.Errorf("error cloning Git repository %s: %w", repo.Name, err)
-	}
+// 	err = helpers.HandleGitClone(gitOpts, initConfig)
+// 	if err != nil {
+// 		return fmt.Errorf("error cloning Git repository %s: %w", repo.Name, err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

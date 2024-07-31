@@ -26,7 +26,7 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, init
 	}
 
 	// Process regular files
-	err = processFiles(fileData.Files, blueprintDir, initConfig)
+	err = processFiles(fileData.Files, blueprintDir)
 	if err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
@@ -46,18 +46,18 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, init
 	return nil
 }
 
-func processFiles(files []types.File, blueprintDir string, initConfig *types.InitConfig) error {
+func processFiles(files []types.File, blueprintDir string) error {
 	for _, file := range files {
 		if len(file.Names) > 0 {
 			for _, name := range file.Names {
 				fileWithName := file
 				fileWithName.Name = name
-				if err := processFile(fileWithName, blueprintDir, initConfig); err != nil {
+				if err := processFile(fileWithName, blueprintDir); err != nil {
 					return fmt.Errorf("error processing file %s: %w", name, err)
 				}
 			}
 		} else {
-			if err := processFile(file, blueprintDir, initConfig); err != nil {
+			if err := processFile(file, blueprintDir); err != nil {
 				return fmt.Errorf("error processing file %s: %w", file.Name, err)
 			}
 		}
@@ -65,7 +65,7 @@ func processFiles(files []types.File, blueprintDir string, initConfig *types.Ini
 	return nil
 }
 
-func processFile(file types.File, blueprintDir string, initConfig *types.InitConfig) error {
+func processFile(file types.File, blueprintDir string) error {
 
 	log.Debugf("Processing file: %s", file.Name)
 
@@ -219,7 +219,7 @@ func processTemplate(template types.File, blueprintDir string, initConfig *types
 	}
 
 	// Process the template as a file
-	err = processFile(file, blueprintDir, initConfig)
+	err = processFile(file, blueprintDir)
 	if err != nil {
 		log.Errorf("Error processing template as file %s: %v", template.Name, err)
 		return fmt.Errorf("error processing template as file %s: %w", template.Name, err)
@@ -302,7 +302,7 @@ func deleteFile(file types.File) error {
 
 func createFile(file types.File) error {
 
-	log.Debugf("Creating file type: %s", file)
+	log.Debugf("Creating file type: %v", file)
 
 	targetPath := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 

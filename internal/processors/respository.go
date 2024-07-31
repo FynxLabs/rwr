@@ -2,13 +2,14 @@ package processors
 
 import (
 	"fmt"
-	"github.com/charmbracelet/log"
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
@@ -49,7 +50,7 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 			}
 		case "dnf", "yum":
 			log.Debugf("Processing DNF/Yum repository")
-			if err := processDnfYumRepository(repo, osInfo, initConfig); err != nil {
+			if err := processDnfYumRepository(repo, initConfig); err != nil {
 				return err
 			}
 		case "zypper":
@@ -230,7 +231,7 @@ func processBrewRepository(repo types.Repository, osInfo *types.OSInfo, initConf
 	return nil
 }
 
-func processDnfYumRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func processDnfYumRepository(repo types.Repository, initConfig *types.InitConfig) error {
 	if repo.Action == "add" {
 		// Use dnf config-manager to add the repository
 		addCmd := types.Command{
