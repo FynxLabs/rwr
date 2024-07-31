@@ -252,7 +252,7 @@ func CopyFile(source, target string, elevated bool) error {
 
 	_, err = io.Copy(targetFile, sourceFile)
 	if err != nil {
-		return fmt.Errorf("error copying file content: %v", err)
+		return fmt.Errorf("error copying file: %v", err)
 	}
 
 	// If elevated privileges are required, adjust permissions
@@ -279,6 +279,7 @@ func ExpandPath(path string) string {
 }
 
 func copyFileContent(source, target string) error {
+	log.Debugf("Copying file content from %s to %s", source, target)
 	sourceFile, err := os.Open(source)
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
