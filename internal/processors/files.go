@@ -2,9 +2,12 @@ package processors
 
 import (
 	"fmt"
-	"github.com/fynxlabs/rwr/internal/types"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -23,7 +26,7 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, init
 	}
 
 	// Process regular files
-	err = processFiles(fileData.Files, blueprintDir, initConfig)
+	err = processFiles(fileData.Files, blueprintDir)
 	if err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
@@ -43,18 +46,18 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, init
 	return nil
 }
 
-func processFiles(files []types.File, blueprintDir string, initConfig *types.InitConfig) error {
+func processFiles(files []types.File, blueprintDir string) error {
 	for _, file := range files {
 		if len(file.Names) > 0 {
 			for _, name := range file.Names {
 				fileWithName := file
 				fileWithName.Name = name
-				if err := processFile(fileWithName, blueprintDir, initConfig); err != nil {
+				if err := processFile(fileWithName, blueprintDir); err != nil {
 					return fmt.Errorf("error processing file %s: %w", name, err)
 				}
 			}
 		} else {
-			if err := processFile(file, blueprintDir, initConfig); err != nil {
+			if err := processFile(file, blueprintDir); err != nil {
 				return fmt.Errorf("error processing file %s: %w", file.Name, err)
 			}
 		}
@@ -62,41 +65,82 @@ func processFiles(files []types.File, blueprintDir string, initConfig *types.Ini
 	return nil
 }
 
-func processFile(file types.File, blueprintDir string, initConfig *types.InitConfig) error {
-	if file.Content != "" {
-		renderedContent, err := helpers.ResolveTemplate([]byte(file.Content), initConfig.Variables)
+func processFile(file types.File, blueprintDir string) error {
+
+	log.Debugf("Processing file: %s", file.Name)
+
+	if file.Content == "" && file.Source == "" {
+		return fmt.Errorf("either Content or Source must be provided for file %s", file.Name)
+	}
+
+	// Handle URL source
+	if isURL(file.Source) {
+		log.Debug("File Source is URL")
+		tempDir, err := os.MkdirTemp("", "rwr-download-")
 		if err != nil {
-			log.Errorf("Error rendering template for file %s: %v", file.Target, err)
-			return err
+			return fmt.Errorf("error creating temporary directory: %v", err)
+		}
+		defer func() {
+			if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+				log.Errorf("Error removing temporary directory: %v", removeErr)
+				if err == nil {
+					err = removeErr
+				}
+			}
+		}()
+
+		log.Debug("Downloading Source File")
+		downloadPath := filepath.Join(tempDir, filepath.Base(file.Source))
+		err = helpers.DownloadFile(file.Source, downloadPath, false)
+		if err != nil {
+			return fmt.Errorf("error downloading file: %v", err)
 		}
 
-		file.Content = string(renderedContent)
+		log.Debug("Setting File Source and Name")
+		file.Source = filepath.Dir(downloadPath)
+		file.Name = filepath.Base(downloadPath)
 	}
+
+	// If Content exists, we'll always use it and perform a create action
+	if file.Content != "" {
+		if file.Action != "create" {
+			log.Warnf("File %s has Content but action is not 'create'. Defaulting to 'create' action.", file.Name)
+		}
+		file.Action = "create"
+	}
+
+	// Determine source and target paths
+	sourcePath, targetPath, err := determineSourceAndTargetPaths(file, blueprintDir)
+	if err != nil {
+		return err
+	}
+
+	log.Debugf("sourcePath set to: %s; targetPath set to: %s", sourcePath, targetPath)
 
 	switch file.Action {
 	case "copy":
-		log.Debugf("Copying file: %s", file.Name)
-		return copyFile(file, blueprintDir)
+		log.Debugf("Copying file: %s to %s", sourcePath, targetPath)
+		return helpers.CopyFile(sourcePath, targetPath, file.Elevated)
 	case "move":
-		log.Debugf("Moving file: %s", file.Name)
+		log.Debugf("Moving file: %s to %s", sourcePath, targetPath)
 		return moveFile(file, blueprintDir)
 	case "delete":
-		log.Debugf("Deleting file: %s", file.Name)
+		log.Debugf("Deleting file: %s", targetPath)
 		return deleteFile(file)
 	case "create":
-		log.Debugf("Creating file: %s", file.Name)
+		log.Debugf("Creating file: %s", targetPath)
 		return createFile(file)
 	case "chmod":
-		log.Debugf("Changing file permissions: %s", file.Name)
+		log.Debugf("Changing file permissions: %s", targetPath)
 		return chmodFile(file)
 	case "chown":
-		log.Debugf("Changing file owner: %s", file.Name)
+		log.Debugf("Changing file owner: %s", targetPath)
 		return chownFile(file)
 	case "chgrp":
-		log.Debugf("Changing file group: %s", file.Name)
+		log.Debugf("Changing file group: %s", targetPath)
 		return chgrpFile(file)
 	case "symlink":
-		log.Debugf("Symlinking file: %s", file.Name)
+		log.Debugf("Symlinking file: %s to %s", sourcePath, targetPath)
 		return symlinkFile(file, blueprintDir)
 	default:
 		return fmt.Errorf("unsupported action for file: %s", file.Action)
@@ -138,7 +182,6 @@ func processTemplates(templates []types.File, blueprintDir string, initConfig *t
 
 func processTemplate(template types.File, blueprintDir string, initConfig *types.InitConfig) error {
 	log.Infof("Processing template: %s", template.Name)
-	log.Debugf("Template details: Source=%s, Target=%s, Action=%s", template.Source, template.Target, template.Action)
 
 	if template.Name == "" || template.Source == "" || template.Target == "" {
 		log.Warnf("Skipping template with missing required fields: %+v", template)
@@ -168,7 +211,6 @@ func processTemplate(template types.File, blueprintDir string, initConfig *types
 		Name:     template.Name,
 		Action:   template.Action,
 		Content:  string(resolvedContent),
-		Source:   template.Source,
 		Target:   template.Target,
 		Owner:    template.Owner,
 		Group:    template.Group,
@@ -177,7 +219,7 @@ func processTemplate(template types.File, blueprintDir string, initConfig *types
 	}
 
 	// Process the template as a file
-	err = processFile(file, blueprintDir, initConfig)
+	err = processFile(file, blueprintDir)
 	if err != nil {
 		log.Errorf("Error processing template as file %s: %v", template.Name, err)
 		return fmt.Errorf("error processing template as file %s: %w", template.Name, err)
@@ -229,28 +271,6 @@ func processDirectories(directories []types.Directory, blueprintDir string, init
 	return nil
 }
 
-func copyFile(file types.File, blueprintDir string) error {
-	source := filepath.Join(blueprintDir, file.Source, file.Name)
-	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
-
-	// Create the target directory if it doesn't exist
-	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
-		log.Fatalf("error creating target directory: %v", err)
-	}
-
-	if err := helpers.CopyFile(source, target, file.Elevated); err != nil {
-		log.Fatalf("error copying file: %v", err)
-	}
-
-	if err := applyFileAttributes(file); err != nil {
-		log.Fatalf("error applying file attributes: %v", err)
-	}
-
-	log.Infof("File copied: %s -> %s", source, target)
-	return nil
-}
-
 func moveFile(file types.File, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, file.Source, file.Name)
 	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
@@ -281,23 +301,45 @@ func deleteFile(file types.File) error {
 }
 
 func createFile(file types.File) error {
-	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
 
-	// Create the target directory if it doesn't exist
-	targetDir := filepath.Dir(target)
+	log.Debugf("Creating file type: %v", file)
+
+	targetPath := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
+
+	log.Debugf("Creating file: %s", targetPath)
+
+	targetDir := filepath.Dir(targetPath)
+
+	log.Debugf("Creating file dir: %s", targetDir)
+
 	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
-		log.Fatalf("error creating target directory: %v", err)
+		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
-	if _, err := os.Create(target); err != nil {
-		log.Fatalf("error creating file: %v", err)
+	// Create the file
+	f, err := os.Create(targetPath)
+	if err != nil {
+		return fmt.Errorf("error creating file: %v", err)
+	}
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			log.Errorf("error closing file: %v", err)
+		}
+	}(f)
+
+	// Write the content to the file
+	_, err = f.WriteString(file.Content)
+	if err != nil {
+		return fmt.Errorf("error writing content to file: %v", err)
 	}
 
-	if err := applyFileAttributes(file); err != nil {
-		log.Fatalf("error applying file attributes: %v", err)
+	log.Infof("File created and content written: %s", file.Target)
+
+	if err := applyFileAttributes(targetPath, file); err != nil {
+		return fmt.Errorf("error applying file attributes: %v", err)
 	}
 
-	log.Infof("File created: %s", target)
 	return nil
 }
 
@@ -500,18 +542,16 @@ func symlinkDirectory(dir types.Directory, blueprintDir string) error {
 	return nil
 }
 
-func applyFileAttributes(file types.File) error {
-	target := filepath.Join(helpers.ExpandPath(file.Target), file.Name)
-
+func applyFileAttributes(targetPath string, file types.File) error {
 	if file.Mode != 0 {
-		if err := os.Chmod(target, os.FileMode(file.Mode)); err != nil {
-			log.Fatalf("error changing file permissions: %v", err)
+		if err := os.Chmod(targetPath, os.FileMode(file.Mode)); err != nil {
+			return fmt.Errorf("error changing file permissions: %v", err)
 		}
 	}
 
 	if file.Owner != "" || file.Group != "" {
 		if err := chownFile(file); err != nil {
-			log.Fatalf("error changing file owner/group: %v", err)
+			return fmt.Errorf("error changing file owner/group: %v", err)
 		}
 	}
 
@@ -534,4 +574,33 @@ func applyDirectoryAttributes(dir types.Directory) error {
 	}
 
 	return nil
+}
+
+func isURL(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func determineSourceAndTargetPaths(file types.File, blueprintDir string) (string, string, error) {
+	var sourcePath, targetPath string
+
+	// Determine source path
+	if isURL(file.Source) {
+		log.Fatalf("Source is URL, should not be URL at this point - URL Check/Download has failed")
+	} else if file.Content != "" {
+		log.Debug("File Content present, sourcePath will be empty")
+		sourcePath = ""
+	} else {
+		sourcePath = filepath.Join(blueprintDir, file.Source, file.Name)
+	}
+
+	// Determine target path
+	targetPath = helpers.ExpandPath(file.Target)
+	if !strings.HasSuffix(targetPath, string(os.PathSeparator)) {
+		targetPath = filepath.Join(filepath.Dir(targetPath), filepath.Base(targetPath))
+	} else {
+		targetPath = filepath.Join(targetPath, file.Name)
+	}
+
+	return sourcePath, targetPath, nil
 }

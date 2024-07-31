@@ -2,7 +2,9 @@ package processors
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"github.com/spf13/viper"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -46,7 +48,7 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 		}
 
 		// Generate SSH key
-		err = generateSSHKey(sshKey)
+		keyPath, err := generateSSHKey(sshKey)
 		if err != nil {
 			log.Errorf("Error generating SSH key %s: %v", sshKey.Name, err)
 			continue // Continue with the next key instead of returning
@@ -60,11 +62,19 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 				continue // Continue with the next key instead of returning
 			}
 		}
+
+		// Set as RWR SSH Key if requested
+		if sshKey.SetAsRWRSSHKey {
+			err = setAsRWRSSHKey(keyPath)
+			if err != nil {
+				log.Errorf("Error setting SSH key %s as RWR SSH Key: %v", sshKey.Name, err)
+				continue // Continue with the next key instead of returning
+			}
+		}
 	}
 
 	return nil
 }
-
 func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var packages []types.Package
 
@@ -92,13 +102,13 @@ func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error
 	return nil
 }
 
-func generateSSHKey(sshKey types.SSHKey) error {
+func generateSSHKey(sshKey types.SSHKey) (string, error) {
 	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
 
 	// Check if the SSH key already exists
 	if _, err := os.Stat(sshPath); err == nil {
 		log.Warnf("SSH key %s already exists. Skipping generation.", sshPath)
-		return nil
+		return sshPath, nil
 	}
 
 	args := []string{
@@ -118,10 +128,33 @@ func generateSSHKey(sshKey types.SSHKey) error {
 
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("error generating SSH key: %v", err)
+		return "", fmt.Errorf("error generating SSH key: %v", err)
 	}
 
 	log.Infof("SSH key generated: %s", sshPath)
+	return sshPath, nil
+}
+
+func setAsRWRSSHKey(keyPath string) error {
+	// Read the private key file
+	privateKey, err := os.ReadFile(keyPath)
+	if err != nil {
+		return fmt.Errorf("error reading private key file: %v", err)
+	}
+
+	// Encode the private key as base64
+	encodedKey := base64.StdEncoding.EncodeToString(privateKey)
+
+	// Set the encoded key in Viper configuration
+	viper.Set("repository.ssh_private_key", encodedKey)
+
+	// Write the updated configuration to file
+	err = viper.WriteConfig()
+	if err != nil {
+		return fmt.Errorf("error writing updated configuration: %v", err)
+	}
+
+	log.Infof("SSH key %s set as RWR SSH Key", keyPath)
 	return nil
 }
 

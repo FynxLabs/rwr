@@ -95,6 +95,13 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				case "ssh_keys":
 					log.Infof("Processing ssh keys")
 					err = ProcessSSHKeys(resolvedBlueprint, format, osInfo, initConfig)
+					// Add this to your All function, where you process other blueprints
+				case "fonts":
+					log.Info("Processing fonts")
+					err = ProcessFonts(blueprintData, blueprintDir, format, initConfig)
+					if err != nil {
+						return fmt.Errorf("error processing fonts: %w", err)
+					}
 				default:
 					log.Warnf("Unknown processor: %s", processor)
 					continue

@@ -20,7 +20,7 @@ func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, for
 			return fmt.Errorf("error unmarshaling package blueprint: %w", err)
 		}
 	}
-	log.Debugf("Processing %d packages", len(packagesData.Packages))
+	log.Debugf("Processing %d %s packages", len(packagesData.Packages), packagesData.Packages[0].PackageManager)
 	log.Debugf("Packages: %v", packagesData.Packages)
 
 	err = helpers.SetPaths()
@@ -31,17 +31,19 @@ func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, for
 	// Install the packages
 	for _, pkg := range packagesData.Packages {
 		if len(pkg.Names) > 0 {
-			log.Infof("Processing %d packages", len(pkg.Names))
+			log.Infof("Processing %d %s packages", len(pkg.Names), pkg.PackageManager)
 			for _, name := range pkg.Names {
 				log.Debugf("Processing package %s", name)
 				log.Debugf("PackageManager: %s", pkg.PackageManager)
 				log.Debugf("Elevated: %t", pkg.Elevated)
 				log.Debugf("Action: %s", pkg.Action)
+				log.Debugf("Args: %v", pkg.Args)
 				err := ProcessPackage(types.Package{
 					Name:           name,
 					Elevated:       pkg.Elevated,
 					Action:         pkg.Action,
 					PackageManager: pkg.PackageManager,
+					Args:           pkg.Args,
 				}, osInfo, initConfig)
 				if err != nil {
 					failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", name, err))
@@ -52,6 +54,7 @@ func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, for
 			log.Debugf("PackageManager: %s", pkg.PackageManager)
 			log.Debugf("Elevated: %t", pkg.Elevated)
 			log.Debugf("Action: %s", pkg.Action)
+			log.Debugf("Args: %v", pkg.Args)
 			err := ProcessPackage(pkg, osInfo, initConfig)
 			if err != nil {
 				failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
@@ -145,14 +148,18 @@ func ProcessPackage(pkg types.Package, osInfo *types.OSInfo, initConfig *types.I
 	}
 
 	var args []string
-	args = append(args, pkg.Name)
+
+	// Add any additional arguments specified in the package configuration
+	args = append(args, pkg.Args...)
 
 	if pkg.Action == "install" {
 		log.Debugf("Installing package %s", pkg.Name)
 		command = install
+		args = append(args, pkg.Name)
 	} else if pkg.Action == "remove" {
 		log.Debugf("Removing package %s", pkg.Name)
 		command = remove
+		args = append(args, pkg.Name)
 	} else {
 		return fmt.Errorf("unsupported action: %s", pkg.Action)
 	}
