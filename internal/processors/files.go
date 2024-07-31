@@ -303,15 +303,30 @@ func createFile(file types.File) error {
 		log.Fatalf("error creating target directory: %v", err)
 	}
 
-	if _, err := os.Create(target); err != nil {
+	// Create the file
+	f, err := os.Create(target)
+	if err != nil {
 		log.Fatalf("error creating file: %v", err)
 	}
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			log.Errorf("error closing file: %v", err)
+		}
+	}(f)
+
+	// Write the content to the file
+	_, err = f.WriteString(file.Content)
+	if err != nil {
+		log.Fatalf("error writing content to file: %v", err)
+	}
+
+	log.Infof("File created and content written: %s", target)
 
 	if err := applyFileAttributes(file); err != nil {
 		log.Fatalf("error applying file attributes: %v", err)
 	}
 
-	log.Infof("File created: %s", target)
 	return nil
 }
 

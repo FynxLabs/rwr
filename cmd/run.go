@@ -143,6 +143,18 @@ var runSSHKeysCmd = &cobra.Command{
 	},
 }
 
+var runFontsCmd = &cobra.Command{
+	Use:   "fonts",
+	Short: "Run fonts processor",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := processors.All(initConfig, osInfo, []string{"fonts"})
+		if err != nil {
+			log.With("err", err).Errorf("Error running fonts processor")
+			os.Exit(1)
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(runCmd)
 	runCmd.AddCommand(runPackageCmd)
@@ -155,4 +167,5 @@ func init() {
 	runCmd.AddCommand(runGitCmd)
 	runCmd.AddCommand(runScriptsCmd)
 	runCmd.AddCommand(runSSHKeysCmd)
+	runCmd.AddCommand(runFontsCmd)
 }
