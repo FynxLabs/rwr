@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"text/template"
 
+	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -20,6 +21,8 @@ func ResolveTemplate(templateData []byte, variables types.Variables) ([]byte, er
 	data["Flags"] = variables.Flags.ToMap()
 	data["System"] = variables.System.ToMap()
 	data["UserDefined"] = variables.UserDefined
+
+	log.Debugf("Template variables: %+v", data)
 
 	var renderedTemplate bytes.Buffer
 	err = t.Option("missingkey=invalid").Execute(&renderedTemplate, data)

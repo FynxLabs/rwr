@@ -40,7 +40,9 @@ func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, for
 		field := v.Field(i)
 		if field.Type() == reflect.TypeOf(types.PackageManagerInfo{}) {
 			pm := field.Interface().(types.PackageManagerInfo)
+			log.Debugf("Checking for installed packages via: %s", pm.Name)
 			if pm.Bin != "" {
+				log.Debugf("%s installed, checking packages", pm.Name)
 				installed, err := getInstalledPackages(pm)
 				if err != nil {
 					log.Warnf("Error getting installed packages for %s: %v", pm.Name, err)
@@ -228,8 +230,7 @@ func ProcessPackage(pkg types.Package, osInfo *types.OSInfo, initConfig *types.I
 
 func getInstalledPackages(pm types.PackageManagerInfo) ([]string, error) {
 	listCmd := types.Command{
-		Exec: pm.Bin,
-		Args: strings.Split(pm.List, " "),
+		Exec: pm.List,
 	}
 
 	output, err := helpers.RunCommandOutput(listCmd, false)

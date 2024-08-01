@@ -222,17 +222,13 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 }
 
 func CopyFile(source, target string, elevated bool) error {
-	log.Debugf("Copying file from %s to %s", source, target)
+	log.Debugf("Copying file from %s to %s (elevated: %v)", source, target, elevated)
 
 	sourceFile, err := os.Open(source)
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
-	defer func() {
-		if cerr := sourceFile.Close(); cerr != nil && err == nil {
-			err = fmt.Errorf("error closing source file: %v", cerr)
-		}
-	}()
+	defer sourceFile.Close()
 
 	// Ensure the target directory exists
 	targetDir := filepath.Dir(target)
@@ -240,34 +236,43 @@ func CopyFile(source, target string, elevated bool) error {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
-	targetFile, err := os.Create(target)
-	if err != nil {
-		return fmt.Errorf("error creating target file: %v", err)
-	}
-	defer func() {
-		if cerr := targetFile.Close(); cerr != nil && err == nil {
-			err = fmt.Errorf("error closing target file: %v", cerr)
-		}
-	}()
-
-	_, err = io.Copy(targetFile, sourceFile)
-	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
-	}
-
-	// If elevated privileges are required, adjust permissions
 	if elevated {
-		cmd := types.Command{
-			Exec:     "chmod",
-			Args:     []string{"--reference=" + source, target},
-			Elevated: true,
+		// For elevated privileges, use a temporary file
+		tempFile, err := os.CreateTemp("", "rwr-copy-")
+		if err != nil {
+			return fmt.Errorf("error creating temporary file: %v", err)
 		}
-		if err := RunCommand(cmd, false); err != nil {
-			return fmt.Errorf("error setting file permissions: %v", err)
+		defer os.Remove(tempFile.Name())
+
+		_, err = io.Copy(tempFile, sourceFile)
+		if err != nil {
+			return fmt.Errorf("error copying to temporary file: %v", err)
+		}
+
+		err = tempFile.Close()
+		if err != nil {
+			return fmt.Errorf("error closing temporary file: %v", err)
+		}
+
+		// Use the existing elevated move function
+		err = moveFileWithElevatedPrivileges(tempFile.Name(), target)
+		if err != nil {
+			return fmt.Errorf("error moving file with elevated privileges: %v", err)
+		}
+	} else {
+		targetFile, err := os.Create(target)
+		if err != nil {
+			return fmt.Errorf("error creating target file: %v", err)
+		}
+		defer targetFile.Close()
+
+		_, err = io.Copy(targetFile, sourceFile)
+		if err != nil {
+			return fmt.Errorf("error copying file: %v", err)
 		}
 	}
 
-	return err
+	return nil
 }
 
 func ExpandPath(path string) string {
