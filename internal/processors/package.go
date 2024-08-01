@@ -1,7 +1,12 @@
 package processors
 
 import (
+	"bufio"
 	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -20,24 +25,52 @@ func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, for
 			return fmt.Errorf("error unmarshaling package blueprint: %w", err)
 		}
 	}
-	log.Debugf("Processing %d %s packages", len(packagesData.Packages), packagesData.Packages[0].PackageManager)
-	log.Debugf("Packages: %v", packagesData.Packages)
+	log.Debugf("Processing %d packages", len(packagesData.Packages))
 
 	err = helpers.SetPaths()
 	if err != nil {
 		return fmt.Errorf("error setting paths: %w", err)
 	}
 
-	// Install the packages
+	installedPackages := make(map[string]bool)
+
+	// Iterate over all fields in the PackageManager struct
+	v := reflect.ValueOf(osInfo.PackageManager)
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		if field.Type() == reflect.TypeOf(types.PackageManagerInfo{}) {
+			pm := field.Interface().(types.PackageManagerInfo)
+			if pm.Bin != "" {
+				installed, err := getInstalledPackages(pm)
+				if err != nil {
+					log.Warnf("Error getting installed packages for %s: %v", pm.Name, err)
+				}
+				for _, pkg := range installed {
+					installedPackages[pkg] = true
+				}
+			}
+		}
+	}
+
 	for _, pkg := range packagesData.Packages {
 		if len(pkg.Names) > 0 {
-			log.Infof("Processing %d %s packages", len(pkg.Names), pkg.PackageManager)
+			log.Infof("Processing %d packages for %s", len(pkg.Names), pkg.PackageManager)
 			for _, name := range pkg.Names {
-				log.Debugf("Processing package %s", name)
-				log.Debugf("PackageManager: %s", pkg.PackageManager)
-				log.Debugf("Elevated: %t", pkg.Elevated)
-				log.Debugf("Action: %s", pkg.Action)
-				log.Debugf("Args: %v", pkg.Args)
+				if pkg.Action == "install" && installedPackages[name] {
+					log.Infof("Package %s is already installed, skipping", name)
+					continue
+				}
+
+				// This is where the new code snippet goes
+				if pkg.PackageManager == "gnome-extensions" {
+					extID, err := getGnomeExtensionID(name)
+					if err != nil {
+						failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", name, err))
+						continue
+					}
+					name = extID
+				}
+
 				err := ProcessPackage(types.Package{
 					Name:           name,
 					Elevated:       pkg.Elevated,
@@ -50,11 +83,21 @@ func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, for
 				}
 			}
 		} else {
-			log.Infof("Processing package %s", pkg.Name)
-			log.Debugf("PackageManager: %s", pkg.PackageManager)
-			log.Debugf("Elevated: %t", pkg.Elevated)
-			log.Debugf("Action: %s", pkg.Action)
-			log.Debugf("Args: %v", pkg.Args)
+			if pkg.Action == "install" && installedPackages[pkg.Name] {
+				log.Infof("Package %s is already installed, skipping", pkg.Name)
+				continue
+			}
+
+			// This is where a similar check would go for single packages
+			if pkg.PackageManager == "gnome-extensions" {
+				extID, err := getGnomeExtensionID(pkg.Name)
+				if err != nil {
+					failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
+					continue
+				}
+				pkg.Name = extID
+			}
+
 			err := ProcessPackage(pkg, osInfo, initConfig)
 			if err != nil {
 				failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
@@ -131,6 +174,11 @@ func ProcessPackage(pkg types.Package, osInfo *types.OSInfo, initConfig *types.I
 			install = osInfo.PackageManager.Cargo.Install
 			remove = osInfo.PackageManager.Cargo.Remove
 			elevated = osInfo.PackageManager.Cargo.Elevated
+		case "gnome-extensions":
+			log.Debug("Using GNOME Extensions CLI package manager")
+			install = osInfo.PackageManager.GnomeExtensions.Install
+			remove = osInfo.PackageManager.GnomeExtensions.Remove
+			elevated = osInfo.PackageManager.GnomeExtensions.Elevated
 		default:
 			return fmt.Errorf("unsupported package manager: %s", pkg.PackageManager)
 		}
@@ -176,4 +224,56 @@ func ProcessPackage(pkg types.Package, osInfo *types.OSInfo, initConfig *types.I
 	}
 
 	return nil
+}
+
+func getInstalledPackages(pm types.PackageManagerInfo) ([]string, error) {
+	listCmd := types.Command{
+		Exec: pm.Bin,
+		Args: strings.Split(pm.List, " "),
+	}
+
+	output, err := helpers.RunCommandOutput(listCmd, false)
+	if err != nil {
+		return nil, fmt.Errorf("error getting installed packages: %v", err)
+	}
+
+	if pm.Name == "gnome-extensions" {
+		var packages []string
+		scanner := bufio.NewScanner(strings.NewReader(output))
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+			if len(fields) > 0 {
+				packages = append(packages, fields[0])
+			}
+		}
+		return packages, nil
+	}
+
+	return strings.Fields(output), nil
+}
+
+func getGnomeExtensionID(nameOrID string) (string, error) {
+	if _, err := strconv.Atoi(nameOrID); err == nil {
+		return nameOrID, nil
+	}
+
+	searchCmd := types.Command{
+		Exec: "gext",
+		Args: []string{"search", nameOrID},
+	}
+
+	output, err := helpers.RunCommandOutput(searchCmd, false)
+	if err != nil {
+		return "", fmt.Errorf("error searching for GNOME extension: %v", err)
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) >= 2 && strings.Contains(strings.ToLower(scanner.Text()), strings.ToLower(nameOrID)) {
+			return fields[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("GNOME extension not found: %s", nameOrID)
 }

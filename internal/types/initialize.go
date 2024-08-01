@@ -3,6 +3,7 @@ package types
 // OSInfo holds information about the detected OS, package managers, and tools.
 type OSInfo struct {
 	OS             string         // Operating system detected
+	System         System         // System Info
 	PackageManager PackageManager // Package managers available
 	Tools          ToolList       // Common tools
 }
@@ -28,9 +29,17 @@ type Flags struct {
 	InitTemplatesEnabled bool
 }
 
+type System struct {
+	OS        string // Basic OS - Linux, macOS, Windows
+	OSFamily  string // OS Family - Ubuntu, Fedora, Darwin
+	OSVersion string // OS Version - 22.04
+	OSArch    string // OS Arch - amd64, arm64
+}
+
 type Variables struct {
 	Flags       Flags
 	User        UserInfo
+	System      System
 	UserDefined map[string]interface{}
 }
 
@@ -70,5 +79,14 @@ func (f Flags) ToMap() map[string]interface{} {
 		"sshKey":               f.SSHKey,
 		"skipVersionCheck":     f.SkipVersionCheck,
 		"initTemplatesEnabled": f.InitTemplatesEnabled,
+	}
+}
+
+func (f System) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"os":        f.OS,
+		"osFamily":  f.OSFamily,
+		"osVersion": f.OSVersion,
+		"osArch":    f.OSArch,
 	}
 }

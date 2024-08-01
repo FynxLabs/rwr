@@ -71,6 +71,10 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 			if err := processWinget(pm, osInfo, initConfig); err != nil {
 				return err
 			}
+		case "gnome-extensions":
+			if err := processGnomeExtensionsCLI(pm, osInfo, initConfig); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unsupported package manager: %s", pm.Name)
 		}
@@ -97,6 +101,13 @@ func processBrew(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *
 					log.Warnf("Error removing temporary file %s: %v", name, err)
 				}
 			}(tmpFile.Name())
+
+			osInfo.Tools.Curl = helpers.FindTool("curl")
+
+			if osInfo.Tools.Curl.Bin == "" {
+				log.Warn("Brew Install: Curl not found")
+				return nil
+			}
 
 			// Download the Homebrew installation script
 			downloadCmd := types.Command{
@@ -851,5 +862,52 @@ func processCargo(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 		}
 		log.Infof("Cargo removed successfully")
 	}
+	return nil
+}
+
+func processGnomeExtensionsCLI(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	if pm.Action == "install" {
+		if helpers.FindTool("gext").Exists {
+			log.Infof("GNOME Extensions CLI is already installed")
+			return nil
+		}
+
+		log.Infof("Installing GNOME Extensions CLI")
+		installCmd := types.Command{
+			Exec:     osInfo.PackageManager.Default.Install,
+			Args:     []string{"gnome-extensions-cli"},
+			Elevated: osInfo.PackageManager.Default.Elevated,
+		}
+		err := helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug)
+		if err != nil {
+			return fmt.Errorf("error installing GNOME Extensions CLI: %v", err)
+		}
+
+		log.Infof("GNOME Extensions CLI installed successfully")
+		osInfo.PackageManager.GnomeExtensions = types.PackageManagerInfo{
+			Name:     "gnome-extensions",
+			Bin:      "gext",
+			List:     "gext list --user --enabled",
+			Search:   "gext search",
+			Install:  "gext install",
+			Remove:   "gext uninstall",
+			Update:   "gext update",
+			Clean:    "",
+			Elevated: false,
+		}
+	} else if pm.Action == "remove" {
+		log.Infof("Removing GNOME Extensions CLI")
+		removeCmd := types.Command{
+			Exec:     osInfo.PackageManager.Default.Remove,
+			Args:     []string{"gnome-extensions-cli"},
+			Elevated: osInfo.PackageManager.Default.Elevated,
+		}
+		err := helpers.RunCommand(removeCmd, initConfig.Variables.Flags.Debug)
+		if err != nil {
+			return fmt.Errorf("error removing GNOME Extensions CLI: %v", err)
+		}
+		log.Infof("GNOME Extensions CLI removed successfully")
+	}
+
 	return nil
 }

@@ -1,6 +1,9 @@
 package helpers
 
 import (
+	"os/exec"
+	"strings"
+
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
@@ -114,4 +117,14 @@ func SetMacOSDetails(osInfo *types.OSInfo) {
 			log.Warnf("Unknown default package manager specified in Viper config: %s", viperDefault)
 		}
 	}
+}
+
+func getDarwinVersion() string {
+	cmd := exec.Command("sw_vers", "-productVersion")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Errorf("Error getting macOS version: %v", err)
+		return "Unknown"
+	}
+	return strings.TrimSpace(string(output))
 }

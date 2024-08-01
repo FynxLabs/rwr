@@ -18,6 +18,7 @@ func ResolveTemplate(templateData []byte, variables types.Variables) ([]byte, er
 	data := make(map[string]interface{})
 	data["User"] = variables.User.ToMap()
 	data["Flags"] = variables.Flags.ToMap()
+	data["System"] = variables.System.ToMap()
 	data["UserDefined"] = variables.UserDefined
 
 	var renderedTemplate bytes.Buffer

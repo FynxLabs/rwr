@@ -1,13 +1,14 @@
 package helpers
 
 import (
-	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 )
@@ -24,21 +25,26 @@ func DetectOS() *types.OSInfo {
 
 	osInfo.Tools = findCommonTools()
 
+	osInfo.OS = runtime.GOOS
+	osInfo.System = types.System{
+		OS:        runtime.GOOS,
+		OSFamily:  getOSFamily(),
+		OSVersion: getOSVersion(),
+		OSArch:    runtime.GOARCH,
+	}
+
 	switch runtime.GOOS {
 	case "linux":
 		log.Debug("Linux detected.")
-		osInfo.OS = "linux"
 		err := SetLinuxDetails(osInfo)
 		if err != nil {
 			log.Fatalf("Error setting Linux details: %v", err)
 		}
 	case "darwin":
 		log.Debug("macOS detected.")
-		osInfo.OS = "macos"
 		SetMacOSDetails(osInfo)
 	case "windows":
 		log.Debug("Windows detected.")
-		osInfo.OS = "windows"
 		SetWindowsDetails(osInfo)
 	default:
 		log.Fatal("This setup only supports macOS, Linux, and Windows.")
@@ -181,4 +187,86 @@ func SetPaths() error {
 	default:
 		return os.Setenv("PATH", newPath)
 	}
+}
+
+func getOSFamily() string {
+	switch runtime.GOOS {
+	case "linux":
+		return getLinuxDistro()
+	case "darwin":
+		return "Darwin"
+	case "windows":
+		return "Windows"
+	default:
+		return "Unknown"
+	}
+}
+
+func getOSVersion() string {
+	switch runtime.GOOS {
+	case "linux":
+		return getLinuxVersion()
+	case "darwin":
+		return getDarwinVersion()
+	case "windows":
+		return getWindowsVersion()
+	default:
+		return "Unknown"
+	}
+}
+
+func getLinuxDistro() string {
+	if fileExists("/etc/os-release") {
+		content, err := os.ReadFile("/etc/os-release")
+		if err == nil {
+			lines := strings.Split(string(content), "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "ID=") {
+					return strings.Trim(strings.TrimPrefix(line, "ID="), "\"")
+				}
+			}
+		}
+	}
+
+	if fileExists("/etc/lsb-release") {
+		content, err := os.ReadFile("/etc/lsb-release")
+		if err == nil {
+			lines := strings.Split(string(content), "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "DISTRIB_ID=") {
+					return strings.Trim(strings.TrimPrefix(line, "DISTRIB_ID="), "\"")
+				}
+			}
+		}
+	}
+
+	return "Unknown Linux"
+}
+
+func getLinuxVersion() string {
+	if fileExists("/etc/os-release") {
+		content, err := os.ReadFile("/etc/os-release")
+		if err == nil {
+			lines := strings.Split(string(content), "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "VERSION_ID=") {
+					return strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), "\"")
+				}
+			}
+		}
+	}
+
+	if fileExists("/etc/lsb-release") {
+		content, err := os.ReadFile("/etc/lsb-release")
+		if err == nil {
+			lines := strings.Split(string(content), "\n")
+			for _, line := range lines {
+				if strings.HasPrefix(line, "DISTRIB_RELEASE=") {
+					return strings.Trim(strings.TrimPrefix(line, "DISTRIB_RELEASE="), "\"")
+				}
+			}
+		}
+	}
+
+	return "Unknown Version"
 }
