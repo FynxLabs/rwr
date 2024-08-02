@@ -26,7 +26,7 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 		case "dconf":
 			err = processDconf(blueprintDir, config, initConfig)
 		case "gsettings":
-			err = processGSettings(config, initConfig)
+			err = processGSettings(config)
 		case "macos_defaults":
 			err = processMacOSDefaults(config, initConfig)
 		case "windows_registry":
@@ -64,16 +64,13 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 		}
 	}
 
-	cmd := exec.Command("dconf", "load", "/", "<", file)
-	if config.Elevated {
-		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
+	cmd := types.Command{
+		Exec:     "dconf",
+		Args:     []string{"load", "/", "<", file},
+		Elevated: config.Elevated,
 	}
 
-	err := helpers.RunCommand(types.Command{
-		Exec:     cmd.Path,
-		Args:     cmd.Args[1:],
-		Elevated: config.Elevated,
-	}, initConfig.Variables.Flags.Debug)
+	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying dconf configuration: %w", err)
@@ -89,38 +86,75 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 	return nil
 }
 
-func processGSettings(config types.Configuration, initConfig *types.InitConfig) error {
-	args := []string{"set"}
-	if config.Path != "" {
-		args = append(args, fmt.Sprintf("%s:%s", config.Schema, config.Path))
-	} else {
-		args = append(args, config.Schema)
-	}
+func processGSettings(config types.Configuration) error {
+	log.Debugf("Processing gsettings configuration: %s", config.Name)
 
-	cvalue := fmt.Sprintf("%v", config.Value)
-	args = append(args, config.Key, cvalue)
+	for key, value := range config.Settings {
+		log.Debugf("Processing key: %s with value: %v", key, value)
 
-	cmd := exec.Command("gsettings", args...)
+		// Check if the key is writable
+		checkCmd := exec.Command("gsettings", "writable", config.Schema, key)
+		output, err := checkCmd.CombinedOutput()
+		if err != nil {
+			log.Warnf("Error checking if key is writable - Schema: %s, Key: %s, Error: %v, Output: %s", config.Schema, key, err, string(output))
+			continue
+		}
 
-	if config.Elevated {
-		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
-	}
+		if strings.TrimSpace(string(output)) != "true" {
+			log.Warnf("GSetting is not writable - Schema: %s, Key: %s, Value: %v", config.Schema, key, value)
+			continue
+		}
 
-	err := helpers.RunCommand(types.Command{
-		Exec:     cmd.Path,
-		Args:     cmd.Args[1:],
-		Elevated: config.Elevated,
-	}, initConfig.Variables.Flags.Debug)
+		// Convert the value to a string and escape it properly
+		strValue := formatGSettingsValue(value)
+		log.Debugf("Formatted value: %s", strValue)
 
-	if err != nil {
-		return fmt.Errorf("error applying gsettings configuration: %w", err)
+		args := []string{"set", config.Schema, key, strValue}
+		log.Debugf("Executing command: gsettings %s", strings.Join(args, " "))
+
+		cmd := exec.Command("gsettings", args...)
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			log.Errorf("Error applying gsettings configuration - Schema: %s, Key: %s, Value: %s, Error: %v, Output: %s", config.Schema, key, strValue, err, string(output))
+		} else {
+			log.Debugf("Successfully applied gsettings - Schema: %s, Key: %s, Value: %s", config.Schema, key, strValue)
+		}
 	}
 
 	return nil
 }
 
-func processMacOSDefaults(config types.Configuration, initConfig *types.InitConfig) error {
+func formatGSettingsValue(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		// If the string already looks like a formatted gsettings value, return it as-is
+		if strings.HasPrefix(v, "[") || strings.HasPrefix(v, "(") {
+			return v
+		}
+		return fmt.Sprintf("'%s'", strings.Replace(v, "'", "\\'", -1))
+	case []interface{}:
+		var elements []string
+		for _, elem := range v {
+			elements = append(elements, formatGSettingsValue(elem))
+		}
+		return fmt.Sprintf("[%s]", strings.Join(elements, ","))
+	case int, int32, int64, uint, uint32, uint64:
+		return fmt.Sprintf("%d", v)
+	case float32, float64:
+		return fmt.Sprintf("%f", v)
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case nil:
+		return "[]"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
 
+func processMacOSDefaults(config types.Configuration, initConfig *types.InitConfig) error {
 	args := []string{"write"}
 	if config.Domain != "" {
 		args = append(args, config.Domain)
@@ -129,17 +163,13 @@ func processMacOSDefaults(config types.Configuration, initConfig *types.InitConf
 	}
 	args = append(args, config.Key, fmt.Sprintf("-%s", config.Kind), fmt.Sprintf("%v", config.Value))
 
-	cmd := exec.Command("defaults", args...)
-
-	if config.Elevated {
-		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
+	cmd := types.Command{
+		Exec:     "defaults",
+		Args:     args,
+		Elevated: config.Elevated,
 	}
 
-	err := helpers.RunCommand(types.Command{
-		Exec:     cmd.Path,
-		Args:     cmd.Args[1:],
-		Elevated: config.Elevated,
-	}, initConfig.Variables.Flags.Debug)
+	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying macOS defaults configuration: %w", err)
@@ -171,21 +201,18 @@ func processWindowsRegistry(config types.Configuration, initConfig *types.InitCo
 		return fmt.Errorf("unsupported registry value type: %s", config.Type)
 	}
 
-	args := []string{"-Command", psCommand}
-
-	cmd := exec.Command("powershell", args...)
+	cmd := types.Command{
+		Exec:     "powershell",
+		Args:     []string{"-Command", psCommand},
+		Elevated: config.Elevated,
+	}
 
 	if config.Elevated {
 		// For elevated privileges, we need to run PowerShell as administrator
-		// This might require additional setup or prompt the user for elevation
-		cmd = exec.Command("powershell", append([]string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList"}, args...)...)
+		cmd.Args = []string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand)}
 	}
 
-	err := helpers.RunCommand(types.Command{
-		Exec:     cmd.Path,
-		Args:     cmd.Args[1:],
-		Elevated: config.Elevated,
-	}, initConfig.Variables.Flags.Debug)
+	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying Windows registry configuration: %w", err)

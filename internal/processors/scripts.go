@@ -60,13 +60,13 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 
 	// Set default executor if not specified
 	if script.Exec == "" {
-		switch osInfo.OS {
+		switch osInfo.System.OS {
 		case "linux", "darwin":
 			script.Exec = "bash"
 		case "windows":
 			script.Exec = "powershell"
 		default:
-			return fmt.Errorf("unsupported OS for default script executor: %s", osInfo.OS)
+			return fmt.Errorf("unsupported OS for default script executor: %s", osInfo.System.OS)
 		}
 	}
 

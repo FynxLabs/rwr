@@ -1,19 +1,20 @@
 package processors
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/spf13/viper"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/google/go-github/v45/github"
+	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 )
 
@@ -32,7 +33,7 @@ func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, i
 	err = processSSHKeys(sshKeyData.SSHKeys, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing SSH Keys: %v", err)
-		return fmt.Errorf("error processing SSHE Keys: %w", err)
+		return fmt.Errorf("error processing SSH Keys: %w", err)
 	}
 
 	return nil
@@ -75,6 +76,7 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 
 	return nil
 }
+
 func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var packages []types.Package
 
@@ -121,12 +123,12 @@ func generateSSHKey(sshKey types.SSHKey) (string, error) {
 		args = append(args, "-N", "")
 	}
 
-	cmd := exec.Command("ssh-keygen", args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd := types.Command{
+		Exec: "ssh-keygen",
+		Args: args,
+	}
 
-	err := cmd.Run()
+	err := helpers.RunCommand(cmd, true)
 	if err != nil {
 		return "", fmt.Errorf("error generating SSH key: %v", err)
 	}
@@ -181,14 +183,25 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	key := string(publicKeyBytes)
 
 	var title string
-	if sshKey.GithubTitle != "" {
-		title = sshKey.GithubTitle
-	} else {
+	if sshKey.GithubTitle == "" {
 		hostname, err := os.Hostname()
 		if err != nil {
 			return fmt.Errorf("error getting hostname: %v", err)
 		}
-		title = hostname
+
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Printf("Enter GitHub SSH key title (default: %s): ", hostname)
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("error reading user input: %v", err)
+		}
+
+		title = strings.TrimSpace(input)
+		if title == "" {
+			title = hostname
+		}
+	} else {
+		title = sshKey.GithubTitle
 	}
 
 	_, _, err = client.Users.CreateKey(context.TODO(), &github.Key{

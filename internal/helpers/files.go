@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -221,7 +222,7 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 	return nil
 }
 
-func CopyFile(source, target string, elevated bool) error {
+func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error {
 	log.Debugf("Copying file from %s to %s (elevated: %v)", source, target, elevated)
 
 	sourceFile, err := os.Open(source)
@@ -229,6 +230,12 @@ func CopyFile(source, target string, elevated bool) error {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
 	defer sourceFile.Close()
+
+	// Get source file info
+	sourceInfo, err := sourceFile.Stat()
+	if err != nil {
+		return fmt.Errorf("error getting source file info: %v", err)
+	}
 
 	// Ensure the target directory exists
 	targetDir := filepath.Dir(target)
@@ -259,8 +266,14 @@ func CopyFile(source, target string, elevated bool) error {
 		if err != nil {
 			return fmt.Errorf("error moving file with elevated privileges: %v", err)
 		}
+
+		// Set permissions after moving the file
+		err = os.Chmod(target, sourceInfo.Mode())
+		if err != nil {
+			return fmt.Errorf("error setting file permissions: %v", err)
+		}
 	} else {
-		targetFile, err := os.Create(target)
+		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode())
 		if err != nil {
 			return fmt.Errorf("error creating target file: %v", err)
 		}
@@ -269,6 +282,18 @@ func CopyFile(source, target string, elevated bool) error {
 		_, err = io.Copy(targetFile, sourceFile)
 		if err != nil {
 			return fmt.Errorf("error copying file: %v", err)
+		}
+	}
+
+	// Preserve ownership on Unix-like systems
+	if osInfo.System.OS == "linux" || osInfo.System.OS == "macos" {
+		sysStat, ok := sourceInfo.Sys().(*syscall.Stat_t)
+		if !ok {
+			return fmt.Errorf("failed to get system-specific file information")
+		}
+		err = os.Chown(target, int(sysStat.Uid), int(sysStat.Gid))
+		if err != nil {
+			return fmt.Errorf("error setting file ownership: %v", err)
 		}
 	}
 
@@ -461,4 +486,17 @@ func promptOverwrite() bool {
 		log.Fatalf("error reading input: %v", err)
 	}
 	return strings.EqualFold(input, "y") || strings.EqualFold(input, "yes")
+}
+
+func ExtractInitParentDir(url string) string {
+	parts := strings.Split(url, "/")
+	for i := len(parts) - 1; i >= 0; i-- {
+		if strings.HasPrefix(strings.ToLower(parts[i]), "init.") {
+			if i > 0 && parts[i-1] != "master" {
+				return parts[i-1]
+			}
+			return ""
+		}
+	}
+	return ""
 }

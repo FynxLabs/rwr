@@ -2,10 +2,11 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/charmbracelet/log"
-	"github.com/fynxlabs/rwr/internal/types"
 	"reflect"
 	"strings"
+
+	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func GetPackageManagerInfo(osInfo *types.OSInfo, pm string) (types.PackageManagerInfo, error) {
@@ -76,9 +77,9 @@ func getPackageManagerNames(pm types.PackageManager) []string {
 func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var installCmd types.Command
 
-	switch osInfo.OS {
+	switch osInfo.System.OS {
 	case "linux":
-		log.Debugf("Installing OpenSSL on %s", osInfo.OS)
+		log.Debugf("Installing OpenSSL on %s", osInfo.System.OS)
 		switch osInfo.PackageManager.Default.Name {
 		case "apt":
 			log.Debugf("Installing OpenSSL with %s", osInfo.PackageManager.Apt.Bin)
@@ -91,28 +92,28 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 			log.Debugf("Installing OpenSSL with %s", osInfo.PackageManager.Dnf.Bin)
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Dnf.Install,
-				Args:     append([]string{"openssl", "openssl-devel"}),
+				Args:     []string{"openssl", "openssl-devel"},
 				Elevated: osInfo.PackageManager.Dnf.Elevated,
 			}
 		case "yum":
 			log.Debugf("Installing OpenSSL with %s", osInfo.PackageManager.Yum.Bin)
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Yum.Install,
-				Args:     append([]string{"openssl", "openssl-devel"}),
+				Args:     []string{"openssl", "openssl-devel"},
 				Elevated: osInfo.PackageManager.Yum.Elevated,
 			}
 		case "pacman":
 			log.Debugf("Installing OpenSSL with %s", osInfo.PackageManager.Pacman.Bin)
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Pacman.Install,
-				Args:     append([]string{"openssl"}),
+				Args:     []string{"openssl"},
 				Elevated: osInfo.PackageManager.Pacman.Elevated,
 			}
 		case "zypper":
 			log.Debugf("Installing OpenSSL with %s", osInfo.PackageManager.Zypper.Bin)
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Zypper.Install,
-				Args:     append([]string{"openssl", "libopenssl-devel"}),
+				Args:     []string{"openssl", "libopenssl-devel"},
 				Elevated: osInfo.PackageManager.Zypper.Elevated,
 			}
 		default:
@@ -120,7 +121,7 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 			return nil
 		}
 	case "macos":
-		log.Debugf("Installing OpenSSL on %s", osInfo.OS)
+		log.Debugf("Installing OpenSSL on %s", osInfo.System.OS)
 		if osInfo.PackageManager.Default.Name == "brew" {
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Brew.Install,
@@ -132,7 +133,7 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 			return nil
 		}
 	case "windows":
-		log.Debugf("Installing OpenSSL on %s", osInfo.OS)
+		log.Debugf("Installing OpenSSL on %s", osInfo.System.OS)
 		if osInfo.PackageManager.Default.Name == "chocolatey" {
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Chocolatey.Install,
@@ -144,7 +145,7 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 			return nil
 		}
 	default:
-		log.Warnf("Unsupported OS for OpenSSL installation: %s", osInfo.OS)
+		log.Warnf("Unsupported OS for OpenSSL installation: %s", osInfo.System.OS)
 		return nil
 	}
 
@@ -160,9 +161,9 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var installCmd types.Command
 
-	switch osInfo.OS {
+	switch osInfo.System.OS {
 	case "linux":
-		log.Debugf("Installing build essentials on %s", osInfo.OS)
+		log.Debugf("Installing build essentials on %s", osInfo.System.OS)
 		switch osInfo.PackageManager.Default.Name {
 		case "apt":
 			log.Debugf("Installing build essentials with %s", osInfo.PackageManager.Apt.Bin)
@@ -175,28 +176,28 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 			log.Debugf("Installing build essentials with %s", osInfo.PackageManager.Dnf.Bin)
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Dnf.Install,
-				Args:     append([]string{"make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel", "g++"}),
+				Args:     []string{"make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel", "g++"},
 				Elevated: osInfo.PackageManager.Dnf.Elevated,
 			}
 		case "yum":
 			log.Debugf("Installing build essentials with %s", osInfo.PackageManager.Yum.Bin)
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Yum.Install,
-				Args:     append([]string{"make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel", "xcb-util-devel"}),
+				Args:     []string{"make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel", "xcb-util-devel"},
 				Elevated: osInfo.PackageManager.Yum.Elevated,
 			}
 		case "pacman":
 			log.Debugf("Installing build essentials with %s", osInfo.PackageManager.Pacman.Bin)
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Pacman.Install,
-				Args:     append([]string{"base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"}),
+				Args:     []string{"base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"},
 				Elevated: osInfo.PackageManager.Pacman.Elevated,
 			}
 		case "zypper":
 			log.Debugf("Installing build essentials with %s", osInfo.PackageManager.Zypper.Bin)
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Zypper.Install,
-				Args:     append([]string{"make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel"}),
+				Args:     []string{"make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel"},
 				Elevated: osInfo.PackageManager.Zypper.Elevated,
 			}
 		default:
@@ -204,7 +205,7 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 			return nil
 		}
 	case "macos":
-		log.Debugf("Installing build essentials on %s", osInfo.OS)
+		log.Debugf("Installing build essentials on %s", osInfo.System.OS)
 		if osInfo.PackageManager.Default.Name == "brew" {
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Brew.Install,
@@ -216,7 +217,7 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 			return nil
 		}
 	case "windows":
-		log.Debugf("Installing build essentials on %s", osInfo.OS)
+		log.Debugf("Installing build essentials on %s", osInfo.System.OS)
 		if osInfo.PackageManager.Default.Name == "chocolatey" {
 			installCmd = types.Command{
 				Exec:     osInfo.PackageManager.Chocolatey.Install,
@@ -228,7 +229,7 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 			return nil
 		}
 	default:
-		log.Warnf("Unsupported OS for build essentials installation: %s", osInfo.OS)
+		log.Warnf("Unsupported OS for build essentials installation: %s", osInfo.System.OS)
 		return nil
 	}
 

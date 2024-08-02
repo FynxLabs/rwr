@@ -71,7 +71,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process Files
 	log.Debugf("Processing files from %s", blueprintFile)
-	err = processFiles(bootstrapData.Files, blueprintDir)
+	err = processFiles(bootstrapData.Files, blueprintDir, osInfo)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err
@@ -95,7 +95,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process services
 	log.Debugf("Processing services from %s", blueprintFile)
-	err = processServices(bootstrapData.Services, initConfig)
+	err = processServices(bootstrapData.Services, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing services: %v", err)
 		return err

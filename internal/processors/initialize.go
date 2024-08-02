@@ -20,17 +20,125 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	var initConfig types.InitConfig
 	var err error
 	var fileExt string
+	var tempInitFile string
 
-	// Set default variables
-	currentUser, err := user.Current()
+	// Create a temporary directory for downloaded or processed init files
+	tempDir, err := os.MkdirTemp("", "rwr-init-")
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving current user information: %w", err)
+		return nil, fmt.Errorf("error creating temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Handle URL or local file
+	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
+		log.Debugf("Init File is a Web URL, Downloading %s", initFilePath)
+
+		fileExt = filepath.Ext(initFilePath)
+		tempInitFile = filepath.Join(tempDir, "init"+fileExt)
+
+		if strings.Contains(initFilePath, "/blob/") {
+			log.Debugf("Treating init file as Github Blob URL")
+			parts := strings.Split(initFilePath, "/")
+			blobSplit := strings.Split(initFilePath, "/blob/")
+
+			rawUrl := "https://raw.githubusercontent.com/" + parts[3] + "/" + parts[4] + "/" + blobSplit[1]
+
+			log.Debugf("Created Raw URL: %s", rawUrl)
+
+			err = helpers.DownloadFile(rawUrl, tempInitFile, false)
+			if err != nil {
+				return nil, fmt.Errorf("error downloading init file: %w", err)
+			}
+
+		} else {
+			log.Debugf("Treating init file as Raw URL")
+			log.Debugf("Setting downloaded file as temp: %s", tempInitFile)
+			err = helpers.DownloadFile(initFilePath, tempInitFile, false)
+			if err != nil {
+				return nil, fmt.Errorf("error downloading init file: %w", err)
+			}
+		}
+	} else {
+		log.Debugf("Init File is local path: %s", initFilePath)
+		if _, err := os.Stat(initFilePath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("init file not found at path: %s", initFilePath)
+		}
+		fileExt = filepath.Ext(initFilePath)
+		tempInitFile = initFilePath
+		log.Debugf("Using init file: %s", tempInitFile)
 	}
 
-	fullName := currentUser.Name
-	names := strings.Fields(fullName)
-	firstName := ""
-	lastName := ""
+	log.Debugf("Reading in temporary Init File: %s", tempInitFile)
+
+	// Read the init file
+	initFileData, err := os.ReadFile(tempInitFile)
+	if err != nil {
+		return nil, fmt.Errorf("error reading init file %s: %w", tempInitFile, err)
+	}
+
+	// Set default variables
+	variables, err := setDefaultVariables()
+	if err != nil {
+		return nil, err
+	}
+
+	// Process the init file as a template
+	processedInit, err := helpers.ResolveTemplate(initFileData, variables)
+	if err != nil {
+		return nil, fmt.Errorf("error processing init file as a template: %w", err)
+	}
+
+	// Convert TOML to YAML if necessary
+	if fileExt == ".toml" {
+		processedInit, fileExt, err = convertTomlToYaml(processedInit)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Write the processed init file to the temporary directory
+	processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
+	err = os.WriteFile(processedInitFile, processedInit, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("error writing processed init file: %w", err)
+	}
+
+	log.Debugf("Processed Init File Path: %s", processedInitFile)
+
+	// Read the processed init file with Viper
+	viper.SetConfigFile(processedInitFile)
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("error reading init file into viper: %w", err)
+	}
+
+	// Unmarshal the init file into the InitConfig struct
+	if err := viper.Unmarshal(&initConfig); err != nil {
+		return nil, fmt.Errorf("error unmarshaling %s: %w", processedInitFile, err)
+	}
+
+	// Set additional config values
+	initConfig.Variables = variables
+	initConfig.Variables.Flags = flags
+
+	// Set the blueprints location
+	setBlueprintsLocation(&initConfig, initFilePath)
+
+	// Set user-defined variables and environment variables
+	setUserDefinedAndEnvVariables(&initConfig)
+
+	log.Debugf("Initialized initConfig: %v", initConfig)
+
+	return &initConfig, nil
+}
+
+func setDefaultVariables() (types.Variables, error) {
+	currentUser, err := user.Current()
+	if err != nil {
+		return types.Variables{}, fmt.Errorf("error retrieving current user information: %w", err)
+	}
+
+	names := strings.Fields(currentUser.Name)
+	firstName, lastName := "", ""
 	if len(names) > 0 {
 		firstName = names[0]
 	}
@@ -38,10 +146,8 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		lastName = names[len(names)-1]
 	}
 
-	// Set user's group name
 	groupName := ""
 	if runtime.GOOS != "windows" {
-		// Retrieve the user's primary group name on Unix-like systems
 		group, err := user.LookupGroupId(currentUser.Gid)
 		if err != nil {
 			log.With("err", err).Warnf("Error retrieving primary group name for user %s", currentUser.Username)
@@ -50,170 +156,63 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		}
 	}
 
-	userInfo := types.UserInfo{
-		Username:  currentUser.Username,
-		FirstName: firstName,
-		LastName:  lastName,
-		FullName:  currentUser.Name,
-		GroupName: groupName,
-		Home:      currentUser.HomeDir,
-		Shell:     os.Getenv("SHELL"),
+	return types.Variables{
+		User: types.UserInfo{
+			Username:  currentUser.Username,
+			FirstName: firstName,
+			LastName:  lastName,
+			FullName:  currentUser.Name,
+			GroupName: groupName,
+			Home:      currentUser.HomeDir,
+			Shell:     os.Getenv("SHELL"),
+		},
+		UserDefined: make(map[string]interface{}),
+	}, nil
+}
+
+func convertTomlToYaml(data []byte) ([]byte, string, error) {
+	log.Debugf("TOML Format detected, converting to yaml for viper")
+	var tempMap map[string]interface{}
+	if _, err := toml.Decode(string(data), &tempMap); err != nil {
+		return nil, "", fmt.Errorf("error decoding TOML: %w", err)
 	}
-
-	variables := types.Variables{
-		User: userInfo,
-	}
-
-	// Check if the init file path is a URL
-	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
-		// Extract the repository URL and file path from the GitHub URL
-		if strings.Contains(initFilePath, "/blob/") {
-			parts := strings.Split(initFilePath, "/blob/")
-			if len(parts) != 2 {
-				return nil, fmt.Errorf("invalid GitHub URL format")
-			}
-			repoURL := parts[0]
-			filePath := parts[1]
-
-			// Determine the file extension based on the file path
-			fileExt = filepath.Ext(filePath)
-
-			// Download the init file from GitHub
-			err = helpers.HandleGitFileDownload(types.GitOptions{
-				URL:    repoURL + "/blob/" + filePath,
-				Target: "init" + fileExt, // Save the file with the original extension
-			}, &initConfig)
-			if err != nil {
-				return nil, fmt.Errorf("error downloading init file from GitHub: %w", err)
-			}
-
-			initFilePath = "init" + fileExt // Update the init file path to the downloaded file
-		} else {
-			// Determine the file extension based on the URL
-			fileExt = filepath.Ext(initFilePath)
-
-			// Download the raw init file
-			err = helpers.DownloadFile(initFilePath, "init"+fileExt, false)
-			if err != nil {
-				return nil, fmt.Errorf("error downloading init file: %w", err)
-			}
-
-			initFilePath = "init" + fileExt // Update the init file path to the downloaded file
-		}
-	} else {
-		// Check if the init file exists at the specified path
-		if _, err := os.Stat(initFilePath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("init file not found at path: %s", initFilePath)
-		}
-		fileExt = filepath.Ext(initFilePath)
-	}
-
-	// Get the directory of the init file
-	initFileDir, err := filepath.Abs(filepath.Dir(initFilePath))
+	yamlData, err := yaml.Marshal(tempMap)
 	if err != nil {
-		return nil, fmt.Errorf("error getting absolute path of init file directory: %w", err)
+		return nil, "", fmt.Errorf("error converting TOML to YAML: %w", err)
 	}
-	log.Debugf("Initializing system information with init file: %s", initFilePath)
-	log.Debugf("Init file directory: %s", initFileDir)
+	return yamlData, ".yaml", nil
+}
 
-	// Create a temporary directory for the processed init file
-	log.Debugf("Processing init file as a template")
-	tempDir, err := os.MkdirTemp("", "rwr-init-")
-	if err != nil {
-		return nil, fmt.Errorf("error creating temporary directory: %w", err)
-	}
-	defer func() {
-		err := os.RemoveAll(tempDir)
-		if err != nil {
-			log.Errorf("error removing temporary directory: %v", err)
-		}
-	}()
-
-	// Generate the processed init file path in the temporary directory
-	processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
-
-	// Process the init file as a template
-	initFileData, err := os.ReadFile(initFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("error reading init file %s: %w", initFilePath, err)
-	}
-
-	processedInit, err := helpers.ResolveTemplate(initFileData, variables)
-	if err != nil {
-		log.Errorf("Error processing init file as a template: %v", err)
-		return nil, err
-	}
-
-	// If it's a TOML file, convert it to YAML
-	if fileExt == ".toml" {
-		var tempMap map[string]interface{}
-		if _, err := toml.Decode(string(processedInit), &tempMap); err != nil {
-			return nil, fmt.Errorf("error decoding TOML: %w", err)
-		}
-		processedInit, err = yaml.Marshal(tempMap)
-		if err != nil {
-			return nil, fmt.Errorf("error converting TOML to YAML: %w", err)
-		}
-		// Update the file extension and processed file path
-		fileExt = ".yaml"
-		processedInitFile = filepath.Join(tempDir, "init-processed"+fileExt)
-	}
-
-	// Write the processed init file to the temporary directory
-	err = os.WriteFile(processedInitFile, processedInit, 0644)
-	if err != nil {
-		log.Errorf("error writing processed init file: %v", err)
-		return nil, err
-	}
-
-	viper.SetConfigFile(processedInitFile)
-
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("error reading init file into viper: %w", err)
-	}
-
-	// Unmarshal the init file into the InitConfig struct
-	if err := viper.Unmarshal(&initConfig); err != nil {
-		return nil, fmt.Errorf("error unmarshaling %s: %w", initFilePath, err)
-	}
-
-	// Set default values
-	initConfig.Variables.User = userInfo
-
-	initConfig.Variables.UserDefined = make(map[string]interface{})
-
-	initConfig.Variables.Flags = flags
-
-	// Set the default location if not specified
+func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 	if initConfig.Init.Location == "" {
-		log.Debugf("Location not specified in init file. Using directory of the init file")
-		initConfig.Init.Location = initFileDir
+		initConfig.Init.Location = filepath.Dir(initFilePath)
 	} else if initConfig.Init.Location == "." {
-		// If the location is ".", set it to the directory of the init file
-		log.Debugf("Location set to current directory. Using directory of the init file")
-		initConfig.Init.Location = initFileDir
+		initConfig.Init.Location = filepath.Dir(initFilePath)
 	} else if initConfig.Init.Location == "~" || strings.HasPrefix(initConfig.Init.Location, "~/") {
-		// If the location is "~" or starts with "~/", expand it to the user's home directory
-		log.Debugf("Location is relative to the user's home directory. Expanding it")
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("error expanding home directory: %v", err)
-		}
+		homeDir, _ := os.UserHomeDir()
 		initConfig.Init.Location = filepath.Join(homeDir, initConfig.Init.Location[2:])
 	} else if !filepath.IsAbs(initConfig.Init.Location) {
-		// If the location is relative, make it an absolute path relative to the init file path
-		log.Debugf("Location is relative. Converting it to an absolute path relative to the init file directory")
-		initConfig.Init.Location = filepath.Join(initFileDir, initConfig.Init.Location)
+		initConfig.Init.Location = filepath.Join(filepath.Dir(initFilePath), initConfig.Init.Location)
 	}
 
-	log.Debugf("Init file location: %s", initConfig.Init.Location)
+	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
+		initPath := helpers.ExtractInitParentDir(initFilePath)
 
-	// Set user-defined variables from init file
+		if initPath == "" {
+			initConfig.Init.Location = filepath.Join(initConfig.Init.Git.Target)
+		} else {
+			initConfig.Init.Location = filepath.Join(initConfig.Init.Git.Target, initPath)
+		}
+	}
+
+	log.Debugf("Blueprints location: %s", initConfig.Init.Location)
+}
+
+func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) {
 	for key, value := range initConfig.Variables.UserDefined {
 		initConfig.Variables.UserDefined[key] = value
 	}
 
-	// Read environment variables with RWR_ prefix and set them in userDefined
 	for _, env := range os.Environ() {
 		if strings.HasPrefix(env, "RWR_") {
 			parts := strings.SplitN(env, "=", 2)
@@ -222,15 +221,9 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		}
 	}
 
-	// Export all variables to the shell environment
 	for _, key := range viper.AllKeys() {
 		value := viper.GetString(key)
 		envKey := fmt.Sprintf("RWR_VAR_%s", strings.ToUpper(strings.ReplaceAll(key, ".", "_")))
-		err := os.Setenv(envKey, value)
-		if err != nil {
-			return nil, err
-		}
+		os.Setenv(envKey, value)
 	}
-
-	return &initConfig, nil
 }

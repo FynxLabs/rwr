@@ -13,7 +13,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
-func ProcessFiles(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
+func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var fileData types.FileData
 	var err error
 
@@ -26,7 +26,7 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, init
 	}
 
 	// Process regular files
-	err = processFiles(fileData.Files, blueprintDir)
+	err = processFiles(fileData.Files, blueprintDir, osInfo)
 	if err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
@@ -38,7 +38,7 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, init
 	}
 
 	// Process templates
-	err = processTemplates(fileData.Templates, blueprintDir, initConfig)
+	err = processTemplates(fileData.Templates, blueprintDir, osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing templates: %w", err)
 	}
@@ -46,18 +46,18 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, init
 	return nil
 }
 
-func processFiles(files []types.File, blueprintDir string) error {
+func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo) error {
 	for _, file := range files {
 		if len(file.Names) > 0 {
 			for _, name := range file.Names {
 				fileWithName := file
 				fileWithName.Name = name
-				if err := processFile(fileWithName, blueprintDir); err != nil {
+				if err := processFile(fileWithName, blueprintDir, osInfo); err != nil {
 					return fmt.Errorf("error processing file %s: %w", name, err)
 				}
 			}
 		} else {
-			if err := processFile(file, blueprintDir); err != nil {
+			if err := processFile(file, blueprintDir, osInfo); err != nil {
 				return fmt.Errorf("error processing file %s: %w", file.Name, err)
 			}
 		}
@@ -65,7 +65,7 @@ func processFiles(files []types.File, blueprintDir string) error {
 	return nil
 }
 
-func processFile(file types.File, blueprintDir string) error {
+func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) error {
 
 	log.Debugf("Processing file: %s", file.Name)
 
@@ -120,7 +120,7 @@ func processFile(file types.File, blueprintDir string) error {
 	switch file.Action {
 	case "copy":
 		log.Debugf("Copying file: %s to %s (elevated: %v)", sourcePath, targetPath, file.Elevated)
-		return helpers.CopyFile(sourcePath, targetPath, file.Elevated)
+		return helpers.CopyFile(sourcePath, targetPath, file.Elevated, osInfo)
 	case "move":
 		log.Debugf("Moving file: %s to %s", sourcePath, targetPath)
 		return moveFile(file, blueprintDir)
@@ -147,7 +147,7 @@ func processFile(file types.File, blueprintDir string) error {
 	}
 }
 
-func processTemplates(templates []types.File, blueprintDir string, initConfig *types.InitConfig) error {
+func processTemplates(templates []types.File, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	log.Info("Starting to process templates")
 	for i, tmpl := range templates {
 		log.Debugf("Processing template %d: %+v", i, tmpl)
@@ -161,7 +161,7 @@ func processTemplates(templates []types.File, blueprintDir string, initConfig *t
 				log.Infof("Processing template with name: %s", name)
 				fileWithName := tmpl
 				fileWithName.Name = name
-				err := processTemplate(fileWithName, blueprintDir, initConfig)
+				err := processTemplate(fileWithName, blueprintDir, osInfo, initConfig)
 				if err != nil {
 					log.Errorf("Error processing template to file %s: %v", fileWithName.Name, err)
 					return fmt.Errorf("error processing template to file %s: %w", fileWithName.Name, err)
@@ -169,7 +169,7 @@ func processTemplates(templates []types.File, blueprintDir string, initConfig *t
 			}
 		} else {
 			log.Infof("Processing single template: %s", tmpl.Name)
-			err := processTemplate(tmpl, blueprintDir, initConfig)
+			err := processTemplate(tmpl, blueprintDir, osInfo, initConfig)
 			if err != nil {
 				log.Errorf("Error processing template to file %s: %v", tmpl.Name, err)
 				return fmt.Errorf("error processing template to file %s: %w", tmpl.Name, err)
@@ -180,7 +180,7 @@ func processTemplates(templates []types.File, blueprintDir string, initConfig *t
 	return nil
 }
 
-func processTemplate(template types.File, blueprintDir string, initConfig *types.InitConfig) error {
+func processTemplate(template types.File, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	log.Infof("Processing template: %s", template.Name)
 
 	if template.Name == "" || template.Source == "" || template.Target == "" {
@@ -223,7 +223,7 @@ func processTemplate(template types.File, blueprintDir string, initConfig *types
 	}
 
 	// Process the template as a file
-	err = processFile(file, blueprintDir)
+	err = processFile(file, blueprintDir, osInfo)
 	if err != nil {
 		log.Errorf("Error processing template as file %s: %v", template.Name, err)
 		return fmt.Errorf("error processing template as file %s: %w", template.Name, err)
