@@ -8,9 +8,9 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -231,20 +231,17 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 	}
 	defer sourceFile.Close()
 
-	// Get source file info
 	sourceInfo, err := sourceFile.Stat()
 	if err != nil {
 		return fmt.Errorf("error getting source file info: %v", err)
 	}
 
-	// Ensure the target directory exists
 	targetDir := filepath.Dir(target)
 	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
 	if elevated {
-		// For elevated privileges, use a temporary file
 		tempFile, err := os.CreateTemp("", "rwr-copy-")
 		if err != nil {
 			return fmt.Errorf("error creating temporary file: %v", err)
@@ -261,16 +258,9 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 			return fmt.Errorf("error closing temporary file: %v", err)
 		}
 
-		// Use the existing elevated move function
 		err = moveFileWithElevatedPrivileges(tempFile.Name(), target)
 		if err != nil {
 			return fmt.Errorf("error moving file with elevated privileges: %v", err)
-		}
-
-		// Set permissions after moving the file
-		err = os.Chmod(target, sourceInfo.Mode())
-		if err != nil {
-			return fmt.Errorf("error setting file permissions: %v", err)
 		}
 	} else {
 		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode())
@@ -285,19 +275,28 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		}
 	}
 
-	// Preserve ownership on Unix-like systems
-	if osInfo.System.OS == "linux" || osInfo.System.OS == "macos" {
-		sysStat, ok := sourceInfo.Sys().(*syscall.Stat_t)
-		if !ok {
-			return fmt.Errorf("failed to get system-specific file information")
+	// Preserve file mode on Unix-like systems
+	if runtime.GOOS != "windows" {
+		if elevated {
+			err = setFilePermissionsElevated(target, sourceInfo.Mode())
+		} else {
+			err = os.Chmod(target, sourceInfo.Mode())
 		}
-		err = os.Chown(target, int(sysStat.Uid), int(sysStat.Gid))
 		if err != nil {
-			return fmt.Errorf("error setting file ownership: %v", err)
+			return fmt.Errorf("error setting file permissions: %v", err)
 		}
 	}
 
 	return nil
+}
+
+func setFilePermissionsElevated(path string, mode os.FileMode) error {
+	cmd := types.Command{
+		Exec:     "chmod",
+		Args:     []string{fmt.Sprintf("%o", mode), path},
+		Elevated: true,
+	}
+	return RunCommand(cmd, false)
 }
 
 func ExpandPath(path string) string {
