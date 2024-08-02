@@ -83,7 +83,7 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 }
 
 func processBrew(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	if osInfo.OS == "linux" || osInfo.OS == "macos" {
+	if osInfo.System.OS == "linux" || osInfo.System.OS == "macos" {
 		if pm.Action == "install" {
 			if helpers.FindTool("brew").Exists {
 				log.Infof("Homebrew is already installed")
@@ -152,9 +152,9 @@ func processBrew(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *
 
 			var brewPath string
 
-			if osInfo.OS == "linux" {
+			if osInfo.System.OS == "linux" {
 				brewPath = "/home/linuxbrew/.linuxbrew/bin/"
-			} else if osInfo.OS == "macos" {
+			} else if osInfo.System.OS == "macos" {
 				currentUser, err := user.Current()
 				if err != nil {
 					log.Warnf("Error getting current user: %v", err)
@@ -231,7 +231,7 @@ func processBrew(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *
 }
 
 func processNix(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	if osInfo.OS == "linux" || osInfo.OS == "macos" {
+	if osInfo.System.OS == "linux" || osInfo.System.OS == "macos" {
 		if pm.Action == "install" {
 			if helpers.FindTool("nix").Exists {
 				log.Infof("Nix is already installed")
@@ -278,7 +278,7 @@ func processNix(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 }
 
 func processChocolatey(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	if osInfo.OS == "windows" {
+	if osInfo.System.OS == "windows" {
 		if pm.Action == "install" {
 			if helpers.FindTool("choco").Exists {
 				log.Infof("Chocolatey is already installed")
@@ -327,7 +327,7 @@ func processChocolatey(pm types.PackageManagerInfo, osInfo *types.OSInfo, initCo
 }
 
 func processWinget(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	if osInfo.OS == "windows" {
+	if osInfo.System.OS == "windows" {
 		if pm.Action == "install" {
 			if helpers.FindTool("winget").Exists {
 				log.Infof("Winget is already installed")
@@ -376,7 +376,7 @@ func processWinget(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig
 }
 
 func processScoop(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	if osInfo.OS == "windows" {
+	if osInfo.System.OS == "windows" {
 		if pm.Action == "install" {
 			if helpers.FindTool("scoop").Exists {
 				log.Infof("Scoop is already installed")
@@ -425,7 +425,7 @@ func processScoop(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 }
 
 func processAURManager(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	if osInfo.OS == "linux" {
+	if osInfo.System.OS == "linux" {
 		if pm.Action == "install" {
 			var installed bool
 			switch pm.Name {

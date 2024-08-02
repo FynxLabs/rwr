@@ -25,7 +25,6 @@ func DetectOS() *types.OSInfo {
 
 	osInfo.Tools = findCommonTools()
 
-	osInfo.OS = runtime.GOOS
 	osInfo.System = types.System{
 		OS:        runtime.GOOS,
 		OSFamily:  getOSFamily(),
@@ -49,6 +48,11 @@ func DetectOS() *types.OSInfo {
 	default:
 		log.Fatal("This setup only supports macOS, Linux, and Windows.")
 	}
+
+	log.Debug("Returning osInfo")
+	log.Debugf("osInfo System: %s", osInfo.System)
+	log.Debugf("osInfo Package Mangers: %v", osInfo.PackageManager)
+	log.Debugf("osInfo Tools: %v", osInfo.Tools)
 
 	return osInfo
 }
@@ -217,24 +221,30 @@ func getOSVersion() string {
 
 func getLinuxDistro() string {
 	if fileExists("/etc/os-release") {
+		log.Debugf("Getting Linux Dristro ID from /etc/os-release")
 		content, err := os.ReadFile("/etc/os-release")
 		if err == nil {
 			lines := strings.Split(string(content), "\n")
 			for _, line := range lines {
 				if strings.HasPrefix(line, "ID=") {
-					return strings.Trim(strings.TrimPrefix(line, "ID="), "\"")
+					id := strings.Trim(strings.TrimPrefix(line, "ID="), "\"")
+					log.Debugf("Found Linux ID: %s", id)
+					return id
 				}
 			}
 		}
 	}
 
 	if fileExists("/etc/lsb-release") {
+		log.Debugf("Getting Linux Dristro ID from /etc/lsb-release")
 		content, err := os.ReadFile("/etc/lsb-release")
 		if err == nil {
 			lines := strings.Split(string(content), "\n")
 			for _, line := range lines {
 				if strings.HasPrefix(line, "DISTRIB_ID=") {
-					return strings.Trim(strings.TrimPrefix(line, "DISTRIB_ID="), "\"")
+					id := strings.Trim(strings.TrimPrefix(line, "DISTRIB_ID="), "\"")
+					log.Debugf("Found Linux ID: %s", id)
+					return id
 				}
 			}
 		}
@@ -245,24 +255,30 @@ func getLinuxDistro() string {
 
 func getLinuxVersion() string {
 	if fileExists("/etc/os-release") {
+		log.Debugf("Getting Linux Version from /etc/os-release")
 		content, err := os.ReadFile("/etc/os-release")
 		if err == nil {
 			lines := strings.Split(string(content), "\n")
 			for _, line := range lines {
 				if strings.HasPrefix(line, "VERSION_ID=") {
-					return strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), "\"")
+					version := strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), "\"")
+					log.Debugf("Found Linux Version: %s", version)
+					return version
 				}
 			}
 		}
 	}
 
 	if fileExists("/etc/lsb-release") {
+		log.Debugf("Getting Linux Version from /etc/lsb-release")
 		content, err := os.ReadFile("/etc/lsb-release")
 		if err == nil {
 			lines := strings.Split(string(content), "\n")
 			for _, line := range lines {
 				if strings.HasPrefix(line, "DISTRIB_RELEASE=") {
-					return strings.Trim(strings.TrimPrefix(line, "DISTRIB_RELEASE="), "\"")
+					version := strings.Trim(strings.TrimPrefix(line, "DISTRIB_RELEASE="), "\"")
+					log.Debugf("Found Linux Version: %s", version)
+					return version
 				}
 			}
 		}

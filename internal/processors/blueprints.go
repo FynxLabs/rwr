@@ -2,11 +2,12 @@ package processors
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
-	"os"
-	"path/filepath"
 )
 
 func GetBlueprints(initConfig *types.InitConfig) (string, error) {
@@ -54,7 +55,7 @@ func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 			}
 		}
 	} else {
-		runOrder = append(runOrder, "packageManagers", "repositories", "packages", "files", "configuration", "ssh_keys", "services")
+		runOrder = append(runOrder, "packageManagers", "repositories", "packages", "ssh_keys", "files", "fonts", "services", "git", "scripts", "configuration")
 	}
 
 	log.Debugf("Blueprint run order: %v", runOrder)

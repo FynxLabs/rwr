@@ -3,6 +3,7 @@ package processors
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -25,7 +26,7 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 		case "dconf":
 			err = processDconf(blueprintDir, config, initConfig)
 		case "gsettings":
-			err = processGSettings(config, initConfig)
+			err = processGSettings(config)
 		case "macos_defaults":
 			err = processMacOSDefaults(config, initConfig)
 		case "windows_registry":
@@ -65,15 +66,9 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 
 	cmd := types.Command{
 		Exec:     "dconf",
-		Args:     []string{"load", "/"},
+		Args:     []string{"load", "/", "<", file},
 		Elevated: config.Elevated,
 	}
-
-	// Using a pipe to provide input
-	cmd.Variables = map[string]string{
-		"DCONF_INPUT": file,
-	}
-	cmd.Args = append(cmd.Args, fmt.Sprintf("< $DCONF_INPUT"))
 
 	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
@@ -91,30 +86,72 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 	return nil
 }
 
-func processGSettings(config types.Configuration, initConfig *types.InitConfig) error {
-	args := []string{"set"}
-	if config.Path != "" {
-		args = append(args, fmt.Sprintf("%s:%s", config.Schema, config.Path))
-	} else {
-		args = append(args, config.Schema)
-	}
+func processGSettings(config types.Configuration) error {
+	log.Debugf("Processing gsettings configuration: %s", config.Name)
 
-	cvalue := fmt.Sprintf("%v", config.Value)
-	args = append(args, config.Key, cvalue)
+	for key, value := range config.Settings {
+		log.Debugf("Processing key: %s with value: %v", key, value)
 
-	cmd := types.Command{
-		Exec:     "gsettings",
-		Args:     args,
-		Elevated: config.Elevated,
-	}
+		// Check if the key is writable
+		checkCmd := exec.Command("gsettings", "writable", config.Schema, key)
+		output, err := checkCmd.CombinedOutput()
+		if err != nil {
+			log.Warnf("Error checking if key is writable - Schema: %s, Key: %s, Error: %v, Output: %s", config.Schema, key, err, string(output))
+			continue
+		}
 
-	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
+		if strings.TrimSpace(string(output)) != "true" {
+			log.Warnf("GSetting is not writable - Schema: %s, Key: %s, Value: %v", config.Schema, key, value)
+			continue
+		}
 
-	if err != nil {
-		return fmt.Errorf("error applying gsettings configuration: %w", err)
+		// Convert the value to a string and escape it properly
+		strValue := formatGSettingsValue(value)
+		log.Debugf("Formatted value: %s", strValue)
+
+		args := []string{"set", config.Schema, key, strValue}
+		log.Debugf("Executing command: gsettings %s", strings.Join(args, " "))
+
+		cmd := exec.Command("gsettings", args...)
+		output, err = cmd.CombinedOutput()
+		if err != nil {
+			log.Errorf("Error applying gsettings configuration - Schema: %s, Key: %s, Value: %s, Error: %v, Output: %s", config.Schema, key, strValue, err, string(output))
+		} else {
+			log.Debugf("Successfully applied gsettings - Schema: %s, Key: %s, Value: %s", config.Schema, key, strValue)
+		}
 	}
 
 	return nil
+}
+
+func formatGSettingsValue(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		// If the string already looks like a formatted gsettings value, return it as-is
+		if strings.HasPrefix(v, "[") || strings.HasPrefix(v, "(") {
+			return v
+		}
+		return fmt.Sprintf("'%s'", strings.Replace(v, "'", "\\'", -1))
+	case []interface{}:
+		var elements []string
+		for _, elem := range v {
+			elements = append(elements, formatGSettingsValue(elem))
+		}
+		return fmt.Sprintf("[%s]", strings.Join(elements, ","))
+	case int, int32, int64, uint, uint32, uint64:
+		return fmt.Sprintf("%d", v)
+	case float32, float64:
+		return fmt.Sprintf("%f", v)
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case nil:
+		return "[]"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 func processMacOSDefaults(config types.Configuration, initConfig *types.InitConfig) error {

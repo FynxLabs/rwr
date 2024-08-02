@@ -2,7 +2,6 @@ package types
 
 // OSInfo holds information about the detected OS, package managers, and tools.
 type OSInfo struct {
-	OS             string         // Operating system detected
 	System         System         // System Info
 	PackageManager PackageManager // Package managers available
 	Tools          ToolList       // Common tools

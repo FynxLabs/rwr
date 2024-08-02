@@ -79,10 +79,10 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 					err = ProcessPackages(resolvedBlueprint, nil, format, osInfo, initConfig)
 				case "files":
 					log.Infof("Processing files")
-					err = ProcessFiles(resolvedBlueprint, blueprintDir, format, initConfig)
+					err = ProcessFiles(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case "services":
 					log.Infof("Processing services")
-					err = ProcessServices(resolvedBlueprint, format, initConfig)
+					err = ProcessServices(resolvedBlueprint, format, osInfo, initConfig)
 				case "users":
 					log.Infof("Processing users")
 					err = ProcessUsers(resolvedBlueprint, format, initConfig)
@@ -97,7 +97,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 					err = ProcessSSHKeys(resolvedBlueprint, format, osInfo, initConfig)
 				case "fonts":
 					log.Info("Processing fonts")
-					err = ProcessFonts(blueprintData, blueprintDir, format, initConfig)
+					err = ProcessFonts(blueprintData, blueprintDir, format, osInfo, initConfig)
 				case "configuration":
 					log.Infof("Processing configurations")
 					err = ProcessConfiguration(resolvedBlueprint, blueprintDir, format, initConfig)

@@ -11,7 +11,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
-func ProcessServices(blueprintData []byte, format string, initConfig *types.InitConfig) error {
+func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var servicesData types.ServiceData
 	var err error
 
@@ -22,7 +22,7 @@ func ProcessServices(blueprintData []byte, format string, initConfig *types.Init
 	}
 
 	// Process the services
-	err = processServices(servicesData.Services, initConfig)
+	err = processServices(servicesData.Services, osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing services: %w", err)
 	}
@@ -30,19 +30,19 @@ func ProcessServices(blueprintData []byte, format string, initConfig *types.Init
 	return nil
 }
 
-func processServices(services []types.Service, initConfig *types.InitConfig) error {
+func processServices(services []types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	for _, service := range services {
 		switch runtime.GOOS {
 		case "linux":
-			if err := processLinuxService(service, initConfig); err != nil {
+			if err := processLinuxService(service, osInfo, initConfig); err != nil {
 				return err
 			}
 		case "darwin":
-			if err := processMacOSService(service, initConfig); err != nil {
+			if err := processMacOSService(service, osInfo, initConfig); err != nil {
 				return err
 			}
 		case "windows":
-			if err := processWindowsService(service, initConfig); err != nil {
+			if err := processWindowsService(service, osInfo, initConfig); err != nil {
 				return err
 			}
 		default:
@@ -52,13 +52,13 @@ func processServices(services []types.Service, initConfig *types.InitConfig) err
 	return nil
 }
 
-func createServiceFile(service types.Service) error {
+func createServiceFile(service types.Service, osInfo *types.OSInfo) error {
 	if service.Content != "" {
 		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
-		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated); err != nil {
+		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying service file: %v", err)
 		}
 	} else {
@@ -78,7 +78,7 @@ func deleteServiceFile(service types.Service) error {
 	return nil
 }
 
-func processLinuxService(service types.Service, initConfig *types.InitConfig) error {
+func processLinuxService(service types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var serviceCmd types.Command
 
 	switch service.Action {
@@ -118,7 +118,7 @@ func processLinuxService(service types.Service, initConfig *types.InitConfig) er
 			Args: []string{"status", service.Name},
 		}
 	case "create":
-		if err := createServiceFile(service); err != nil {
+		if err := createServiceFile(service, osInfo); err != nil {
 			return err
 		}
 		serviceCmd = types.Command{
@@ -146,13 +146,13 @@ func processLinuxService(service types.Service, initConfig *types.InitConfig) er
 	return nil
 }
 
-func createLaunchDaemon(service types.Service) error {
+func createLaunchDaemon(service types.Service, osInfo *types.OSInfo) error {
 	if service.Content != "" {
 		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
 			return fmt.Errorf("error creating launch daemon: %v", err)
 		}
 	} else if service.Source != "" {
-		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated); err != nil {
+		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying launch daemon: %v", err)
 		}
 	} else {
@@ -172,7 +172,7 @@ func deleteLaunchDaemon(service types.Service) error {
 	return nil
 }
 
-func processMacOSService(service types.Service, initConfig *types.InitConfig) error {
+func processMacOSService(service types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var serviceCmd types.Command
 
 	switch service.Action {
@@ -197,10 +197,10 @@ func processMacOSService(service types.Service, initConfig *types.InitConfig) er
 			Args: []string{"stop", service.Name},
 		}
 	case "restart":
-		if err := processMacOSService(types.Service{Name: service.Name, Action: "stop", Elevated: service.Elevated}, initConfig); err != nil {
+		if err := processMacOSService(types.Service{Name: service.Name, Action: "stop", Elevated: service.Elevated}, osInfo, initConfig); err != nil {
 			return err
 		}
-		if err := processMacOSService(types.Service{Name: service.Name, Action: "start", Elevated: service.Elevated}, initConfig); err != nil {
+		if err := processMacOSService(types.Service{Name: service.Name, Action: "start", Elevated: service.Elevated}, osInfo, initConfig); err != nil {
 			return err
 		}
 		return nil
@@ -212,7 +212,7 @@ func processMacOSService(service types.Service, initConfig *types.InitConfig) er
 			Args: []string{"list", "|", "grep", service.Name},
 		}
 	case "create":
-		if err := createLaunchDaemon(service); err != nil {
+		if err := createLaunchDaemon(service, osInfo); err != nil {
 			return err
 		}
 		return nil
@@ -234,13 +234,13 @@ func processMacOSService(service types.Service, initConfig *types.InitConfig) er
 	return nil
 }
 
-func createWindowsService(service types.Service, initConfig *types.InitConfig) error {
+func createWindowsService(service types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	if service.Content != "" {
 		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
-		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated); err != nil {
+		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying service file: %v", err)
 		}
 	} else {
@@ -278,7 +278,7 @@ func deleteWindowsService(service types.Service, initConfig *types.InitConfig) e
 	return nil
 }
 
-func processWindowsService(service types.Service, initConfig *types.InitConfig) error {
+func processWindowsService(service types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var serviceCmd types.Command
 
 	switch service.Action {
@@ -307,10 +307,10 @@ func processWindowsService(service types.Service, initConfig *types.InitConfig) 
 			Elevated: true,
 		}
 	case "restart":
-		if err := processWindowsService(types.Service{Name: service.Name, Action: "stop"}, initConfig); err != nil {
+		if err := processWindowsService(types.Service{Name: service.Name, Action: "stop"}, osInfo, initConfig); err != nil {
 			return err
 		}
-		if err := processWindowsService(types.Service{Name: service.Name, Action: "start"}, initConfig); err != nil {
+		if err := processWindowsService(types.Service{Name: service.Name, Action: "start"}, osInfo, initConfig); err != nil {
 			return err
 		}
 		return nil
@@ -323,7 +323,7 @@ func processWindowsService(service types.Service, initConfig *types.InitConfig) 
 			Elevated: true,
 		}
 	case "create":
-		if err := createWindowsService(service, initConfig); err != nil {
+		if err := createWindowsService(service, osInfo, initConfig); err != nil {
 			return err
 		}
 		return nil

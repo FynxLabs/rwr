@@ -14,7 +14,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-func ProcessFonts(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
+func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var fontsData types.FontsData
 	var err error
 
@@ -32,12 +32,12 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, init
 			for _, name := range font.Names {
 				fontWithName := font
 				fontWithName.Name = name
-				if err := processFont(fontWithName); err != nil {
+				if err := processFont(fontWithName, osInfo); err != nil {
 					return fmt.Errorf("error processing font %s: %w", name, err)
 				}
 			}
 		} else {
-			if err := processFont(font); err != nil {
+			if err := processFont(font, osInfo); err != nil {
 				return fmt.Errorf("error processing font %s: %w", font.Name, err)
 			}
 		}
@@ -46,7 +46,7 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, init
 	return nil
 }
 
-func processFont(font types.Font) error {
+func processFont(font types.Font, osInfo *types.OSInfo) error {
 	log.Infof("Processing font: %s", font.Name)
 
 	if font.Provider == "" {
@@ -58,7 +58,7 @@ func processFont(font types.Font) error {
 
 	switch font.Action {
 	case "install":
-		return installFont(font)
+		return installFont(font, osInfo)
 	case "remove":
 		return removeFont(font)
 	default:
@@ -66,7 +66,7 @@ func processFont(font types.Font) error {
 	}
 }
 
-func installFont(font types.Font) error {
+func installFont(font types.Font, osInfo *types.OSInfo) error {
 	log.Infof("Installing font: %s", font.Name)
 
 	fontUrl := getFontUrl(font)
@@ -88,7 +88,7 @@ func installFont(font types.Font) error {
 		if runtime.GOOS == "windows" {
 			err = installFontWindowsElevated(fontPath, fontData)
 		} else {
-			err = installFontUnixElevated(fontPath, fontData)
+			err = installFontUnixElevated(fontPath, fontData, osInfo)
 		}
 	} else {
 		log.Debug("Installing font for current user")
@@ -244,7 +244,7 @@ func installFontWindowsElevated(fontPath string, fontData []byte) error {
 	return nil
 }
 
-func installFontUnixElevated(fontPath string, fontData []byte) error {
+func installFontUnixElevated(fontPath string, fontData []byte, osInfo *types.OSInfo) error {
 	log.Debug("Installing font with elevated privileges on Unix-like system")
 	tempFile, err := os.CreateTemp("", "font-*.ttf")
 	if err != nil {
@@ -259,7 +259,7 @@ func installFontUnixElevated(fontPath string, fontData []byte) error {
 
 	tempFile.Chmod(0755)
 
-	helpers.CopyFile(tempFile.Name(), fontPath, true)
+	helpers.CopyFile(tempFile.Name(), fontPath, true, osInfo)
 
 	return nil
 }
