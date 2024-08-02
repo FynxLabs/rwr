@@ -3,7 +3,6 @@ package processors
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -64,16 +63,19 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 		}
 	}
 
-	cmd := exec.Command("dconf", "load", "/", "<", file)
-	if config.Elevated {
-		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
+	cmd := types.Command{
+		Exec:     "dconf",
+		Args:     []string{"load", "/"},
+		Elevated: config.Elevated,
 	}
 
-	err := helpers.RunCommand(types.Command{
-		Exec:     cmd.Path,
-		Args:     cmd.Args[1:],
-		Elevated: config.Elevated,
-	}, initConfig.Variables.Flags.Debug)
+	// Using a pipe to provide input
+	cmd.Variables = map[string]string{
+		"DCONF_INPUT": file,
+	}
+	cmd.Args = append(cmd.Args, fmt.Sprintf("< $DCONF_INPUT"))
+
+	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying dconf configuration: %w", err)
@@ -100,17 +102,13 @@ func processGSettings(config types.Configuration, initConfig *types.InitConfig) 
 	cvalue := fmt.Sprintf("%v", config.Value)
 	args = append(args, config.Key, cvalue)
 
-	cmd := exec.Command("gsettings", args...)
-
-	if config.Elevated {
-		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
+	cmd := types.Command{
+		Exec:     "gsettings",
+		Args:     args,
+		Elevated: config.Elevated,
 	}
 
-	err := helpers.RunCommand(types.Command{
-		Exec:     cmd.Path,
-		Args:     cmd.Args[1:],
-		Elevated: config.Elevated,
-	}, initConfig.Variables.Flags.Debug)
+	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying gsettings configuration: %w", err)
@@ -120,7 +118,6 @@ func processGSettings(config types.Configuration, initConfig *types.InitConfig) 
 }
 
 func processMacOSDefaults(config types.Configuration, initConfig *types.InitConfig) error {
-
 	args := []string{"write"}
 	if config.Domain != "" {
 		args = append(args, config.Domain)
@@ -129,17 +126,13 @@ func processMacOSDefaults(config types.Configuration, initConfig *types.InitConf
 	}
 	args = append(args, config.Key, fmt.Sprintf("-%s", config.Kind), fmt.Sprintf("%v", config.Value))
 
-	cmd := exec.Command("defaults", args...)
-
-	if config.Elevated {
-		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
+	cmd := types.Command{
+		Exec:     "defaults",
+		Args:     args,
+		Elevated: config.Elevated,
 	}
 
-	err := helpers.RunCommand(types.Command{
-		Exec:     cmd.Path,
-		Args:     cmd.Args[1:],
-		Elevated: config.Elevated,
-	}, initConfig.Variables.Flags.Debug)
+	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying macOS defaults configuration: %w", err)
@@ -171,21 +164,18 @@ func processWindowsRegistry(config types.Configuration, initConfig *types.InitCo
 		return fmt.Errorf("unsupported registry value type: %s", config.Type)
 	}
 
-	args := []string{"-Command", psCommand}
-
-	cmd := exec.Command("powershell", args...)
+	cmd := types.Command{
+		Exec:     "powershell",
+		Args:     []string{"-Command", psCommand},
+		Elevated: config.Elevated,
+	}
 
 	if config.Elevated {
 		// For elevated privileges, we need to run PowerShell as administrator
-		// This might require additional setup or prompt the user for elevation
-		cmd = exec.Command("powershell", append([]string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList"}, args...)...)
+		cmd.Args = []string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand)}
 	}
 
-	err := helpers.RunCommand(types.Command{
-		Exec:     cmd.Path,
-		Args:     cmd.Args[1:],
-		Elevated: config.Elevated,
-	}, initConfig.Variables.Flags.Debug)
+	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying Windows registry configuration: %w", err)

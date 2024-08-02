@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -25,6 +24,8 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, init
 	if err != nil {
 		return fmt.Errorf("error unmarshaling fonts blueprint data: %w", err)
 	}
+
+	log.Debugf("Found %d fonts to process", len(fontsData.Fonts))
 
 	for _, font := range fontsData.Fonts {
 		if len(font.Names) > 0 {
@@ -52,6 +53,9 @@ func processFont(font types.Font) error {
 		font.Provider = "nerd"
 	}
 
+	log.Debugf("Font provider: %s", font.Provider)
+	log.Debugf("Font action: %s", font.Action)
+
 	switch font.Action {
 	case "install":
 		return installFont(font)
@@ -66,21 +70,28 @@ func installFont(font types.Font) error {
 	log.Infof("Installing font: %s", font.Name)
 
 	fontUrl := getFontUrl(font)
+	log.Debugf("Font URL: %s", fontUrl)
+
 	fontData, err := downloadFont(fontUrl)
 	if err != nil {
 		return fmt.Errorf("error downloading font %s: %v", font.Name, err)
 	}
+	log.Debugf("Font downloaded successfully. Size: %d bytes", len(fontData))
 
 	fontDir := getFontDirectory(font.Location)
 	fontPath := filepath.Join(fontDir, font.Name+".ttf")
+	log.Debugf("Font directory: %s", fontDir)
+	log.Debugf("Font path: %s", fontPath)
 
 	if font.Location == "system" {
+		log.Debug("Installing font system-wide")
 		if runtime.GOOS == "windows" {
 			err = installFontWindowsElevated(fontPath, fontData)
 		} else {
 			err = installFontUnixElevated(fontPath, fontData)
 		}
 	} else {
+		log.Debug("Installing font for current user")
 		err = os.MkdirAll(filepath.Dir(fontPath), 0755)
 		if err != nil {
 			return fmt.Errorf("error creating font directory: %v", err)
@@ -91,6 +102,7 @@ func installFont(font types.Font) error {
 	if err != nil {
 		return fmt.Errorf("error writing font file: %v", err)
 	}
+	log.Debug("Font file written successfully")
 
 	if runtime.GOOS == "windows" {
 		err = registerFontWindows(fontPath, font.Location == "system")
@@ -126,8 +138,12 @@ func removeFont(font types.Font) error {
 				return fmt.Errorf("error removing font file: %v", err)
 			}
 		} else {
-			cmd := exec.Command("sudo", "rm", fontPath)
-			err := cmd.Run()
+			cmd := types.Command{
+				Exec:     "rm",
+				Args:     []string{fontPath},
+				Elevated: true,
+			}
+			err := helpers.RunCommand(cmd, false)
 			if err != nil {
 				return fmt.Errorf("error removing font file: %v", err)
 			}
@@ -186,16 +202,16 @@ func getFontDirectory(location string) string {
 }
 
 func updateFontCache(elevated bool) error {
-	var cmd *exec.Cmd
-	if elevated {
-		cmd = exec.Command("sudo", "fc-cache", "-f", "-v")
-	} else {
-		cmd = exec.Command("fc-cache", "-f", "-v")
+	cmd := types.Command{
+		Exec:     "fc-cache",
+		Args:     []string{"-f", "-v"},
+		Elevated: elevated,
 	}
-	return cmd.Run()
+	return helpers.RunCommand(cmd, false)
 }
 
 func installFontWindowsElevated(fontPath string, fontData []byte) error {
+	log.Debug("Installing font with elevated privileges on Windows")
 	tempFile, err := os.CreateTemp("", "font-*.ttf")
 	if err != nil {
 		return fmt.Errorf("error creating temp file: %v", err)
@@ -208,16 +224,28 @@ func installFontWindowsElevated(fontPath string, fontData []byte) error {
 	tempFile.Close()
 
 	psCommand := fmt.Sprintf(`
-        $fontFile = "%s"
-        $destFile = "%s"
-        Copy-Item -Path $fontFile -Destination $destFile -Force
-    `, tempFile.Name(), fontPath)
+			$fontFile = "%s"
+			$destFile = "%s"
+			Copy-Item -Path $fontFile -Destination $destFile -Force
+			Write-Output "Font copied to $destFile"
+	`, tempFile.Name(), fontPath)
 
-	cmd := exec.Command("powershell", "-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand))
-	return cmd.Run()
+	cmd := types.Command{
+		Exec:     "powershell",
+		Args:     []string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand)},
+		Elevated: true,
+	}
+	output, err := helpers.RunCommandOutput(cmd, false)
+	if err != nil {
+		return fmt.Errorf("error installing font: %v, output: %s", err, output)
+	}
+	log.Debugf("PowerShell output: %s", output)
+
+	return nil
 }
 
 func installFontUnixElevated(fontPath string, fontData []byte) error {
+	log.Debug("Installing font with elevated privileges on Unix-like system")
 	tempFile, err := os.CreateTemp("", "font-*.ttf")
 	if err != nil {
 		return fmt.Errorf("error creating temp file: %v", err)
@@ -229,8 +257,11 @@ func installFontUnixElevated(fontPath string, fontData []byte) error {
 	}
 	tempFile.Close()
 
-	cmd := exec.Command("sudo", "cp", tempFile.Name(), fontPath)
-	return cmd.Run()
+	tempFile.Chmod(0755)
+
+	helpers.CopyFile(tempFile.Name(), fontPath, true)
+
+	return nil
 }
 
 func registerFontWindows(fontPath string, elevated bool) error {
@@ -244,16 +275,23 @@ func registerFontWindows(fontPath string, elevated bool) error {
         [System.GC]::WaitForPendingFinalizers()
     `, filepath.Base(fontPath), fontPath)
 
-	var cmd *exec.Cmd
+	var cmd types.Command
 	if elevated {
-		cmd = exec.Command("powershell", "-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand))
+		cmd = types.Command{
+			Exec:     "powershell",
+			Args:     []string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand)},
+			Elevated: true,
+		}
 	} else {
-		cmd = exec.Command("powershell", "-Command", psCommand)
+		cmd = types.Command{
+			Exec: "powershell",
+			Args: []string{"-Command", psCommand},
+		}
 	}
 
-	output, err := cmd.CombinedOutput()
+	output, err := helpers.RunCommandOutput(cmd, false)
 	if err != nil {
-		return fmt.Errorf("error registering font: %v, output: %s", err, string(output))
+		return fmt.Errorf("error registering font: %v, output: %s", err, output)
 	}
 
 	return nil
@@ -286,16 +324,23 @@ func unregisterFontWindows(fontPath string, elevated bool) error {
         [Win32]::SendMessageTimeout($HWND_BROADCAST, $WM_FONTCHANGE, [IntPtr]::Zero, [IntPtr]::Zero, $SMTO_ABORTIFHUNG, 1000, [ref]$result) | Out-Null
     `, fontPath)
 
-	var cmd *exec.Cmd
+	var cmd types.Command
 	if elevated {
-		cmd = exec.Command("powershell", "-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand))
+		cmd = types.Command{
+			Exec:     "powershell",
+			Args:     []string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand)},
+			Elevated: true,
+		}
 	} else {
-		cmd = exec.Command("powershell", "-Command", psCommand)
+		cmd = types.Command{
+			Exec: "powershell",
+			Args: []string{"-Command", psCommand},
+		}
 	}
 
-	output, err := cmd.CombinedOutput()
+	output, err := helpers.RunCommandOutput(cmd, false)
 	if err != nil {
-		return fmt.Errorf("error unregistering font: %v, output: %s", err, string(output))
+		return fmt.Errorf("error unregistering font: %v, output: %s", err, output)
 	}
 
 	return nil
@@ -303,6 +348,10 @@ func unregisterFontWindows(fontPath string, elevated bool) error {
 
 func removeFontWindowsElevated(fontPath string) error {
 	psCommand := fmt.Sprintf(`Remove-Item -Path "%s" -Force`, fontPath)
-	cmd := exec.Command("powershell", "-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand))
-	return cmd.Run()
+	cmd := types.Command{
+		Exec:     "powershell",
+		Args:     []string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand)},
+		Elevated: true,
+	}
+	return helpers.RunCommand(cmd, false)
 }
