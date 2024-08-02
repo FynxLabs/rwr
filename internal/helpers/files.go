@@ -290,8 +290,8 @@ func copyFileContent(source, target string) error {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
 	defer func() {
-		if err := sourceFile.Close(); err != nil && err == nil {
-			err = fmt.Errorf("error closing source file: %v", err)
+		if err := sourceFile.Close(); err != nil {
+			log.Errorf("error closing source file: %v", err)
 		}
 	}()
 
@@ -300,8 +300,8 @@ func copyFileContent(source, target string) error {
 		return fmt.Errorf("error creating target file: %v", err)
 	}
 	defer func() {
-		if err := targetFile.Close(); err != nil && err == nil {
-			err = fmt.Errorf("error closing target file: %v", err)
+		if err := targetFile.Close(); err != nil {
+			log.Errorf("error closing target file: %v", err)
 		}
 	}()
 

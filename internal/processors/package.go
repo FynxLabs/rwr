@@ -65,7 +65,7 @@ func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, for
 
 				// This is where the new code snippet goes
 				if pkg.PackageManager == "gnome-extensions" {
-					extID, err := getGnomeExtensionID(name)
+					extID, err := getGnomeExtensionID(osInfo, name)
 					if err != nil {
 						failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", name, err))
 						continue
@@ -92,7 +92,7 @@ func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, for
 
 			// This is where a similar check would go for single packages
 			if pkg.PackageManager == "gnome-extensions" {
-				extID, err := getGnomeExtensionID(pkg.Name)
+				extID, err := getGnomeExtensionID(osInfo, pkg.Name)
 				if err != nil {
 					failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
 					continue
@@ -253,14 +253,14 @@ func getInstalledPackages(pm types.PackageManagerInfo) ([]string, error) {
 	return strings.Fields(output), nil
 }
 
-func getGnomeExtensionID(nameOrID string) (string, error) {
+func getGnomeExtensionID(osInfo *types.OSInfo, nameOrID string) (string, error) {
 	if _, err := strconv.Atoi(nameOrID); err == nil {
 		return nameOrID, nil
 	}
 
 	searchCmd := types.Command{
-		Exec: "gext",
-		Args: []string{"search", nameOrID},
+		Exec: osInfo.PackageManager.GnomeExtensions.Search,
+		Args: []string{nameOrID},
 	}
 
 	output, err := helpers.RunCommandOutput(searchCmd, false)

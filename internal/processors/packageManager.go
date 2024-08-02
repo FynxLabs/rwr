@@ -867,33 +867,53 @@ func processCargo(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 
 func processGnomeExtensionsCLI(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	if pm.Action == "install" {
-		if helpers.FindTool("gext").Exists {
+		if helpers.FindTool("gnome-extensions").Exists || helpers.FindTool("gext").Exists {
 			log.Infof("GNOME Extensions CLI is already installed")
 			return nil
 		}
 
 		log.Infof("Installing GNOME Extensions CLI")
-		installCmd := types.Command{
-			Exec:     osInfo.PackageManager.Default.Install,
-			Args:     []string{"gnome-extensions-cli"},
-			Elevated: osInfo.PackageManager.Default.Elevated,
-		}
-		err := helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug)
-		if err != nil {
-			return fmt.Errorf("error installing GNOME Extensions CLI: %v", err)
+		if osInfo.PackageManager.Pip.Bin != "" {
+			installCmd := types.Command{
+				Exec:     osInfo.PackageManager.Default.Install,
+				Args:     []string{"gnome-extensions-cli"},
+				Elevated: osInfo.PackageManager.Default.Elevated,
+			}
+			err := helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug)
+			if err != nil {
+				return fmt.Errorf("error installing GNOME Extensions CLI: %v", err)
+			}
+		} else {
+			log.Warn("pip not installed, cannot install gnome-extensions")
 		}
 
 		log.Infof("GNOME Extensions CLI installed successfully")
-		osInfo.PackageManager.GnomeExtensions = types.PackageManagerInfo{
-			Name:     "gnome-extensions",
-			Bin:      "gext",
-			List:     "gext list --user --enabled",
-			Search:   "gext search",
-			Install:  "gext install",
-			Remove:   "gext uninstall",
-			Update:   "gext update",
-			Clean:    "",
-			Elevated: false,
+
+		if helpers.FindTool("gnome-extensions").Exists {
+
+			osInfo.PackageManager.GnomeExtensions = types.PackageManagerInfo{
+				Name:     "gnome-extensions",
+				Bin:      "gnome-extensions",
+				List:     "gnome-extensions list --user --enabled",
+				Search:   "gnome-extensions search",
+				Install:  "gnome-extensions install",
+				Remove:   "gnome-extensions uninstall",
+				Update:   "",
+				Clean:    "",
+				Elevated: false,
+			}
+		} else if helpers.FindTool("gext").Exists {
+			osInfo.PackageManager.GnomeExtensions = types.PackageManagerInfo{
+				Name:     "gext",
+				Bin:      "gext",
+				List:     "gext list --user --enabled",
+				Search:   "gext search",
+				Install:  "gext install",
+				Remove:   "gext uninstall",
+				Update:   "gext update",
+				Clean:    "",
+				Elevated: false,
+			}
 		}
 	} else if pm.Action == "remove" {
 		log.Infof("Removing GNOME Extensions CLI")

@@ -2,12 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/processors"
-	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/processors"
+	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
@@ -42,6 +43,8 @@ var (
 	interactive      bool
 	forceBootstrap   bool
 	logLevel         string
+	configLocation   string
+	runOnceLocation  string
 	initConfig       *types.InitConfig
 	initFilePath     string
 	osInfo           *types.OSInfo
@@ -58,6 +61,8 @@ func initializeSystemInfo() {
 		GHAPIToken:       ghApiToken,
 		SSHKey:           sshKey,
 		SkipVersionCheck: skipVersionCheck,
+		ConfigLocation:   configLocation,
+		RunOnceLocation:  runOnceLocation,
 	}
 
 	err = helpers.SetPaths()
@@ -150,13 +155,21 @@ func config() {
 		log.With("err", err).Errorf("Error finding home directory")
 		os.Exit(1)
 	}
-	configDir := filepath.Join(homeDir, ".config", "rwr")
-	err = os.MkdirAll(configDir, os.ModePerm)
+	configLocation = filepath.Join(homeDir, ".config", "rwr")
+	runOnceLocation = filepath.Join(configLocation, "run_once")
+
+	err = os.MkdirAll(configLocation, os.ModePerm)
 	if err != nil {
 		log.With("err", err).Errorf("Error creating config directory")
 		os.Exit(1)
 	}
-	viper.AddConfigPath(configDir)
+
+	err = os.MkdirAll(runOnceLocation, os.ModePerm)
+	if err != nil {
+		log.With("err", err).Errorf("Error creating bootstrap directory")
+		os.Exit(1)
+	}
+	viper.AddConfigPath(configLocation)
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 

@@ -539,11 +539,17 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 		log.Debugf("Setting apk package manager")
 		osInfo.PackageManager.Default = osInfo.PackageManager.Apk
 		log.Debugf("Using apk package manager as default")
-	case "gext":
-		binPath, err := GetBinPath("gext")
+	case "gnome-extensions":
+		binPath, err := GetBinPath("gnome-extensions")
+
+		if binPath == "" {
+			binPath, err = GetBinPath("gext")
+		}
+
 		log.Debugf("%s bin path: %s", pm, binPath)
+
 		if err != nil {
-			log.Warnf("Error finding gext binary path: %v", err)
+			log.Warnf("Error finding gnome-extensions binary path: %v", err)
 			return
 		}
 

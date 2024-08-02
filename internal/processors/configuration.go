@@ -10,11 +10,9 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
-	"github.com/spf13/viper"
 )
 
-func ProcessConfiguration(blueprintData []byte, format string, initConfig *types.InitConfig) error {
-
+func ProcessConfiguration(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
 	var configData types.ConfigData
 
 	err := helpers.UnmarshalBlueprint(blueprintData, format, &configData)
@@ -23,9 +21,10 @@ func ProcessConfiguration(blueprintData []byte, format string, initConfig *types
 	}
 
 	for _, config := range configData.Configurations {
+		var err error
 		switch config.Tool {
 		case "dconf":
-			err = processDconf(config, initConfig)
+			err = processDconf(blueprintDir, config, initConfig)
 		case "gsettings":
 			err = processGSettings(config, initConfig)
 		case "macos_defaults":
@@ -38,48 +37,50 @@ func ProcessConfiguration(blueprintData []byte, format string, initConfig *types
 
 		if err != nil {
 			log.Errorf("Error processing configuration %s: %v", config.Name, err)
-			return err
+			return fmt.Errorf("error processing configuration %s: %w", config.Name, err)
 		}
 	}
 
 	return nil
 }
 
-func processDconf(config types.Configuration, initConfig *types.InitConfig) error {
-	dconf, ok := config.Options["dconf"].(types.DconfConfiguration)
-	if !ok {
-		return fmt.Errorf("invalid dconf configuration")
-	}
+func processDconf(blueprintDir string, config types.Configuration, initConfig *types.InitConfig) error {
+	log.Debugf("Processing Dconf file: %s", config.File)
 
-	if dconf.RunOnce {
-		configDir := viper.GetString("rwr.configdir")
-		bootstrapFile := filepath.Join(configDir, "dconf_bootstrap")
+	// Resolve the file path relative to the blueprint directory
+	file := filepath.Join(blueprintDir, config.File)
+
+	log.Debugf("Dconf file set for path: %s", file)
+
+	boostrapfileName := "configuration_" + config.Name + "_bootstrap"
+
+	bootstrapFile := filepath.Join(initConfig.Variables.Flags.RunOnceLocation, boostrapfileName)
+
+	if config.RunOnce {
+		log.Debugf("RunOnce Set: Checking for %s to see if already ran", bootstrapFile)
 		if _, err := os.Stat(bootstrapFile); err == nil {
 			log.Infof("Dconf configuration already applied, skipping")
 			return nil
 		}
 	}
 
-	cmd := exec.Command("dconf", "load", "/")
-	cmd.Stdin, _ = os.Open(dconf.File)
-
-	if dconf.Elevated {
+	cmd := exec.Command("dconf", "load", "/", "<", file)
+	if config.Elevated {
 		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
 	}
 
 	err := helpers.RunCommand(types.Command{
 		Exec:     cmd.Path,
 		Args:     cmd.Args[1:],
-		Elevated: dconf.Elevated,
+		Elevated: config.Elevated,
 	}, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying dconf configuration: %w", err)
 	}
 
-	if dconf.RunOnce {
-		configDir := viper.GetString("rwr.configdir")
-		bootstrapFile := filepath.Join(configDir, "dconf_bootstrap")
+	if config.RunOnce {
+		log.Debugf("RunOnce Set: Write Bootstrap File %s", bootstrapFile)
 		if err := os.WriteFile(bootstrapFile, []byte{}, 0644); err != nil {
 			log.Warnf("Failed to create dconf bootstrap file: %v", err)
 		}
@@ -89,29 +90,26 @@ func processDconf(config types.Configuration, initConfig *types.InitConfig) erro
 }
 
 func processGSettings(config types.Configuration, initConfig *types.InitConfig) error {
-	gsettings, ok := config.Options["gsettings"].(types.GSettingsConfiguration)
-	if !ok {
-		return fmt.Errorf("invalid gsettings configuration")
+	args := []string{"set"}
+	if config.Path != "" {
+		args = append(args, fmt.Sprintf("%s:%s", config.Schema, config.Path))
+	} else {
+		args = append(args, config.Schema)
 	}
 
-	args := []string{"set"}
-	if gsettings.Path != "" {
-		args = append(args, fmt.Sprintf("%s:%s", gsettings.Schema, gsettings.Path))
-	} else {
-		args = append(args, gsettings.Schema)
-	}
-	args = append(args, gsettings.Key, gsettings.Value)
+	cvalue := fmt.Sprintf("%v", config.Value)
+	args = append(args, config.Key, cvalue)
 
 	cmd := exec.Command("gsettings", args...)
 
-	if gsettings.Elevated {
+	if config.Elevated {
 		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
 	}
 
 	err := helpers.RunCommand(types.Command{
 		Exec:     cmd.Path,
 		Args:     cmd.Args[1:],
-		Elevated: gsettings.Elevated,
+		Elevated: config.Elevated,
 	}, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
@@ -122,29 +120,25 @@ func processGSettings(config types.Configuration, initConfig *types.InitConfig) 
 }
 
 func processMacOSDefaults(config types.Configuration, initConfig *types.InitConfig) error {
-	defaults, ok := config.Options["macos_defaults"].(types.MacOSDefaultsConfiguration)
-	if !ok {
-		return fmt.Errorf("invalid macOS defaults configuration")
-	}
 
 	args := []string{"write"}
-	if defaults.Domain != "" {
-		args = append(args, defaults.Domain)
+	if config.Domain != "" {
+		args = append(args, config.Domain)
 	} else {
 		args = append(args, "NSGlobalDomain")
 	}
-	args = append(args, defaults.Key, fmt.Sprintf("-%s", defaults.Kind), fmt.Sprintf("%v", defaults.Value))
+	args = append(args, config.Key, fmt.Sprintf("-%s", config.Kind), fmt.Sprintf("%v", config.Value))
 
 	cmd := exec.Command("defaults", args...)
 
-	if defaults.Elevated {
+	if config.Elevated {
 		cmd = exec.Command("sudo", append([]string{"-S"}, cmd.Args...)...)
 	}
 
 	err := helpers.RunCommand(types.Command{
 		Exec:     cmd.Path,
 		Args:     cmd.Args[1:],
-		Elevated: defaults.Elevated,
+		Elevated: config.Elevated,
 	}, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
@@ -155,38 +149,33 @@ func processMacOSDefaults(config types.Configuration, initConfig *types.InitConf
 }
 
 func processWindowsRegistry(config types.Configuration, initConfig *types.InitConfig) error {
-	regConfig, ok := config.Options["windows_registry"].(types.WindowsRegistryConfiguration)
-	if !ok {
-		return fmt.Errorf("invalid Windows registry configuration")
-	}
-
 	var psCommand string
-	switch strings.ToLower(regConfig.Type) {
+	switch strings.ToLower(config.Type) {
 	case "string":
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value '%s' -Type String", regConfig.Path, regConfig.Key, regConfig.Value)
+		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value '%s' -Type String", config.Path, config.Key, config.Value)
 	case "expandstring":
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value '%s' -Type ExpandString", regConfig.Path, regConfig.Key, regConfig.Value)
+		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value '%s' -Type ExpandString", config.Path, config.Key, config.Value)
 	case "binary":
 		// For binary, we'll need to convert the []byte to a comma-separated string
-		byteSlice, ok := regConfig.Value.([]byte)
+		byteSlice, ok := config.Value.([]byte)
 		if !ok {
 			return fmt.Errorf("invalid binary value for registry key")
 		}
 		byteString := strings.Trim(strings.Join(strings.Fields(fmt.Sprintf("%d", byteSlice)), ","), "[]")
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value ([byte[]]@(%s)) -Type Binary", regConfig.Path, regConfig.Key, byteString)
+		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value ([byte[]]@(%s)) -Type Binary", config.Path, config.Key, byteString)
 	case "dword":
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value %d -Type DWord", regConfig.Path, regConfig.Key, regConfig.Value)
+		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value %d -Type DWord", config.Path, config.Key, config.Value)
 	case "qword":
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value %d -Type QWord", regConfig.Path, regConfig.Key, regConfig.Value)
+		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value %d -Type QWord", config.Path, config.Key, config.Value)
 	default:
-		return fmt.Errorf("unsupported registry value type: %s", regConfig.Type)
+		return fmt.Errorf("unsupported registry value type: %s", config.Type)
 	}
 
 	args := []string{"-Command", psCommand}
 
 	cmd := exec.Command("powershell", args...)
 
-	if regConfig.Elevated {
+	if config.Elevated {
 		// For elevated privileges, we need to run PowerShell as administrator
 		// This might require additional setup or prompt the user for elevation
 		cmd = exec.Command("powershell", append([]string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList"}, args...)...)
@@ -195,7 +184,7 @@ func processWindowsRegistry(config types.Configuration, initConfig *types.InitCo
 	err := helpers.RunCommand(types.Command{
 		Exec:     cmd.Path,
 		Args:     cmd.Args[1:],
-		Elevated: regConfig.Elevated,
+		Elevated: config.Elevated,
 	}, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
