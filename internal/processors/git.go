@@ -47,20 +47,33 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 			log.Infof("Git repository %s already exists at %s", repo.Name, gitOpts.Target)
 			err = helpers.CheckAndUpdateRemoteURL(gitOpts.Target, gitOpts.URL)
 			if err != nil {
-				log.Errorf("Error checking/updating remote URL for %s: %v", repo.Name, err)
-				return err
+				log.Warnf("Error checking/updating remote URL for %s: %v", repo.Name, err)
+				// Continue with other repositories instead of returning
+				continue
 			}
+
+			// Pull latest changes
+			err = helpers.HandleGitPull(gitOpts)
+			if err != nil {
+				log.Warnf("Error pulling latest changes for %s: %v", repo.Name, err)
+				// Continue with other repositories instead of returning
+				continue
+			}
+			log.Infof("Git repository %s updated successfully", repo.Name)
 		} else if os.IsNotExist(err) {
 			// Repository doesn't exist, clone it
 			err = helpers.HandleGitClone(gitOpts, initConfig)
 			if err != nil {
-				log.Errorf("Error cloning Git repository %s: %v", repo.Name, err)
-				return err
+				log.Warnf("Error cloning Git repository %s: %v", repo.Name, err)
+				// Continue with other repositories instead of returning
+				continue
 			}
 			log.Infof("Git repository %s cloned successfully", repo.Name)
 		} else {
 			// Some other error occurred
-			return fmt.Errorf("error checking Git repository %s: %w", repo.Name, err)
+			log.Warnf("Error checking Git repository %s: %v", repo.Name, err)
+			// Continue with other repositories instead of returning
+			continue
 		}
 	}
 	return nil

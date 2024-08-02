@@ -1,6 +1,10 @@
 package helpers
 
 import (
+	"os"
+	"os/exec"
+	"strings"
+
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
@@ -72,4 +76,19 @@ func SetWindowsDetails(osInfo *types.OSInfo) {
 			log.Warnf("Unknown default package manager specified in Viper config: %s", viperDefault)
 		}
 	}
+}
+
+func getWindowsVersion() string {
+	cmd := exec.Command("cmd", "/c", "ver")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Errorf("Error getting Windows version: %v", err)
+		return "Unknown"
+	}
+	return strings.TrimSpace(string(output))
+}
+
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
 }

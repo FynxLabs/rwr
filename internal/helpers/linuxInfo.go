@@ -2,9 +2,10 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"strings"
+
+	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
 )
@@ -538,6 +539,33 @@ func setPackageManagerDetails(osInfo *types.OSInfo, pm string) {
 		log.Debugf("Setting apk package manager")
 		osInfo.PackageManager.Default = osInfo.PackageManager.Apk
 		log.Debugf("Using apk package manager as default")
+	case "gnome-extensions":
+		binPath, err := GetBinPath("gnome-extensions")
+
+		if binPath == "" {
+			binPath, err = GetBinPath("gext")
+		}
+
+		log.Debugf("%s bin path: %s", pm, binPath)
+
+		if err != nil {
+			log.Warnf("Error finding gnome-extensions binary path: %v", err)
+			return
+		}
+
+		osInfo.PackageManager.GnomeExtensions = types.PackageManagerInfo{
+			Name:     "gnome-extensions",
+			Bin:      binPath,
+			List:     fmt.Sprintf("%s list --user --enabled", binPath),
+			Search:   fmt.Sprintf("%s search", binPath),
+			Install:  fmt.Sprintf("%s install", binPath),
+			Remove:   fmt.Sprintf("%s uninstall", binPath),
+			Update:   fmt.Sprintf("%s update", binPath),
+			Clean:    "", // No specific clean command for GNOME Extensions
+			Elevated: false,
+		}
+		log.Debugf("Setting GNOME Extensions CLI package manager")
+		// Not setting as default, but it's now available as a package manager
 	default:
 		log.Warnf("Unknown package manager: %s", pm)
 	}

@@ -3,6 +3,7 @@ package types
 // OSInfo holds information about the detected OS, package managers, and tools.
 type OSInfo struct {
 	OS             string         // Operating system detected
+	System         System         // System Info
 	PackageManager PackageManager // Package managers available
 	Tools          ToolList       // Common tools
 }
@@ -18,19 +19,28 @@ type UserInfo struct {
 }
 
 type Flags struct {
-	Debug                bool
-	LogLevel             string
-	Interactive          bool
-	ForceBootstrap       bool
-	GHAPIToken           string
-	SSHKey               string
-	SkipVersionCheck     bool
-	InitTemplatesEnabled bool
+	Debug            bool
+	LogLevel         string
+	Interactive      bool
+	ForceBootstrap   bool
+	GHAPIToken       string
+	SSHKey           string
+	SkipVersionCheck bool
+	ConfigLocation   string
+	RunOnceLocation  string
+}
+
+type System struct {
+	OS        string // Basic OS - Linux, macOS, Windows
+	OSFamily  string // OS Family - Ubuntu, Fedora, Darwin
+	OSVersion string // OS Version - 22.04
+	OSArch    string // OS Arch - amd64, arm64
 }
 
 type Variables struct {
 	Flags       Flags
 	User        UserInfo
+	System      System
 	UserDefined map[string]interface{}
 }
 
@@ -62,13 +72,23 @@ func (u UserInfo) ToMap() map[string]interface{} {
 
 func (f Flags) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"debug":                f.Debug,
-		"logLevel":             f.LogLevel,
-		"interactive":          f.Interactive,
-		"forceBootstrap":       f.ForceBootstrap,
-		"ghAPIToken":           f.GHAPIToken,
-		"sshKey":               f.SSHKey,
-		"skipVersionCheck":     f.SkipVersionCheck,
-		"initTemplatesEnabled": f.InitTemplatesEnabled,
+		"debug":            f.Debug,
+		"logLevel":         f.LogLevel,
+		"interactive":      f.Interactive,
+		"forceBootstrap":   f.ForceBootstrap,
+		"ghAPIToken":       f.GHAPIToken,
+		"sshKey":           f.SSHKey,
+		"skipVersionCheck": f.SkipVersionCheck,
+		"configLocation":   f.ConfigLocation,
+		"runOnceLocation":  f.RunOnceLocation,
+	}
+}
+
+func (f System) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"os":        f.OS,
+		"osFamily":  f.OSFamily,
+		"osVersion": f.OSVersion,
+		"osArch":    f.OSArch,
 	}
 }

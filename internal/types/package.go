@@ -6,7 +6,7 @@ type Package struct {
 	Action         string   `mapstructure:"action" yaml:"action" json:"action" toml:"action"`
 	PackageManager string   `mapstructure:"package_manager,omitempty" yaml:"package_manager,omitempty" json:"package_manager,omitempty" toml:"package_manager,omitempty"`
 	Names          []string `mapstructure:"names,omitempty" yaml:"names,omitempty" json:"names,omitempty" toml:"names,omitempty"`
-	Args           []string `mapstructure:"args,omitempty" yaml:"args,omitempty" json:"args,omitempty" toml:"args,omitempty"` // New field for additional arguments
+	Args           []string `mapstructure:"args,omitempty" yaml:"args,omitempty" json:"args,omitempty" toml:"args,omitempty"`
 }
 
 type PackagesData struct {

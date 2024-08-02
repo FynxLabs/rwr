@@ -119,7 +119,7 @@ func processFile(file types.File, blueprintDir string) error {
 
 	switch file.Action {
 	case "copy":
-		log.Debugf("Copying file: %s to %s", sourcePath, targetPath)
+		log.Debugf("Copying file: %s to %s (elevated: %v)", sourcePath, targetPath, file.Elevated)
 		return helpers.CopyFile(sourcePath, targetPath, file.Elevated)
 	case "move":
 		log.Debugf("Moving file: %s to %s", sourcePath, targetPath)
@@ -199,7 +199,11 @@ func processTemplate(template types.File, blueprintDir string, initConfig *types
 	log.Debugf("Successfully read template file, content length: %d bytes", len(content))
 
 	log.Debug("Resolving template variables")
-	resolvedContent, err := helpers.ResolveTemplate(content, initConfig.Variables)
+	mergedVariables := initConfig.Variables
+	for k, v := range template.Variables {
+		mergedVariables.UserDefined[k] = v
+	}
+	resolvedContent, err := helpers.ResolveTemplate(content, mergedVariables)
 	if err != nil {
 		log.Errorf("Error resolving template %s: %v", sourcePath, err)
 		return fmt.Errorf("error resolving template %s: %w", sourcePath, err)
