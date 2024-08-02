@@ -64,20 +64,28 @@ func CheckAndUpdateRemoteURL(repoPath, desiredURL string) error {
 		return fmt.Errorf("error opening Git repository: %v", err)
 	}
 
-	remoteConfig, err := repo.Remote("origin")
+	remote, err := repo.Remote("origin")
 	if err != nil {
 		return fmt.Errorf("error getting remote 'origin': %v", err)
 	}
 
-	currentURL := remoteConfig.Config().URLs[0]
+	currentURL := remote.Config().URLs[0]
 	if currentURL != desiredURL {
 		log.Infof("Updating remote URL from %s to %s", currentURL, desiredURL)
+
+		// Remove the existing remote
+		err = repo.DeleteRemote("origin")
+		if err != nil {
+			return fmt.Errorf("error removing existing remote: %v", err)
+		}
+
+		// Create a new remote with the updated URL
 		_, err = repo.CreateRemote(&config.RemoteConfig{
 			Name: "origin",
 			URLs: []string{desiredURL},
 		})
 		if err != nil {
-			return fmt.Errorf("error updating remote URL: %v", err)
+			return fmt.Errorf("error creating new remote with updated URL: %v", err)
 		}
 		log.Infof("Remote URL updated successfully")
 	}
