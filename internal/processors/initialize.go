@@ -32,12 +32,31 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	// Handle URL or local file
 	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
 		log.Debugf("Init File is a Web URL, Downloading %s", initFilePath)
+
 		fileExt = filepath.Ext(initFilePath)
 		tempInitFile = filepath.Join(tempDir, "init"+fileExt)
-		log.Debugf("Setting downloaded file as temp: %s", tempInitFile)
-		err = helpers.DownloadFile(initFilePath, tempInitFile, false)
-		if err != nil {
-			return nil, fmt.Errorf("error downloading init file: %w", err)
+
+		if strings.Contains(initFilePath, "/blob/") {
+			log.Debugf("Treating init file as Github Blob URL")
+			parts := strings.Split(initFilePath, "/")
+			blobSplit := strings.Split(initFilePath, "/blob/")
+
+			rawUrl := "https://raw.githubusercontent.com/" + parts[3] + "/" + parts[4] + "/" + blobSplit[1]
+
+			log.Debugf("Created Raw URL: %s", rawUrl)
+
+			err = helpers.DownloadFile(rawUrl, tempInitFile, false)
+			if err != nil {
+				return nil, fmt.Errorf("error downloading init file: %w", err)
+			}
+
+		} else {
+			log.Debugf("Treating init file as Raw URL")
+			log.Debugf("Setting downloaded file as temp: %s", tempInitFile)
+			err = helpers.DownloadFile(initFilePath, tempInitFile, false)
+			if err != nil {
+				return nil, fmt.Errorf("error downloading init file: %w", err)
+			}
 		}
 	} else {
 		log.Debugf("Init File is local path: %s", initFilePath)
