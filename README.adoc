@@ -196,6 +196,7 @@ For detailed documentation on how to use RWR, please refer to our https://github
 * Blueprint Types
 ** https://github.com/FynxLabs/rwr/wiki/Blueprints-Packages[Packages Blueprint]
 ** https://github.com/FynxLabs/rwr/wiki/Blueprints-Repositories[Repositories Blueprint]
+** https://github.com/FynxLabs/rwr/wiki/Blueprints-Configuration[Configuration Blueprint]
 ** https://github.com/FynxLabs/rwr/wiki/Blueprints-Files[Files Blueprint]
 ** https://github.com/FynxLabs/rwr/wiki/Blueprints-Directories[Directories Blueprint]
 ** https://github.com/FynxLabs/rwr/wiki/Blueprints-Services[Services Blueprint]
@@ -228,6 +229,7 @@ For more detailed information on each topic, please visit the corresponding Wiki
 * [*] Bootstrap Processor
 * [*] Package Manager Processor
 * [*] Repositories Processor
+* [*] Configuration Processor
 * [*] Packages Processor
 * [*] Services Processor
 * [*] Files Processor
@@ -236,12 +238,14 @@ For more detailed information on each topic, please visit the corresponding Wiki
 * [*] Scripts Processor
 * [*] Users and Groups Processor
 * [*] SSH Keys
+* [*] Fonts Processor
 
 === macOS
 
 * [ ] Bootstrap Processor
 * [ ] Package Manager Processor
 * [ ] Repositories Processor
+* [ ] Configuration Processor
 * [ ] Packages Processor
 * [ ] Services Processor
 * [ ] Files Processor
@@ -250,12 +254,14 @@ For more detailed information on each topic, please visit the corresponding Wiki
 * [ ] Scripts Processor
 * [ ] Users and Groups Processor
 * [ ] SSH Keys
+* [ ] Fonts Processor
 
 === Windows
 
 * [ ] Bootstrap Processor
 * [ ] Package Manager Processor
 * [ ] Repositories Processor
+* [ ] Configuration Processor
 * [ ] Packages Processor
 * [ ] Services Processor
 * [ ] Files Processor
@@ -264,10 +270,7 @@ For more detailed information on each topic, please visit the corresponding Wiki
 * [ ] Scripts Processor
 * [ ] Users and Groups Processor
 * [ ] SSH Keys
-
-== Stretch Goals
-
-* [ ] Configuration Processor (e.g. linux/dconf, macos/defaults)
+* [ ] Fonts Processor
 
 == Contributing
 
