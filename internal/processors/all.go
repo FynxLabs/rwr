@@ -17,7 +17,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
 	// Check if macOS and no package manager is installed
-	if osInfo.System.OS == "macos" && osInfo.PackageManager.Default.Bin == "" {
+	if osInfo.System.OS == "darwin" && osInfo.PackageManager.Default.Bin == "" {
 		log.Info("No package manager detected on macOS. Installing one is required to proceed.")
 
 		var chosenPM string

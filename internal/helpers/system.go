@@ -28,10 +28,10 @@ func DetectOS() *types.OSInfo {
 	osInfo.Tools = findCommonTools()
 
 	osInfo.System = types.System{
-		OS:        runtime.GOOS,
-		OSFamily:  getOSFamily(),
-		OSVersion: getOSVersion(),
-		OSArch:    runtime.GOARCH,
+		OS:        strings.ToLower(runtime.GOOS),
+		OSFamily:  strings.ToLower(getOSFamily()),
+		OSVersion: strings.ToLower(getOSVersion()),
+		OSArch:    strings.ToLower(runtime.GOARCH),
 	}
 
 	switch runtime.GOOS {
