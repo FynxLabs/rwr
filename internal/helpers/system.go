@@ -161,6 +161,7 @@ func AddCommonPaths() string {
 				"/usr/local/cargo/bin",               // Common path for Cargo (Rust package manager)
 				"/home/linuxbrew/.linuxbrew/bin",     // Common path for Linuxbrew (Homebrew on Linux)
 				"/home/linuxbrew/.linuxbrew/sbin",    // Common path for Linuxbrew (Homebrew on Linux)
+				"/opt/homebrew/bin",                  // Common path for Linuxbrew (Homebrew on Linux)
 				"/snap/bin",                          // Common path for Snap packages
 				"/var/lib/flatpak/exports/bin",       // Common path for Flatpak
 			}
