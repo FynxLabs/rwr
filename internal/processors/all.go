@@ -16,6 +16,32 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
+	// Check if macOS and no package manager is installed
+	if osInfo.System.OS == "macos" && osInfo.PackageManager.Default.Bin == "" {
+		log.Info("No package manager detected on macOS. Installing one is required to proceed.")
+
+		var chosenPM string
+		if initConfig.Variables.Flags.Interactive {
+			chosenPM = helpers.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
+		} else {
+			chosenPM = "brew"
+			log.Info("Non-interactive mode: defaulting to Homebrew (brew)")
+		}
+
+		pmInfo := types.PackageManagerInfo{
+			Name:   chosenPM,
+			Action: "install",
+		}
+
+		err = ProcessPackageManagers([]types.PackageManagerInfo{pmInfo}, osInfo, initConfig)
+		if err != nil {
+			return fmt.Errorf("error installing package manager: %w", err)
+		}
+
+		// Refresh OS info after installing package manager
+		helpers.SetMacOSDetails(osInfo)
+	}
+
 	if runOrder != nil {
 		blueprintRunOrder = append([]string(nil), runOrder...)
 	} else {
