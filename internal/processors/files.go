@@ -26,7 +26,7 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 	}
 
 	// Process regular files
-	err = processFiles(fileData.Files, blueprintDir, osInfo)
+	err = processFiles(fileData.Files, blueprintDir, osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
@@ -46,18 +46,18 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 	return nil
 }
 
-func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo) error {
+func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	for _, file := range files {
 		if len(file.Names) > 0 {
 			for _, name := range file.Names {
 				fileWithName := file
 				fileWithName.Name = name
-				if err := processFile(fileWithName, blueprintDir, osInfo); err != nil {
+				if err := processFile(fileWithName, blueprintDir, osInfo, initConfig); err != nil {
 					return fmt.Errorf("error processing file %s: %w", name, err)
 				}
 			}
 		} else {
-			if err := processFile(file, blueprintDir, osInfo); err != nil {
+			if err := processFile(file, blueprintDir, osInfo, initConfig); err != nil {
 				return fmt.Errorf("error processing file %s: %w", file.Name, err)
 			}
 		}
@@ -65,7 +65,7 @@ func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo)
 	return nil
 }
 
-func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) error {
+func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 
 	log.Debugf("Processing file: %s", file.Name)
 
@@ -120,7 +120,11 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 	switch file.Action {
 	case "copy":
 		log.Debugf("Copying file: %s to %s (elevated: %v)", sourcePath, targetPath, file.Elevated)
-		return helpers.CopyFile(sourcePath, targetPath, file.Elevated, osInfo)
+		err := helpers.CopyFile(sourcePath, targetPath, file.Elevated, osInfo)
+		if err != nil {
+			return err
+		}
+		return applyFileAttributes(targetPath, file, initConfig)
 	case "move":
 		log.Debugf("Moving file: %s to %s", sourcePath, targetPath)
 		return moveFile(file, blueprintDir)
@@ -129,7 +133,7 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 		return deleteFile(file)
 	case "create":
 		log.Debugf("Creating file: %s", targetPath)
-		return createFile(file)
+		return createFile(file, initConfig)
 	case "chmod":
 		log.Debugf("Changing file permissions: %s", targetPath)
 		return chmodFile(file)
@@ -223,7 +227,7 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 	}
 
 	// Process the template as a file
-	err = processFile(file, blueprintDir, osInfo)
+	err = processFile(file, blueprintDir, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing template as file %s: %v", template.Name, err)
 		return fmt.Errorf("error processing template as file %s: %w", template.Name, err)
@@ -238,7 +242,11 @@ func processDirectories(directories []types.Directory, blueprintDir string, init
 		switch dir.Action {
 		case "copy":
 			if err := copyDirectory(dir, blueprintDir, initConfig); err != nil {
-				log.Fatalf("error copying directory: %v", err)
+				return fmt.Errorf("error copying directory: %v", err)
+			}
+		case "create":
+			if err := createDirectory(dir, initConfig); err != nil {
+				return fmt.Errorf("error creating directory: %v", err)
 			}
 		case "move":
 			if err := moveDirectory(dir, blueprintDir); err != nil {
@@ -247,10 +255,6 @@ func processDirectories(directories []types.Directory, blueprintDir string, init
 		case "delete":
 			if err := deleteDirectory(dir); err != nil {
 				log.Fatalf("error deleting directory: %v", err)
-			}
-		case "create":
-			if err := createDirectory(dir); err != nil {
-				log.Fatalf("error creating directory: %v", err)
 			}
 		case "chmod":
 			if err := chmodDirectory(dir); err != nil {
@@ -304,7 +308,7 @@ func deleteFile(file types.File) error {
 	return nil
 }
 
-func createFile(file types.File) error {
+func createFile(file types.File, initConfig *types.InitConfig) error {
 
 	log.Debugf("Creating file type: %v", file)
 
@@ -340,7 +344,7 @@ func createFile(file types.File) error {
 
 	log.Infof("File created and content written: %s", file.Target)
 
-	if err := applyFileAttributes(targetPath, file); err != nil {
+	if err := applyFileAttributes(targetPath, file, initConfig); err != nil {
 		return fmt.Errorf("error applying file attributes: %v", err)
 	}
 
@@ -418,17 +422,49 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
-	// Create the target directory if it doesn't exist
 	if err := os.MkdirAll(target, os.ModePerm); err != nil {
-		log.Fatalf("error creating target directory: %v", err)
+		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
-	if err := helpers.CopyDirectory(source, target, dir.Elevated, initConfig.Variables.Flags.Interactive); err != nil {
-		log.Fatalf("error copying directory: %v", err)
+	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+
+		destPath := filepath.Join(target, relPath)
+
+		if info.IsDir() {
+			return os.MkdirAll(destPath, info.Mode())
+		}
+
+		if err := helpers.CopyFile(path, destPath, dir.Elevated, osInfo); err != nil {
+			return err
+		}
+
+		fileAttrs := types.File{
+			Mode:     dir.Mode,
+			Owner:    dir.Owner,
+			Group:    dir.Group,
+			Elevated: dir.Elevated,
+		}
+		if err := applyFileAttributes(destPath, fileAttrs, initConfig); err != nil {
+			return fmt.Errorf("error applying file attributes after copy: %v", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("error copying directory: %v", err)
 	}
 
-	if err := applyDirectoryAttributes(dir); err != nil {
-		log.Fatalf("error applying directory attributes: %v", err)
+	if err := applyDirectoryAttributes(dir, target, initConfig); err != nil {
+		return fmt.Errorf("error applying directory attributes: %v", err)
 	}
 
 	log.Infof("Directory copied: %s -> %s", source, target)
@@ -464,15 +500,20 @@ func deleteDirectory(dir types.Directory) error {
 	return nil
 }
 
-func createDirectory(dir types.Directory) error {
+func createDirectory(dir types.Directory, initConfig *types.InitConfig) error {
 	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, os.ModePerm); err != nil {
-		log.Fatalf("error creating directory: %v", err)
+	mkdirCmd := types.Command{
+		Exec:     "mkdir",
+		Args:     []string{"-p", target},
+		Elevated: dir.Elevated,
+	}
+	if err := helpers.RunCommand(mkdirCmd, initConfig.Variables.Flags.Debug); err != nil {
+		return fmt.Errorf("error creating directory: %v", err)
 	}
 
-	if err := applyDirectoryAttributes(dir); err != nil {
-		log.Fatalf("error applying directory attributes: %v", err)
+	if err := applyDirectoryAttributes(dir, target, initConfig); err != nil {
+		return fmt.Errorf("error applying directory attributes: %v", err)
 	}
 
 	log.Infof("Directory created: %s", target)
@@ -546,15 +587,43 @@ func symlinkDirectory(dir types.Directory, blueprintDir string) error {
 	return nil
 }
 
-func applyFileAttributes(targetPath string, file types.File) error {
+func applyFileAttributes(targetPath string, file types.File, initConfig *types.InitConfig) error {
 	if file.Mode != 0 {
-		if err := os.Chmod(targetPath, os.FileMode(file.Mode)); err != nil {
+		chmodCmd := types.Command{
+			Exec:     "chmod",
+			Args:     []string{fmt.Sprintf("%o", file.Mode), targetPath},
+			Elevated: file.Elevated,
+		}
+		if err := helpers.RunCommand(chmodCmd, initConfig.Variables.Flags.Debug); err != nil {
 			return fmt.Errorf("error changing file permissions: %v", err)
 		}
 	}
 
 	if file.Owner != "" || file.Group != "" {
-		if err := chownFile(file); err != nil {
+		uid := -1
+		gid := -1
+		var err error
+
+		if file.Owner != "" {
+			uid, err = helpers.LookupUID(file.Owner)
+			if err != nil {
+				return fmt.Errorf("error looking up owner UID: %v", err)
+			}
+		}
+
+		if file.Group != "" {
+			gid, err = helpers.LookupGID(file.Group)
+			if err != nil {
+				return fmt.Errorf("error looking up group GID: %v", err)
+			}
+		}
+
+		chownCmd := types.Command{
+			Exec:     "chown",
+			Args:     []string{fmt.Sprintf("%d:%d", uid, gid), targetPath},
+			Elevated: file.Elevated,
+		}
+		if err := helpers.RunCommand(chownCmd, initConfig.Variables.Flags.Debug); err != nil {
 			return fmt.Errorf("error changing file owner/group: %v", err)
 		}
 	}
@@ -562,18 +631,44 @@ func applyFileAttributes(targetPath string, file types.File) error {
 	return nil
 }
 
-func applyDirectoryAttributes(dir types.Directory) error {
-	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
-
+func applyDirectoryAttributes(dir types.Directory, target string, initConfig *types.InitConfig) error {
 	if dir.Mode != 0 {
-		if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil {
-			log.Fatalf("error changing directory permissions: %v", err)
+		chmodCmd := types.Command{
+			Exec:     "chmod",
+			Args:     []string{fmt.Sprintf("%o", dir.Mode), target},
+			Elevated: dir.Elevated,
+		}
+		if err := helpers.RunCommand(chmodCmd, initConfig.Variables.Flags.Debug); err != nil {
+			return fmt.Errorf("error changing directory permissions: %v", err)
 		}
 	}
 
 	if dir.Owner != "" || dir.Group != "" {
-		if err := chownDirectory(dir); err != nil {
-			log.Fatalf("error changing directory owner/group: %v", err)
+		uid := -1
+		gid := -1
+		var err error
+
+		if dir.Owner != "" {
+			uid, err = helpers.LookupUID(dir.Owner)
+			if err != nil {
+				return fmt.Errorf("error looking up owner UID: %v", err)
+			}
+		}
+
+		if dir.Group != "" {
+			gid, err = helpers.LookupGID(dir.Group)
+			if err != nil {
+				return fmt.Errorf("error looking up group GID: %v", err)
+			}
+		}
+
+		chownCmd := types.Command{
+			Exec:     "chown",
+			Args:     []string{fmt.Sprintf("%d:%d", uid, gid), target},
+			Elevated: dir.Elevated,
+		}
+		if err := helpers.RunCommand(chownCmd, initConfig.Variables.Flags.Debug); err != nil {
+			return fmt.Errorf("error changing directory owner/group: %v", err)
 		}
 	}
 
