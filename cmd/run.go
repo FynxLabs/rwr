@@ -10,13 +10,15 @@ import (
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run individual processors",
+	Use:     "run",
+	Short:   "Run individual processors",
+	Aliases: []string{"r"},
 }
 
 var runPackageCmd = &cobra.Command{
-	Use:   "package",
-	Short: "Run package processor",
+	Use:     "packages",
+	Short:   "Run package processor",
+	Aliases: []string{"package", "pkg", "pkgs", "p"},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"packages"})
@@ -28,8 +30,9 @@ var runPackageCmd = &cobra.Command{
 }
 
 var runRepositoryCmd = &cobra.Command{
-	Use:   "repository",
-	Short: "Run repository processor",
+	Use:     "repositories",
+	Short:   "Run repository processor",
+	Aliases: []string{"repository", "repo", "repos", "r"},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"repositories"})
@@ -41,8 +44,9 @@ var runRepositoryCmd = &cobra.Command{
 }
 
 var runServicesCmd = &cobra.Command{
-	Use:   "services",
-	Short: "Run services processor",
+	Use:     "services",
+	Short:   "Run services processor",
+	Aliases: []string{"service", "svc", "svc", "s"},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"services"})
@@ -54,8 +58,9 @@ var runServicesCmd = &cobra.Command{
 }
 
 var runFilesCmd = &cobra.Command{
-	Use:   "files",
-	Short: "Run files processor",
+	Use:     "files",
+	Short:   "Run files processor",
+	Aliases: []string{"file", "f"},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"files"})
@@ -67,8 +72,9 @@ var runFilesCmd = &cobra.Command{
 }
 
 var runDirectoriesCmd = &cobra.Command{
-	Use:   "directories",
-	Short: "Run directories processor",
+	Use:     "directories",
+	Short:   "Run directories processor",
+	Aliases: []string{"directory", "dir", "dirs", "d"},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"directories"})
@@ -80,8 +86,9 @@ var runDirectoriesCmd = &cobra.Command{
 }
 
 var runConfigurationCmd = &cobra.Command{
-	Use:   "configuration",
-	Short: "Run configuration processor",
+	Use:     "configurations",
+	Short:   "Run configuration processor",
+	Aliases: []string{"configuration", "config", "configs", "conf", "confs", "c"},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"configuration"})
@@ -93,8 +100,9 @@ var runConfigurationCmd = &cobra.Command{
 }
 
 var runUsersCmd = &cobra.Command{
-	Use:   "users",
-	Short: "Run users processor",
+	Use:     "users",
+	Short:   "Run users processor",
+	Aliases: []string{"user", "usr", "usrs", "u"},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"users"})
@@ -119,8 +127,9 @@ var runGitCmd = &cobra.Command{
 }
 
 var runScriptsCmd = &cobra.Command{
-	Use:   "scripts",
-	Short: "Run scripts processor",
+	Use:     "scripts",
+	Short:   "Run scripts processor",
+	Aliases: []string{"script", "s"},
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"scripts"})
@@ -132,8 +141,9 @@ var runScriptsCmd = &cobra.Command{
 }
 
 var runSSHKeysCmd = &cobra.Command{
-	Use:   "ssh_keys",
-	Short: "Run SSH key processor",
+	Use:     "ssh_keys",
+	Short:   "Run SSH key processor",
+	Aliases: []string{"ssh", "keys", "key", "sk"},
 	Run: func(cmd *cobra.Command, args []string) {
 		err := processors.All(initConfig, osInfo, []string{"ssh_keys"})
 		if err != nil {
@@ -144,8 +154,9 @@ var runSSHKeysCmd = &cobra.Command{
 }
 
 var runFontsCmd = &cobra.Command{
-	Use:   "fonts",
-	Short: "Run fonts processor",
+	Use:     "fonts",
+	Short:   "Run fonts processor",
+	Aliases: []string{"font", "fs"},
 	Run: func(cmd *cobra.Command, args []string) {
 		err := processors.All(initConfig, osInfo, []string{"fonts"})
 		if err != nil {
