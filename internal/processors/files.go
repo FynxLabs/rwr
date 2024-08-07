@@ -32,7 +32,7 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 	}
 
 	// Process directories
-	err = processDirectories(fileData.Directories, blueprintDir, initConfig)
+	err = processDirectories(fileData.Directories, blueprintDir, osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing directories: %w", err)
 	}
@@ -237,11 +237,11 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 	return nil
 }
 
-func processDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
+func processDirectories(directories []types.Directory, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	for _, dir := range directories {
 		switch dir.Action {
 		case "copy":
-			if err := copyDirectory(dir, blueprintDir, initConfig); err != nil {
+			if err := copyDirectory(dir, blueprintDir, osInfo, initConfig); err != nil {
 				return fmt.Errorf("error copying directory: %v", err)
 			}
 		case "create":
@@ -418,7 +418,7 @@ func symlinkFile(file types.File, blueprintDir string) error {
 	return nil
 }
 
-func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
+func copyDirectory(dir types.Directory, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(helpers.ExpandPath(dir.Target), dir.Name)
 

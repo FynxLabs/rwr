@@ -10,7 +10,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
-func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo *types.OSInfo) error {
+func ProcessBootstrap(blueprintFile string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	if !initConfig.Variables.Flags.ForceBootstrap && helpers.IsBootstrapped() {
 		log.Info("System is already bootstrapped. Skipping bootstrap process.")
 		return nil
@@ -63,7 +63,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process directories
 	log.Debugf("Processing directories from %s", blueprintFile)
-	err = processDirectories(bootstrapData.Directories, blueprintDir, initConfig)
+	err = processDirectories(bootstrapData.Directories, blueprintDir, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err

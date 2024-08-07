@@ -15,6 +15,8 @@ import (
 func ProcessConfiguration(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
 	var configData types.ConfigData
 
+	log.Debug("Processing Configuration Blueprints")
+
 	err := helpers.UnmarshalBlueprint(blueprintData, format, &configData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling configuration blueprint: %w", err)
@@ -24,12 +26,16 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 		var err error
 		switch config.Tool {
 		case "dconf":
+			log.Debug("Processing DCONF Configurations")
 			err = processDconf(blueprintDir, config, initConfig)
 		case "gsettings":
+			log.Debug("Processing GSetting Configurations")
 			err = processGSettings(config)
 		case "macos_defaults":
+			log.Debug("Processing macOS Defaults Configurations")
 			err = processMacOSDefaults(config, initConfig)
 		case "windows_registry":
+			log.Debug("Processing Windows Registry Configurations")
 			err = processWindowsRegistry(config, initConfig)
 		default:
 			err = fmt.Errorf("unsupported configuration tool: %s", config.Tool)
@@ -155,13 +161,19 @@ func formatGSettingsValue(value interface{}) string {
 }
 
 func processMacOSDefaults(config types.Configuration, initConfig *types.InitConfig) error {
+	log.Debug("Processing macOS defaults configuration", "config", config)
+
 	args := []string{"write"}
 	if config.Domain != "" {
 		args = append(args, config.Domain)
+		log.Debug("Using specified domain", "domain", config.Domain)
 	} else {
 		args = append(args, "NSGlobalDomain")
+		log.Debug("Using NSGlobalDomain")
 	}
 	args = append(args, config.Key, fmt.Sprintf("-%s", config.Kind), fmt.Sprintf("%v", config.Value))
+
+	log.Debug("Constructed defaults command", "args", args)
 
 	cmd := types.Command{
 		Exec:     "defaults",
@@ -169,11 +181,16 @@ func processMacOSDefaults(config types.Configuration, initConfig *types.InitConf
 		Elevated: config.Elevated,
 	}
 
+	log.Debug("Executing defaults command", "command", cmd)
+
 	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
+		log.Error("Error applying macOS defaults configuration", "error", err)
 		return fmt.Errorf("error applying macOS defaults configuration: %w", err)
 	}
+
+	log.Info("Successfully applied macOS defaults configuration", "key", config.Key, "value", config.Value)
 
 	return nil
 }

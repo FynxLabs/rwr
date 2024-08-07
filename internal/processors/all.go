@@ -54,7 +54,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	// Run the bootstrap processor first if it exists
 	bootstrapFile := filepath.Join(initConfig.Init.Location, "bootstrap.yaml")
 	if helpers.FileExists(bootstrapFile) {
-		err = ProcessBootstrap(bootstrapFile, initConfig, osInfo)
+		err = ProcessBootstrap(bootstrapFile, osInfo, initConfig)
 		if err != nil {
 			return fmt.Errorf("error processing bootstrap: %w", err)
 		}
