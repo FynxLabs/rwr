@@ -3,7 +3,7 @@ module github.com/fynxlabs/rwr
 go 1.21
 
 require (
-	github.com/BurntSushi/toml v1.3.2
+	github.com/BurntSushi/toml v1.4.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/google/go-github/v45 v45.2.0
