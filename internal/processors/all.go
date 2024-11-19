@@ -16,6 +16,12 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
+	// First, ensure the blueprint repository is set up
+	_, err = GetBlueprints(initConfig)
+	if err != nil {
+		return fmt.Errorf("error initializing blueprints: %w", err)
+	}
+
 	// Check if macOS and no package manager is installed
 	if osInfo.System.OS == "darwin" && osInfo.PackageManager.Default.Bin == "" {
 		log.Info("No package manager detected on macOS. Installing one is required to proceed.")
@@ -37,9 +43,11 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		if err != nil {
 			return fmt.Errorf("error installing package manager: %w", err)
 		}
+	}
 
-		// Refresh OS info after installing package manager
-		helpers.SetMacOSDetails(osInfo)
+	// Make sure the blueprint location exists
+	if _, err := os.Stat(initConfig.Init.Location); err != nil {
+		return fmt.Errorf("blueprint location does not exist: %s", initConfig.Init.Location)
 	}
 
 	if runOrder != nil {
@@ -51,6 +59,21 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		}
 	}
 
+	// Process package managers first if specified
+	if initConfig.PackageManagers != nil {
+		log.Debugf("Processing package managers")
+		err = ProcessPackageManagers(initConfig.PackageManagers, osInfo, initConfig)
+		if err != nil {
+			return fmt.Errorf("error processing package managers: %w", err)
+		}
+	}
+
+	// Get the blueprint file order
+	fileOrder, err := GetBlueprintFileOrder(initConfig.Init.Location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
+	if err != nil {
+		return fmt.Errorf("error getting blueprint file order: %w", err)
+	}
+
 	// Run the bootstrap processor first if it exists
 	bootstrapFile := filepath.Join(initConfig.Init.Location, "bootstrap.yaml")
 	if helpers.FileExists(bootstrapFile) {
@@ -60,31 +83,21 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		}
 	}
 
-	// Process package managers
-	if initConfig.PackageManagers != nil {
-		log.Debugf("Processing package managers")
-		err = ProcessPackageManagers(initConfig.PackageManagers, osInfo, initConfig)
-		if err != nil {
-			return fmt.Errorf("error processing package managers: %w", err)
-		}
-	}
-
-	fileOrder, err := GetBlueprintFileOrder(initConfig.Init.Location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
-	if err != nil {
-		return fmt.Errorf("error getting blueprint file order: %w", err)
-	}
-
+	// Process each blueprint in order
 	for _, processor := range blueprintRunOrder {
 		if files, ok := fileOrder[processor]; ok {
 			for _, file := range files {
 				blueprintFile := filepath.Join(initConfig.Init.Location, file)
-				blueprintDir := filepath.Dir(blueprintFile)
-				log.Debugf("Processing %s from file: %s", processor, blueprintFile)
+				log.Debugf("Processing blueprint file: %s", blueprintFile)
 
-				format := initConfig.Init.Format
-				if blueprintFile != "" {
-					format = filepath.Ext(blueprintFile)
+				// Verify file exists
+				if _, err := os.Stat(blueprintFile); err != nil {
+					log.Warnf("Blueprint file does not exist: %s", blueprintFile)
+					continue
 				}
+
+				blueprintDir := filepath.Dir(blueprintFile)
+				format := filepath.Ext(blueprintFile)[1:] // Remove the leading dot
 
 				blueprintData, err := os.ReadFile(blueprintFile)
 				if err != nil {
@@ -139,9 +152,9 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		}
 	}
 
+	// Clean up package managers
 	log.Infof("Cleaning up package managers")
-	err = helpers.CleanPackageManagers(osInfo, initConfig)
-	if err != nil {
+	if err = helpers.CleanPackageManagers(osInfo, initConfig); err != nil {
 		return fmt.Errorf("error cleaning package managers: %w", err)
 	}
 

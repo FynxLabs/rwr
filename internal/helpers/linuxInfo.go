@@ -79,8 +79,8 @@ func getPackageManagerForDistro(distro string) string {
 func SetLinuxDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Linux package manager details.")
 
+	// First detect and set up all available package managers
 	packageManagers := getPackageManagerNames(osInfo.PackageManager)
-
 	for _, pm := range packageManagers {
 		_, err := GetPackageManagerInfo(osInfo, pm)
 		if err != nil {
@@ -96,10 +96,45 @@ func SetLinuxDetails(osInfo *types.OSInfo) error {
 		}
 	}
 
+	// Get the system's default package manager
 	defaultPackageManager := getDefaultPackageManagerFromOSRelease()
 	if defaultPackageManager != "" {
 		log.Debugf("Default package manager from OS release: %s", defaultPackageManager)
 		setPackageManagerDetails(osInfo, defaultPackageManager)
+	}
+
+	// For Arch Linux, check for AUR helpers and prioritize them
+	if osInfo.System.OSFamily == "arch" {
+		// Priority order for AUR helpers
+		aurHelpers := []string{"paru", "yay", "trizen", "aura", "pamac", "yaourt"}
+		for _, helper := range aurHelpers {
+			log.Debugf("Found AUR helper: %s, setting as default", helper)
+			if CommandExists(helper) {
+				switch helper {
+				case "paru":
+					osInfo.PackageManager.Default = osInfo.PackageManager.Paru
+				case "yay":
+					osInfo.PackageManager.Default = osInfo.PackageManager.Yay
+				case "trizen":
+					osInfo.PackageManager.Default = osInfo.PackageManager.Trizen
+				case "aura":
+					osInfo.PackageManager.Default = osInfo.PackageManager.Aura
+				case "pamac":
+					osInfo.PackageManager.Default = osInfo.PackageManager.Pamac
+				case "yaourt":
+					osInfo.PackageManager.Default = osInfo.PackageManager.Yaourt
+				}
+				log.Infof("Set %s as default package manager", helper)
+				break // Use the first AUR helper found in priority order
+			}
+		}
+	}
+
+	// Debug log the final default package manager
+	if osInfo.PackageManager.Default.Name != "" {
+		log.Infof("Final default package manager: %s", osInfo.PackageManager.Default.Name)
+	} else {
+		log.Warn("No default package manager set")
 	}
 
 	return nil

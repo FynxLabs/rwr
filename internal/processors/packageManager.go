@@ -237,6 +237,7 @@ func processNix(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 				log.Infof("Nix is already installed")
 				return nil
 			}
+			// TODO: No Curl Bash, create installer
 			installCmd := types.Command{
 				Exec: osInfo.Tools.Bash.Bin,
 				Args: []string{
@@ -262,6 +263,7 @@ func processNix(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *t
 				Elevated: false,
 			}
 		} else if pm.Action == "remove" {
+			// TODO: No Curl Bash, create uninstaller
 			removeCmd := types.Command{
 				Exec: osInfo.Tools.Bash.Bin,
 				Args: []string{
@@ -446,111 +448,106 @@ func processAURManager(pm types.PackageManagerInfo, osInfo *types.OSInfo, initCo
 				log.Infof("%s is already installed", pm.Name)
 				return nil
 			}
-			var installCmd types.Command
+
+			// Create temporary directory with unique path
+			tempDir := filepath.Join(os.TempDir(), fmt.Sprintf("rwr-aur-%s", pm.Name))
+
+			// Remove the directory if it already exists
+			if _, err := os.Stat(tempDir); !os.IsNotExist(err) {
+				if err := os.RemoveAll(tempDir); err != nil {
+					return fmt.Errorf("error removing existing temporary directory: %v", err)
+				}
+			}
+
+			// Create the new directory
+			if err := os.MkdirAll(tempDir, 0755); err != nil {
+				return fmt.Errorf("error creating temporary directory: %v", err)
+			}
+
+			// Install dependencies
+			depsCmd := types.Command{
+				Exec:     "pacman",
+				Args:     []string{"-S", "--needed", "--noconfirm", "git", "base-devel"},
+				Elevated: true,
+			}
+			if err := helpers.RunCommand(depsCmd, initConfig.Variables.Flags.Debug); err != nil {
+				return fmt.Errorf("error installing dependencies for %s: %v", pm.Name, err)
+			}
+
+			// Clone the repository
+			var repoURL string
 			switch pm.Name {
 			case "yay":
-				installCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si",
-					},
-				}
+				repoURL = "https://aur.archlinux.org/yay.git"
 			case "paru":
-				installCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"pacman -S --needed git base-devel && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si",
-					},
-				}
+				repoURL = "https://aur.archlinux.org/paru.git"
 			case "trizen":
-				installCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"pacman -S --needed git base-devel && git clone https://aur.archlinux.org/trizen.git && cd trizen && makepkg -si",
-					},
-				}
+				repoURL = "https://aur.archlinux.org/trizen.git"
 			case "yaourt":
-				installCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"pacman -S --needed git base-devel && git clone https://aur.archlinux.org/packages/yaourt && cd yaourt && makepkg -si",
-					},
-				}
+				repoURL = "https://aur.archlinux.org/packages/yaourt"
 			case "pamac":
-				installCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"pacman -S --needed base-devel git && git clone https://aur.archlinux.org/pamac-aur.git && cd pamac-aur && makepkg -si",
-					},
-				}
+				repoURL = "https://aur.archlinux.org/pamac-aur.git"
 			case "aura":
-				installCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"pacman -S --needed base-devel git && git clone https://aur.archlinux.org/aura-bin.git && cd aura-bin && makepkg -si",
-					},
-				}
+				repoURL = "https://aur.archlinux.org/aura-bin.git"
 			}
-			if err := helpers.RunCommand(installCmd, initConfig.Variables.Flags.Debug); err != nil {
-				return fmt.Errorf("error installing %s: %v", pm.Name, err)
+
+			cloneCmd := types.Command{
+				Exec: "git",
+				Args: []string{"clone", repoURL, tempDir},
 			}
+
+			if err := helpers.RunCommand(cloneCmd, initConfig.Variables.Flags.Debug); err != nil {
+				return fmt.Errorf("error cloning %s repository: %v", pm.Name, err)
+			}
+
+			// Build and install package
+			buildCmd := types.Command{
+				Exec: osInfo.Tools.Bash.Bin,
+				Args: []string{"-c", "cd", tempDir, "makepkg -si --noconfirm"},
+			}
+			if err := helpers.RunCommand(buildCmd, initConfig.Variables.Flags.Debug); err != nil {
+				return fmt.Errorf("error building %s: %v", pm.Name, err)
+			}
+
 			log.Infof("%s installed successfully", pm.Name)
 		} else if pm.Action == "remove" {
 			var removeCmd types.Command
 			switch pm.Name {
 			case "yay":
 				removeCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"yay -Rns yay",
-					},
+					Exec:     "pacman",
+					Args:     []string{"-Rns", "--noconfirm", "yay"},
+					Elevated: true,
 				}
 			case "paru":
 				removeCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"paru -Rns paru",
-					},
+					Exec:     "pacman",
+					Args:     []string{"-Rns", "--noconfirm", "paru"},
+					Elevated: true,
 				}
 			case "trizen":
 				removeCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"trizen -Rns trizen",
-					},
+					Exec:     "pacman",
+					Args:     []string{"-Rns", "--noconfirm", "trizen"},
+					Elevated: true,
 				}
 			case "yaourt":
 				removeCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"yaourt -Rns yaourt",
-					},
+					Exec:     "pacman",
+					Args:     []string{"-Rns", "--noconfirm", "yaourt"},
+					Elevated: true,
 				}
 			case "pamac":
 				removeCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"pamac remove pamac-aur",
-					},
+					Exec:     "pacman",
+					Args:     []string{"-Rns", "--noconfirm", "pamac-aur"},
+					Elevated: true,
 				}
 			case "aura":
 				removeCmd = types.Command{
-					Exec: osInfo.Tools.Bash.Bin,
-					Args: []string{
-						"-c",
-						"aura -Rns aura-bin",
-					},
+					Exec:     "pacman",
+					Args:     []string{"-Rns", "--noconfirm", "aura-bin"},
+					Elevated: true,
 				}
 			}
 			if err := helpers.RunCommand(removeCmd, initConfig.Variables.Flags.Debug); err != nil {
@@ -558,8 +555,9 @@ func processAURManager(pm types.PackageManagerInfo, osInfo *types.OSInfo, initCo
 			}
 			log.Infof("%s removed successfully", pm.Name)
 		}
+	} else {
+		log.Warnf("AUR managers are only available on Linux")
 	}
-	log.Warnf("AUR managers are only available on Linux")
 	return nil
 }
 
@@ -580,6 +578,7 @@ func processNodePackageManager(pm types.PackageManagerInfo, osInfo *types.OSInfo
 		}
 		var installCmd types.Command
 		switch pm.Name {
+		// TODO: No Curl Bash, create installer
 		case "npm":
 			installCmd = types.Command{
 				Exec: osInfo.Tools.Bash.Bin,
@@ -588,6 +587,7 @@ func processNodePackageManager(pm types.PackageManagerInfo, osInfo *types.OSInfo
 					"curl -fsSL https://install.npmjs.com | bash",
 				},
 			}
+		// TODO: No Curl Bash, create installer
 		case "pnpm":
 			installCmd = types.Command{
 				Exec: osInfo.Tools.Bash.Bin,
@@ -596,6 +596,7 @@ func processNodePackageManager(pm types.PackageManagerInfo, osInfo *types.OSInfo
 					"curl -fsSL https://get.pnpm.io/install.sh | bash",
 				},
 			}
+		// TODO: No Curl Bash, create installer
 		case "yarn":
 			installCmd = types.Command{
 				Exec: osInfo.Tools.Bash.Bin,
@@ -790,7 +791,7 @@ func processCargo(pm types.PackageManagerInfo, osInfo *types.OSInfo, initConfig 
 		// Install cargo-update
 		cargoUpdateCmd := types.Command{
 			Exec:   filepath.Join(cargoPath, "cargo"),
-			Args:   []string{"install", "cargo-update"},
+			Args:   []string{"install", "cargo-update", "--features", "vendored-openssl"},
 			AsUser: pm.AsUser,
 		}
 		if err := helpers.RunCommand(cargoUpdateCmd, initConfig.Variables.Flags.Debug); err != nil {

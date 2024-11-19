@@ -146,11 +146,36 @@ func ProcessPackage(pkg types.Package, osInfo *types.OSInfo, initConfig *types.I
 			install = osInfo.PackageManager.Eopkg.Install
 			remove = osInfo.PackageManager.Eopkg.Remove
 			elevated = osInfo.PackageManager.Eopkg.Elevated
-		case "yay", "paru", "trizen", "yaourt", "pamac", "aura":
-			log.Debugf("Using AUR package manager: %s", pkg.PackageManager)
-			install = osInfo.PackageManager.Default.Install
-			remove = osInfo.PackageManager.Default.Remove
-			elevated = osInfo.PackageManager.Default.Elevated
+		case "paru":
+			log.Debug("Using Paru AUR helper")
+			install = osInfo.PackageManager.Paru.Install
+			remove = osInfo.PackageManager.Paru.Remove
+			elevated = osInfo.PackageManager.Paru.Elevated
+		case "yay":
+			log.Debug("Using Yay AUR helper")
+			install = osInfo.PackageManager.Yay.Install
+			remove = osInfo.PackageManager.Yay.Remove
+			elevated = osInfo.PackageManager.Yay.Elevated
+		case "trizen":
+			log.Debug("Using Trizen AUR helper")
+			install = osInfo.PackageManager.Trizen.Install
+			remove = osInfo.PackageManager.Trizen.Remove
+			elevated = osInfo.PackageManager.Trizen.Elevated
+		case "yaourt":
+			log.Debug("Using Yaourt AUR helper")
+			install = osInfo.PackageManager.Yaourt.Install
+			remove = osInfo.PackageManager.Yaourt.Remove
+			elevated = osInfo.PackageManager.Yaourt.Elevated
+		case "pamac":
+			log.Debug("Using Pamac AUR helper")
+			install = osInfo.PackageManager.Pamac.Install
+			remove = osInfo.PackageManager.Pamac.Remove
+			elevated = osInfo.PackageManager.Pamac.Elevated
+		case "aura":
+			log.Debug("Using Aura AUR helper")
+			install = osInfo.PackageManager.Aura.Install
+			remove = osInfo.PackageManager.Aura.Remove
+			elevated = osInfo.PackageManager.Aura.Elevated
 		case "pacman":
 			log.Debug("Using Pacman package manager")
 			install = osInfo.PackageManager.Pacman.Install
