@@ -8,7 +8,7 @@ require (
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/google/go-github/v45 v45.2.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	github.com/ulikunitz/xz v0.5.12
 	golang.org/x/oauth2 v0.18.0
