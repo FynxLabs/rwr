@@ -184,9 +184,24 @@ func convertTomlToYaml(data []byte) ([]byte, string, error) {
 }
 
 func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
-	if initConfig.Init.Location == "" {
-		initConfig.Init.Location = filepath.Dir(initFilePath)
-	} else if initConfig.Init.Location == "." {
+	// If Git configuration exists and has a target, that takes precedence
+	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
+		// Remove any environment variables or templates that might have been resolved
+		resolvedTarget := helpers.ExpandPath(initConfig.Init.Git.Target)
+		log.Debugf("Using Git target as blueprint location: %s", resolvedTarget)
+
+		// Create the target directory if it doesn't exist
+		if err := os.MkdirAll(resolvedTarget, 0755); err != nil {
+			log.Warnf("Failed to create blueprint directory: %v", err)
+		}
+
+		// The location should be the Git target directory
+		initConfig.Init.Location = resolvedTarget
+		return
+	}
+
+	// Handle non-Git cases
+	if initConfig.Init.Location == "" || initConfig.Init.Location == "." {
 		initConfig.Init.Location = filepath.Dir(initFilePath)
 	} else if initConfig.Init.Location == "~" || strings.HasPrefix(initConfig.Init.Location, "~/") {
 		homeDir, _ := os.UserHomeDir()
@@ -195,17 +210,7 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 		initConfig.Init.Location = filepath.Join(filepath.Dir(initFilePath), initConfig.Init.Location)
 	}
 
-	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
-		initPath := helpers.ExtractInitParentDir(initFilePath)
-
-		if initPath == "" {
-			initConfig.Init.Location = filepath.Join(initConfig.Init.Git.Target)
-		} else {
-			initConfig.Init.Location = filepath.Join(initConfig.Init.Git.Target, initPath)
-		}
-	}
-
-	log.Debugf("Blueprints location: %s", initConfig.Init.Location)
+	log.Debugf("Blueprints location set to: %s", initConfig.Init.Location)
 }
 
 func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) {
