@@ -38,7 +38,7 @@ For a quick installation of RWR, you can use the following one-liners:
 
 [source,bash]
 ----
-curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/main/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.sh | sudo bash
 ----
 
 === Windows
@@ -47,7 +47,7 @@ Open PowerShell as an administrator and run:
 
 [source,powershell]
 ----
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/main/install.ps1'))
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.sh'))
 ----
 
 These scripts will download and install the latest version of RWR appropriate for your system. They will also set up the necessary paths and permissions.
