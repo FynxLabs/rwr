@@ -1,0 +1,39 @@
+provider:
+  name: apt
+  elevated: true # Requires sudo/elevation
+  detection:
+    binary: apt
+    files:
+      - /etc/apt
+    distributions:
+      - debian
+      - ubuntu
+  commands:
+    install: "install -y"
+    update: "update && upgrade -y"
+    remove: "remove -y"
+    list: "dpkg --get-selections"
+    search: "search"
+    clean: "clean"
+  repository:
+    paths:
+      sources: "/etc/apt/sources.list.d"
+      keys: "/usr/share/keyrings"
+    add:
+      steps:
+        - action: download
+          source: "{{ .KeyURL }}"
+          dest: "/tmp/{{ .Name }}.gpg"
+        - action: command
+          exec: "gpg"
+          args:
+            ["--yes", "--dearmor", "-o", "{{ .KeyPath }}", "{{ .TempKeyPath }}"]
+        - action: write
+          dest: "{{ .SourcesPath }}/{{ .Name }}.list"
+          content: "deb [arch={{ .Arch }} signed-by={{ .KeyPath }}] {{ .URL }} {{ .Channel }} {{ .Component }}"
+    remove:
+      steps:
+        - action: remove
+          path: "{{ .SourcesPath }}/{{ .Name }}.list"
+        - action: remove
+          path: "{{ .KeyPath }}"
