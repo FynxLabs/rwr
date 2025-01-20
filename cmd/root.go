@@ -53,6 +53,18 @@ var (
 func initializeSystemInfo() {
 	var err error
 
+	// If no init file is specified, look for init files in current directory
+	if initFilePath == "" {
+		// Try common init file names
+		possibleFiles := []string{"init.yaml", "init.yml", "init.json", "init.toml"}
+		for _, file := range possibleFiles {
+			if _, err := os.Stat(file); err == nil {
+				initFilePath = file
+				break
+			}
+		}
+	}
+
 	flags := types.Flags{
 		Debug:            debug,
 		LogLevel:         logLevel,
