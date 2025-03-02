@@ -4,7 +4,7 @@ image::img/rwr.gif[RWR Logo, width=250]
 
 :warning-caption: :warning:
 
-WARNING: Rinse, Wash, Repeat (RWR) is currently in alpha stage. While the core functionality is in place, not all features have been thoroughly tested and validated across all platforms. Please refer to the <<Road to 1.0>> checklist in this README to check the status of confirmed functionality. Use at your own risk, and expect potential bugs or incomplete features.
+WARNING: Rinse, Wash, Repeat (RWR) is currently in alpha stage. All processors are implemented for Linux, macOS, and Windows, but not all have been thoroughly tested and validated across all platforms. While Linux support is well-tested, macOS and Windows implementations have varying levels of testing coverage. Please refer to the <<Road to 1.0>> checklist in this README to check the status of confirmed functionality. Use at your own risk, and expect potential bugs or incomplete features.
 
 :asciidoctor:
 :toc: macro
@@ -242,35 +242,37 @@ For more detailed information on each topic, please visit the corresponding Wiki
 
 === macOS
 
-* [ ] Bootstrap Processor
-* [ ] Package Manager Processor
-* [ ] Repositories Processor
-* [ ] Configuration Processor
-* [ ] Packages Processor
-* [ ] Services Processor
-* [ ] Files Processor
-* [ ] Directories Processor
-* [ ] Git Repository Processor
-* [ ] Scripts Processor
-* [ ] Users and Groups Processor
-* [ ] SSH Keys
-* [ ] Fonts Processor
+* [*] Bootstrap Processor
+* [*] Package Manager Processor (Partially Tested)
+* [*] Repositories Processor
+* [*] Configuration Processor
+* [*] Packages Processor (Partially Tested)
+* [*] Services Processor
+* [*] Files Processor
+* [*] Directories Processor
+* [*] Git Repository Processor
+* [*] Scripts Processor
+* [*] Users and Groups Processor
+* [*] SSH Keys
+* [*] Fonts Processor
 
 === Windows
 
-* [ ] Bootstrap Processor
-* [ ] Package Manager Processor
-* [ ] Repositories Processor
-* [ ] Configuration Processor
-* [ ] Packages Processor
-* [ ] Services Processor
-* [ ] Files Processor
-* [ ] Directories Processor
-* [ ] Git Repository Processor
-* [ ] Scripts Processor
-* [ ] Users and Groups Processor
-* [ ] SSH Keys
-* [ ] Fonts Processor
+* [*] Bootstrap Processor
+* [*] Package Manager Processor (Partially Tested)
+* [*] Repositories Processor
+* [*] Configuration Processor
+* [*] Packages Processor (Partially Tested)
+* [*] Services Processor
+* [*] Files Processor
+* [*] Directories Processor
+* [*] Git Repository Processor
+* [*] Scripts Processor
+* [ ] Users and Groups Processor (Partial Implementation)
+* [*] SSH Keys
+* [*] Fonts Processor
+
+NOTE: While all processors are implemented for macOS and Windows, many have not been thoroughly tested on these platforms. "Partially Tested" indicates some functionality has been verified, but comprehensive testing is still needed. The Users and Groups processor on Windows has limited functionality (group management is not supported).
 
 == Contributing
 
