@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.0
 
 require (
-	github.com/BurntSushi/toml v1.4.0
+	github.com/BurntSushi/toml v1.5.0
 	github.com/charmbracelet/log v0.4.0
 	github.com/go-git/go-git/v5 v5.14.0
 	github.com/google/go-github/v69 v69.2.0
