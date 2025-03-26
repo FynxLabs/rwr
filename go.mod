@@ -11,7 +11,7 @@ require (
 	github.com/google/go-github/v69 v69.2.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 	github.com/ulikunitz/xz v0.5.12
 	golang.org/x/oauth2 v0.28.0
 	golang.org/x/term v0.30.0
