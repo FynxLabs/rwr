@@ -1,6 +1,6 @@
 # .goreleaser.yaml
 
-version: 1
+version: 2
 
 env:
   - GO111MODULE=on
@@ -10,7 +10,8 @@ before:
     - go mod tidy
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  # Using the new format for snapshot configuration
+  use_buildinfo: true
 
 gomod:
   proxy: true
@@ -94,6 +95,8 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
+    # Using the new format for archives configuration
+    format: tar.gz
     format_overrides:
       - goos: windows
         format: zip
@@ -130,6 +133,9 @@ brews:
     homepage: "https://github.com/fynxlabs/rwr"
     description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
     license: MIT
+    git:
+      url: "ssh://git@github.com/FynxLabs/brew-tap.git"
+      private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
 
 #scoop:
 #  bucket:
