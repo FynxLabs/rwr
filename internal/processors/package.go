@@ -1,305 +1,106 @@
 package processors
 
 import (
-	"bufio"
 	"fmt"
-	"reflect"
-	"strconv"
+	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/pkg/providers"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-func ProcessPackages(blueprintData []byte, packagesData *types.PackagesData, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var failedPackages []string
-	var err error
-
-	log.Debugf("Processing packages from blueprint")
-
-	if packagesData == nil {
-		// Unmarshal the blueprint data
-		err = helpers.UnmarshalBlueprint(blueprintData, format, &packagesData)
-		if err != nil {
+// ProcessPackages processes package management operations
+func ProcessPackages(data []byte, packages *types.PackagesData, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	// If data is provided, unmarshal it
+	if data != nil {
+		var pkgData types.PackagesData
+		if err := helpers.UnmarshalBlueprint(data, format, &pkgData); err != nil {
 			return fmt.Errorf("error unmarshaling package blueprint: %w", err)
 		}
+		packages = &pkgData
 	}
-	log.Debugf("Processing %d packages", len(packagesData.Packages))
 
-	err = helpers.SetPaths()
+	// If no packages provided, nothing to do
+	if packages == nil || len(packages.Packages) == 0 {
+		return nil
+	}
+
+	// Initialize providers
+	providersPath, err := providers.GetProvidersPath()
 	if err != nil {
-		return fmt.Errorf("error setting paths: %w", err)
+		return fmt.Errorf("error getting providers path: %w", err)
 	}
 
-	installedPackages := make(map[string]bool)
-
-	// Iterate over all fields in the PackageManager struct
-	v := reflect.ValueOf(osInfo.PackageManager)
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		if field.Type() == reflect.TypeOf(types.PackageManagerInfo{}) {
-			pm := field.Interface().(types.PackageManagerInfo)
-			log.Debugf("Checking for installed packages via: %s", pm.Name)
-			if pm.Bin != "" {
-				log.Debugf("%s installed, checking packages", pm.Name)
-				installed, err := getInstalledPackages(pm)
-				if err != nil {
-					log.Warnf("Error getting installed packages for %s: %v", pm.Name, err)
-				}
-				for _, pkg := range installed {
-					installedPackages[pkg] = true
-				}
-			}
-		}
+	if err := providers.LoadProviders(providersPath); err != nil {
+		return fmt.Errorf("error loading providers: %w", err)
 	}
 
-	for _, pkg := range packagesData.Packages {
-		if len(pkg.Names) > 0 {
-			log.Infof("Processing %d packages for %s", len(pkg.Names), pkg.PackageManager)
-			for _, name := range pkg.Names {
-				if pkg.Action == "install" && installedPackages[name] {
-					log.Infof("Package %s is already installed, skipping", name)
-					continue
-				}
+	// Get available providers
+	available := providers.GetAvailableProviders()
+	if len(available) == 0 {
+		return fmt.Errorf("no package managers available")
+	}
 
-				// This is where the new code snippet goes
-				if pkg.PackageManager == "gnome-extensions" {
-					extID, err := getGnomeExtensionID(osInfo, name)
-					if err != nil {
-						failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", name, err))
-						continue
-					}
-					name = extID
-				}
+	// Process each package
+	for _, pkg := range packages.Packages {
+		// Get provider
+		var provider *providers.Provider
+		var exists bool
 
-				err := ProcessPackage(types.Package{
-					Name:           name,
-					Elevated:       pkg.Elevated,
-					Action:         pkg.Action,
-					PackageManager: pkg.PackageManager,
-					Args:           pkg.Args,
-				}, osInfo, initConfig)
-				if err != nil {
-					failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", name, err))
-				}
+		if pkg.PackageManager != "" {
+			// Use specified package manager
+			provider, exists = providers.GetProvider(pkg.PackageManager)
+			if !exists {
+				log.Warnf("Specified package manager %s not available, skipping package %s", pkg.PackageManager, pkg.Name)
+				continue
 			}
 		} else {
-			if pkg.Action == "install" && installedPackages[pkg.Name] {
-				log.Infof("Package %s is already installed, skipping", pkg.Name)
+			// Use first available provider
+			for _, p := range available {
+				provider = p
+				break
+			}
+		}
+
+		// Get package names
+		var names []string
+		if pkg.Name != "" {
+			names = []string{pkg.Name}
+		} else {
+			names = pkg.Names
+		}
+
+		// Process each package
+		for _, name := range names {
+			// Build command
+			var cmdStr string
+			switch pkg.Action {
+			case "install":
+				cmdStr = fmt.Sprintf("%s %s %s", provider.BinPath, provider.Commands.Install, name)
+			case "remove":
+				cmdStr = fmt.Sprintf("%s %s %s", provider.BinPath, provider.Commands.Remove, name)
+			default:
+				log.Warnf("Unknown action %s for package %s", pkg.Action, name)
 				continue
 			}
 
-			// This is where a similar check would go for single packages
-			if pkg.PackageManager == "gnome-extensions" {
-				extID, err := getGnomeExtensionID(osInfo, pkg.Name)
-				if err != nil {
-					failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
-					continue
-				}
-				pkg.Name = extID
+			// Add any additional arguments
+			if len(pkg.Args) > 0 {
+				cmdStr = fmt.Sprintf("%s %s", cmdStr, strings.Join(pkg.Args, " "))
 			}
 
-			err := ProcessPackage(pkg, osInfo, initConfig)
-			if err != nil {
-				failedPackages = append(failedPackages, fmt.Sprintf("Package %s: %v", pkg.Name, err))
+			// Execute command
+			cmd := exec.Command("sh", "-c", cmdStr)
+			if out, err := cmd.CombinedOutput(); err != nil {
+				log.Warnf("Error %s package %s: %v\n%s", pkg.Action, name, err, string(out))
+				continue
 			}
-		}
-	}
 
-	if len(failedPackages) > 0 {
-		log.Warnf("Failed to process the following packages:")
-		for _, failedPackage := range failedPackages {
-			log.Warn(failedPackage)
+			log.Infof("Successfully %sd package %s", pkg.Action, name)
 		}
 	}
 
 	return nil
-}
-
-func ProcessPackage(pkg types.Package, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var command string
-	var install string
-	var remove string
-	var elevated bool
-
-	if pkg.PackageManager != "" {
-		// Use the specified package manager
-		switch pkg.PackageManager {
-		case "brew":
-			log.Debug("Using Homebrew package manager")
-			install = osInfo.PackageManager.Brew.Install
-			remove = osInfo.PackageManager.Brew.Remove
-			elevated = osInfo.PackageManager.Brew.Elevated
-		case "apt":
-			log.Debug("Using APT package manager")
-			install = osInfo.PackageManager.Apt.Install
-			remove = osInfo.PackageManager.Apt.Remove
-			elevated = osInfo.PackageManager.Apt.Elevated
-		case "dnf":
-			log.Debug("Using DNF package manager")
-			install = osInfo.PackageManager.Dnf.Install
-			remove = osInfo.PackageManager.Dnf.Remove
-			elevated = osInfo.PackageManager.Dnf.Elevated
-		case "eopkg":
-			log.Debug("Using Solus eopkg package manager")
-			install = osInfo.PackageManager.Eopkg.Install
-			remove = osInfo.PackageManager.Eopkg.Remove
-			elevated = osInfo.PackageManager.Eopkg.Elevated
-		case "paru":
-			log.Debug("Using Paru AUR helper")
-			install = osInfo.PackageManager.Paru.Install
-			remove = osInfo.PackageManager.Paru.Remove
-			elevated = osInfo.PackageManager.Paru.Elevated
-		case "yay":
-			log.Debug("Using Yay AUR helper")
-			install = osInfo.PackageManager.Yay.Install
-			remove = osInfo.PackageManager.Yay.Remove
-			elevated = osInfo.PackageManager.Yay.Elevated
-		case "trizen":
-			log.Debug("Using Trizen AUR helper")
-			install = osInfo.PackageManager.Trizen.Install
-			remove = osInfo.PackageManager.Trizen.Remove
-			elevated = osInfo.PackageManager.Trizen.Elevated
-		case "yaourt":
-			log.Debug("Using Yaourt AUR helper")
-			install = osInfo.PackageManager.Yaourt.Install
-			remove = osInfo.PackageManager.Yaourt.Remove
-			elevated = osInfo.PackageManager.Yaourt.Elevated
-		case "pamac":
-			log.Debug("Using Pamac AUR helper")
-			install = osInfo.PackageManager.Pamac.Install
-			remove = osInfo.PackageManager.Pamac.Remove
-			elevated = osInfo.PackageManager.Pamac.Elevated
-		case "aura":
-			log.Debug("Using Aura AUR helper")
-			install = osInfo.PackageManager.Aura.Install
-			remove = osInfo.PackageManager.Aura.Remove
-			elevated = osInfo.PackageManager.Aura.Elevated
-		case "pacman":
-			log.Debug("Using Pacman package manager")
-			install = osInfo.PackageManager.Pacman.Install
-			remove = osInfo.PackageManager.Pacman.Remove
-			elevated = osInfo.PackageManager.Pacman.Elevated
-		case "zypper":
-			log.Debug("Using Zypper package manager")
-			install = osInfo.PackageManager.Zypper.Install
-			remove = osInfo.PackageManager.Zypper.Remove
-			elevated = osInfo.PackageManager.Zypper.Elevated
-		case "emerge":
-			log.Debug("Using Gentoo Portage package manager")
-			install = osInfo.PackageManager.Emerge.Install
-			remove = osInfo.PackageManager.Emerge.Remove
-			elevated = osInfo.PackageManager.Emerge.Elevated
-		case "nix":
-			log.Debug("Using Nix package manager")
-			install = osInfo.PackageManager.Nix.Install
-			remove = osInfo.PackageManager.Nix.Remove
-			elevated = osInfo.PackageManager.Nix.Elevated
-		case "cargo":
-			log.Debug("Using Cargo package manager")
-			install = osInfo.PackageManager.Cargo.Install
-			remove = osInfo.PackageManager.Cargo.Remove
-			elevated = osInfo.PackageManager.Cargo.Elevated
-		case "gnome-extensions":
-			log.Debug("Using GNOME Extensions CLI package manager")
-			install = osInfo.PackageManager.GnomeExtensions.Install
-			remove = osInfo.PackageManager.GnomeExtensions.Remove
-			elevated = osInfo.PackageManager.GnomeExtensions.Elevated
-		default:
-			return fmt.Errorf("unsupported package manager: %s", pkg.PackageManager)
-		}
-	} else {
-		log.Debugf("Using default package manager: %s", osInfo.PackageManager.Default.Name)
-		// Use the default package manager
-		install = osInfo.PackageManager.Default.Install
-		remove = osInfo.PackageManager.Default.Remove
-		elevated = osInfo.PackageManager.Default.Elevated
-	}
-
-	// Override the elevated flag if specified in the package configuration
-	if pkg.Elevated {
-		elevated = true
-	}
-
-	var args []string
-
-	// Add any additional arguments specified in the package configuration
-	args = append(args, pkg.Args...)
-
-	if pkg.Action == "install" {
-		log.Debugf("Installing package %s", pkg.Name)
-		command = install
-		args = append(args, pkg.Name)
-	} else if pkg.Action == "remove" {
-		log.Debugf("Removing package %s", pkg.Name)
-		command = remove
-		args = append(args, pkg.Name)
-	} else {
-		return fmt.Errorf("unsupported action: %s", pkg.Action)
-	}
-
-	pkgCmd := types.Command{
-		Exec:     command,
-		Args:     args,
-		Elevated: elevated,
-	}
-
-	err := helpers.RunCommand(pkgCmd, initConfig.Variables.Flags.Debug)
-	if err != nil {
-		return fmt.Errorf("error processing package %s: %v", pkg.Name, err)
-	}
-
-	return nil
-}
-
-func getInstalledPackages(pm types.PackageManagerInfo) ([]string, error) {
-	listCmd := types.Command{
-		Exec: pm.List,
-	}
-
-	output, err := helpers.RunCommandOutput(listCmd, false)
-	if err != nil {
-		return nil, fmt.Errorf("error getting installed packages: %v", err)
-	}
-
-	if pm.Name == "gnome-extensions" {
-		var packages []string
-		scanner := bufio.NewScanner(strings.NewReader(output))
-		for scanner.Scan() {
-			fields := strings.Fields(scanner.Text())
-			if len(fields) > 0 {
-				packages = append(packages, fields[0])
-			}
-		}
-		return packages, nil
-	}
-
-	return strings.Fields(output), nil
-}
-
-func getGnomeExtensionID(osInfo *types.OSInfo, nameOrID string) (string, error) {
-	if _, err := strconv.Atoi(nameOrID); err == nil {
-		return nameOrID, nil
-	}
-
-	searchCmd := types.Command{
-		Exec: osInfo.PackageManager.GnomeExtensions.Search,
-		Args: []string{nameOrID},
-	}
-
-	output, err := helpers.RunCommandOutput(searchCmd, false)
-	if err != nil {
-		return "", fmt.Errorf("error searching for GNOME extension: %v", err)
-	}
-
-	scanner := bufio.NewScanner(strings.NewReader(output))
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) >= 2 && strings.Contains(strings.ToLower(scanner.Text()), strings.ToLower(nameOrID)) {
-			return fields[0], nil
-		}
-	}
-
-	return "", fmt.Errorf("GNOME extension not found: %s", nameOrID)
 }

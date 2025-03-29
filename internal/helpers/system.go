@@ -37,16 +37,22 @@ func DetectOS() *types.OSInfo {
 	switch runtime.GOOS {
 	case "linux":
 		log.Debug("Linux detected.")
-		err := SetLinuxDetails(osInfo)
-		if err != nil {
-			log.Fatalf("Error setting Linux details: %v", err)
+		if err := SetLinuxDetails(osInfo); err != nil {
+			log.Errorf("Error setting Linux details: %v", err)
+			return nil
 		}
 	case "darwin":
 		log.Debug("macOS detected.")
-		SetMacOSDetails(osInfo)
+		if err := SetMacOSDetails(osInfo); err != nil {
+			log.Errorf("Error setting macOS details: %v", err)
+			return nil
+		}
 	case "windows":
 		log.Debug("Windows detected.")
-		SetWindowsDetails(osInfo)
+		if err := SetWindowsDetails(osInfo); err != nil {
+			log.Errorf("Error setting Windows details: %v", err)
+			return nil
+		}
 	default:
 		log.Fatal("This setup only supports macOS, Linux, and Windows.")
 	}

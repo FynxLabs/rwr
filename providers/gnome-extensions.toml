@@ -1,0 +1,58 @@
+[provider]
+name = "gnome-extensions"
+elevated = false  # User-level operations
+
+[provider.detection]
+binary = "gnome-extensions"
+files = [
+    "/usr/bin/gnome-extensions",
+    "/usr/bin/gext",  # Alternative binary name
+    "~/.local/share/gnome-shell/extensions"
+]
+distributions = ["linux"]  # Any Linux with GNOME Shell
+
+[provider.commands]
+install = "install"
+update = "update"
+remove = "uninstall"
+list = "list --user --enabled"
+search = "search"
+clean = ""  # No specific clean command
+
+[provider.repository.paths]
+user = "~/.local/share/gnome-shell/extensions"
+system = "/usr/share/gnome-shell/extensions"
+cache = "~/.cache/gnome-shell/extensions"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "gnome-extensions"
+args = ["install", "{{ .Path }}"]
+condition = "{{ .IsLocalFile }}"  # For local .shell-extension.zip files
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "gnome-extensions"
+args = ["install", "--force", "{{ .ExtensionID }}"]
+condition = "{{ not .IsLocalFile }}"  # For extensions from extensions.gnome.org
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "gnome-extensions"
+args = ["enable", "{{ .UUID }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "gnome-extensions"
+args = ["disable", "{{ .UUID }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "gnome-extensions"
+args = ["uninstall", "{{ .UUID }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "gnome-extensions"
+args = ["reset", "{{ .UUID }}"]
+condition = "{{ .ResetSettings }}"  # Only if settings reset requested

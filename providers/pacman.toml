@@ -1,0 +1,52 @@
+[provider]
+name = "pacman"
+elevated = true
+
+[provider.detection]
+binary = "pacman"
+files = ["/etc/pacman.conf", "/var/lib/pacman"]
+distributions = ["arch"]
+
+[provider.commands]
+install = "-Sy --noconfirm"
+update = "-Syu --noconfirm"
+remove = "-R --noconfirm"
+list = "-Q"
+search = "-Ss"
+clean = "-Sc --noconfirm"
+
+[provider.corePackages]
+openssl = ["openssl"]
+build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+
+[provider.repository.paths]
+sources = "/etc/pacman.d"
+keys = "/etc/pacman.d/gnupg"
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "/etc/pacman.conf"
+content = """
+[{{ .Name }}]
+Server = {{ .URL }}
+"""
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--recv-keys", "{{ .KeyID }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--lsign-key", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--delete", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "remove_section"
+path = "/etc/pacman.conf"
+section = "{{ .Name }}"

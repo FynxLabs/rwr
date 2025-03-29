@@ -1,0 +1,61 @@
+[provider]
+name = "winget"
+elevated = false  # Windows handles elevation via UAC
+
+[provider.detection]
+binary = "winget"
+files = ["%LOCALAPPDATA%\\Microsoft\\WindowsApps\\winget.exe"]
+distributions = ["windows"]
+
+[provider.commands]
+install = "install --silent"
+update = "upgrade --all"
+remove = "uninstall"
+list = "list"
+search = "search"
+clean = "source reset"  # Reset package source cache
+
+[provider.corePackages]
+openssl = ["OpenSSL.OpenSSL"]
+build-essentials = ["GnuWin32.Make", "Kitware.CMake", "FreeType.FreeType", "FontConfig.FontConfig"]
+
+[provider.install]
+steps = [
+    # Download latest release
+    { action = "command", exec = "powershell", args = [
+        "-Command",
+        "Invoke-WebRequest -Uri https://github.com/microsoft/winget-cli/releases/download/v1.5.9371.0/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.appxbundle -OutFile winget.appxbundle"
+    ], elevated = true },
+    # Install package
+    { action = "command", exec = "powershell", args = [
+        "-Command",
+        "Add-AppxPackage -Path winget.appxbundle"
+    ], elevated = true },
+    # Clean up
+    { action = "command", exec = "powershell", args = [
+        "-Command",
+        "Remove-Item winget.appxbundle"
+    ]}
+]
+
+[provider.remove]
+steps = [
+    # Remove package
+    { action = "command", exec = "powershell", args = [
+        "-Command",
+        "Get-AppxPackage Microsoft.DesktopAppInstaller | Remove-AppxPackage"
+    ], elevated = true }
+]
+
+[provider.repository.paths]
+sources = "%LOCALAPPDATA%\\Microsoft\\WindowsApps\\Sources"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "winget"
+args = ["source", "add", "-n", "{{ .Name }}", "--url", "{{ .URL }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "winget"
+args = ["source", "remove", "-n", "{{ .Name }}"]

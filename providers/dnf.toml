@@ -1,0 +1,55 @@
+[provider]
+name = "dnf"
+elevated = true
+
+[provider.detection]
+binary = "dnf"
+files = ["/etc/dnf/dnf.conf", "/var/lib/dnf"]
+distributions = ["fedora", "rhel"]  # Works on Fedora and RHEL
+
+[provider.commands]
+install = "install -y"
+update = "update -y"
+remove = "remove -y"
+list = "list installed"
+search = "search"
+clean = "clean all"
+
+[provider.corePackages]
+openssl = ["openssl", "openssl-devel"]
+build-essentials = ["make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel", "g++"]
+
+[provider.repository.paths]
+sources = "/etc/yum.repos.d"
+keys = "/etc/pki/rpm-gpg"
+
+[[provider.repository.add.steps]]
+action = "download"
+source = "{{ .KeyURL }}"
+dest = "{{ .KeyPath }}"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "rpm"
+args = ["--import", "{{ .KeyPath }}"]
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "{{ .SourcesPath }}/{{ .Name }}.repo"
+content = """
+[{{ .Name }}]
+name={{ .Description }}
+baseurl={{ .URL }}
+enabled=1
+gpgcheck=1
+gpgkey={{ .KeyPath }}
+"""
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .SourcesPath }}/{{ .Name }}.repo"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "rpm"
+args = ["--erase", "gpg-pubkey-{{ .KeyID }}"]

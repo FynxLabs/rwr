@@ -1,0 +1,47 @@
+[provider]
+name = "apt"
+elevated = true
+
+[provider.detection]
+binary = "apt"
+files = ["/etc/apt"]
+distributions = ["debian", "ubuntu"]
+
+[provider.commands]
+install = "install -y"
+update = "update && upgrade -y"
+remove = "remove -y"
+list = "dpkg --get-selections"
+search = "search"
+clean = "clean"
+
+[provider.corePackages]
+openssl = ["openssl", "libssl-dev"]
+build-essentials = ["build-essential", "cmake", "pkg-config", "libfreetype6-dev", "libfontconfig1-dev", "libxcb-xfixes0-dev", "libxkbcommon-dev", "python3"]
+
+[provider.repository.paths]
+sources = "/etc/apt/sources.list.d"
+keys = "/usr/share/keyrings"
+
+[[provider.repository.add.steps]]
+action = "download"
+source = "{{ .KeyURL }}"
+dest = "/tmp/{{ .Name }}.gpg"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "gpg"
+args = ["--yes", "--dearmor", "-o", "{{ .KeyPath }}", "{{ .TempKeyPath }}"]
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "{{ .SourcesPath }}/{{ .Name }}.list"
+content = "deb [arch={{ .Arch }} signed-by={{ .KeyPath }}] {{ .URL }} {{ .Channel }} {{ .Component }}"
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .SourcesPath }}/{{ .Name }}.list"
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .KeyPath }}"

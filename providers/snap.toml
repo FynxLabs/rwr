@@ -1,0 +1,67 @@
+[provider]
+name = "snap"
+elevated = true  # Snap requires root for most operations
+
+[provider.detection]
+binary = "snap"
+files = ["/usr/bin/snap", "/var/lib/snapd", "/snap"]
+distributions = ["linux"]  # Works on any Linux distribution with snapd
+
+[provider.commands]
+install = "install"
+update = "refresh"
+remove = "remove"
+list = "list"
+search = "find"
+clean = "refresh"  # Snap handles cleanup automatically
+
+[provider.repository.paths]
+system = "/var/lib/snapd"
+store = "/snap"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "snap"
+args = ["set", "system", "proxy.http={{ .ProxyURL }}"]
+condition = "{{ .HasProxy }}"  # Only set proxy if provided
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "snap"
+args = ["set", "system", "proxy.https={{ .ProxyURL }}"]
+condition = "{{ .HasProxy }}"  # Only set proxy if provided
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "snap"
+args = ["install", "{{ .Name }}"]
+condition = "{{ .IsSnapStore }}"  # For snaps from the official store
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "snap"
+args = ["install", "{{ .Path }}", "--dangerous"]
+condition = "{{ .IsLocalSnap }}"  # For sideloading local snap files
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "snap"
+args = ["connect", "{{ .Name }}:{{ .Interface }}", "{{ .Slot }}"]
+condition = "{{ .HasInterfaces }}"  # For connecting interfaces if specified
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "snap"
+args = ["remove", "{{ .Name }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "snap"
+args = ["unset", "system", "proxy.http"]
+condition = "{{ .HasProxy }}"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "snap"
+args = ["unset", "system", "proxy.https"]
+condition = "{{ .HasProxy }}"

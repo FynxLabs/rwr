@@ -78,30 +78,25 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 }
 
 func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var packages []types.Package
-
 	switch runtime.GOOS {
 	case "windows":
-		packages = []types.Package{
-			{Name: "openssh", Action: "install", PackageManager: "chocolatey"},
+		pkgData := &types.PackagesData{
+			Packages: []types.Package{
+				{Name: "openssh", Action: "install", PackageManager: "chocolatey"},
+			},
 		}
+		return ProcessPackages(nil, pkgData, "", osInfo, initConfig)
 	case "darwin":
-		packages = []types.Package{
-			{Name: "openssh", Action: "install", PackageManager: "brew"},
+		pkgData := &types.PackagesData{
+			Packages: []types.Package{
+				{Name: "openssh", Action: "install", PackageManager: "brew"},
+			},
 		}
+		return ProcessPackages(nil, pkgData, "", osInfo, initConfig)
 	default:
 		// For Linux, OpenSSH is typically pre-installed
 		return nil
 	}
-
-	for _, pkg := range packages {
-		err := ProcessPackage(pkg, osInfo, initConfig)
-		if err != nil {
-			return fmt.Errorf("error installing SSH package %s: %v", pkg.Name, err)
-		}
-	}
-
-	return nil
 }
 
 func generateSSHKey(sshKey types.SSHKey) (string, error) {

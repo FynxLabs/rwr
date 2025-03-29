@@ -1,0 +1,56 @@
+[provider]
+name = "emerge"
+elevated = true  # Emerge requires root for most operations
+
+[provider.detection]
+binary = "emerge"
+files = [
+    "/usr/bin/emerge",
+    "/etc/portage",
+    "/var/db/repos/gentoo"
+]
+distributions = ["gentoo"]
+
+[provider.commands]
+install = "-qv"  # Quiet and verbose output
+update = "-uDN @world"  # Update deep with new use flags
+remove = "-C"
+list = "qlist -I"  # Uses portage-utils
+search = "-s"
+clean = "--depclean"
+
+[provider.repository.paths]
+repos = "/etc/portage/repos.conf"
+overlays = "/var/db/repos"
+make = "/etc/portage/make.conf"
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "{{ .SourcesPath }}/{{ .Name }}.conf"
+content = """
+[{{ .Name }}]
+location = {{ .OverlayPath }}
+sync-type = {{ .SyncType }}
+sync-uri = {{ .URL }}
+auto-sync = yes
+"""
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "emaint"
+args = ["sync", "-r", "{{ .Name }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "emerge"
+args = ["--sync"]
+condition = "{{ .IsMainRepo }}"  # Only for main gentoo repo
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .SourcesPath }}/{{ .Name }}.conf"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "rm"
+args = ["-rf", "{{ .OverlayPath }}"]

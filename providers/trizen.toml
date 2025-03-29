@@ -1,0 +1,72 @@
+[provider]
+name = "trizen"
+elevated = true
+
+[provider.detection]
+binary = "trizen"
+files = ["/etc/pacman.conf", "/var/lib/pacman"]
+distributions = ["arch"]
+
+[provider.commands]
+install = "-S --noconfirm --noedit"  # -S for install, --noedit to skip PKGBUILD editing
+update = "-Syua --noconfirm --noedit" # -Syua for full update including AUR
+remove = "-Rns --noconfirm" # -Rns to remove with dependencies and config
+list = "-Qm"               # -Qm to list foreign (AUR) packages
+search = "-Ss"            # -Ss searches both repos and AUR
+clean = "-Sc --noconfirm" # -Sc for cache clean
+
+[provider.corePackages]
+openssl = ["openssl"]
+build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+
+[provider.repository.paths]
+sources = "/etc/pacman.d"
+keys = "/etc/pacman.d/gnupg"
+
+[[provider.install.steps]]
+action = "command"
+exec = "pacman"
+args = ["-S", "--needed", "--noconfirm", "base-devel", "git"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "git"
+args = ["clone", "https://aur.archlinux.org/trizen.git", "/tmp/trizen"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "sh"
+args = ["-c", "cd /tmp/trizen && makepkg -si --noconfirm"]
+
+[[provider.remove.steps]]
+action = "command"
+exec = "pacman"
+args = ["-Rns", "--noconfirm", "trizen"]
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "/etc/pacman.conf"
+content = """
+[{{ .Name }}]
+Server = {{ .URL }}
+"""
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--recv-keys", "{{ .KeyID }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--lsign-key", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--delete", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "remove_section"
+path = "/etc/pacman.conf"
+section = "{{ .Name }}"

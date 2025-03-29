@@ -1,0 +1,80 @@
+[provider]
+name = "apk"
+elevated = true  # APK requires root privileges
+
+[provider.detection]
+binary = "apk"
+files = [
+    "/sbin/apk",
+    "/etc/apk",
+    "/var/cache/apk"
+]
+distributions = ["alpine"]
+
+[provider.commands]
+install = "add"
+update = "update && apk upgrade"
+remove = "del"
+list = "info"
+search = "search"
+clean = "cache clean"
+
+[provider.corePackages]
+openssl = ["openssl", "openssl-dev"]
+build-essentials = ["build-base", "cmake", "pkgconfig", "freetype-dev", "fontconfig-dev", "libxcb-dev", "libxkbcommon-dev", "python3"]
+
+[provider.install]
+steps = [
+    # APK is pre-installed on Alpine Linux, but we can ensure it's up to date
+    { action = "command", exec = "apk", args = [
+        "update"
+    ], elevated = true },
+    { action = "command", exec = "apk", args = [
+        "upgrade"
+    ], elevated = true }
+]
+
+[provider.remove]
+steps = [
+    # APK cannot be removed as it's the system package manager
+    # But we can clean up its cache
+    { action = "command", exec = "apk", args = [
+        "cache",
+        "clean"
+    ], elevated = true }
+]
+
+[provider.repository.paths]
+repos = "/etc/apk/repositories"
+keys = "/etc/apk/keys"
+
+[[provider.repository.add.steps]]
+action = "download"
+source = "{{ .KeyURL }}"
+dest = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.add.steps]]
+action = "append"
+path = "/etc/apk/repositories"
+content = "{{ .URL }}"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "apk"
+args = ["update"]
+
+[[provider.repository.remove.steps]]
+action = "remove_line"
+path = "/etc/apk/repositories"
+match = "{{ .URL }}"
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "apk"
+args = ["update"]

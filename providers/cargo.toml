@@ -1,0 +1,53 @@
+[provider]
+name = "cargo"
+elevated = false  # Cargo operates at user level
+
+[provider.detection]
+binary = "cargo"
+files = ["~/.cargo/bin/cargo", "~/.rustup"]
+distributions = ["linux", "darwin", "windows"]  # Cross-platform
+
+[provider.commands]
+install = "install"
+update = "install --force"  # Reinstalls/updates packages
+remove = "uninstall"
+list = "install --list"
+search = "search"
+clean = "cache --autoclean"
+
+[provider.repository.paths]
+registry = "~/.cargo/registry"
+cache = "~/.cargo/cache"
+config = "~/.cargo/config.toml"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "cargo"
+args = ["update"]  # Update registry index
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "{{ .ConfigPath }}"
+content = """
+[registries.{{ .Name }}]
+index = "{{ .URL }}"
+"""
+condition = "{{ .IsCustomRegistry }}"  # Only for custom registries
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "cargo"
+args = ["login", "--registry", "{{ .Name }}", "{{ .Token }}"]
+condition = "{{ .HasToken }}"  # Only if authentication token provided
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "cargo"
+args = ["logout", "--registry", "{{ .Name }}"]
+condition = "{{ .HasToken }}"
+
+[[provider.repository.remove.steps]]
+action = "remove_section"
+path = "{{ .ConfigPath }}"
+section = "registries.{{ .Name }}"
+condition = "{{ .IsCustomRegistry }}"

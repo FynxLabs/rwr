@@ -1,0 +1,61 @@
+[provider]
+name = "eopkg"
+elevated = true  # Eopkg requires root privileges
+
+[provider.detection]
+binary = "eopkg"
+files = [
+    "/usr/bin/eopkg",
+    "/var/lib/eopkg",
+    "/etc/eopkg"
+]
+distributions = ["solus"]
+
+[provider.commands]
+install = "it -y"  # it = install
+update = "ur"      # ur = upgrade
+remove = "rm -y"   # rm = remove
+list = "li"        # li = list installed
+search = "sr"      # sr = search
+clean = "rmo -y"   # rmo = remove orphans
+
+[provider.repository.paths]
+repos = "/etc/eopkg/repos.d"
+keys = "/etc/eopkg/keys"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "eopkg"
+args = ["add-repo", "{{ .Name }}", "{{ .URL }}"]
+
+[[provider.repository.add.steps]]
+action = "download"
+source = "{{ .KeyURL }}"
+dest = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "eopkg"
+args = ["import", "{{ .KeyPath }}"]
+condition = "{{ .HasKey }}"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "eopkg"
+args = ["update-repo", "{{ .Name }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "eopkg"
+args = ["remove-repo", "{{ .Name }}"]
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "eopkg"
+args = ["update-repo", "--all"]  # Update remaining repos

@@ -1,81 +1,78 @@
 package helpers
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/pkg/providers"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
 )
 
 // SetWindowsDetails Sets the package manager details for Windows.
-func SetWindowsDetails(osInfo *types.OSInfo) {
+func SetWindowsDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Windows package manager details.")
 
-	//TODO: Move all package manager actions to a separate file to avoid duplication
-	if CommandExists("choco") {
-		log.Debug("Chocolatey detected.")
-		osInfo.PackageManager.Chocolatey = types.PackageManagerInfo{
-			Bin:     "choco",
-			List:    "choco list --local-only",
-			Search:  "choco search",
-			Install: "choco install -y",
-			Remove:  "choco uninstall -y",
-			Update:  "choco upgrade -y all",
-			Clean:   "choco cache delete",
-		}
-		osInfo.PackageManager.Default = osInfo.PackageManager.Chocolatey
+	// Initialize providers
+	providersPath, err := providers.GetProvidersPath()
+	if err != nil {
+		return fmt.Errorf("error getting providers path: %w", err)
 	}
 
-	if CommandExists("scoop") {
-		log.Debug("Scoop detected.")
-		osInfo.PackageManager.Scoop = types.PackageManagerInfo{
-			Bin:     "scoop",
-			List:    "scoop list",
-			Search:  "scoop search",
-			Install: "scoop install",
-			Remove:  "scoop uninstall",
-			Update:  "scoop update",
-			Clean:   "scoop cache rm *",
-		}
-		if osInfo.PackageManager.Default.Bin == "" {
-			osInfo.PackageManager.Default = osInfo.PackageManager.Scoop
-		}
+	if err := providers.LoadProviders(providersPath); err != nil {
+		return fmt.Errorf("error loading providers: %w", err)
 	}
 
-	if CommandExists("winget") {
-		log.Debug("Winget detected.")
-		osInfo.PackageManager.Winget = types.PackageManagerInfo{
-			Bin:     "winget",
-			List:    "winget list",
-			Search:  "winget search",
-			Install: "winget install",
-			Remove:  "winget uninstall",
-			Update:  "winget upgrade",
-			Clean:   "winget clean",
+	// Initialize package manager map
+	if osInfo.PackageManager.Managers == nil {
+		osInfo.PackageManager.Managers = make(map[string]types.PackageManagerInfo)
+	}
+
+	// Get available providers
+	available := providers.GetAvailableProviders()
+
+	// Add all available Windows package managers
+	for name, prov := range available {
+		// Skip if not a Windows provider
+		if !Contains(prov.Detection.Distributions, "windows") {
+			continue
 		}
-		if osInfo.PackageManager.Default.Bin == "" {
-			osInfo.PackageManager.Default = osInfo.PackageManager.Winget
+
+		if binPath, err := GetBinPath(prov.Detection.Binary); err == nil {
+			pmInfo := providers.GetPackageManagerInfo(prov, binPath)
+			osInfo.PackageManager.Managers[name] = types.PackageManagerInfo{
+				Name:     pmInfo.Name,
+				Bin:      pmInfo.Bin,
+				List:     pmInfo.List,
+				Search:   pmInfo.Search,
+				Install:  pmInfo.Install,
+				Remove:   pmInfo.Remove,
+				Update:   pmInfo.Update,
+				Clean:    pmInfo.Clean,
+				Elevated: pmInfo.Elevated,
+			}
+			log.Debugf("Added package manager: %s", name)
 		}
 	}
 
-	// Override default package manager if set in viper config
+	// Set default package manager from config if specified
 	viperDefault := viper.GetString("packageManager.windows.default")
-	if viperDefault != "" {
-		log.Debugf("Overriding default package manager with value from Viper: %s", viperDefault)
-		switch viperDefault {
-		case "choco":
-			osInfo.PackageManager.Default = osInfo.PackageManager.Chocolatey
-		case "scoop":
-			osInfo.PackageManager.Default = osInfo.PackageManager.Scoop
-		case "winget":
-			osInfo.PackageManager.Default = osInfo.PackageManager.Winget
-		default:
-			log.Warnf("Unknown default package manager specified in Viper config: %s", viperDefault)
+	if viperDefault != "" && osInfo.PackageManager.Managers[viperDefault].Bin != "" {
+		osInfo.PackageManager.Default = osInfo.PackageManager.Managers[viperDefault]
+		log.Infof("Set %s as default package manager from config", viperDefault)
+	} else {
+		// Otherwise use first available package manager as default
+		for _, pm := range osInfo.PackageManager.Managers {
+			osInfo.PackageManager.Default = pm
+			log.Infof("Set %s as default package manager", pm.Name)
+			break
 		}
 	}
+
+	return nil
 }
 
 func getWindowsVersion() string {

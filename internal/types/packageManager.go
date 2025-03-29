@@ -16,35 +16,7 @@ type PackageManagerInfo struct {
 }
 
 type PackageManager struct {
-	Default         PackageManagerInfo
-	Apt             PackageManagerInfo
-	Dnf             PackageManagerInfo
-	Yum             PackageManagerInfo
-	Eopkg           PackageManagerInfo
-	Pacman          PackageManagerInfo
-	Yay             PackageManagerInfo
-	Paru            PackageManagerInfo
-	Trizen          PackageManagerInfo
-	Yaourt          PackageManagerInfo
-	Pamac           PackageManagerInfo
-	Aura            PackageManagerInfo
-	Zypper          PackageManagerInfo
-	Emerge          PackageManagerInfo
-	Brew            PackageManagerInfo
-	Nix             PackageManagerInfo
-	MAS             PackageManagerInfo
-	Chocolatey      PackageManagerInfo
-	Scoop           PackageManagerInfo
-	Npm             PackageManagerInfo
-	Yarn            PackageManagerInfo
-	Pnpm            PackageManagerInfo
-	Pip             PackageManagerInfo
-	Gem             PackageManagerInfo
-	Cargo           PackageManagerInfo
-	Snap            PackageManagerInfo
-	Flatpak         PackageManagerInfo
-	Apk             PackageManagerInfo
-	Winget          PackageManagerInfo
-	MacPorts        PackageManagerInfo
-	GnomeExtensions PackageManagerInfo
+	Default PackageManagerInfo
+	// Map of package manager name to info
+	Managers map[string]PackageManagerInfo
 }

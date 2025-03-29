@@ -1,52 +1,36 @@
 package helpers
 
 import (
-	"fmt"
 	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/pkg/providers"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func CleanPackageManagers(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	packageManagers := getPackageManagerNames(osInfo.PackageManager)
+	// Get available providers
+	available := providers.GetAvailableProviders()
 
-	for _, pm := range packageManagers {
-		if pm == "default" {
+	// Clean each available provider
+	for name, provider := range available {
+		if provider.Commands.Clean == "" {
 			continue
 		}
 
-		pmInfo, err := GetPackageManagerInfo(osInfo, pm)
-		if err != nil {
-			log.Debugf("Package manager not found: %s", pm)
+		pmInfo := providers.GetPackageManagerInfo(provider, provider.BinPath)
+		log.Debugf("Running clean command for package manager: %s", name)
+		log.Debugf(" Running clean command: %s", pmInfo.Clean)
+
+		cleanCmd := types.Command{
+			Exec:     pmInfo.Clean,
+			Elevated: pmInfo.Elevated,
+		}
+
+		if err := RunCommand(cleanCmd, initConfig.Variables.Flags.Debug); err != nil {
+			log.Errorf("Error cleaning package manager %s: %v", name, err)
 			continue
 		}
 
-		if CommandExists(pmInfo.Bin) {
-			log.Debugf("Running clean command for package manager: %s", pm)
-			log.Debugf(" Running clean command: %s", pmInfo.Clean)
-			err = cleanPackageManager(pmInfo, initConfig)
-			if err != nil {
-				log.Errorf("Error cleaning package manager %s: %v", pm, err)
-				return err
-			}
-			log.Infof("Cleaned package manager: %s", pm)
-		} else {
-			log.Debugf("Package manager not found: %s", pm)
-		}
-	}
-
-	return nil
-}
-
-func cleanPackageManager(pmInfo types.PackageManagerInfo, initConfig *types.InitConfig) error {
-
-	cleanCmd := types.Command{
-		Exec:     pmInfo.Clean,
-		Elevated: pmInfo.Elevated,
-	}
-
-	err := RunCommand(cleanCmd, initConfig.Variables.Flags.Debug)
-	if err != nil {
-		return fmt.Errorf("error running clean command: %v", err)
+		log.Infof("Cleaned package manager: %s", name)
 	}
 
 	return nil

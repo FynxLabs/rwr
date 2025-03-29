@@ -1,0 +1,72 @@
+[provider]
+name = "paru"
+elevated = true
+
+[provider.detection]
+binary = "paru"
+files = ["/etc/pacman.conf", "/var/lib/pacman"]
+distributions = ["arch"]
+
+[provider.commands]
+install = "-S --noconfirm"  # -S for install, paru handles sync
+update = "-Sua --noconfirm" # -Sua for AUR updates only
+remove = "-Rns --noconfirm" # -Rns to remove with dependencies and config
+list = "-Qm"               # -Qm to list foreign (AUR) packages
+search = "-Ss"            # -Ss searches both repos and AUR
+clean = "-Scc --noconfirm" # -Scc for complete cache clean
+
+[provider.corePackages]
+openssl = ["openssl"]
+build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+
+[provider.repository.paths]
+sources = "/etc/pacman.d"
+keys = "/etc/pacman.d/gnupg"
+
+[[provider.install.steps]]
+action = "command"
+exec = "pacman"
+args = ["-S", "--needed", "--noconfirm", "base-devel", "git"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "git"
+args = ["clone", "https://aur.archlinux.org/paru.git", "/tmp/paru"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "sh"
+args = ["-c", "cd /tmp/paru && makepkg -si --noconfirm"]
+
+[[provider.remove.steps]]
+action = "command"
+exec = "pacman"
+args = ["-Rns", "--noconfirm", "paru"]
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "/etc/pacman.conf"
+content = """
+[{{ .Name }}]
+Server = {{ .URL }}
+"""
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--recv-keys", "{{ .KeyID }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--lsign-key", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--delete", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "remove_section"
+path = "/etc/pacman.conf"
+section = "{{ .Name }}"

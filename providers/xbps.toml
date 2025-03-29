@@ -1,0 +1,56 @@
+[provider]
+name = "xbps"
+elevated = true  # XBPS requires root for most operations
+
+[provider.detection]
+binary = "xbps-install"
+files = [
+    "/usr/bin/xbps-install",
+    "/usr/share/xbps.d",
+    "/var/db/xbps"
+]
+distributions = ["void"]  # Void Linux
+
+[provider.commands]
+install = "-Sy"  # Sync repos and install
+update = "-Su"   # Sync and upgrade
+remove = "-R"
+list = "xbps-query -l"
+search = "xbps-query -Rs"
+clean = "xbps-remove -O"  # Remove orphaned packages
+
+[provider.repository.paths]
+repos = "/etc/xbps.d"
+keys = "/var/db/xbps/keys"
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "{{ .SourcesPath }}/{{ .Name }}.conf"
+content = """
+repository={{ .URL }}
+"""
+
+[[provider.repository.add.steps]]
+action = "download"
+source = "{{ .KeyURL }}"
+dest = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "xbps-install"
+args = ["-S"]  # Sync repository indexes
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .SourcesPath }}/{{ .Name }}.conf"
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "xbps-install"
+args = ["-S"]  # Sync repository indexes after removal
