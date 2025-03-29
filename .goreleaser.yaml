@@ -1,6 +1,6 @@
 # .goreleaser.yaml
 
-version: 1
+version: 2
 
 env:
   - GO111MODULE=on
@@ -10,7 +10,7 @@ before:
     - go mod tidy
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 gomod:
   proxy: true
@@ -94,9 +94,11 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
+    # Using the new format for archives configuration
+    formats: ["tar.gz"]
     format_overrides:
       - goos: windows
-        format: zip
+        formats: ["zip"]
     builds_info:
       group: root
       owner: root
@@ -125,25 +127,14 @@ brews:
   - repository:
       owner: FynxLabs
       name: brew-tap
+      git:
+        url: "ssh://git@github.com/FynxLabs/brew-tap.git"
+        private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
     directory: Formula
     goarm: "7"
     homepage: "https://github.com/fynxlabs/rwr"
     description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
     license: MIT
-
-#scoop:
-#  bucket:
-#    owner: FynxLabs
-#    name: scoop-rwr
-#  commit_author:
-#    name: Levi Smith
-#    email: levi@fynx.dev
-#  homepage: target:https://github.com/fynxlabs/rwr
-#  description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
-#  license: MIT
-
-milestones:
-  - close: true
 
 release:
   name_template: "v{{ .Version }}"

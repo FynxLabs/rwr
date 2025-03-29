@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
-	"github.com/google/go-github/v66/github"
+	"github.com/google/go-github/v70/github"
 	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 )
