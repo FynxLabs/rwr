@@ -24,13 +24,23 @@ func InitProviders() error {
 	}
 
 	providers = make(map[string]*types.Provider)
-	providersPath, err := GetProvidersPath()
+
+	// First try loading embedded providers
+	embeddedProvs, err := LoadEmbeddedProviders()
 	if err != nil {
-		return fmt.Errorf("error getting providers path: %w", err)
+		log.Warnf("Failed to load embedded providers: %v", err)
+	} else {
+		for name, provider := range embeddedProvs {
+			providers[name] = provider
+		}
 	}
 
-	if err := LoadProviders(providersPath); err != nil {
-		return fmt.Errorf("error loading providers: %w", err)
+	// Then try filesystem providers (these will override embedded ones)
+	providersPath, err := GetProvidersPath()
+	if err == nil {
+		if err := LoadProviders(providersPath); err != nil {
+			log.Warnf("Failed to load filesystem providers: %v", err)
+		}
 	}
 
 	providersInit = true
@@ -219,9 +229,6 @@ func GetProvidersPath() (string, error) {
 
 // LoadProviders loads all provider definitions from the given directory
 func LoadProviders(definitionsPath string) error {
-	// Clear existing providers
-	providers = make(map[string]*types.Provider)
-
 	log.Debugf("LoadProviders: Loading providers from %s", definitionsPath)
 	entries, err := os.ReadDir(definitionsPath)
 	if err != nil {
