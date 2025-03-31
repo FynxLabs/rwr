@@ -1,0 +1,72 @@
+[provider]
+name = "yay"
+elevated = true
+
+[provider.detection]
+binary = "yay"
+files = ["/etc/pacman.conf", "/var/lib/pacman"]
+distributions = ["arch"]
+
+[provider.commands]
+install = "-S --noconfirm --needed"  # -S for install, --needed to avoid reinstalling
+update = "-Syu --noconfirm"         # -Syu for full system upgrade including AUR
+remove = "-Rns --noconfirm"         # -Rns to remove with dependencies and config
+list = "-Qm"                       # -Qm to list foreign (AUR) packages
+search = "-Ss"                    # -Ss searches both repos and AUR
+clean = "-Yc --noconfirm"        # -Yc to clean unneeded dependencies
+
+[provider.corePackages]
+openssl = ["openssl"]
+build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+
+[provider.repository.paths]
+sources = "/etc/pacman.d"
+keys = "/etc/pacman.d/gnupg"
+
+[[provider.install.steps]]
+action = "command"
+exec = "pacman"
+args = ["-S", "--needed", "--noconfirm", "base-devel", "git"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "git"
+args = ["clone", "https://aur.archlinux.org/yay.git", "/tmp/yay"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "sh"
+args = ["-c", "cd /tmp/yay && makepkg -si --noconfirm"]
+
+[[provider.remove.steps]]
+action = "command"
+exec = "pacman"
+args = ["-Rns", "--noconfirm", "yay"]
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "/etc/pacman.conf"
+content = """
+[{{ .Name }}]
+Server = {{ .URL }}
+"""
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--recv-keys", "{{ .KeyID }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--lsign-key", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--delete", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "remove_section"
+path = "/etc/pacman.conf"
+section = "{{ .Name }}"

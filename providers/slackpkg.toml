@@ -1,0 +1,67 @@
+[provider]
+name = "slackpkg"
+elevated = true  # Slackpkg requires root privileges
+
+[provider.detection]
+binary = "slackpkg"
+files = [
+    "/usr/sbin/slackpkg",
+    "/etc/slackpkg",
+    "/var/lib/slackpkg"
+]
+distributions = ["slackware"]
+
+[provider.commands]
+install = "install"
+update = "update && slackpkg upgrade-all"
+remove = "remove"
+list = "search installed"
+search = "search"
+clean = "clean-system"
+
+[provider.repository.paths]
+mirrors = "/etc/slackpkg/mirrors"
+blacklist = "/etc/slackpkg/blacklist"
+gpg = "/etc/slackpkg/gpg"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "sed"
+args = ["-i", "s/^[^#].*//", "{{ .MirrorsPath }}"]  # Comment out all active mirrors
+
+[[provider.repository.add.steps]]
+action = "append"
+path = "{{ .MirrorsPath }}"
+content = "{{ .URL }}"
+
+[[provider.repository.add.steps]]
+action = "download"
+source = "{{ .KeyURL }}"
+dest = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "slackpkg"
+args = ["update", "gpg"]
+condition = "{{ .HasKey }}"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "slackpkg"
+args = ["update"]
+
+[[provider.repository.remove.steps]]
+action = "remove_line"
+path = "{{ .MirrorsPath }}"
+match = "{{ .URL }}"
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "slackpkg"
+args = ["update"]

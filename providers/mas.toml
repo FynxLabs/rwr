@@ -1,0 +1,34 @@
+[provider]
+name = "mas"
+elevated = false  # Uses App Store authentication instead
+
+[provider.detection]
+binary = "mas"
+files = ["/usr/local/bin/mas", "/opt/homebrew/bin/mas"]  # Intel and Apple Silicon paths
+distributions = ["darwin"]
+
+[provider.commands]
+install = "install"
+update = "upgrade"
+remove = "uninstall"
+list = "list"
+search = "search"
+clean = "reset"  # Reset App Store cache
+
+# Note: MAS doesn't use traditional repositories as it uses the App Store
+# But we include an empty repository section for consistency
+[provider.repository.paths]
+store = "/System/Applications/App Store.app"
+
+# No add/remove steps needed as repositories are managed by Apple
+# Including empty arrays for consistency in the schema
+[[provider.repository.add.steps]]
+action = "command"
+exec = "mas"
+args = ["signin", "--dialog"]  # Interactive sign-in if needed
+condition = "{{ .RequiresAuth }}"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "mas"
+args = ["signout"]

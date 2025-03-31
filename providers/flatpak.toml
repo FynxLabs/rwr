@@ -1,0 +1,54 @@
+[provider]
+name = "flatpak"
+elevated = false  # Can run in user mode, though system-wide needs elevation
+
+[provider.detection]
+binary = "flatpak"
+files = ["/usr/bin/flatpak", "~/.local/share/flatpak", "/var/lib/flatpak"]
+distributions = ["linux"]  # Works on any Linux distribution
+
+[provider.commands]
+install = "install -y"
+update = "update -y"
+remove = "uninstall -y"
+list = "list"
+search = "search"
+clean = "uninstall --unused -y"
+
+[provider.repository.paths]
+system = "/var/lib/flatpak/repo"
+user = "~/.local/share/flatpak/repo"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "flatpak"
+args = ["remote-add", "--if-not-exists", "{{ .Name }}", "{{ .URL }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "flatpak"
+args = ["remote-add", "--if-not-exists", "--user", "{{ .Name }}", "{{ .URL }}"]
+condition = "{{ .UserMode }}"  # Only run for user-mode installations
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "flatpak"
+args = ["remote-add", "--if-not-exists", "--system", "{{ .Name }}", "{{ .URL }}"]
+condition = "{{ not .UserMode }}"  # Only run for system-wide installations
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "flatpak"
+args = ["remote-delete", "{{ .Name }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "flatpak"
+args = ["remote-delete", "--user", "{{ .Name }}"]
+condition = "{{ .UserMode }}"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "flatpak"
+args = ["remote-delete", "--system", "{{ .Name }}"]
+condition = "{{ not .UserMode }}"

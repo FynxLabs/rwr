@@ -27,7 +27,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 * *Script Execution*: RWR allows you to execute scripts as part of the configuration process, providing additional flexibility and customization options.
 * *Bootstrap Process*: RWR includes a bootstrap process that can be used to set up the initial system configuration, including installing essential packages, creating directories, and setting permissions.
 * *Variable Substitution*: Use variables in your blueprints to make your configurations more dynamic and reusable.
-* *Extensible Architecture*: RWR is built with extensibility in mind, allowing you to easily add support for new package managers, file synchronization backends, and more.
+* *Extensible Architecture*: RWR is built with extensibility in mind, allowing you to easily add support for new package managers through TOML-based provider configurations, without needing to write Go code.
 * *SSH Key Management*: RWR can generate and manage SSH keys, including copying public keys to GitHub and setting a key as the default RWR SSH key for operations.
 
 == Quick Install
@@ -92,7 +92,11 @@ RWR provides the following commands:
 * `rwr config`: Manage RWR configuration settings.
 ** `rwr config --create`: Initialize the RWR configuration.
 * `rwr all`: Initialize the system by running all blueprints.
-* `rwr validate`: Validate the RWR blueprints.
+* `rwr validate`: Validate the RWR blueprints and provider configurations to identify issues before running them.
+** `rwr validate --blueprints`: Validate only blueprint files.
+** `rwr validate --providers`: Validate only provider configurations.
+** `rwr validate --path /path/to/configs`: Validate configurations in a specific directory.
+** `rwr validate --verbose`: Show detailed validation information.
 * `rwr run`: Run individual processors.
 ** `rwr run package`: Run the package processor.
 ** `rwr run repository`: Run the repository processor.
@@ -190,6 +194,7 @@ For detailed documentation on how to use RWR, please refer to our https://github
 === RWR Command Line Interface
 * https://github.com/FynxLabs/rwr/wiki/Command-&-Flags[CLI & Flags]
 * https://github.com/FynxLabs/rwr/wiki/Configuration[Config File]
+* https://github.com/FynxLabs/rwr/wiki/Validate[Validate Command]
 
 === Blueprints
 * https://github.com/FynxLabs/rwr/wiki/Best-Practices[Blueprint Best Practices]
@@ -207,6 +212,7 @@ For detailed documentation on how to use RWR, please refer to our https://github
 
 === Advanced Topics
 * https://github.com/FynxLabs/rwr/wiki/Variables[Template Variables]
+* https://github.com/FynxLabs/rwr/wiki/Providers[Package Manager Providers]
 
 For more detailed information on each topic, please visit the corresponding Wiki page.
 

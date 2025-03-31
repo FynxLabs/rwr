@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/google/go-github/v70/github"
 	"github.com/spf13/viper"
@@ -78,30 +79,25 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 }
 
 func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var packages []types.Package
-
 	switch runtime.GOOS {
 	case "windows":
-		packages = []types.Package{
-			{Name: "openssh", Action: "install", PackageManager: "chocolatey"},
+		pkgData := &types.PackagesData{
+			Packages: []types.Package{
+				{Name: "openssh", Action: "install", PackageManager: "chocolatey"},
+			},
 		}
+		return ProcessPackages(nil, pkgData, "", osInfo, initConfig)
 	case "darwin":
-		packages = []types.Package{
-			{Name: "openssh", Action: "install", PackageManager: "brew"},
+		pkgData := &types.PackagesData{
+			Packages: []types.Package{
+				{Name: "openssh", Action: "install", PackageManager: "brew"},
+			},
 		}
+		return ProcessPackages(nil, pkgData, "", osInfo, initConfig)
 	default:
 		// For Linux, OpenSSH is typically pre-installed
 		return nil
 	}
-
-	for _, pkg := range packages {
-		err := ProcessPackage(pkg, osInfo, initConfig)
-		if err != nil {
-			return fmt.Errorf("error installing SSH package %s: %v", pkg.Name, err)
-		}
-	}
-
-	return nil
 }
 
 func generateSSHKey(sshKey types.SSHKey) (string, error) {
@@ -128,7 +124,7 @@ func generateSSHKey(sshKey types.SSHKey) (string, error) {
 		Args: args,
 	}
 
-	err := helpers.RunCommand(cmd, true)
+	err := system.RunCommand(cmd, true)
 	if err != nil {
 		return "", fmt.Errorf("error generating SSH key: %v", err)
 	}

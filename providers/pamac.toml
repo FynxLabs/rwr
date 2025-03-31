@@ -1,0 +1,72 @@
+[provider]
+name = "pamac"
+elevated = true
+
+[provider.detection]
+binary = "pamac"
+files = ["/etc/pacman.conf", "/var/lib/pacman"]
+distributions = ["arch", "manjaro"]
+
+[provider.commands]
+install = "build --no-confirm"  # build for AUR packages
+update = "upgrade -a --no-confirm" # -a for AUR updates
+remove = "remove --no-confirm"  # remove packages
+list = "list -i"              # -i to list installed packages
+search = "search -a"          # -a to search both repos and AUR
+clean = "clean --no-confirm"  # clean cache
+
+[provider.corePackages]
+openssl = ["openssl"]
+build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+
+[provider.repository.paths]
+sources = "/etc/pacman.d"
+keys = "/etc/pacman.d/gnupg"
+
+[[provider.install.steps]]
+action = "command"
+exec = "pacman"
+args = ["-S", "--needed", "--noconfirm", "base-devel", "git"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "git"
+args = ["clone", "https://aur.archlinux.org/pamac-aur.git", "/tmp/pamac"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "sh"
+args = ["-c", "cd /tmp/pamac && makepkg -si --noconfirm"]
+
+[[provider.remove.steps]]
+action = "command"
+exec = "pacman"
+args = ["-Rns", "--noconfirm", "pamac-aur"]
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "/etc/pacman.conf"
+content = """
+[{{ .Name }}]
+Server = {{ .URL }}
+"""
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--recv-keys", "{{ .KeyID }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--lsign-key", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "pacman-key"
+args = ["--delete", "{{ .KeyID }}"]
+
+[[provider.repository.remove.steps]]
+action = "remove_section"
+path = "/etc/pacman.conf"
+section = "{{ .Name }}"

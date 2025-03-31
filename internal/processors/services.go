@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
@@ -58,7 +59,7 @@ func createServiceFile(service types.Service, osInfo *types.OSInfo) error {
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
-		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
+		if err := system.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying service file: %v", err)
 		}
 	} else {
@@ -138,7 +139,7 @@ func processLinuxService(service types.Service, osInfo *types.OSInfo, initConfig
 	}
 
 	serviceCmd.Elevated = service.Elevated
-	if err := helpers.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
+	if err := system.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error running service command: %v", err)
 	}
 
@@ -152,7 +153,7 @@ func createLaunchDaemon(service types.Service, osInfo *types.OSInfo) error {
 			return fmt.Errorf("error creating launch daemon: %v", err)
 		}
 	} else if service.Source != "" {
-		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
+		if err := system.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying launch daemon: %v", err)
 		}
 	} else {
@@ -226,7 +227,7 @@ func processMacOSService(service types.Service, osInfo *types.OSInfo, initConfig
 	}
 
 	serviceCmd.Elevated = service.Elevated
-	if err := helpers.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
+	if err := system.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error running service command: %v", err)
 	}
 
@@ -240,7 +241,7 @@ func createWindowsService(service types.Service, osInfo *types.OSInfo, initConfi
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
-		if err := helpers.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
+		if err := system.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying service file: %v", err)
 		}
 	} else {
@@ -252,7 +253,7 @@ func createWindowsService(service types.Service, osInfo *types.OSInfo, initConfi
 		Args:     []string{"create", service.Name, "binPath=", service.Target},
 		Elevated: true,
 	}
-	if err := helpers.RunCommand(createCmd, initConfig.Variables.Flags.Debug); err != nil {
+	if err := system.RunCommand(createCmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error creating Windows service: %v", err)
 	}
 
@@ -265,7 +266,7 @@ func deleteWindowsService(service types.Service, initConfig *types.InitConfig) e
 		Args:     []string{"delete", service.Name},
 		Elevated: true,
 	}
-	if err := helpers.RunCommand(deleteCmd, initConfig.Variables.Flags.Debug); err != nil {
+	if err := system.RunCommand(deleteCmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error deleting Windows service: %v", err)
 	}
 
@@ -336,7 +337,7 @@ func processWindowsService(service types.Service, osInfo *types.OSInfo, initConf
 		return fmt.Errorf("unsupported action for service: %s", service.Action)
 	}
 
-	if err := helpers.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
+	if err := system.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error running service command: %v", err)
 	}
 

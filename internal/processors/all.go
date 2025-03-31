@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -23,25 +24,36 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	}
 
 	// Check if macOS and no package manager is installed
-	if osInfo.System.OS == "darwin" && osInfo.PackageManager.Default.Bin == "" {
-		log.Info("No package manager detected on macOS. Installing one is required to proceed.")
-
-		var chosenPM string
-		if initConfig.Variables.Flags.Interactive {
-			chosenPM = helpers.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
-		} else {
-			chosenPM = "brew"
-			log.Info("Non-interactive mode: defaulting to Homebrew (brew)")
+	if osInfo.System.OS == "darwin" {
+		// Check if any package manager is installed
+		hasPackageManager := false
+		for _, pm := range osInfo.PackageManager.Managers {
+			if pm.Bin != "" {
+				hasPackageManager = true
+				break
+			}
 		}
 
-		pmInfo := types.PackageManagerInfo{
-			Name:   chosenPM,
-			Action: "install",
-		}
+		if !hasPackageManager {
+			log.Info("No package manager detected on macOS. Installing one is required to proceed.")
 
-		err = ProcessPackageManagers([]types.PackageManagerInfo{pmInfo}, osInfo, initConfig)
-		if err != nil {
-			return fmt.Errorf("error installing package manager: %w", err)
+			var chosenPM string
+			if initConfig.Variables.Flags.Interactive {
+				chosenPM = system.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
+			} else {
+				chosenPM = "brew"
+				log.Info("Non-interactive mode: defaulting to Homebrew (brew)")
+			}
+
+			pmInfo := types.PackageManagerInfo{
+				Name:   chosenPM,
+				Action: "install",
+			}
+
+			err = ProcessPackageManagers([]types.PackageManagerInfo{pmInfo}, osInfo, initConfig)
+			if err != nil {
+				return fmt.Errorf("error installing package manager: %w", err)
+			}
 		}
 	}
 
@@ -76,7 +88,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 	// Run the bootstrap processor first if it exists
 	bootstrapFile := filepath.Join(initConfig.Init.Location, "bootstrap.yaml")
-	if helpers.FileExists(bootstrapFile) {
+	if system.FileExists(bootstrapFile) {
 		err = ProcessBootstrap(bootstrapFile, initConfig, osInfo)
 		if err != nil {
 			return fmt.Errorf("error processing bootstrap: %w", err)
@@ -154,7 +166,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 	// Clean up package managers
 	log.Infof("Cleaning up package managers")
-	if err = helpers.CleanPackageManagers(osInfo, initConfig); err != nil {
+	if err = system.CleanPackageManagers(osInfo, initConfig); err != nil {
 		return fmt.Errorf("error cleaning package managers: %w", err)
 	}
 

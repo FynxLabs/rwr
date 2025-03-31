@@ -1,0 +1,129 @@
+[provider]
+name = "nix"
+elevated = false  # Nix operates in user space by default
+
+[provider.detection]
+binary = "nix-env"
+files = [
+    # Common paths across systems
+    "/nix/store",
+    "~/.nix-profile",
+    "/etc/nix",
+    # NixOS specific
+    "/etc/nixos",
+    # Home Manager
+    "~/.config/nixpkgs"
+]
+distributions = ["linux", "darwin"]  # Works on Linux and macOS
+
+[provider.commands]
+install = "-i"
+update = "-u '*'"  # Update all packages
+remove = "-e"
+list = "-q"
+search = "nix search"  # Uses new-style commands
+clean = "nix-collect-garbage -d"
+
+[provider.corePackages]
+openssl = ["openssl", "openssl.dev"]
+build-essentials = ["gnumake", "cmake", "freetype", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python3"]
+
+[provider.install]
+steps = [
+    # Download installer
+    { action = "command", exec = "curl", args = [
+        "-L",
+        "https://nixos.org/nix/install",
+        "--output",
+        "/tmp/nix-install"
+    ]},
+    # Make executable
+    { action = "command", exec = "chmod", args = [
+        "+x",
+        "/tmp/nix-install"
+    ]},
+    # Run installer
+    { action = "command", exec = "sh", args = [
+        "/tmp/nix-install"
+    ]},
+    # Clean up
+    { action = "command", exec = "rm", args = [
+        "/tmp/nix-install"
+    ]},
+    # Add unstable channel
+    { action = "command", exec = "nix-channel", args = [
+        "--add",
+        "https://nixos.org/channels/nixpkgs-unstable",
+        "nixpkgs"
+    ]},
+    # Update channels
+    { action = "command", exec = "nix-channel", args = [
+        "--update"
+    ]}
+]
+
+[provider.remove]
+steps = [
+    # Download uninstaller
+    { action = "command", exec = "curl", args = [
+        "-L",
+        "https://nixos.org/nix/uninstall",
+        "--output",
+        "/tmp/nix-uninstall"
+    ]},
+    # Make executable
+    { action = "command", exec = "chmod", args = [
+        "+x",
+        "/tmp/nix-uninstall"
+    ]},
+    # Run uninstaller
+    { action = "command", exec = "sh", args = [
+        "/tmp/nix-uninstall"
+    ]},
+    # Clean up
+    { action = "command", exec = "rm", args = [
+        "/tmp/nix-uninstall"
+    ]}
+]
+
+[provider.repository.paths]
+channels = "/nix/var/nix/profiles/per-user"
+config = "/etc/nix/nix.conf"
+nixpkgs = "~/.config/nixpkgs"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "nix-channel"
+args = ["--add", "{{ .URL }}", "{{ .Name }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "nix-channel"
+args = ["--update", "{{ .Name }}"]
+
+[[provider.repository.add.steps]]
+action = "write"
+dest = "{{ .ConfigPath }}/config.nix"
+content = """
+{
+  packageOverrides = pkgs: {
+    {{ .Name }} = import (builtins.fetchTarball {
+      url = "{{ .URL }}";
+      sha256 = "{{ .SHA256 }}";
+    }) {
+      inherit pkgs;
+    };
+  };
+}
+"""
+condition = "{{ .IsOverlay }}"  # Only for Nixpkgs overlays
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "nix-channel"
+args = ["--remove", "{{ .Name }}"]
+
+[[provider.repository.remove.steps]]
+action = "remove"
+path = "{{ .ConfigPath }}/config.nix"
+condition = "{{ .IsOverlay }}"

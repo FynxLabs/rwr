@@ -19,10 +19,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: stable
-      - name: Set up SSH Deploy Key
-        uses: webfactory/ssh-agent@v0.9.1
-        with:
-          ssh-private-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:

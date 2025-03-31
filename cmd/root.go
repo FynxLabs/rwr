@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/processors"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
@@ -20,9 +20,34 @@ var rootCmd = &cobra.Command{
 	Short: "Rinse, Wash, and Repeat - Distrohopper's Friend",
 	Long:  `rwr is a cli to manage your Linux system's package manager and repositories.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if cmd.Use != "help" && cmd.Use != "config" && cmd.Use != "version" {
-			initializeSystemInfo()
+		// Skip initialization for these commands
+		skipInit := map[string]bool{
+			"help":     true,
+			"config":   true,
+			"version":  true,
+			"validate": true,
 		}
+
+		// Check if the current command or any of its parents should skip init
+		current := cmd
+		for current != nil {
+			if skipInit[current.Name()] {
+				// For validate command, just detect OS
+				if current.Name() == "validate" {
+					err := system.SetPaths()
+					if err != nil {
+						log.With("err", err).Errorf("Error setting paths")
+						os.Exit(1)
+					}
+					osInfo = system.DetectOS()
+					return nil
+				}
+				return nil
+			}
+			current = current.Parent()
+		}
+
+		initializeSystemInfo()
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -101,7 +126,7 @@ func initializeSystemInfo() {
 		RunOnceLocation:  runOnceLocation,
 	}
 
-	err = helpers.SetPaths()
+	err = system.SetPaths()
 	if err != nil {
 		log.With("err", err).Errorf("Error setting paths")
 		os.Exit(1)
@@ -121,7 +146,7 @@ func initializeSystemInfo() {
 		os.Exit(1)
 	}
 
-	osInfo = helpers.DetectOS()
+	osInfo = system.DetectOS()
 }
 
 func init() {
@@ -175,7 +200,6 @@ func init() {
 
 	viper.SetEnvPrefix("RWR")
 	viper.AutomaticEnv()
-
 }
 
 func config() {

@@ -1,4 +1,4 @@
-package helpers
+package system
 
 import (
 	"bufio"
@@ -337,53 +337,53 @@ func copyFileContent(source, target string) error {
 	return err
 }
 
-func moveDirectoryWithElevatedPrivileges(source, target string) error {
-	cmd := types.Command{
-		Exec:     "mv",
-		Args:     []string{source, target},
-		Elevated: true,
-	}
-	err := RunCommand(cmd, false)
-	if err != nil {
-		return fmt.Errorf("error moving directory with elevated privileges: %v", err)
-	}
-	return nil
-}
+// func moveDirectoryWithElevatedPrivileges(source, target string) error {
+// 	cmd := types.Command{
+// 		Exec:     "mv",
+// 		Args:     []string{source, target},
+// 		Elevated: true,
+// 	}
+// 	err := RunCommand(cmd, false)
+// 	if err != nil {
+// 		return fmt.Errorf("error moving directory with elevated privileges: %v", err)
+// 	}
+// 	return nil
+// }
 
-func copyDirectoryContent(source, target string) error {
-	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+// func copyDirectoryContent(source, target string) error {
+// 	err := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+// 		if err != nil {
+// 			return err
+// 		}
 
-		relPath, err := filepath.Rel(source, path)
-		if err != nil {
-			return err
-		}
+// 		relPath, err := filepath.Rel(source, path)
+// 		if err != nil {
+// 			return err
+// 		}
 
-		targetPath := filepath.Join(target, relPath)
+// 		targetPath := filepath.Join(target, relPath)
 
-		if info.IsDir() {
-			err := os.MkdirAll(targetPath, info.Mode())
-			if err != nil {
-				return err
-			}
-		} else {
-			err := copyFileContent(path, targetPath)
-			if err != nil {
-				return err
-			}
-		}
+// 		if info.IsDir() {
+// 			err := os.MkdirAll(targetPath, info.Mode())
+// 			if err != nil {
+// 				return err
+// 			}
+// 		} else {
+// 			err := copyFileContent(path, targetPath)
+// 			if err != nil {
+// 				return err
+// 			}
+// 		}
 
-		return nil
-	})
+// 		return nil
+// 	})
 
-	if err != nil {
-		return fmt.Errorf("error copying directory content: %v", err)
-	}
+// 	if err != nil {
+// 		return fmt.Errorf("error copying directory content: %v", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func CopyDirectory(source, target string, elevated, interactive bool) error {
 	log.Debugf("Copying directory from %s to %s", source, target)

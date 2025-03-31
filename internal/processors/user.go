@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
@@ -104,7 +105,7 @@ func createGroup(group types.Group, initConfig *types.InitConfig) error {
 			Args:     []string{"group", group.Name},
 			Elevated: false,
 		}
-		err := helpers.RunCommand(checkGroupCmd, initConfig.Variables.Flags.Debug)
+		err := system.RunCommand(checkGroupCmd, initConfig.Variables.Flags.Debug)
 		if err == nil {
 			// Group already exists, log a message and return without error
 			log.Infof("Group %s already exists, skipping creation", group.Name)
@@ -117,7 +118,7 @@ func createGroup(group types.Group, initConfig *types.InitConfig) error {
 			Args:     []string{group.Name},
 			Elevated: true,
 		}
-		err = helpers.RunCommand(createGroupCmd, initConfig.Variables.Flags.Debug)
+		err = system.RunCommand(createGroupCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error creating group: %v", err)
 		}
@@ -147,7 +148,7 @@ func createUser(user types.User, initConfig *types.InitConfig) error {
 		for _, group := range user.Groups {
 			createUserCmd.Args = append(createUserCmd.Args, "--groups", group)
 		}
-		err := helpers.RunCommand(createUserCmd, initConfig.Variables.Flags.Debug)
+		err := system.RunCommand(createUserCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error creating user: %v", err)
 		}
@@ -173,7 +174,7 @@ func modifyGroup(group types.Group, initConfig *types.InitConfig) error {
 		}
 		// TODO: More groupmod options
 
-		err := helpers.RunCommand(modifyGroupCmd, initConfig.Variables.Flags.Debug)
+		err := system.RunCommand(modifyGroupCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error modifying group: %v", err)
 		}
@@ -210,7 +211,7 @@ func modifyUser(user types.User, initConfig *types.InitConfig) error {
 		}
 		// TODO: More usermod options
 
-		err := helpers.RunCommand(modifyUserCmd, initConfig.Variables.Flags.Debug)
+		err := system.RunCommand(modifyUserCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error modifying user: %v", err)
 		}
@@ -236,7 +237,7 @@ func removeUser(user types.User, initConfig *types.InitConfig) error {
 		}
 		// Add other options for removing users here
 
-		err := helpers.RunCommand(removeUserCmd, initConfig.Variables.Flags.Debug)
+		err := system.RunCommand(removeUserCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error removing user: %v", err)
 		}

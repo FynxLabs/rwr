@@ -1,0 +1,66 @@
+[provider]
+name = "brew"
+elevated = false  # Homebrew doesn't require sudo
+
+[provider.detection]
+binary = "brew"
+files = [
+    # macOS paths (Intel and Apple Silicon)
+    "/usr/local/bin/brew",
+    "/opt/homebrew/bin/brew",
+    # Linux paths
+    "/home/linuxbrew/.linuxbrew/bin/brew",
+    "~/.linuxbrew/bin/brew"
+]
+distributions = ["darwin", "linux"]  # Works on both macOS and Linux
+
+[provider.commands]
+install = "install -fq"
+update = "update && brew upgrade"
+remove = "uninstall -fq"
+list = "list"
+search = "search"
+clean = "cleanup -q"
+
+[provider.install]
+steps = [
+    # Download install script
+    { action = "download", source = "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh", dest = "/tmp/brew-install.sh" },
+    # Make executable
+    { action = "command", exec = "chmod", args = ["+x", "/tmp/brew-install.sh"] },
+    # Run installer
+    { action = "command", exec = "bash", args = ["/tmp/brew-install.sh"] },
+    # Clean up
+    { action = "command", exec = "rm", args = ["/tmp/brew-install.sh"] }
+]
+
+[provider.remove]
+steps = [
+    # Download uninstall script
+    { action = "download", source = "https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh", dest = "/tmp/brew-uninstall.sh" },
+    # Make executable
+    { action = "command", exec = "chmod", args = ["+x", "/tmp/brew-uninstall.sh"] },
+    # Run uninstaller
+    { action = "command", exec = "bash", args = ["/tmp/brew-uninstall.sh"] },
+    # Clean up
+    { action = "command", exec = "rm", args = ["/tmp/brew-uninstall.sh"] }
+]
+
+[provider.corePackages]
+openssl = ["openssl"]
+build-essentials = ["make", "cmake", "pkg-config", "freetype", "fontconfig"]
+
+[provider.repository.paths]
+taps_macos = "/usr/local/Homebrew/Library/Taps"  # macOS Intel
+taps_macos_arm = "/opt/homebrew/Library/Taps"    # macOS Apple Silicon
+taps_linux = "/home/linuxbrew/.linuxbrew/Library/Taps"  # Linux
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "brew"
+args = ["tap", "{{ .Name }}"]
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "brew"
+args = ["untap", "{{ .Name }}"]

@@ -1,0 +1,75 @@
+[provider]
+name = "scoop"
+elevated = false  # Scoop is user-level by default
+
+[provider.detection]
+binary = "scoop"
+files = ["%USERPROFILE%\\scoop\\shims\\scoop.cmd"]
+distributions = ["windows"]
+
+[provider.commands]
+install = "install"
+update = "update"
+remove = "uninstall"
+list = "list"
+search = "search"
+clean = "cache rm *"
+
+[provider.corePackages]
+openssl = ["openssl"]
+build-essentials = ["make", "cmake", "freetype", "fontconfig"]
+
+[provider.install]
+steps = [
+    # Set execution policy
+    { action = "command", exec = "powershell", args = [
+        "-Command",
+        "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force"
+    ]},
+    # Download and run installer
+    { action = "command", exec = "powershell", args = [
+        "-Command",
+        "iex (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')"
+    ]},
+    # Add main bucket
+    { action = "command", exec = "scoop", args = [
+        "bucket",
+        "add",
+        "main"
+    ]},
+    # Add extras bucket (for additional packages)
+    { action = "command", exec = "scoop", args = [
+        "bucket",
+        "add",
+        "extras"
+    ]}
+]
+
+[provider.remove]
+steps = [
+    # Run uninstaller
+    { action = "command", exec = "scoop", args = [
+        "uninstall",
+        "scoop",
+        "-p"
+    ]}
+]
+
+[provider.repository.paths]
+buckets = "%USERPROFILE%\\scoop\\buckets"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "scoop"
+args = ["bucket", "add", "{{ .Name }}", "{{ .URL }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "scoop"
+args = ["bucket", "add", "{{ .Name }}"]
+condition = "{{ not .URL }}"  # For official buckets that don't need URL
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "scoop"
+args = ["bucket", "rm", "{{ .Name }}"]

@@ -1,9 +1,8 @@
-package helpers
+package system
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/fynxlabs/rwr/internal/types"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func RunCommand(cmd types.Command, debug bool) error {
@@ -61,7 +61,7 @@ func RunCommand(cmd types.Command, debug bool) error {
 	if err != nil {
 		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
 		log.Error(errMsg)
-		return fmt.Errorf(errMsg)
+		return err
 	}
 
 	return nil
@@ -111,7 +111,7 @@ func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
 	if err != nil {
 		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
 		log.Error(errMsg)
-		return "", fmt.Errorf(errMsg)
+		return "", err
 	}
 
 	return stdout.String(), nil

@@ -1,13 +1,14 @@
-package helpers
+package system
 
 import (
 	"bufio"
 	"fmt"
-	"github.com/charmbracelet/log"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/charmbracelet/log"
 
 	"github.com/pmezard/go-difflib/difflib"
 	"golang.org/x/term"

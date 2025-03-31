@@ -1,0 +1,197 @@
+# Template for creating new package manager providers
+# This file documents all available options and their usage
+
+[provider]
+name = "provider-name"  # Unique identifier for the package manager
+elevated = false       # Whether operations require root/admin privileges (true/false)
+                      # Set to true for system-wide package managers (apt, dnf, pacman)
+                      # Set to false for user-level package managers (cargo, pip --user)
+
+[provider.detection]
+# How to detect if this package manager is available on the system
+binary = "binary-name"  # Main executable to check for
+files = [
+    # List of files/directories that indicate provider is installed
+    # Linux examples:
+    "/usr/bin/binary-name",
+    "/etc/provider/config",
+    "/var/lib/provider/data",
+    # macOS examples:
+    "/usr/local/bin/binary-name",
+    "/opt/homebrew/bin/binary-name",
+    # Windows examples:
+    "%ProgramFiles%\\Provider\\bin\\binary.exe",
+    "%APPDATA%\\Provider\\config",
+    # User directory examples:
+    "~/.local/bin/binary-name",
+    "~/.config/provider"
+]
+distributions = [
+    # List of distributions where this provider is available
+    # Specific distros: "debian", "ubuntu", "fedora", "arch", etc.
+    # General platforms: "linux", "darwin", "windows"
+    # Multiple values for cross-platform: ["linux", "darwin"]
+    "platform-name"
+]
+
+[provider.commands]
+# Standard commands used by the package manager
+# All fields are optional - use empty string if command doesn't exist
+# Common flags:
+# --noconfirm, -y, --yes: Skip confirmation prompts
+# --quiet, -q: Reduce output verbosity
+# --needed: Skip reinstalling up-to-date packages
+install = "install"    # Command to install packages
+update = "update"     # Command to update package lists and upgrade packages
+remove = "remove"     # Command to remove packages
+list = "list"        # Command to list installed packages
+search = "search"     # Command to search for packages
+clean = "clean"      # Command to clean caches/unused packages
+
+[provider.corePackages]
+# Core packages required by this provider
+# Group packages by their purpose
+openssl = [           # OpenSSL and SSL/TLS packages
+    "openssl",
+    "ca-certificates"
+]
+build-essentials = [  # Build tools and development packages
+    "base-devel",     # Meta package name varies by distro
+    "build-essential",
+    "cmake",
+    "gcc"
+]
+
+[provider.repository.paths]
+# Paths used by the package manager for repositories
+# All fields are optional - only include relevant paths
+sources = "/path/to/sources"     # Repository definitions
+keys = "/path/to/keys"          # GPG/signing keys
+config = "/path/to/config"      # Configuration files
+
+# Steps to install the provider
+# Can have multiple steps, executed in order
+[[provider.install.steps]]
+# Step 1: Install dependencies
+action = "command"              # Execute a command
+exec = "package-manager"        # Command to run
+args = [                        # List of arguments
+    "install",
+    "--needed",
+    "dependency1",
+    "dependency2"
+]
+elevated = true                 # Whether step needs elevation
+
+[[provider.install.steps]]
+# Step 2: Create directories
+action = "mkdir"                # Create directory
+path = "/path/to/create"        # Directory to create
+mode = "0755"                   # Optional: permissions
+owner = "user:group"            # Optional: ownership
+
+[[provider.install.steps]]
+# Step 3: Download provider
+action = "download"             # Download a file
+source = "https://example.com/provider.tar.gz"
+dest = "/tmp/provider.tar.gz"
+
+[[provider.install.steps]]
+# Step 4: Install provider
+action = "command"
+exec = "sh"
+args = ["-c", "cd /tmp && tar xf provider.tar.gz && ./install.sh"]
+
+# Steps to remove the provider
+[[provider.remove.steps]]
+# Step 1: Remove provider
+action = "command"
+exec = "package-manager"
+args = ["remove", "provider-name"]
+
+[[provider.remove.steps]]
+# Step 2: Clean up files
+action = "remove"               # Remove a file/directory
+path = "/path/to/remove"        # Path to remove
+
+# Steps to add a repository
+[[provider.repository.add.steps]]
+# Step 1: Download GPG key (if needed)
+action = "download"              # Action type: download, write, append, command, etc.
+source = "{{ .KeyURL }}"        # URL to download from
+dest = "{{ .KeyPath }}"         # Where to save the file
+condition = "{{ .HasKey }}"     # Optional: Only execute if condition is true
+
+[[provider.repository.add.steps]]
+# Step 2: Import GPG key
+action = "command"              # Execute a command
+exec = "gpg"                    # Command to run
+args = [                        # List of arguments
+    "--import",
+    "{{ .KeyPath }}"
+]
+condition = "{{ .HasKey }}"     # Optional condition
+
+[[provider.repository.add.steps]]
+# Step 3: Add repository configuration
+action = "write"                # Write content to file
+dest = "{{ .SourcesPath }}/{{ .Name }}.conf"
+content = """
+[{{ .Name }}]
+name = {{ .Name }}
+url = {{ .URL }}
+enabled = 1
+"""
+
+[[provider.repository.add.steps]]
+# Step 4: Update repository data
+action = "command"
+exec = "provider-name"
+args = ["update"]
+
+# Steps to remove a repository
+[[provider.repository.remove.steps]]
+# Step 1: Remove repository configuration
+action = "remove"               # Remove a file
+path = "{{ .SourcesPath }}/{{ .Name }}.conf"
+
+[[provider.repository.remove.steps]]
+# Step 2: Remove GPG key if it exists
+action = "remove"
+path = "{{ .KeyPath }}"
+condition = "{{ .HasKey }}"
+
+[[provider.repository.remove.steps]]
+# Step 3: Update repository data
+action = "command"
+exec = "provider-name"
+args = ["update"]
+
+# Available template variables:
+# {{ .Name }}         - Repository/package name
+# {{ .URL }}          - Repository URL
+# {{ .KeyURL }}       - GPG key URL
+# {{ .KeyPath }}      - Path where key should be stored
+# {{ .SourcesPath }}  - Path where repo configs should be stored
+# {{ .HasKey }}       - Whether a GPG key was provided
+# {{ .IsCustom }}     - Whether this is a custom/third-party repo
+# {{ .UserMode }}     - Whether to install in user mode
+# {{ .SystemMode }}   - Whether to install in system mode
+# {{ .Version }}      - Package version
+# {{ .Architecture }} - System architecture (x86_64, aarch64, etc.)
+# {{ .Distribution }} - Linux distribution name
+# {{ .Platform }}     - Operating system platform (linux, darwin, windows)
+
+# Available actions:
+# download        - Download a file from URL
+# write          - Write content to a file (overwrites)
+# append         - Append content to a file
+# command        - Execute a command
+# remove         - Remove a file/directory
+# remove_line    - Remove a line from a file matching pattern
+# remove_section - Remove a section from a config file
+# mkdir          - Create directory with optional mode/owner
+# chmod          - Change file permissions
+# chown          - Change file ownership
+# symlink        - Create symbolic link
+# copy           - Copy file or directory

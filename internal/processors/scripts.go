@@ -5,10 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 
 	"github.com/charmbracelet/log"
-	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 )
 
 func ProcessScripts(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
@@ -160,7 +161,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	log.Debugf("Running script command: %+v", scriptCmd)
 
 	// Run the script
-	err := helpers.RunCommand(scriptCmd, initConfig.Variables.Flags.Debug)
+	err := system.RunCommand(scriptCmd, initConfig.Variables.Flags.Debug)
 	if err != nil {
 		return fmt.Errorf("error running script: %v", err)
 	}

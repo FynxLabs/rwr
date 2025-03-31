@@ -1,0 +1,64 @@
+[provider]
+name = "chocolatey"
+elevated = true  # Chocolatey requires admin rights
+
+[provider.detection]
+binary = "choco"
+files = ["%ProgramData%\\chocolatey\\bin\\choco.exe"]
+distributions = ["windows"]
+
+[provider.commands]
+install = "install -y"
+update = "upgrade -y all"
+remove = "uninstall -y"
+list = "list --local-only"
+search = "search"
+clean = "cache delete"
+
+[provider.install]
+steps = [
+    # Run PowerShell installer
+    { action = "command", exec = "powershell", args = [
+        "-Command",
+        "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"
+    ], elevated = true }
+]
+
+[provider.remove]
+steps = [
+    # Run PowerShell uninstaller
+    { action = "command", exec = "powershell", args = [
+        "-Command",
+        "choco uninstall chocolatey -y"
+    ], elevated = true }
+]
+
+[provider.corePackages]
+openssl = ["openssl"]
+build-essentials = ["make", "cmake", "freetype", "fontconfig"]
+
+[provider.repository.paths]
+sources = "%ProgramData%\\chocolatey\\config"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "choco"
+args = ["source", "add", "--name={{ .Name }}", "--source={{ .URL }}"]
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "choco"
+args = [
+    "source",
+    "add",
+    "--name={{ .Name }}",
+    "--source={{ .URL }}",
+    "--user={{ .Username }}",
+    "--password={{ .Password }}"
+]
+condition = "{{ .HasAuthentication }}"  # Only run if auth details provided
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "choco"
+args = ["source", "remove", "--name={{ .Name }}"]

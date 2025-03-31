@@ -1,0 +1,97 @@
+[provider]
+name = "macports"
+elevated = true  # MacPorts requires sudo for most operations
+
+[provider.detection]
+binary = "port"
+files = ["/opt/local/bin/port", "/opt/local/etc/macports"]
+distributions = ["darwin"]
+
+[provider.commands]
+install = "install"
+update = "selfupdate && port upgrade outdated"
+remove = "uninstall"
+list = "installed"
+search = "search"
+clean = "clean --all all"
+
+[provider.corePackages]
+openssl = ["openssl", "openssl-devel"]
+build-essentials = ["make", "cmake", "pkgconfig", "freetype", "fontconfig"]
+
+[provider.install]
+steps = [
+    # Download installer
+    { action = "command", exec = "curl", args = [
+        "-O",
+        "https://github.com/macports/macports-base/releases/download/v2.8.1/MacPorts-2.8.1-13-Ventura.pkg"
+    ]},
+    # Install package
+    { action = "command", exec = "installer", args = [
+        "-pkg",
+        "MacPorts-2.8.1-13-Ventura.pkg",
+        "-target",
+        "/"
+    ], elevated = true },
+    # Clean up
+    { action = "command", exec = "rm", args = [
+        "MacPorts-2.8.1-13-Ventura.pkg"
+    ]},
+    # Update ports tree
+    { action = "command", exec = "port", args = [
+        "selfupdate"
+    ], elevated = true }
+]
+
+[provider.remove]
+steps = [
+    # Uninstall all ports
+    { action = "command", exec = "port", args = [
+        "-f",
+        "uninstall",
+        "installed"
+    ], elevated = true },
+    # Remove MacPorts files
+    { action = "command", exec = "rm", args = [
+        "-rf",
+        "/opt/local",
+        "/Applications/DarwinPorts",
+        "/Applications/MacPorts",
+        "/Library/LaunchDaemons/org.macports.*",
+        "/Library/Receipts/DarwinPorts*.pkg",
+        "/Library/Receipts/MacPorts*.pkg",
+        "/Library/StartupItems/DarwinPortsStartup",
+        "/Library/Tcl/darwinports1.0",
+        "/Library/Tcl/macports1.0",
+        "~/.macports"
+    ], elevated = true }
+]
+
+[provider.repository.paths]
+sources = "/opt/local/etc/macports/sources.conf"
+ports = "/opt/local/var/macports/sources"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "port"
+args = ["sync"]  # Sync port definitions
+
+[[provider.repository.add.steps]]
+action = "append"
+path = "{{ .SourcesPath }}"
+content = "{{ .URL }}"
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "port"
+args = ["selfupdate"]  # Update port definitions after adding source
+
+[[provider.repository.remove.steps]]
+action = "remove_line"
+path = "{{ .SourcesPath }}"
+match = "{{ .URL }}"
+
+[[provider.repository.remove.steps]]
+action = "command"
+exec = "port"
+args = ["selfupdate"]  # Update port definitions after removing source
