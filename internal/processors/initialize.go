@@ -11,6 +11,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
@@ -45,7 +46,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 
 			log.Debugf("Created Raw URL: %s", rawUrl)
 
-			err = helpers.DownloadFile(rawUrl, tempInitFile, false)
+			err = system.DownloadFile(rawUrl, tempInitFile, false)
 			if err != nil {
 				return nil, fmt.Errorf("error downloading init file: %w", err)
 			}
@@ -53,7 +54,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		} else {
 			log.Debugf("Treating init file as Raw URL")
 			log.Debugf("Setting downloaded file as temp: %s", tempInitFile)
-			err = helpers.DownloadFile(initFilePath, tempInitFile, false)
+			err = system.DownloadFile(initFilePath, tempInitFile, false)
 			if err != nil {
 				return nil, fmt.Errorf("error downloading init file: %w", err)
 			}
@@ -184,23 +185,15 @@ func convertTomlToYaml(data []byte) ([]byte, string, error) {
 }
 
 func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
-	// If Git configuration exists and has a target, that takes precedence
+	// Handle Git target setup if needed
 	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
-		// Remove any environment variables or templates that might have been resolved
-		resolvedTarget := helpers.ExpandPath(initConfig.Init.Git.Target)
-		log.Debugf("Using Git target as blueprint location: %s", resolvedTarget)
-
-		// Create the target directory if it doesn't exist
+		resolvedTarget := system.ExpandPath(initConfig.Init.Git.Target)
 		if err := os.MkdirAll(resolvedTarget, 0755); err != nil {
 			log.Warnf("Failed to create blueprint directory: %v", err)
 		}
-
-		// The location should be the Git target directory
-		initConfig.Init.Location = resolvedTarget
-		return
 	}
 
-	// Handle non-Git cases
+	// Set location based on init file rules
 	if initConfig.Init.Location == "" || initConfig.Init.Location == "." {
 		initConfig.Init.Location = filepath.Dir(initFilePath)
 	} else if initConfig.Init.Location == "~" || strings.HasPrefix(initConfig.Init.Location, "~/") {

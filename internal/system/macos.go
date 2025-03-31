@@ -1,29 +1,16 @@
-package helpers
+package system
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/fynxlabs/rwr/internal/pkg/providers"
 	"github.com/fynxlabs/rwr/internal/types"
-	"github.com/spf13/viper"
 )
 
-// SetMacOSDetails Sets the package manager details for macOS.
+// SetMacOSDetails sets macOS-specific system details
 func SetMacOSDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting macOS package manager details.")
-
-	// Initialize providers
-	providersPath, err := providers.GetProvidersPath()
-	if err != nil {
-		return fmt.Errorf("error getting providers path: %w", err)
-	}
-
-	if err := providers.LoadProviders(providersPath); err != nil {
-		return fmt.Errorf("error loading providers: %w", err)
-	}
 
 	// Initialize package manager map
 	if osInfo.PackageManager.Managers == nil {
@@ -31,7 +18,7 @@ func SetMacOSDetails(osInfo *types.OSInfo) error {
 	}
 
 	// Get available providers
-	available := providers.GetAvailableProviders()
+	available := GetAvailableProviders()
 
 	// Add all available macOS package managers
 	for name, prov := range available {
@@ -40,8 +27,8 @@ func SetMacOSDetails(osInfo *types.OSInfo) error {
 			continue
 		}
 
-		if binPath, err := GetBinPath(prov.Detection.Binary); err == nil {
-			pmInfo := providers.GetPackageManagerInfo(prov, binPath)
+		if tool := FindTool(prov.Detection.Binary); tool.Exists {
+			pmInfo := GetPackageManagerInfo(prov, tool.Bin)
 			osInfo.PackageManager.Managers[name] = types.PackageManagerInfo{
 				Name:     pmInfo.Name,
 				Bin:      pmInfo.Bin,
@@ -57,13 +44,15 @@ func SetMacOSDetails(osInfo *types.OSInfo) error {
 		}
 	}
 
-	// Set default package manager from config if specified
-	viperDefault := viper.GetString("packageManager.macos.default")
-	if viperDefault != "" && osInfo.PackageManager.Managers[viperDefault].Bin != "" {
-		osInfo.PackageManager.Default = osInfo.PackageManager.Managers[viperDefault]
-		log.Infof("Set %s as default package manager from config", viperDefault)
+	// Set default package manager (prefer Homebrew)
+	if pm, exists := osInfo.PackageManager.Managers["brew"]; exists {
+		osInfo.PackageManager.Default = pm
+		log.Infof("Set Homebrew as default package manager")
+	} else if pm, exists := osInfo.PackageManager.Managers["macports"]; exists {
+		osInfo.PackageManager.Default = pm
+		log.Infof("Set MacPorts as default package manager")
 	} else {
-		// Otherwise use first available package manager as default
+		// Use first available package manager as default
 		for _, pm := range osInfo.PackageManager.Managers {
 			osInfo.PackageManager.Default = pm
 			log.Infof("Set %s as default package manager", pm.Name)
@@ -74,12 +63,13 @@ func SetMacOSDetails(osInfo *types.OSInfo) error {
 	return nil
 }
 
+// getDarwinVersion returns the macOS version
 func getDarwinVersion() string {
 	cmd := exec.Command("sw_vers", "-productVersion")
-	output, err := cmd.Output()
+	out, err := cmd.Output()
 	if err != nil {
-		log.Errorf("Error getting macOS version: %v", err)
+		log.Warnf("Error getting macOS version: %v", err)
 		return "Unknown"
 	}
-	return strings.TrimSpace(string(output))
+	return strings.TrimSpace(string(out))
 }

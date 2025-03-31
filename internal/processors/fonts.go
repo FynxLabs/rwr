@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/ulikunitz/xz"
 )
@@ -226,7 +227,7 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 			if tempFile == nil || targetPath == "" {
 				return fmt.Errorf("invalid arguments: tempFile or targetPath is nil/empty")
 			}
-			err = helpers.CopyFile(tempFile.Name(), targetPath, true, osInfo)
+			err = system.CopyFile(tempFile.Name(), targetPath, true, osInfo)
 			if err != nil {
 				return fmt.Errorf("error copying font file to destination: %v", err)
 			}
@@ -256,5 +257,5 @@ func updateFontCache(elevated bool) error {
 		Args:     []string{"-f", "-v"},
 		Elevated: elevated,
 	}
-	return helpers.RunCommand(cmd, false)
+	return system.RunCommand(cmd, false)
 }

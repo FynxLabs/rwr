@@ -1,28 +1,23 @@
-package helpers
+package system
 
 import (
 	"github.com/charmbracelet/log"
-	"github.com/fynxlabs/rwr/internal/pkg/providers"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func CleanPackageManagers(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	// Get available providers
-	available := providers.GetAvailableProviders()
-
-	// Clean each available provider
-	for name, provider := range available {
-		if provider.Commands.Clean == "" {
+	// Clean each available package manager
+	for name, pm := range osInfo.PackageManager.Managers {
+		if pm.Clean == "" {
 			continue
 		}
 
-		pmInfo := providers.GetPackageManagerInfo(provider, provider.BinPath)
 		log.Debugf("Running clean command for package manager: %s", name)
-		log.Debugf(" Running clean command: %s", pmInfo.Clean)
+		log.Debugf(" Running clean command: %s", pm.Clean)
 
 		cleanCmd := types.Command{
-			Exec:     pmInfo.Clean,
-			Elevated: pmInfo.Elevated,
+			Exec:     pm.Clean,
+			Elevated: pm.Elevated,
 		}
 
 		if err := RunCommand(cleanCmd, initConfig.Variables.Flags.Debug); err != nil {

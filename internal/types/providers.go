@@ -1,4 +1,4 @@
-package providers
+package types
 
 // Provider represents a package manager provider
 type Provider struct {
@@ -10,6 +10,7 @@ type Provider struct {
 	CorePackages map[string][]string `toml:"corePackages"`
 	Install      InstallConfig       `toml:"install"`
 	Remove       RemoveConfig        `toml:"remove"`
+	Environment  map[string]string   `toml:"environment"`
 	BinPath      string
 }
 

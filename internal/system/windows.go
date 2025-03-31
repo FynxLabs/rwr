@@ -1,30 +1,16 @@
-package helpers
+package system
 
 import (
-	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/fynxlabs/rwr/internal/pkg/providers"
 	"github.com/fynxlabs/rwr/internal/types"
-	"github.com/spf13/viper"
 )
 
-// SetWindowsDetails Sets the package manager details for Windows.
+// SetWindowsDetails sets Windows-specific system details
 func SetWindowsDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Windows package manager details.")
-
-	// Initialize providers
-	providersPath, err := providers.GetProvidersPath()
-	if err != nil {
-		return fmt.Errorf("error getting providers path: %w", err)
-	}
-
-	if err := providers.LoadProviders(providersPath); err != nil {
-		return fmt.Errorf("error loading providers: %w", err)
-	}
 
 	// Initialize package manager map
 	if osInfo.PackageManager.Managers == nil {
@@ -32,7 +18,7 @@ func SetWindowsDetails(osInfo *types.OSInfo) error {
 	}
 
 	// Get available providers
-	available := providers.GetAvailableProviders()
+	available := GetAvailableProviders()
 
 	// Add all available Windows package managers
 	for name, prov := range available {
@@ -41,8 +27,8 @@ func SetWindowsDetails(osInfo *types.OSInfo) error {
 			continue
 		}
 
-		if binPath, err := GetBinPath(prov.Detection.Binary); err == nil {
-			pmInfo := providers.GetPackageManagerInfo(prov, binPath)
+		if tool := FindTool(prov.Detection.Binary); tool.Exists {
+			pmInfo := GetPackageManagerInfo(prov, tool.Bin)
 			osInfo.PackageManager.Managers[name] = types.PackageManagerInfo{
 				Name:     pmInfo.Name,
 				Bin:      pmInfo.Bin,
@@ -58,13 +44,18 @@ func SetWindowsDetails(osInfo *types.OSInfo) error {
 		}
 	}
 
-	// Set default package manager from config if specified
-	viperDefault := viper.GetString("packageManager.windows.default")
-	if viperDefault != "" && osInfo.PackageManager.Managers[viperDefault].Bin != "" {
-		osInfo.PackageManager.Default = osInfo.PackageManager.Managers[viperDefault]
-		log.Infof("Set %s as default package manager from config", viperDefault)
+	// Set default package manager (prefer winget)
+	if pm, exists := osInfo.PackageManager.Managers["winget"]; exists {
+		osInfo.PackageManager.Default = pm
+		log.Infof("Set winget as default package manager")
+	} else if pm, exists := osInfo.PackageManager.Managers["chocolatey"]; exists {
+		osInfo.PackageManager.Default = pm
+		log.Infof("Set Chocolatey as default package manager")
+	} else if pm, exists := osInfo.PackageManager.Managers["scoop"]; exists {
+		osInfo.PackageManager.Default = pm
+		log.Infof("Set Scoop as default package manager")
 	} else {
-		// Otherwise use first available package manager as default
+		// Use first available package manager as default
 		for _, pm := range osInfo.PackageManager.Managers {
 			osInfo.PackageManager.Default = pm
 			log.Infof("Set %s as default package manager", pm.Name)
@@ -75,17 +66,21 @@ func SetWindowsDetails(osInfo *types.OSInfo) error {
 	return nil
 }
 
+// getWindowsVersion returns the Windows version
 func getWindowsVersion() string {
 	cmd := exec.Command("cmd", "/c", "ver")
-	output, err := cmd.Output()
+	out, err := cmd.Output()
 	if err != nil {
-		log.Errorf("Error getting Windows version: %v", err)
+		log.Warnf("Error getting Windows version: %v", err)
 		return "Unknown"
 	}
-	return strings.TrimSpace(string(output))
-}
-
-func fileExists(filename string) bool {
-	_, err := os.Stat(filename)
-	return err == nil
+	// Output format: Microsoft Windows [Version 10.0.19045.3930]
+	version := strings.TrimSpace(string(out))
+	if i := strings.Index(version, "[Version "); i != -1 {
+		version = version[i+9:]
+		if j := strings.Index(version, "]"); j != -1 {
+			version = version[:j]
+		}
+	}
+	return version
 }

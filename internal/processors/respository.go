@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/pkg/providers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -32,12 +32,12 @@ func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSIn
 
 func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Initialize providers
-	providersPath, err := providers.GetProvidersPath()
+	providersPath, err := system.GetProvidersPath()
 	if err != nil {
 		return fmt.Errorf("error getting providers path: %w", err)
 	}
 
-	if err := providers.LoadProviders(providersPath); err != nil {
+	if err := system.LoadProviders(providersPath); err != nil {
 		return fmt.Errorf("error loading providers: %w", err)
 	}
 
@@ -46,7 +46,7 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 		log.Infof("Processing repository %s", repo.Name)
 
 		// Get provider for this repository
-		provider, exists := providers.GetProvider(repo.PackageManager)
+		provider, exists := system.GetProvider(repo.PackageManager)
 		if !exists {
 			return fmt.Errorf("unsupported package manager: %s", repo.PackageManager)
 		}
@@ -55,7 +55,7 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 		repoConfig := provider.Repository
 
 		// Execute repository action steps
-		var steps []providers.ActionStep
+		var steps []types.ActionStep
 		if repo.Action == "add" {
 			steps = repoConfig.Add.Steps
 		} else if repo.Action == "remove" {
@@ -76,12 +76,12 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 					Elevated: provider.Elevated,
 				}
 			case "write":
-				if err := helpers.WriteToFile(step.Dest, step.Content, provider.Elevated); err != nil {
+				if err := system.WriteToFile(step.Dest, step.Content, provider.Elevated); err != nil {
 					return fmt.Errorf("error writing file: %w", err)
 				}
 				continue
 			case "copy":
-				if err := helpers.CopyFile(step.Source, step.Dest, provider.Elevated, osInfo); err != nil {
+				if err := system.CopyFile(step.Source, step.Dest, provider.Elevated, osInfo); err != nil {
 					return fmt.Errorf("error copying file: %w", err)
 				}
 				continue
@@ -89,14 +89,14 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 				return fmt.Errorf("unsupported repository action step: %s", step.Action)
 			}
 
-			if err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
+			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
 				return fmt.Errorf("error executing repository step: %w", err)
 			}
 		}
 	}
 
 	// Run updates for all available providers
-	available := providers.GetAvailableProviders()
+	available := system.GetAvailableProviders()
 	for name, provider := range available {
 		if provider.Commands.Update == "" {
 			continue
@@ -108,7 +108,7 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 			Elevated: provider.Elevated,
 		}
 
-		if err := helpers.RunCommand(updateCmd, initConfig.Variables.Flags.Debug); err != nil {
+		if err := system.RunCommand(updateCmd, initConfig.Variables.Flags.Debug); err != nil {
 			log.Warnf("Error updating %s package lists: %v", name, err)
 			continue
 		}

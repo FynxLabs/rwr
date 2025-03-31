@@ -105,22 +105,6 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 
 	log.Debugf("Getting blueprint file order from directory: %s", blueprintDir)
 
-	// Get the OS-specific directory from the blueprint directory path
-	osDir := filepath.Base(blueprintDir)
-	log.Debugf("Using OS-specific directory: %s", osDir)
-
-	// Helper function to determine if a path is within the correct OS directory
-	isInOSDir := func(path string) bool {
-		rel, err := filepath.Rel(blueprintDir, path)
-		if err != nil {
-			return false
-		}
-		// Path should not start with ".." (which would indicate it's outside our directory)
-		// and should not contain other OS directory names
-		return !strings.HasPrefix(rel, "..") && !strings.Contains(rel, "PopOS") &&
-			!strings.Contains(rel, "Windows") && !strings.Contains(rel, "macOS")
-	}
-
 	// Helper function to extract processor type from path
 	getProcessorType := func(path string) string {
 		parts := strings.Split(path, string(os.PathSeparator))
@@ -139,10 +123,6 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 	for _, item := range order {
 		if str, ok := item.(string); ok {
 			fullPath := filepath.Join(blueprintDir, str)
-			if !isInOSDir(fullPath) {
-				log.Debugf("Skipping out-of-OS file: %s", fullPath)
-				continue
-			}
 
 			if info, err := os.Stat(fullPath); err == nil {
 				if info.IsDir() {
@@ -152,9 +132,6 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 							return err
 						}
 						if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format {
-							if !isInOSDir(path) {
-								return nil
-							}
 							relPath, err := filepath.Rel(blueprintDir, path)
 							if err != nil {
 								return err
@@ -189,9 +166,6 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 				return err
 			}
 			if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format {
-				if !isInOSDir(path) {
-					return nil
-				}
 				relPath, err := filepath.Rel(blueprintDir, path)
 				if err != nil {
 					return err
@@ -212,7 +186,6 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 	}
 
 	// Log final order
-	log.Debugf("Final blueprint file order for OS %s:", osDir)
 	for processor, files := range fileOrder {
 		log.Debugf("Processor %s files:", processor)
 		for _, file := range files {

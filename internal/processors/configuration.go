@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -70,7 +71,7 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 		Elevated: config.Elevated,
 	}
 
-	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
+	err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying dconf configuration: %w", err)
@@ -169,7 +170,7 @@ func processMacOSDefaults(config types.Configuration, initConfig *types.InitConf
 		Elevated: config.Elevated,
 	}
 
-	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
+	err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying macOS defaults configuration: %w", err)
@@ -212,7 +213,7 @@ func processWindowsRegistry(config types.Configuration, initConfig *types.InitCo
 		cmd.Args = []string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand)}
 	}
 
-	err := helpers.RunCommand(cmd, initConfig.Variables.Flags.Debug)
+	err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying Windows registry configuration: %w", err)

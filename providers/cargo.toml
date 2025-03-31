@@ -15,10 +15,29 @@ list = "install --list"
 search = "search"
 clean = "cache --autoclean"
 
+[provider.corePackages]
+openssl = []  # Cargo doesn't need to install OpenSSL
+build-essentials = []  # Cargo doesn't need build essentials
+
 [provider.repository.paths]
 registry = "~/.cargo/registry"
 cache = "~/.cargo/cache"
 config = "~/.cargo/config.toml"
+
+[[provider.install.steps]]
+action = "command"
+exec = "curl"
+args = ["--proto", "=https", "--tlsv1.2", "-sSf", "https://sh.rustup.rs", "-o", "/tmp/rustup-init.sh"]
+
+[[provider.install.steps]]
+action = "command"
+exec = "sh"
+args = ["/tmp/rustup-init.sh", "-y"]
+
+[[provider.remove.steps]]
+action = "command"
+exec = "rustup"
+args = ["self", "uninstall", "-y"]
 
 [[provider.repository.add.steps]]
 action = "command"

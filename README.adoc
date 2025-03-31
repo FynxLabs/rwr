@@ -92,7 +92,11 @@ RWR provides the following commands:
 * `rwr config`: Manage RWR configuration settings.
 ** `rwr config --create`: Initialize the RWR configuration.
 * `rwr all`: Initialize the system by running all blueprints.
-* `rwr validate`: Validate the RWR blueprints and provider configurations.
+* `rwr validate`: Validate the RWR blueprints and provider configurations to identify issues before running them.
+** `rwr validate --blueprints`: Validate only blueprint files.
+** `rwr validate --providers`: Validate only provider configurations.
+** `rwr validate --path /path/to/configs`: Validate configurations in a specific directory.
+** `rwr validate --verbose`: Show detailed validation information.
 * `rwr run`: Run individual processors.
 ** `rwr run package`: Run the package processor.
 ** `rwr run repository`: Run the repository processor.
@@ -190,6 +194,7 @@ For detailed documentation on how to use RWR, please refer to our https://github
 === RWR Command Line Interface
 * https://github.com/FynxLabs/rwr/wiki/Command-&-Flags[CLI & Flags]
 * https://github.com/FynxLabs/rwr/wiki/Configuration[Config File]
+* https://github.com/FynxLabs/rwr/wiki/Validate[Validate Command]
 
 === Blueprints
 * https://github.com/FynxLabs/rwr/wiki/Best-Practices[Blueprint Best Practices]

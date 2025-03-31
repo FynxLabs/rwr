@@ -12,6 +12,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/google/go-github/v70/github"
 	"github.com/spf13/viper"
@@ -123,7 +124,7 @@ func generateSSHKey(sshKey types.SSHKey) (string, error) {
 		Args: args,
 	}
 
-	err := helpers.RunCommand(cmd, true)
+	err := system.RunCommand(cmd, true)
 	if err != nil {
 		return "", fmt.Errorf("error generating SSH key: %v", err)
 	}

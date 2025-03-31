@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -38,7 +39,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 			var chosenPM string
 			if initConfig.Variables.Flags.Interactive {
-				chosenPM = helpers.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
+				chosenPM = system.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
 			} else {
 				chosenPM = "brew"
 				log.Info("Non-interactive mode: defaulting to Homebrew (brew)")
@@ -87,7 +88,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 	// Run the bootstrap processor first if it exists
 	bootstrapFile := filepath.Join(initConfig.Init.Location, "bootstrap.yaml")
-	if helpers.FileExists(bootstrapFile) {
+	if system.FileExists(bootstrapFile) {
 		err = ProcessBootstrap(bootstrapFile, initConfig, osInfo)
 		if err != nil {
 			return fmt.Errorf("error processing bootstrap: %w", err)
@@ -165,7 +166,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 	// Clean up package managers
 	log.Infof("Cleaning up package managers")
-	if err = helpers.CleanPackageManagers(osInfo, initConfig); err != nil {
+	if err = system.CleanPackageManagers(osInfo, initConfig); err != nil {
 		return fmt.Errorf("error cleaning package managers: %w", err)
 	}
 

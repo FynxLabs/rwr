@@ -1,4 +1,4 @@
-package helpers
+package system
 
 import (
 	"bytes"
@@ -9,9 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fynxlabs/rwr/internal/types"
-
 	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func RunCommand(cmd types.Command, debug bool) error {

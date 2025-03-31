@@ -1,6 +1,6 @@
 [provider]
 name = "paru"
-elevated = true
+elevated = false
 
 [provider.detection]
 binary = "paru"
