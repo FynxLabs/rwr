@@ -109,19 +109,28 @@ func generateSSHKey(sshKey types.SSHKey) (string, error) {
 		return sshPath, nil
 	}
 
-	args := []string{
-		"-t", sshKey.Type,
-		"-C", sshKey.Comment,
-		"-f", sshPath,
-	}
+	// Build the command differently based on whether we need a passphrase
+	var cmd types.Command
 
 	if sshKey.NoPassphrase {
-		args = append(args, "-N", "")
-	}
+		// For no passphrase, use a single string command that properly handles the empty string
+		cmdStr := fmt.Sprintf("ssh-keygen -t %s -C %s -f %s -N ''",
+			sshKey.Type, sshKey.Comment, sshPath)
 
-	cmd := types.Command{
-		Exec: "ssh-keygen",
-		Args: args,
+		cmd = types.Command{
+			Exec: cmdStr,
+			Args: []string{},
+		}
+	} else {
+		// For normal case with passphrase prompt
+		cmd = types.Command{
+			Exec: "ssh-keygen",
+			Args: []string{
+				"-t", sshKey.Type,
+				"-C", sshKey.Comment,
+				"-f", sshPath,
+			},
+		}
 	}
 
 	err := system.RunCommand(cmd, true)
