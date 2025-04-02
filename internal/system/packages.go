@@ -34,13 +34,8 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	}
 
 	// Initialize providers
-	providersPath, err := GetProvidersPath()
-	if err != nil {
-		return fmt.Errorf("error getting providers path: %w", err)
-	}
-
-	if err := LoadProviders(providersPath); err != nil {
-		return fmt.Errorf("error loading providers: %w", err)
+	if err := InitProviders(); err != nil {
+		return fmt.Errorf("error initializing providers: %w", err)
 	}
 
 	// Check if default package manager is set
@@ -91,13 +86,8 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 	}
 
 	// Initialize providers
-	providersPath, err := GetProvidersPath()
-	if err != nil {
-		return fmt.Errorf("error getting providers path: %w", err)
-	}
-
-	if err := LoadProviders(providersPath); err != nil {
-		return fmt.Errorf("error loading providers: %w", err)
+	if err := InitProviders(); err != nil {
+		return fmt.Errorf("error initializing providers: %w", err)
 	}
 
 	// Check if default package manager is set

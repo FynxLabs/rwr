@@ -28,22 +28,32 @@ func InitProviders() error {
 	// First try loading embedded providers
 	embeddedProvs, err := LoadEmbeddedProviders()
 	if err != nil {
-		log.Warnf("Failed to load embedded providers: %v", err)
+		log.Errorf("Failed to load embedded providers: %v", err)
+		// Don't return error here, try filesystem providers first
 	} else {
+		log.Debugf("Loaded %d embedded providers", len(embeddedProvs))
 		for name, provider := range embeddedProvs {
 			providers[name] = provider
+			log.Debugf("Added embedded provider: %s", name)
 		}
 	}
 
 	// Then try filesystem providers (these will override embedded ones)
 	providersPath, err := GetProvidersPath()
-	if err == nil {
+	if err != nil {
+		log.Debugf("No filesystem providers found: %v", err)
+	} else {
 		if err := LoadProviders(providersPath); err != nil {
 			log.Warnf("Failed to load filesystem providers: %v", err)
 		}
 	}
 
 	providersInit = true
+
+	// Only return error if we have no providers at all
+	if len(providers) == 0 {
+		return fmt.Errorf("no providers found (embedded or filesystem)")
+	}
 	return nil
 }
 
@@ -211,10 +221,19 @@ func GetProvidersPath() (string, error) {
 
 	// Check common locations for the providers directory
 	locations := []string{
-		filepath.Join(execDir, "providers"),                // Next to executable
-		"/usr/local/share/rwr/providers",                   // System-wide installation
-		"/usr/share/rwr/providers",                         // System-wide installation
-		filepath.Join(os.Getenv("HOME"), ".rwr/providers"), // User's home directory
+		filepath.Join(execDir, "providers"),                       // Next to executable
+		"/usr/local/share/rwr/providers",                          // System-wide installation
+		"/usr/share/rwr/providers",                                // System-wide installation
+		filepath.Join(os.Getenv("HOME"), ".config/rwr/providers"), // RWR Config Path
+	}
+
+	// Add macOS-specific paths
+	if runtime.GOOS == "darwin" {
+		locations = append(locations,
+			"/opt/homebrew/share/rwr/providers", // Homebrew on Apple Silicon
+			"/usr/local/Cellar/rwr/providers",   // Homebrew on Intel
+			"/Applications/rwr/providers",       // App bundle
+		)
 	}
 
 	for _, loc := range locations {

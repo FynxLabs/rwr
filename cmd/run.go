@@ -15,8 +15,8 @@ var runCmd = &cobra.Command{
 }
 
 var runPackageCmd = &cobra.Command{
-	Use:   "package",
-	Short: "Run package processor",
+	Use:   "packages",
+	Short: "Run packages processor",
 	Run: func(cmd *cobra.Command, args []string) {
 
 		err := processors.All(initConfig, osInfo, []string{"packages"})

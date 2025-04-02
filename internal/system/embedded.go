@@ -19,11 +19,26 @@ var embeddedProviders embed.FS
 func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 	providers := make(map[string]*types.Provider)
 
+	log.Debug("LoadEmbeddedProviders: Loading embedded provider definitions")
+
+	// List root directory contents
+	root, err := embeddedProviders.ReadDir(".")
+	if err != nil {
+		log.Errorf("LoadEmbeddedProviders: Failed to read root directory: %v", err)
+	} else {
+		for _, f := range root {
+			log.Debugf("LoadEmbeddedProviders: Found in root: %s (dir: %v)", f.Name(), f.IsDir())
+		}
+	}
+
 	// Read all .toml files from the embedded filesystem
 	entries, err := embeddedProviders.ReadDir("definitions")
 	if err != nil {
+		log.Errorf("LoadEmbeddedProviders: Failed to read embedded definitions: %v", err)
 		return nil, fmt.Errorf("error reading embedded definitions: %w", err)
 	}
+
+	log.Debugf("LoadEmbeddedProviders: Found %d entries in embedded filesystem", len(entries))
 
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".toml") {
@@ -58,6 +73,7 @@ func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 		}
 	}
 
+	log.Debugf("LoadEmbeddedProviders: Successfully loaded %d providers", len(providers))
 	return providers, nil
 }
 
