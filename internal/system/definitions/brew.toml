@@ -58,9 +58,9 @@ taps_linux = "/home/linuxbrew/.linuxbrew/Library/Taps"  # Linux
 [[provider.repository.add.steps]]
 action = "command"
 exec = "brew"
-args = ["tap", "{{ .Name }}"]
+args = ["tap", "{{ .URL }}"]
 
 [[provider.repository.remove.steps]]
 action = "command"
 exec = "brew"
-args = ["untap", "{{ .Name }}"]
+args = ["untap", "{{ .URL }}"]

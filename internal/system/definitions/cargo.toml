@@ -9,7 +9,7 @@ distributions = ["linux", "darwin", "windows"]  # Cross-platform
 
 [provider.commands]
 install = "install"
-update = "install --force"  # Reinstalls/updates packages
+update = "install-update --all"  # Use cargo-update to update all packages
 remove = "uninstall"
 list = "install --list"
 search = "search"
@@ -33,6 +33,12 @@ args = ["--proto", "=https", "--tlsv1.2", "-sSf", "https://sh.rustup.rs", "-o", 
 action = "command"
 exec = "sh"
 args = ["/tmp/rustup-init.sh", "-y"]
+
+# Install cargo-update
+[[provider.install.steps]]
+action = "command"
+exec = "cargo"
+args = ["install", "cargo-update", "--features", "vendored-openssl"]
 
 [[provider.remove.steps]]
 action = "command"

@@ -31,14 +31,9 @@ func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSIn
 }
 
 func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	// Initialize providers
-	providersPath, err := system.GetProvidersPath()
-	if err != nil {
-		return fmt.Errorf("error getting providers path: %w", err)
-	}
-
-	if err := system.LoadProviders(providersPath); err != nil {
-		return fmt.Errorf("error loading providers: %w", err)
+	// Initialize providers using the InitProviders function which handles embedded providers
+	if err := system.InitProviders(); err != nil {
+		return fmt.Errorf("error initializing providers: %w", err)
 	}
 
 	// Process each repository
@@ -69,10 +64,21 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 			var cmd types.Command
 
 			switch step.Action {
-			case "exec":
+			case "exec", "command": // Support both "exec" and "command" action types
+				// Process template variables in args
+				processedArgs := make([]string, len(step.Args))
+				for i, arg := range step.Args {
+					// Replace {{ .URL }} with the actual URL from the repository
+					if arg == "{{ .URL }}" {
+						processedArgs[i] = repo.URL
+					} else {
+						processedArgs[i] = arg
+					}
+				}
+
 				cmd = types.Command{
 					Exec:     step.Exec,
-					Args:     step.Args,
+					Args:     processedArgs,
 					Elevated: provider.Elevated,
 				}
 			case "write":
