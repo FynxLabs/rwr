@@ -43,7 +43,7 @@ func CreateDefaultConfig() error {
 	}
 
 	// Prompt for SSH Private Key
-	fmt.Printf("Enter SSH Private Key Base64 Encoded (press enter to keep default) [%s]: ", viper.GetString("repository.ssh_private_key"))
+	fmt.Printf("Enter SSH Private Key (file path or Base64 encoded) (press enter to keep default) [%s]: ", viper.GetString("repository.ssh_private_key"))
 	sshPrivateKeyInput, _ := reader.ReadString('\n')
 	sshPrivateKeyInput = strings.TrimSpace(sshPrivateKeyInput)
 	if sshPrivateKeyInput != "" {

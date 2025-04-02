@@ -183,7 +183,7 @@ func init() {
 	}
 
 	//
-	rootCmd.PersistentFlags().StringVar(&sshKey, "ssh-key", "", "Pass in the ssh key Base64 encoded (stored under repository.ssh_private_key)")
+	rootCmd.PersistentFlags().StringVar(&sshKey, "ssh-key", "", "Path to the SSH key file or Base64-encoded SSH key for Git authentication (stored under repository.ssh_private_key)")
 	err = viper.BindPFlag("repository.ssh_private_key", rootCmd.PersistentFlags().Lookup("ssh-key"))
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
@@ -259,6 +259,7 @@ func config() {
 	}
 
 	ghApiToken = viper.GetString("repository.gh_api_token")
+	sshKey = viper.GetString("repository.ssh_private_key")
 }
 
 func Execute() {

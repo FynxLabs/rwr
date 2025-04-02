@@ -52,7 +52,7 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 			}
 
 			if gitOpts.Update {
-				err = helpers.HandleGitPull(*gitOpts)
+				err = helpers.HandleGitPull(*gitOpts, initConfig)
 				if err != nil {
 					return "", fmt.Errorf("error updating blueprint repository: %v", err)
 				}

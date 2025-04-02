@@ -53,7 +53,7 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 			}
 
 			// Pull latest changes
-			err = helpers.HandleGitPull(gitOpts)
+			err = helpers.HandleGitPull(gitOpts, initConfig)
 			if err != nil {
 				log.Warnf("Error pulling latest changes for %s: %v", repo.Name, err)
 				// Continue with other repositories instead of returning

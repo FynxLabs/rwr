@@ -29,8 +29,12 @@ func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 
 	log.Debugf("Cloning Git repository: %s", opts.URL)
 
-	if opts.Private {
+	// Use authentication for private repos or SSH URLs
+	if opts.Private || strings.HasPrefix(opts.URL, "git@") {
 		auth = getAuthMethod(opts.URL, initConfig)
+		log.Debugf("Using authentication for Git clone: %s", opts.URL)
+	} else {
+		log.Debugf("No authentication needed for Git clone: %s", opts.URL)
 	}
 
 	targetDir := filepath.Dir(opts.Target)
@@ -95,12 +99,75 @@ func CheckAndUpdateRemoteURL(repoPath, desiredURL string) error {
 
 func getAuthMethod(url string, initConfig *types.InitConfig) transport.AuthMethod {
 	if strings.HasPrefix(url, "git@") {
-		auth, err := ssh.NewPublicKeysFromFile("git", initConfig.Variables.Flags.SSHKey, "")
-		if err != nil {
-			log.Errorf("Error creating SSH authentication: %v", err)
-			return nil
+		// Use the specified SSH key or try to find a suitable key
+		sshKeyValue := initConfig.Variables.Flags.SSHKey
+
+		// Check if the value is a Base64-encoded key or a file path
+		if sshKeyValue != "" {
+			// If the value contains newlines or begins with "ssh-", it's likely a Base64-encoded key
+			if strings.Contains(sshKeyValue, "\n") || strings.HasPrefix(sshKeyValue, "ssh-") {
+				log.Debugf("Using Base64-encoded SSH key")
+				auth, err := ssh.NewPublicKeys("git", []byte(sshKeyValue), "")
+				if err != nil {
+					log.Errorf("Error creating SSH authentication from Base64 key: %v", err)
+					return nil
+				}
+				return auth
+			} else {
+				// Treat as a file path
+				if _, err := os.Stat(sshKeyValue); os.IsNotExist(err) {
+					log.Errorf("Specified SSH key file does not exist: %s", sshKeyValue)
+					return nil
+				}
+
+				auth, err := ssh.NewPublicKeysFromFile("git", sshKeyValue, "")
+				if err != nil {
+					log.Errorf("Error creating SSH authentication from file: %v", err)
+					return nil
+				}
+				return auth
+			}
+		} else {
+			// No SSH key specified, try to find a suitable key file
+			homeDir, err := os.UserHomeDir()
+			if err != nil {
+				log.Errorf("Error getting user home directory: %v", err)
+				return nil
+			}
+
+			// List of common SSH key locations to try
+			possibleKeys := []string{
+				filepath.Join(homeDir, ".ssh", "id_rsa"),
+				filepath.Join(homeDir, ".ssh", "git"),
+				filepath.Join(homeDir, ".ssh", "id_ed25519"),
+				filepath.Join(homeDir, ".ssh", "github_rsa"),
+				filepath.Join(homeDir, ".ssh", "id_ecdsa"),
+			}
+
+			// Try each possible key location
+			keyFound := false
+			sshKeyPath := ""
+			for _, keyPath := range possibleKeys {
+				if _, err := os.Stat(keyPath); err == nil {
+					sshKeyPath = keyPath
+					keyFound = true
+					log.Debugf("Found SSH key at: %s", sshKeyPath)
+					break
+				}
+			}
+
+			if !keyFound {
+				log.Errorf("No SSH key found in common locations. Please specify an SSH key path or Base64-encoded key.")
+				return nil
+			}
+
+			auth, err := ssh.NewPublicKeysFromFile("git", sshKeyPath, "")
+			if err != nil {
+				log.Errorf("Error creating SSH authentication: %v", err)
+				return nil
+			}
+			return auth
 		}
-		return auth
 	} else {
 		return &http.BasicAuth{
 			Username: "git",
@@ -109,7 +176,7 @@ func getAuthMethod(url string, initConfig *types.InitConfig) transport.AuthMetho
 	}
 }
 
-func HandleGitPull(opts types.GitOptions) error {
+func HandleGitPull(opts types.GitOptions, initConfig *types.InitConfig) error {
 	log.Debugf("Pulling changes from Git repository: %s", opts.Target)
 	repo, err := git.PlainOpen(opts.Target)
 	if err != nil {
@@ -123,7 +190,28 @@ func HandleGitPull(opts types.GitOptions) error {
 		return fmt.Errorf("error getting worktree: %v", err)
 	}
 
-	err = worktree.Pull(&git.PullOptions{})
+	// Get the remote URL to determine if we need authentication
+	remote, err := repo.Remote("origin")
+	if err != nil {
+		log.Errorf("Error getting remote 'origin': %v", err)
+		return fmt.Errorf("error getting remote 'origin': %v", err)
+	}
+
+	var auth transport.AuthMethod
+	if len(remote.Config().URLs) > 0 {
+		remoteURL := remote.Config().URLs[0]
+		// For SSH URLs (git@...) or if the repo is marked as private, use authentication
+		if strings.HasPrefix(remoteURL, "git@") || opts.Private {
+			auth = getAuthMethod(remoteURL, initConfig)
+			log.Debugf("Using authentication for Git pull: %s", opts.Target)
+		} else {
+			log.Debugf("No authentication needed for Git pull: %s", opts.Target)
+		}
+	}
+
+	err = worktree.Pull(&git.PullOptions{
+		Auth: auth,
+	})
 	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
 		log.Errorf("Error pulling changes from Git repository: %v", err)
 		return fmt.Errorf("error pulling changes from Git repository: %v", err)
