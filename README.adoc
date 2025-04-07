@@ -224,6 +224,103 @@ For detailed documentation on how to use RWR, please refer to our https://github
 
 For more detailed information on each topic, please visit the corresponding Wiki page.
 
+== Development
+
+=== Prerequisites
+
+RWR uses https://mise.jdx.dev/[mise] to manage development tools. Install mise following their documentation.
+
+=== Setting Up Development Environment
+
+1. Clone the repository:
+[source,bash]
+----
+git clone https://github.com/fynxlabs/rwr.git
+cd rwr
+----
+
+2. Install required tools:
+[source,bash]
+----
+mise install
+----
+
+This installs:
+
+* Go (for building and testing)
+* Dagger (for CI/CD pipeline)
+* GoReleaser (for creating releases)
+
+=== Development Commands
+
+RWR provides several commands for different development scenarios:
+
+==== Local Development (No Dagger)
+
+Fast commands that run directly on your machine:
+
+[source,bash]
+----
+# Build the binary
+mise run build
+
+# Run tests
+mise run test
+----
+
+==== Pipeline Testing (Using Dagger)
+
+Test the CI pipeline locally using Dagger:
+
+[source,bash]
+----
+# Just run tests through Dagger
+mise run dagger-test
+
+# Test full release pipeline without publishing
+# This will:
+# 1. Run tests
+# 2. Build binaries
+# 3. Create archives
+# 4. Skip actual publishing
+mise run dagger-local
+
+# Run full CI pipeline with publishing
+# Requires:
+# - GITHUB_TOKEN for creating releases
+# - HOMEBREW_TAP_DEPLOY_KEY for updating Homebrew tap
+mise run dagger-ci
+----
+
+=== CI/CD Pipeline
+
+RWR uses Dagger to manage its CI/CD pipeline. The pipeline:
+
+1. On every push and PR:
+   * Runs tests through Dagger
+   * Reports test results
+
+2. On version tags (v*):
+   * Runs tests
+   * Creates GitHub release with:
+     * Binary archives (.tar.gz, .zip)
+     * Debian packages (.deb)
+     * RPM packages (.rpm)
+   * Updates Homebrew tap
+
+The pipeline can be tested locally using the commands above, making it easy to verify changes before pushing.
+
+==== Environment Variables
+
+For publishing releases:
+
+* `GITHUB_TOKEN`: GitHub token with permissions to:
+  * Create releases
+  * Upload release assets
+  * Update repository contents
+* `HOMEBREW_TAP_DEPLOY_KEY`: SSH key with access to update the Homebrew tap repository
+
+
 == Road to 1.0
 
 * For Beta/MVP (0.1.0):
@@ -257,10 +354,10 @@ For more detailed information on each topic, please visit the corresponding Wiki
 === macOS
 
 * [*] Bootstrap Processor
-* [*] Package Manager Processor (Partially Tested)
+* [*] Package Manager Processor
 * [*] Repositories Processor
 * [*] Configuration Processor
-* [*] Packages Processor (Partially Tested)
+* [*] Packages Processor
 * [*] Services Processor
 * [*] Files Processor
 * [*] Directories Processor
@@ -272,19 +369,19 @@ For more detailed information on each topic, please visit the corresponding Wiki
 
 === Windows
 
-* [*] Bootstrap Processor
-* [*] Package Manager Processor (Partially Tested)
-* [*] Repositories Processor
-* [*] Configuration Processor
-* [*] Packages Processor (Partially Tested)
-* [*] Services Processor
-* [*] Files Processor
-* [*] Directories Processor
-* [*] Git Repository Processor
-* [*] Scripts Processor
-* [ ] Users and Groups Processor (Partial Implementation)
-* [*] SSH Keys
-* [*] Fonts Processor
+* [*] Bootstrap Processor (Not Tested)
+* [*] Package Manager Processor (Not Tested)
+* [*] Repositories Processor (Not Tested)
+* [*] Configuration Processor (Not Tested)
+* [*] Packages Processor (Not Tested)
+* [*] Services Processor (Not Tested)
+* [*] Files Processor (Not Tested)
+* [*] Directories Processor (Not Tested)
+* [*] Git Repository Processor (Not Tested)
+* [*] Scripts Processor (Not Tested)
+* [ ] Users and Groups Processor
+* [*] SSH Keys (Not Tested)
+* [*] Fonts Processor (Not Tested)
 
 NOTE: While all processors are implemented for macOS and Windows, many have not been thoroughly tested on these platforms. "Partially Tested" indicates some functionality has been verified, but comprehensive testing is still needed. The Users and Groups processor on Windows has limited functionality (group management is not supported).
 

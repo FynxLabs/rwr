@@ -14,18 +14,14 @@ type Rwr struct{}
 func (m *Rwr) CI(
 	ctx context.Context,
 	ref string,
+	skipPublish bool,
 	githubToken *dagger.Secret,
 	homebrewToken *dagger.Secret,
 ) (string, error) {
-	moduleCache := dag.CacheVolume("go-modules")
-	buildCache := dag.CacheVolume("go-build")
-
 	src := dag.Directory()
 
 	// Configure Go environment
 	goEnv := dag.Go().
-		WithModuleCache(moduleCache).
-		WithBuildCache(buildCache).
 		WithSource(src).
 		WithCgoDisabled()
 
@@ -37,25 +33,21 @@ func (m *Rwr) CI(
 		return "", fmt.Errorf("test failed: %w", err)
 	}
 
-	// If this is a tag (v*), also do release
-	if strings.HasPrefix(ref, "v") {
-		releaseContainer := dag.Goreleaser().Base()
+	// If this is a tag (v*) or skipPublish is true, do release
+	if strings.HasPrefix(ref, "v") || skipPublish {
+		args := []string{"release", "--clean"}
+		if skipPublish {
+			args = append(args, "--skip=publish")
+		}
 
-		// Add secrets
-		releaseContainer = releaseContainer.
+		releaseContainer := dag.Goreleaser().Base().
 			WithSecretVariable("GITHUB_TOKEN", githubToken).
-			WithSecretVariable("HOMEBREW_TAP_DEPLOY_KEY", homebrewToken)
-
-		// Run release
-		releaseResult, err := releaseContainer.
+			WithSecretVariable("HOMEBREW_TAP_DEPLOY_KEY", homebrewToken).
 			WithWorkdir("/src").
 			WithMountedDirectory("/src", src).
-			WithExec([]string{
-				"goreleaser",
-				"release",
-				"--clean",
-			}).
-			Stdout(ctx)
+			WithExec(args)
+
+		releaseResult, err := releaseContainer.Stdout(ctx)
 		if err != nil {
 			return "", fmt.Errorf("release failed: %w", err)
 		}

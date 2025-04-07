@@ -23,7 +23,7 @@ jobs:
         with:
           version: "latest"
           module: .
-          args: ci --ref=${{ github.ref_name }} --github-token=env:GITHUB_TOKEN --homebrew-token=env:HOMEBREW_TAP_DEPLOY_KEY
+          call: ci --ref=${{ github.ref_name }} --github-token=env:GITHUB_TOKEN --homebrew-token=env:HOMEBREW_TAP_DEPLOY_KEY
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
