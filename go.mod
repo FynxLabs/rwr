@@ -7,7 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/charmbracelet/log v0.4.1
-	github.com/go-git/go-git/v5 v5.15.0
+	github.com/go-git/go-git/v5 v5.16.0
 	github.com/google/go-github/v70 v70.0.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.9.1
