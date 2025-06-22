@@ -9,6 +9,5 @@ build = "go build ."  # Simple local build
 test = "go test -v ./..."  # Simple local tests
 
 # Dagger-based commands
-dagger-test = "dagger call ci"  # Just run tests through Dagger pipeline
-dagger-local = "dagger call ci --skip-publish=true"  # Test full pipeline without publishing
+dagger-local = "dagger call ci --ref=local --github-token='' --homebrew-token=''"  # Just run tests through Dagger pipeline
 dagger-ci = "dagger call ci --ref=$GITHUB_REF_NAME"  # Full CI pipeline with publishing

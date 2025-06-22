@@ -14,7 +14,6 @@ type Rwr struct{}
 func (m *Rwr) CI(
 	ctx context.Context,
 	ref string,
-	skipPublish bool,
 	githubToken *dagger.Secret,
 	homebrewToken *dagger.Secret,
 ) (string, error) {
@@ -23,22 +22,17 @@ func (m *Rwr) CI(
 	// Configure Go environment
 	goEnv := dag.Go().
 		WithSource(src).
-		WithCgoDisabled()
+		WithCgoDisabled().
+		WithEnvVariable("GO111MODULE", "on").
+		WithExec([]string{"go", "mod", "tidy"})
 
 	// Run tests
-	testResult, err := goEnv.
-		Exec([]string{"test", "-v", "./..."}).
-		Stdout(ctx)
-	if err != nil {
-		return "", fmt.Errorf("test failed: %w", err)
-	}
+	testResult := goEnv.
+		WithExec([]string{"go", "test", "-v", "./..."})
 
-	// If this is a tag (v*) or skipPublish is true, do release
-	if strings.HasPrefix(ref, "v") || skipPublish {
+	// Only do release for tags
+	if strings.HasPrefix(ref, "v") {
 		args := []string{"release", "--clean"}
-		if skipPublish {
-			args = append(args, "--skip=publish")
-		}
 
 		releaseContainer := dag.Goreleaser().Base().
 			WithSecretVariable("GITHUB_TOKEN", githubToken).
@@ -51,8 +45,8 @@ func (m *Rwr) CI(
 		if err != nil {
 			return "", fmt.Errorf("release failed: %w", err)
 		}
-		return fmt.Sprintf("Tests passed:\n%s\nRelease completed:\n%s", testResult, releaseResult), nil
+		return fmt.Sprintf("Tests passed:\n%v\nRelease completed:\n%v", testResult, releaseResult), nil
 	}
 
-	return fmt.Sprintf("Tests passed:\n%s", testResult), nil
+	return fmt.Sprintf("Tests passed:\n%v", testResult), nil
 }
