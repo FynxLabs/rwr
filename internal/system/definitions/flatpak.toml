@@ -1,11 +1,11 @@
 [provider]
 name = "flatpak"
-elevated = false  # Can run in user mode, though system-wide needs elevation
+elevated = false # Can run in user mode, though system-wide needs elevation
 
 [provider.detection]
 binary = "flatpak"
 files = ["/usr/bin/flatpak", "~/.local/share/flatpak", "/var/lib/flatpak"]
-distributions = ["linux"]  # Works on any Linux distribution
+distributions = ["linux"]                                                  # Works on any Linux distribution
 
 [provider.commands]
 install = "install -y"
@@ -28,13 +28,19 @@ args = ["remote-add", "--if-not-exists", "{{ .Name }}", "{{ .URL }}"]
 action = "command"
 exec = "flatpak"
 args = ["remote-add", "--if-not-exists", "--user", "{{ .Name }}", "{{ .URL }}"]
-condition = "{{ .UserMode }}"  # Only run for user-mode installations
+condition = "{{ .UserMode }}"                                                   # Only run for user-mode installations
 
 [[provider.repository.add.steps]]
 action = "command"
 exec = "flatpak"
-args = ["remote-add", "--if-not-exists", "--system", "{{ .Name }}", "{{ .URL }}"]
-condition = "{{ not .UserMode }}"  # Only run for system-wide installations
+args = [
+  "remote-add",
+  "--if-not-exists",
+  "--system",
+  "{{ .Name }}",
+  "{{ .URL }}",
+]
+condition = "{{ not .UserMode }}" # Only run for system-wide installations
 
 [[provider.repository.remove.steps]]
 action = "command"

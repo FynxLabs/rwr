@@ -11,13 +11,22 @@ distributions = ["arch"]
 install = "-S --noconfirm"  # -S for install, paru handles sync
 update = "-Sua --noconfirm" # -Sua for AUR updates only
 remove = "-Rns --noconfirm" # -Rns to remove with dependencies and config
-list = "-Qm"               # -Qm to list foreign (AUR) packages
-search = "-Ss"            # -Ss searches both repos and AUR
-clean = "-Scc --noconfirm" # -Scc for complete cache clean
+list = "-Qm"                # -Qm to list foreign (AUR) packages
+search = "-Ss"              # -Ss searches both repos and AUR
+clean = "-Scc --noconfirm"  # -Scc for complete cache clean
 
 [provider.corePackages]
 openssl = ["openssl"]
-build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+build-essentials = [
+  "base-devel",
+  "cmake",
+  "freetype2",
+  "fontconfig",
+  "pkg-config",
+  "libxcb",
+  "libxkbcommon",
+  "python",
+]
 
 [provider.repository.paths]
 sources = "/etc/pacman.d"

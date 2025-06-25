@@ -1,15 +1,15 @@
 [provider]
 name = "gnome-extensions"
-elevated = false  # User-level operations
+elevated = false          # User-level operations
 
 [provider.detection]
 binary = "gnome-extensions"
 files = [
-    "/usr/bin/gnome-extensions",
-    "/usr/bin/gext",  # Alternative binary name
-    "~/.local/share/gnome-shell/extensions"
+  "/usr/bin/gnome-extensions",
+  "/usr/bin/gext",                         # Alternative binary name
+  "~/.local/share/gnome-shell/extensions",
 ]
-distributions = ["linux"]  # Any Linux with GNOME Shell
+distributions = ["linux"] # Any Linux with GNOME Shell
 
 [provider.commands]
 install = "install"
@@ -17,7 +17,7 @@ update = "update"
 remove = "uninstall"
 list = "list --user --enabled"
 search = "search"
-clean = ""  # No specific clean command
+clean = ""                     # No specific clean command
 
 [provider.repository.paths]
 user = "~/.local/share/gnome-shell/extensions"
@@ -34,7 +34,7 @@ condition = "{{ .IsLocalFile }}"  # For local .shell-extension.zip files
 action = "command"
 exec = "gnome-extensions"
 args = ["install", "--force", "{{ .ExtensionID }}"]
-condition = "{{ not .IsLocalFile }}"  # For extensions from extensions.gnome.org
+condition = "{{ not .IsLocalFile }}"                # For extensions from extensions.gnome.org
 
 [[provider.repository.add.steps]]
 action = "command"
@@ -55,4 +55,4 @@ args = ["uninstall", "{{ .UUID }}"]
 action = "command"
 exec = "gnome-extensions"
 args = ["reset", "{{ .UUID }}"]
-condition = "{{ .ResetSettings }}"  # Only if settings reset requested
+condition = "{{ .ResetSettings }}" # Only if settings reset requested

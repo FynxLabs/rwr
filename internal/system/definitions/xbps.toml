@@ -1,19 +1,15 @@
 [provider]
 name = "xbps"
-elevated = true  # XBPS requires root for most operations
+elevated = true # XBPS requires root for most operations
 
 [provider.detection]
 binary = "xbps-install"
-files = [
-    "/usr/bin/xbps-install",
-    "/usr/share/xbps.d",
-    "/var/db/xbps"
-]
-distributions = ["void"]  # Void Linux
+files = ["/usr/bin/xbps-install", "/usr/share/xbps.d", "/var/db/xbps"]
+distributions = ["void"]                                               # Void Linux
 
 [provider.commands]
-install = "-Sy"  # Sync repos and install
-update = "-Su"   # Sync and upgrade
+install = "-Sy"           # Sync repos and install
+update = "-Su"            # Sync and upgrade
 remove = "-R"
 list = "xbps-query -l"
 search = "xbps-query -Rs"
@@ -39,7 +35,7 @@ condition = "{{ .HasKey }}"
 [[provider.repository.add.steps]]
 action = "command"
 exec = "xbps-install"
-args = ["-S"]  # Sync repository indexes
+args = ["-S"]         # Sync repository indexes
 
 [[provider.repository.remove.steps]]
 action = "remove"
@@ -53,4 +49,4 @@ condition = "{{ .HasKey }}"
 [[provider.repository.remove.steps]]
 action = "command"
 exec = "xbps-install"
-args = ["-S"]  # Sync repository indexes after removal
+args = ["-S"]         # Sync repository indexes after removal

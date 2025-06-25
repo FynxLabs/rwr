@@ -8,16 +8,25 @@ files = ["/etc/pacman.conf", "/var/lib/pacman"]
 distributions = ["arch"]
 
 [provider.commands]
-install = "-A --noconfirm"  # -A for AUR install
-update = "-Au --noconfirm"  # -Au for AUR updates
-remove = "-R --noconfirm"   # -R to remove packages
+install = "-A --noconfirm" # -A for AUR install
+update = "-Au --noconfirm" # -Au for AUR updates
+remove = "-R --noconfirm"  # -R to remove packages
 list = "-Qm"               # -Qm to list foreign (AUR) packages
-search = "-As"            # -As for AUR search
-clean = "-Cc --noconfirm" # -Cc for complete cache clean
+search = "-As"             # -As for AUR search
+clean = "-Cc --noconfirm"  # -Cc for complete cache clean
 
 [provider.corePackages]
 openssl = ["openssl"]
-build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+build-essentials = [
+  "base-devel",
+  "cmake",
+  "freetype2",
+  "fontconfig",
+  "pkg-config",
+  "libxcb",
+  "libxkbcommon",
+  "python",
+]
 
 [provider.repository.paths]
 sources = "/etc/pacman.d"

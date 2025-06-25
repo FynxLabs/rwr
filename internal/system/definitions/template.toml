@@ -2,36 +2,36 @@
 # This file documents all available options and their usage
 
 [provider]
-name = "provider-name"  # Unique identifier for the package manager
+name = "provider-name" # Unique identifier for the package manager
 elevated = false       # Whether operations require root/admin privileges (true/false)
-                      # Set to true for system-wide package managers (apt, dnf, pacman)
-                      # Set to false for user-level package managers (cargo, pip --user)
+# Set to true for system-wide package managers (apt, dnf, pacman)
+# Set to false for user-level package managers (cargo, pip --user)
 
 [provider.detection]
 # How to detect if this package manager is available on the system
-binary = "binary-name"  # Main executable to check for
+binary = "binary-name" # Main executable to check for
 files = [
-    # List of files/directories that indicate provider is installed
-    # Linux examples:
-    "/usr/bin/binary-name",
-    "/etc/provider/config",
-    "/var/lib/provider/data",
-    # macOS examples:
-    "/usr/local/bin/binary-name",
-    "/opt/homebrew/bin/binary-name",
-    # Windows examples:
-    "%ProgramFiles%\\Provider\\bin\\binary.exe",
-    "%APPDATA%\\Provider\\config",
-    # User directory examples:
-    "~/.local/bin/binary-name",
-    "~/.config/provider"
+  # List of files/directories that indicate provider is installed
+  # Linux examples:
+  "/usr/bin/binary-name",
+  "/etc/provider/config",
+  "/var/lib/provider/data",
+  # macOS examples:
+  "/usr/local/bin/binary-name",
+  "/opt/homebrew/bin/binary-name",
+  # Windows examples:
+  "%ProgramFiles%\\Provider\\bin\\binary.exe",
+  "%APPDATA%\\Provider\\config",
+  # User directory examples:
+  "~/.local/bin/binary-name",
+  "~/.config/provider",
 ]
 distributions = [
-    # List of distributions where this provider is available
-    # Specific distros: "debian", "ubuntu", "fedora", "arch", etc.
-    # General platforms: "linux", "darwin", "windows"
-    # Multiple values for cross-platform: ["linux", "darwin"]
-    "platform-name"
+  # List of distributions where this provider is available
+  # Specific distros: "debian", "ubuntu", "fedora", "arch", etc.
+  # General platforms: "linux", "darwin", "windows"
+  # Multiple values for cross-platform: ["linux", "darwin"]
+  "platform-name",
 ]
 
 [provider.commands]
@@ -41,58 +41,58 @@ distributions = [
 # --noconfirm, -y, --yes: Skip confirmation prompts
 # --quiet, -q: Reduce output verbosity
 # --needed: Skip reinstalling up-to-date packages
-install = "install"    # Command to install packages
-update = "update"     # Command to update package lists and upgrade packages
-remove = "remove"     # Command to remove packages
-list = "list"        # Command to list installed packages
-search = "search"     # Command to search for packages
-clean = "clean"      # Command to clean caches/unused packages
+install = "install" # Command to install packages
+update = "update"   # Command to update package lists and upgrade packages
+remove = "remove"   # Command to remove packages
+list = "list"       # Command to list installed packages
+search = "search"   # Command to search for packages
+clean = "clean"     # Command to clean caches/unused packages
 
 [provider.corePackages]
 # Core packages required by this provider
 # Group packages by their purpose
-openssl = [           # OpenSSL and SSL/TLS packages
-    "openssl",
-    "ca-certificates"
+openssl = [ # OpenSSL and SSL/TLS packages
+  "openssl",
+  "ca-certificates",
 ]
-build-essentials = [  # Build tools and development packages
-    "base-devel",     # Meta package name varies by distro
-    "build-essential",
-    "cmake",
-    "gcc"
+build-essentials = [ # Build tools and development packages
+  "base-devel",      # Meta package name varies by distro
+  "build-essential",
+  "cmake",
+  "gcc",
 ]
 
 [provider.repository.paths]
 # Paths used by the package manager for repositories
 # All fields are optional - only include relevant paths
-sources = "/path/to/sources"     # Repository definitions
-keys = "/path/to/keys"          # GPG/signing keys
-config = "/path/to/config"      # Configuration files
+sources = "/path/to/sources" # Repository definitions
+keys = "/path/to/keys"       # GPG/signing keys
+config = "/path/to/config"   # Configuration files
 
 # Steps to install the provider
 # Can have multiple steps, executed in order
 [[provider.install.steps]]
 # Step 1: Install dependencies
-action = "command"              # Execute a command
-exec = "package-manager"        # Command to run
-args = [                        # List of arguments
-    "install",
-    "--needed",
-    "dependency1",
-    "dependency2"
+action = "command" # Execute a command
+exec = "package-manager" # Command to run
+args = [ # List of arguments
+  "install",
+  "--needed",
+  "dependency1",
+  "dependency2",
 ]
-elevated = true                 # Whether step needs elevation
+elevated = true # Whether step needs elevation
 
 [[provider.install.steps]]
 # Step 2: Create directories
-action = "mkdir"                # Create directory
-path = "/path/to/create"        # Directory to create
-mode = "0755"                   # Optional: permissions
-owner = "user:group"            # Optional: ownership
+action = "mkdir"         # Create directory
+path = "/path/to/create" # Directory to create
+mode = "0755"            # Optional: permissions
+owner = "user:group"     # Optional: ownership
 
 [[provider.install.steps]]
 # Step 3: Download provider
-action = "download"             # Download a file
+action = "download"                            # Download a file
 source = "https://example.com/provider.tar.gz"
 dest = "/tmp/provider.tar.gz"
 
@@ -111,30 +111,30 @@ args = ["remove", "provider-name"]
 
 [[provider.remove.steps]]
 # Step 2: Clean up files
-action = "remove"               # Remove a file/directory
-path = "/path/to/remove"        # Path to remove
+action = "remove"        # Remove a file/directory
+path = "/path/to/remove" # Path to remove
 
 # Steps to add a repository
 [[provider.repository.add.steps]]
 # Step 1: Download GPG key (if needed)
-action = "download"              # Action type: download, write, append, command, etc.
-source = "{{ .KeyURL }}"        # URL to download from
-dest = "{{ .KeyPath }}"         # Where to save the file
-condition = "{{ .HasKey }}"     # Optional: Only execute if condition is true
+action = "download"         # Action type: download, write, append, command, etc.
+source = "{{ .KeyURL }}"    # URL to download from
+dest = "{{ .KeyPath }}"     # Where to save the file
+condition = "{{ .HasKey }}" # Optional: Only execute if condition is true
 
 [[provider.repository.add.steps]]
 # Step 2: Import GPG key
-action = "command"              # Execute a command
-exec = "gpg"                    # Command to run
-args = [                        # List of arguments
-    "--import",
-    "{{ .KeyPath }}"
+action = "command" # Execute a command
+exec = "gpg" # Command to run
+args = [ # List of arguments
+  "--import",
+  "{{ .KeyPath }}",
 ]
-condition = "{{ .HasKey }}"     # Optional condition
+condition = "{{ .HasKey }}" # Optional condition
 
 [[provider.repository.add.steps]]
 # Step 3: Add repository configuration
-action = "write"                # Write content to file
+action = "write" # Write content to file
 dest = "{{ .SourcesPath }}/{{ .Name }}.conf"
 content = """
 [{{ .Name }}]
@@ -152,7 +152,7 @@ args = ["update"]
 # Steps to remove a repository
 [[provider.repository.remove.steps]]
 # Step 1: Remove repository configuration
-action = "remove"               # Remove a file
+action = "remove"                            # Remove a file
 path = "{{ .SourcesPath }}/{{ .Name }}.conf"
 
 [[provider.repository.remove.steps]]
