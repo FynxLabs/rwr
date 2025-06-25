@@ -1,23 +1,23 @@
 [provider]
 name = "cargo"
-elevated = false  # Cargo operates at user level
+elevated = false # Cargo operates at user level
 
 [provider.detection]
 binary = "cargo"
 files = ["~/.cargo/bin/cargo", "~/.rustup"]
-distributions = ["linux", "darwin", "windows"]  # Cross-platform
+distributions = ["linux", "darwin", "windows"] # Cross-platform
 
 [provider.commands]
 install = "install"
-update = "install-update --all"  # Use cargo-update to update all packages
+update = "install-update --all" # Use cargo-update to update all packages
 remove = "uninstall"
 list = "install --list"
 search = "search"
 clean = "cache --autoclean"
 
 [provider.corePackages]
-openssl = []  # Cargo doesn't need to install OpenSSL
-build-essentials = []  # Cargo doesn't need build essentials
+openssl = []          # Cargo doesn't need to install OpenSSL
+build-essentials = [] # Cargo doesn't need build essentials
 
 [provider.repository.paths]
 registry = "~/.cargo/registry"
@@ -27,7 +27,15 @@ config = "~/.cargo/config.toml"
 [[provider.install.steps]]
 action = "command"
 exec = "curl"
-args = ["--proto", "=https", "--tlsv1.2", "-sSf", "https://sh.rustup.rs", "-o", "/tmp/rustup-init.sh"]
+args = [
+  "--proto",
+  "=https",
+  "--tlsv1.2",
+  "-sSf",
+  "https://sh.rustup.rs",
+  "-o",
+  "/tmp/rustup-init.sh",
+]
 
 [[provider.install.steps]]
 action = "command"
@@ -57,13 +65,13 @@ content = """
 [registries.{{ .Name }}]
 index = "{{ .URL }}"
 """
-condition = "{{ .IsCustomRegistry }}"  # Only for custom registries
+condition = "{{ .IsCustomRegistry }}" # Only for custom registries
 
 [[provider.repository.add.steps]]
 action = "command"
 exec = "cargo"
 args = ["login", "--registry", "{{ .Name }}", "{{ .Token }}"]
-condition = "{{ .HasToken }}"  # Only if authentication token provided
+condition = "{{ .HasToken }}"                                 # Only if authentication token provided
 
 [[provider.repository.remove.steps]]
 action = "command"

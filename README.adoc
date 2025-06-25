@@ -227,7 +227,7 @@ For more detailed information on each topic, please visit the corresponding Wiki
 == Road to 1.0
 
 * For Beta/MVP (0.1.0):
-** Linux Tested/Validate - Ubuntu/Fedora/Arch are goal for tested support
+** Linux Tested/Validate - Ubuntu/Fedora/Arch/OpenMandriva are goal for tested support
 
 * For 0.2.0:
 ** Test/Validate macOS or Windows
@@ -238,7 +238,7 @@ For more detailed information on each topic, please visit the corresponding Wiki
 * For 1.0.0:
 ** All items listed in the "Road to 1.0" section need to be tested and validated across all platforms (Linux, macOS, and Windows)
 
-=== Linux (Debian/Ubuntu, Fedora, Arch)
+=== Linux (Debian/Ubuntu, Fedora, Arch, OpenMandriva)
 
 * [*] Bootstrap Processor
 * [*] Package Manager Processor

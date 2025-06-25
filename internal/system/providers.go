@@ -372,6 +372,50 @@ func GetProviderForDistro(distro string) (*types.Provider, bool) {
 	return nil, false
 }
 
+// GetProviderWithAlternatives returns a provider with distribution-specific packages resolved
+func GetProviderWithAlternatives(name string) (*types.Provider, bool) {
+	provider, exists := GetProvider(name)
+	if !exists {
+		return nil, false
+	}
+
+	// Get current distribution
+	var currentDistro string
+	if runtime.GOOS == "linux" {
+		currentDistro = getLinuxDistro()
+	}
+
+	// Create a copy of the provider to avoid modifying the original
+	providerCopy := *provider
+
+	// If we have alternatives for this distribution, apply them
+	if currentDistro != "" && provider.HasAlternativesForDistro(currentDistro) {
+		providerCopy.CorePackages = provider.GetCorePackagesForDistro(currentDistro)
+		log.Debugf("Applied alternatives for distribution %s to provider %s", currentDistro, name)
+	}
+
+	return &providerCopy, true
+}
+
+// GetProviderForDistroWithAlternatives returns a provider for a specific distribution with alternatives applied
+func GetProviderForDistroWithAlternatives(distro string) (*types.Provider, bool) {
+	provider, exists := GetProviderForDistro(distro)
+	if !exists {
+		return nil, false
+	}
+
+	// Create a copy of the provider to avoid modifying the original
+	providerCopy := *provider
+
+	// If we have alternatives for this distribution, apply them
+	if provider.HasAlternativesForDistro(distro) {
+		providerCopy.CorePackages = provider.GetCorePackagesForDistro(distro)
+		log.Debugf("Applied alternatives for distribution %s to provider %s", distro, provider.Name)
+	}
+
+	return &providerCopy, true
+}
+
 // getProviderNames returns a sorted list of provider names for logging
 func getProviderNames() []string {
 	names := make([]string, 0, len(providers))

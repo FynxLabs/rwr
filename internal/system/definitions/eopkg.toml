@@ -1,23 +1,19 @@
 [provider]
 name = "eopkg"
-elevated = true  # Eopkg requires root privileges
+elevated = true # Eopkg requires root privileges
 
 [provider.detection]
 binary = "eopkg"
-files = [
-    "/usr/bin/eopkg",
-    "/var/lib/eopkg",
-    "/etc/eopkg"
-]
+files = ["/usr/bin/eopkg", "/var/lib/eopkg", "/etc/eopkg"]
 distributions = ["solus"]
 
 [provider.commands]
-install = "it -y"  # it = install
-update = "ur"      # ur = upgrade
-remove = "rm -y"   # rm = remove
-list = "li"        # li = list installed
-search = "sr"      # sr = search
-clean = "rmo -y"   # rmo = remove orphans
+install = "it -y" # it = install
+update = "ur"     # ur = upgrade
+remove = "rm -y"  # rm = remove
+list = "li"       # li = list installed
+search = "sr"     # sr = search
+clean = "rmo -y"  # rmo = remove orphans
 
 [provider.repository.paths]
 repos = "/etc/eopkg/repos.d"
@@ -58,4 +54,4 @@ condition = "{{ .HasKey }}"
 [[provider.repository.remove.steps]]
 action = "command"
 exec = "eopkg"
-args = ["update-repo", "--all"]  # Update remaining repos
+args = ["update-repo", "--all"] # Update remaining repos

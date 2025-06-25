@@ -8,16 +8,25 @@ files = ["/etc/pacman.conf", "/var/lib/pacman"]
 distributions = ["arch", "manjaro"]
 
 [provider.commands]
-install = "build --no-confirm"  # build for AUR packages
+install = "build --no-confirm"     # build for AUR packages
 update = "upgrade -a --no-confirm" # -a for AUR updates
-remove = "remove --no-confirm"  # remove packages
-list = "list -i"              # -i to list installed packages
-search = "search -a"          # -a to search both repos and AUR
-clean = "clean --no-confirm"  # clean cache
+remove = "remove --no-confirm"     # remove packages
+list = "list -i"                   # -i to list installed packages
+search = "search -a"               # -a to search both repos and AUR
+clean = "clean --no-confirm"       # clean cache
 
 [provider.corePackages]
 openssl = ["openssl"]
-build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+build-essentials = [
+  "base-devel",
+  "cmake",
+  "freetype2",
+  "fontconfig",
+  "pkg-config",
+  "libxcb",
+  "libxkbcommon",
+  "python",
+]
 
 [provider.repository.paths]
 sources = "/etc/pacman.d"

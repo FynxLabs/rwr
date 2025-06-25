@@ -17,7 +17,16 @@ clean = "-Sc --noconfirm"
 
 [provider.corePackages]
 openssl = ["openssl"]
-build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python"]
+build-essentials = [
+  "base-devel",
+  "cmake",
+  "freetype2",
+  "fontconfig",
+  "pkg-config",
+  "libxcb",
+  "libxkbcommon",
+  "python",
+]
 
 [provider.repository.paths]
 sources = "/etc/pacman.d"

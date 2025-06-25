@@ -5,7 +5,7 @@ elevated = true
 [provider.detection]
 binary = "dnf"
 files = ["/etc/dnf/dnf.conf", "/var/lib/dnf"]
-distributions = ["fedora", "rhel"]  # Works on Fedora and RHEL
+distributions = ["fedora", "rhel", "openmandriva"]
 
 [provider.commands]
 install = "install -y"
@@ -17,7 +17,15 @@ clean = "clean all"
 
 [provider.corePackages]
 openssl = ["openssl", "openssl-devel"]
-build-essentials = ["make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel", "g++"]
+build-essentials = [
+  "make",
+  "cmake",
+  "freetype-devel",
+  "fontconfig-devel",
+  "libxcb-devel",
+  "libxkbcommon-devel",
+  "g++",
+]
 
 [provider.repository.paths]
 sources = "/etc/yum.repos.d"
@@ -53,3 +61,16 @@ path = "{{ .SourcesPath }}/{{ .Name }}.repo"
 action = "command"
 exec = "rpm"
 args = ["--erase", "gpg-pubkey-{{ .KeyID }}"]
+
+[provider.alternatives.openmandriva]
+  [provider.alternatives.openmandriva.corePackages]
+  openssl = ["openssl", "lib64openssl-devel"]
+  build-essentials = [
+    "make",
+    "cmake",
+    "lib64freetype6-devel",
+    "lib64fontconfig-devel",
+    "lib64xcb-devel",
+    "lib64xkbcommon-devel",
+    "gcc-c++",
+  ]
