@@ -1,21 +1,17 @@
 [provider]
 name = "emerge"
-elevated = true  # Emerge requires root for most operations
+elevated = true # Emerge requires root for most operations
 
 [provider.detection]
 binary = "emerge"
-files = [
-    "/usr/bin/emerge",
-    "/etc/portage",
-    "/var/db/repos/gentoo"
-]
+files = ["/usr/bin/emerge", "/etc/portage", "/var/db/repos/gentoo"]
 distributions = ["gentoo"]
 
 [provider.commands]
-install = "-qv"  # Quiet and verbose output
-update = "-uDN @world"  # Update deep with new use flags
+install = "-qv"        # Quiet and verbose output
+update = "-uDN @world" # Update deep with new use flags
 remove = "-C"
-list = "qlist -I"  # Uses portage-utils
+list = "qlist -I"      # Uses portage-utils
 search = "-s"
 clean = "--depclean"
 
@@ -44,7 +40,7 @@ args = ["sync", "-r", "{{ .Name }}"]
 action = "command"
 exec = "emerge"
 args = ["--sync"]
-condition = "{{ .IsMainRepo }}"  # Only for main gentoo repo
+condition = "{{ .IsMainRepo }}" # Only for main gentoo repo
 
 [[provider.repository.remove.steps]]
 action = "remove"

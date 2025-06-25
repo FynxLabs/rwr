@@ -1,14 +1,10 @@
 [provider]
 name = "slackpkg"
-elevated = true  # Slackpkg requires root privileges
+elevated = true   # Slackpkg requires root privileges
 
 [provider.detection]
 binary = "slackpkg"
-files = [
-    "/usr/sbin/slackpkg",
-    "/etc/slackpkg",
-    "/var/lib/slackpkg"
-]
+files = ["/usr/sbin/slackpkg", "/etc/slackpkg", "/var/lib/slackpkg"]
 distributions = ["slackware"]
 
 [provider.commands]
@@ -27,7 +23,11 @@ gpg = "/etc/slackpkg/gpg"
 [[provider.repository.add.steps]]
 action = "command"
 exec = "sed"
-args = ["-i", "s/^[^#].*//", "{{ .MirrorsPath }}"]  # Comment out all active mirrors
+args = [
+  "-i",
+  "s/^[^#].*//",
+  "{{ .MirrorsPath }}",
+] # Comment out all active mirrors
 
 [[provider.repository.add.steps]]
 action = "append"

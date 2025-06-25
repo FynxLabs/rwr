@@ -1,89 +1,98 @@
 [provider]
 name = "nix"
-elevated = false  # Nix operates in user space by default
+elevated = false # Nix operates in user space by default
 
 [provider.detection]
 binary = "nix-env"
 files = [
-    # Common paths across systems
-    "/nix/store",
-    "~/.nix-profile",
-    "/etc/nix",
-    # NixOS specific
-    "/etc/nixos",
-    # Home Manager
-    "~/.config/nixpkgs"
+  # Common paths across systems
+  "/nix/store",
+  "~/.nix-profile",
+  "/etc/nix",
+  # NixOS specific
+  "/etc/nixos",
+  # Home Manager
+  "~/.config/nixpkgs",
 ]
-distributions = ["linux", "darwin"]  # Works on Linux and macOS
+distributions = ["linux", "darwin"] # Works on Linux and macOS
 
 [provider.commands]
 install = "-i"
-update = "-u '*'"  # Update all packages
+update = "-u '*'"                # Update all packages
 remove = "-e"
 list = "-q"
-search = "nix search"  # Uses new-style commands
+search = "nix search"            # Uses new-style commands
 clean = "nix-collect-garbage -d"
 
 [provider.corePackages]
 openssl = ["openssl", "openssl.dev"]
-build-essentials = ["gnumake", "cmake", "freetype", "fontconfig", "pkg-config", "libxcb", "libxkbcommon", "python3"]
+build-essentials = [
+  "gnumake",
+  "cmake",
+  "freetype",
+  "fontconfig",
+  "pkg-config",
+  "libxcb",
+  "libxkbcommon",
+  "python3",
+]
 
 [provider.install]
 steps = [
-    # Download installer
-    { action = "command", exec = "curl", args = [
-        "-L",
-        "https://nixos.org/nix/install",
-        "--output",
-        "/tmp/nix-install"
-    ]},
-    # Make executable
-    { action = "command", exec = "chmod", args = [
-        "+x",
-        "/tmp/nix-install"
-    ]},
-    # Run installer
-    { action = "command", exec = "sh", args = [
-        "/tmp/nix-install"
-    ]},
-    # Clean up
-    { action = "command", exec = "rm", args = [
-        "/tmp/nix-install"
-    ]},
-    # Add unstable channel
-    { action = "command", exec = "nix-channel", args = [
-        "--add",
-        "https://nixos.org/channels/nixpkgs-unstable",
-        "nixpkgs"
-    ]},
-    # Update channels
-    { action = "command", exec = "nix-channel", args = [
-        "--update"
-    ]}
+  # Download installer
+  { action = "command", exec = "curl", args = [
+    "-L",
+    "https://nixos.org/nix/install",
+    "--output",
+    "/tmp/nix-install",
+  ] },
+  # Make executable
+  { action = "command", exec = "chmod", args = [
+    "+x",
+    "/tmp/nix-install",
+  ] },
+  # Run installer
+  { action = "command", exec = "sh", args = [
+    "/tmp/nix-install",
+  ] },
+  # Clean up
+  { action = "command", exec = "rm", args = [
+    "/tmp/nix-install",
+  ] },
+  # Add unstable channel
+  { action = "command", exec = "nix-channel", args = [
+    "--add",
+    "https://nixos.org/channels/nixpkgs-unstable",
+    "nixpkgs",
+  ] },
+  # Update channels
+  { action = "command", exec = "nix-channel", args = [
+    "--update",
+  ] },
 ]
 
 [provider.remove]
 steps = [
-    # Download uninstaller
-    { action = "command", exec = "curl", args = [
-        "-L",
-        "https://nixos.org/nix/uninstall",
-        "--output",
-        "/tmp/nix-uninstall"
-    ]},
-    # Make executable
-    { action = "command", exec = "chmod", args = [
-        "+x",
-        "/tmp/nix-uninstall"
-    ]},
-    # Run uninstaller
-    { action = "command", exec = "sh", args = [
-        "/tmp/nix-uninstall"
-    ]},
-    # Clean up
-    { action = "command", exec = "rm", args = [
-        "/tmp/nix-uninstall"
-    ]}
+  # Download uninstaller
+  { action = "command", exec = "curl", args = [
+    "-L",
+    "https://nixos.org/nix/uninstall",
+    "--output",
+    "/tmp/nix-uninstall",
+  ] },
+  # Make executable
+  { action = "command", exec = "chmod", args = [
+    "+x",
+    "/tmp/nix-uninstall",
+  ] },
+  # Run uninstaller
+  { action = "command", exec = "sh", args = [
+    "/tmp/nix-uninstall",
+  ] },
+  # Clean up
+  { action = "command", exec = "rm", args = [
+    "/tmp/nix-uninstall",
+  ] },
 ]
 
 [provider.repository.paths]
@@ -116,7 +125,7 @@ content = """
   };
 }
 """
-condition = "{{ .IsOverlay }}"  # Only for Nixpkgs overlays
+condition = "{{ .IsOverlay }}" # Only for Nixpkgs overlays
 
 [[provider.repository.remove.steps]]
 action = "command"

@@ -1,14 +1,10 @@
 [provider]
 name = "apk"
-elevated = true  # APK requires root privileges
+elevated = true # APK requires root privileges
 
 [provider.detection]
 binary = "apk"
-files = [
-    "/sbin/apk",
-    "/etc/apk",
-    "/var/cache/apk"
-]
+files = ["/sbin/apk", "/etc/apk", "/var/cache/apk"]
 distributions = ["alpine"]
 
 [provider.commands]
@@ -21,27 +17,32 @@ clean = "cache clean"
 
 [provider.corePackages]
 openssl = ["openssl", "openssl-dev"]
-build-essentials = ["build-base", "cmake", "pkgconfig", "freetype-dev", "fontconfig-dev", "libxcb-dev", "libxkbcommon-dev", "python3"]
+build-essentials = [
+  "build-base",
+  "cmake",
+  "pkgconfig",
+  "freetype-dev",
+  "fontconfig-dev",
+  "libxcb-dev",
+  "libxkbcommon-dev",
+  "python3",
+]
 
 [provider.install]
 steps = [
-    # APK is pre-installed on Alpine Linux, but we can ensure it's up to date
-    { action = "command", exec = "apk", args = [
-        "update"
-    ], elevated = true },
-    { action = "command", exec = "apk", args = [
-        "upgrade"
-    ], elevated = true }
+  # APK is pre-installed on Alpine Linux, but we can ensure it's up to date
+  { action = "command", exec = "apk", args = ["update"], elevated = true },
+  { action = "command", exec = "apk", args = ["upgrade"], elevated = true },
 ]
 
 [provider.remove]
 steps = [
-    # APK cannot be removed as it's the system package manager
-    # But we can clean up its cache
-    { action = "command", exec = "apk", args = [
-        "cache",
-        "clean"
-    ], elevated = true }
+  # APK cannot be removed as it's the system package manager
+  # But we can clean up its cache
+  { action = "command", exec = "apk", args = [
+    "cache",
+    "clean",
+  ], elevated = true },
 ]
 
 [provider.repository.paths]

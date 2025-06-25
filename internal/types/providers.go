@@ -2,16 +2,22 @@ package types
 
 // Provider represents a package manager provider
 type Provider struct {
-	Name         string              `toml:"name"`
-	Elevated     bool                `toml:"elevated"`
-	Detection    DetectionConfig     `toml:"detection"`
-	Commands     CommandConfig       `toml:"commands"`
-	Repository   RepositoryConfig    `toml:"repository"`
-	CorePackages map[string][]string `toml:"corePackages"`
-	Install      InstallConfig       `toml:"install"`
-	Remove       RemoveConfig        `toml:"remove"`
-	Environment  map[string]string   `toml:"environment"`
+	Name         string                           `toml:"name"`
+	Elevated     bool                             `toml:"elevated"`
+	Detection    DetectionConfig                  `toml:"detection"`
+	Commands     CommandConfig                    `toml:"commands"`
+	Repository   RepositoryConfig                 `toml:"repository"`
+	CorePackages map[string][]string              `toml:"corePackages"`
+	Alternatives map[string]ProviderAlternatives  `toml:"alternatives"`
+	Install      InstallConfig                    `toml:"install"`
+	Remove       RemoveConfig                     `toml:"remove"`
+	Environment  map[string]string                `toml:"environment"`
 	BinPath      string
+}
+
+// ProviderAlternatives defines distribution-specific alternatives for package names
+type ProviderAlternatives struct {
+	CorePackages map[string][]string `toml:"corePackages"`
 }
 
 // InstallConfig defines steps for installing the package manager
@@ -68,4 +74,35 @@ type ActionStep struct {
 	Exec    string   `toml:"exec,omitempty"`
 	Args    []string `toml:"args,omitempty"`
 	Content string   `toml:"content,omitempty"`
+}
+
+// GetCorePackagesForDistro returns the appropriate core packages for a given distribution
+// It will use alternatives if available, otherwise fall back to default packages
+func (p *Provider) GetCorePackagesForDistro(distro string) map[string][]string {
+	// Check if we have alternatives for this distribution
+	if alternatives, exists := p.Alternatives[distro]; exists {
+		// Merge default packages with alternatives, with alternatives taking precedence
+		result := make(map[string][]string)
+
+		// Start with default packages
+		for key, packages := range p.CorePackages {
+			result[key] = packages
+		}
+
+		// Override with alternatives
+		for key, packages := range alternatives.CorePackages {
+			result[key] = packages
+		}
+
+		return result
+	}
+
+	// No alternatives found, return default packages
+	return p.CorePackages
+}
+
+// HasAlternativesForDistro checks if the provider has alternatives for the given distribution
+func (p *Provider) HasAlternativesForDistro(distro string) bool {
+	_, exists := p.Alternatives[distro]
+	return exists
 }

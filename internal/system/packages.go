@@ -8,7 +8,7 @@ import (
 )
 
 func GetPackageManager(pm string) (types.PackageManagerInfo, error) {
-	if prov, exists := GetProvider(pm); exists {
+	if prov, exists := GetProviderWithAlternatives(pm); exists {
 		info := GetPackageManagerInfo(prov, prov.BinPath)
 		return types.PackageManagerInfo{
 			Name:     info.Name,
@@ -44,8 +44,8 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 		return nil
 	}
 
-	// Get provider for default package manager
-	provider, exists := GetProvider(osInfo.PackageManager.Default.Name)
+	// Get provider for default package manager with alternatives applied
+	provider, exists := GetProviderWithAlternatives(osInfo.PackageManager.Default.Name)
 	if !exists {
 		log.Warnf("No provider found for %s, skipping OpenSSL installation", osInfo.PackageManager.Default.Name)
 		return nil
@@ -96,8 +96,8 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 		return nil
 	}
 
-	// Get provider for default package manager
-	provider, exists := GetProvider(osInfo.PackageManager.Default.Name)
+	// Get provider for default package manager with alternatives applied
+	provider, exists := GetProviderWithAlternatives(osInfo.PackageManager.Default.Name)
 	if !exists {
 		log.Warnf("No provider found for %s, skipping build essentials installation", osInfo.PackageManager.Default.Name)
 		return nil

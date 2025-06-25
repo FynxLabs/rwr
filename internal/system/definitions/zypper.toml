@@ -5,7 +5,7 @@ elevated = true
 [provider.detection]
 binary = "zypper"
 files = ["/etc/zypp", "/var/lib/zypp"]
-distributions = ["opensuse", "suse"]  # Works on openSUSE and SUSE Linux
+distributions = ["opensuse", "suse"]   # Works on openSUSE and SUSE Linux
 
 [provider.commands]
 install = "install -y"
@@ -17,7 +17,14 @@ clean = "clean"
 
 [provider.corePackages]
 openssl = ["openssl", "libopenssl-devel"]
-build-essentials = ["make", "cmake", "freetype-devel", "fontconfig-devel", "libxcb-devel", "libxkbcommon-devel"]
+build-essentials = [
+  "make",
+  "cmake",
+  "freetype-devel",
+  "fontconfig-devel",
+  "libxcb-devel",
+  "libxkbcommon-devel",
+]
 
 [provider.repository.paths]
 sources = "/etc/zypp/repos.d"
