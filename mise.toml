@@ -1,0 +1,44 @@
+[tools]
+go = "1.24"
+dagger = "0.18.10"
+goreleaser = "latest"
+gotestsum = "latest"
+
+[env]
+DAGGER_NO_NAG=1
+
+[tasks]
+# Local development commands (no Dagger)
+build = "go build ."  # Simple local build
+test = "gotestsum --format pkgname --jsonfile /tmp/gotest.json -- ./..."  # Formatted tests with gotestsum
+"test:raw" = "go test -v ./..."  # Raw test output without formatting
+
+# Unit test commands (formatted with gotestsum)
+"test:unit" = "gotestsum --format pkgname --jsonfile /tmp/gotest.json -- ./internal/..."  # All internal package tests
+"test:helpers" = "gotestsum --format testname -- ./internal/helpers"  # Helpers package tests
+"test:processors" = "gotestsum --format testname -- ./internal/processors"  # Processors package tests
+"test:system" = "gotestsum --format testname -- ./internal/system"  # System package tests
+"test:coverage" = "gotestsum --format pkgname -- -cover ./internal/..."  # Test with coverage report
+
+# Watch mode for development
+"test:watch" = "gotestsum --watch --format testname"  # Watch for file changes and run tests
+
+# Raw test commands (without formatting)
+"test:unit:raw" = "go test ./internal/... -v"  # Raw internal package tests
+"test:helpers:raw" = "go test ./internal/helpers -v"  # Raw helpers tests
+"test:processors:raw" = "go test ./internal/processors -v"  # Raw processors tests
+"test:system:raw" = "go test ./internal/system -v"  # Raw system tests
+
+# Dagger-based commands - Full pipelines
+"dagger:test" = "dagger call test"  # Just run tests through Dagger
+"dagger:local" = "dagger call ci --ref=local --github-token='' --homebrew-token=''"  # Test full release pipeline without publishing
+"dagger:ci" = "dagger call ci --ref=$GITHUB_REF_NAME"  # Full CI pipeline with publishing
+
+# Individual Dagger functions
+"dagger:build" = "dagger call build"  # Build binary through Dagger
+"dagger:lint" = "dagger call lint"  # Run linting through Dagger
+"dagger:release" = "dagger call release --ref=local --github-token='' --homebrew-token=''"  # Test release process
+"dagger:version" = "dagger call version"  # Get version information
+
+# Dagger maintenance commands
+"dagger:clean" = "rm -rf .dagger/go.sum .dagger/internal"  # Clean Dagger generated files to fix dependency issues

@@ -27,11 +27,31 @@ if (-not $download_url) {
 
 # Download the file
 $tmp_file = "$env:TEMP\rwr.zip"
-Invoke-WebRequest -Uri $download_url -OutFile $tmp_file
+Write-Host "Downloading RWR from $download_url"
+try {
+    Invoke-WebRequest -Uri $download_url -OutFile $tmp_file
+} catch {
+    Write-Host "Failed to download RWR: $_"
+    exit 1
+}
 
 # Extract the zip file to a temporary directory
 $tmp_extract = "$env:TEMP\rwr_extracted"
-Expand-Archive -Path $tmp_file -DestinationPath $tmp_extract -Force
+try {
+    Expand-Archive -Path $tmp_file -DestinationPath $tmp_extract -Force
+} catch {
+    Write-Host "Failed to extract RWR archive: $_"
+    Remove-Item -Path $tmp_file -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+
+# Check if binary exists
+if (-not (Test-Path "$tmp_extract\rwr.exe")) {
+    Write-Host "Binary 'rwr.exe' not found in downloaded archive. Exiting."
+    Remove-Item -Path $tmp_file -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $tmp_extract -Recurse -Force -ErrorAction SilentlyContinue
+    exit 1
+}
 
 # Create the installation directory if it doesn't exist
 New-Item -ItemType Directory -Force -Path $BINARY_PATH | Out-Null
@@ -42,8 +62,14 @@ New-Item -ItemType Directory -Force -Path $README_PATH | Out-Null
 Move-Item -Path "$tmp_extract\rwr.exe" -Destination $BINARY_PATH -Force
 
 # Move the LICENSE and README to the default documentation path
-Move-Item -Path "$tmp_extract\LICENSE" -Destination $LICENSE_PATH -Force
-Move-Item -Path "$tmp_extract\README" -Destination $README_PATH -Force
+if (Test-Path "$tmp_extract\LICENSE") {
+    Move-Item -Path "$tmp_extract\LICENSE" -Destination $LICENSE_PATH -Force
+}
+if (Test-Path "$tmp_extract\README.adoc") {
+    Move-Item -Path "$tmp_extract\README.adoc" -Destination $README_PATH -Force
+} elseif (Test-Path "$tmp_extract\README") {
+    Move-Item -Path "$tmp_extract\README" -Destination $README_PATH -Force
+}
 
 # Add the binary path to system PATH if it's not already there
 $current_path = [Environment]::GetEnvironmentVariable("Path", "Machine")

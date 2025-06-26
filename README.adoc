@@ -47,7 +47,7 @@ Open PowerShell as an administrator and run:
 
 [source,powershell]
 ----
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.sh'))
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.ps1'))
 ----
 
 These scripts will download and install the latest version of RWR appropriate for your system. They will also set up the necessary paths and permissions.
@@ -250,6 +250,7 @@ This installs:
 * Go (for building and testing)
 * Dagger (for CI/CD pipeline)
 * GoReleaser (for creating releases)
+* gotestsum (for beautiful test output formatting and CI integration)
 
 === Development Commands
 
@@ -264,9 +265,46 @@ Fast commands that run directly on your machine:
 # Build the binary
 mise run build
 
-# Run tests
+# Run tests with beautiful formatting (uses gotestsum)
 mise run test
+
+# Run raw tests without formatting
+mise run test:raw
 ----
+
+==== Unit Testing Commands
+
+For targeted testing of specific components, all with beautiful gotestsum formatting:
+
+[source,bash]
+----
+# Run all internal package tests (package-level summary)
+mise run test:unit
+
+# Run tests for specific packages (detailed test names)
+mise run test:helpers     # Test helper functions
+mise run test:processors  # Test blueprint processors
+mise run test:system     # Test system utilities
+
+# Run tests with coverage report
+mise run test:coverage
+
+# Watch mode - automatically run tests when files change
+mise run test:watch
+----
+
+For raw test output without formatting, use the `:raw` variants:
+
+[source,bash]
+----
+# Raw test commands (no gotestsum formatting)
+mise run test:unit:raw
+mise run test:helpers:raw
+mise run test:processors:raw
+mise run test:system:raw
+----
+
+NOTE: gotestsum provides superior test output formatting, watch mode for development, and saves test results to `/tmp/gotest.json` for CI integration and analysis.
 
 ==== Pipeline Testing (Using Dagger)
 
@@ -275,7 +313,7 @@ Test the CI pipeline locally using Dagger:
 [source,bash]
 ----
 # Just run tests through Dagger
-mise run dagger-test
+mise run dagger:test
 
 # Test full release pipeline without publishing
 # This will:
@@ -283,13 +321,35 @@ mise run dagger-test
 # 2. Build binaries
 # 3. Create archives
 # 4. Skip actual publishing
-mise run dagger-local
+mise run dagger:local
 
 # Run full CI pipeline with publishing
 # Requires:
 # - GITHUB_TOKEN for creating releases
 # - HOMEBREW_TAP_DEPLOY_KEY for updating Homebrew tap
-mise run dagger-ci
+mise run dagger:ci
+----
+
+==== Individual Dagger Functions
+
+You can also run individual Dagger functions for specific tasks:
+
+[source,bash]
+----
+# Build binary through Dagger
+mise run dagger:build
+
+# Run linting through Dagger
+mise run dagger:lint
+
+# Test release process locally (without publishing)
+mise run dagger:release
+
+# Get version information
+mise run dagger:version
+
+# Clean Dagger generated files (useful for dependency issues)
+mise run dagger:clean
 ----
 
 === CI/CD Pipeline
