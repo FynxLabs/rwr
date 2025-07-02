@@ -1,10 +1,43 @@
 packages:
+  # Base system packages
   - names:
-      - neovim
-      - jq
-      - docker
-      - visual-studio-code
+      - git
+      - curl
       - vim
+      - htop
       - tree
+      - jq
+    action: install
+    package_manager: brew
+
+  # Development packages
+  - names:
+      - node
+      - python3
+      - visual-studio-code
+      - docker
+      - iterm2
+    profiles:
+      - dev
+    action: install
+    package_manager: brew
+
+  # Work environment
+  - names:
+      - firefox
+      - slack
+      - zoom
+      - 1password
+    profiles:
+      - work
+    action: install
+    package_manager: brew
+
+  # Gaming essentials
+  - names:
+      - steam
+      - discord
+    profiles:
+      - gaming
     action: install
     package_manager: brew

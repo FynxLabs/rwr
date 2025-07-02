@@ -1,24 +1,48 @@
 files:
+  # Base configuration files
   - name: .bashrc
     action: create
-    target: {{ .User.home }}/
+    target: "{{ .User.Home }}/"
     content: |
       # Custom .bashrc content
       alias ll='ls -alF'
       export PATH=$PATH:$HOME/.local/bin
+
   - name: .gitignore
     action: copy
-    target: {{ .User.home }}/
-    source: ./src/
+    target: "{{ .User.Home }}/"
+    source: "./src/"
+
+  # Development configuration
+  - name: .vimrc
+    profiles:
+      - dev
+    action: create
+    target: "{{ .User.Home }}/"
+    content: |
+      set number
+      set tabstop=4
+      set shiftwidth=4
+      set expandtab
 
 directories:
-  - name: .config
-    action: copy
-    source: ./src/
-    target: {{ .User.home }}/
+  # Base directories
+  - name: Projects
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: "0755"
+
+  # Development directories
+  - name: .config/code
+    profiles:
+      - dev
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: "0755"
 
 templates:
+  # Profile template
   - name: .profile
     action: copy
-    source: ./src/
-    target: {{ .User.home }}/
+    source: "./src/"
+    target: "{{ .User.Home }}/"

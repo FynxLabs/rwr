@@ -9,14 +9,20 @@ type GitOptions struct {
 }
 
 type Git struct {
-	Name    string `mapstructure:"name" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`                       // Name of the git operation
-	Action  string `mapstructure:"action" yaml:"action,omitempty" json:"action,omitempty" toml:"action,omitempty"`               // Action to perform with git
-	Path    string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty" toml:"path,omitempty"`                       // Path for the git operation
-	URL     string `mapstructure:"url" yaml:"url,omitempty" json:"url,omitempty" toml:"url,omitempty"`                           // URL of the git repository
-	Branch  string `mapstructure:"branch,omitempty" yaml:"branch,omitempty" json:"branch,omitempty" toml:"branch,omitempty"`     // Branch of the repository
-	Private bool   `mapstructure:"private,omitempty" yaml:"private,omitempty" json:"private,omitempty" toml:"private,omitempty"` // Whether the repository is private
+	Name     string   `mapstructure:"name" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`                           // Name of the git operation
+	Profiles []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"` // Profiles this git operation belongs to
+	Action   string   `mapstructure:"action" yaml:"action,omitempty" json:"action,omitempty" toml:"action,omitempty"`                   // Action to perform with git
+	Path     string   `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty" toml:"path,omitempty"`                           // Path for the git operation
+	URL      string   `mapstructure:"url" yaml:"url,omitempty" json:"url,omitempty" toml:"url,omitempty"`                               // URL of the git repository
+	Branch   string   `mapstructure:"branch,omitempty" yaml:"branch,omitempty" json:"branch,omitempty" toml:"branch,omitempty"`         // Branch of the repository
+	Private  bool     `mapstructure:"private,omitempty" yaml:"private,omitempty" json:"private,omitempty" toml:"private,omitempty"`     // Whether the repository is private
 }
 
 type GitData struct {
 	Repos []Git `mapstructure:"git" yaml:"git,omitempty" json:"git,omitempty" toml:"git,omitempty"` // Slice of Git configurations
+}
+
+// GetProfiles returns the profiles for this git operation
+func (g Git) GetProfiles() []string {
+	return g.Profiles
 }

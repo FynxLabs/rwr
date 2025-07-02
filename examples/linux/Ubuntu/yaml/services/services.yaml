@@ -1,7 +1,36 @@
+# Essential services for all Ubuntu systems
 services:
-  - name: docker
+  - names:
+      - ufw
+      - ssh
+      - cron
     action: enable
-    elevated: true
-  - name: docker
-    action: start
-    elevated: true
+
+  # Development services for dev profile
+  - names:
+      - docker
+      - nginx
+    profiles: [dev]
+    action: enable
+
+  # Server services for server profile
+  - names:
+      - apache2
+      - mysql
+      - fail2ban
+    profiles: [server]
+    action: enable
+
+  # Desktop services for desktop profile
+  - names:
+      - bluetooth
+      - cups
+    profiles: [desktop]
+    action: enable
+
+  # Disable unnecessary services on minimal systems
+  - names:
+      - snapd
+      - ModemManager
+    profiles: [minimal]
+    action: disable

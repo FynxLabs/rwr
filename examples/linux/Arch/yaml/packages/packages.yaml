@@ -1,8 +1,115 @@
 packages:
+  # Base packages - always installed (no profiles field)
   - names:
-      - docker
-      - code
-      - vim
+      # System utilities and base development tools
+      - base-devel
+      - git
       - tree
+      - unzip
+      - zip
+      - rsync
+      - cmake
+      - neovim
+      - jq
+      - htop
+      - curl
+      - wget
     action: install
     package_manager: pacman
+
+  # Work profile packages - enterprise development tools
+  - names:
+      - docker
+      - docker-compose
+      - kubectl
+      - terraform
+      - helm
+      - aws-cli
+    profiles:
+      - work
+    action: install
+    package_manager: pacman
+
+  # Development profile packages - programming tools
+  - names:
+      - code
+      - nodejs
+      - npm
+      - python
+      - go
+      - rust
+      - python-pip
+    profiles:
+      - dev
+    action: install
+    package_manager: pacman
+
+  # Gaming profile packages - entertainment and streaming
+  - names:
+      - steam
+      - discord
+      - obs-studio
+      - lutris
+    profiles:
+      - gaming
+    action: install
+    package_manager: pacman
+
+  # Personal profile packages - productivity and media
+  - names:
+      - firefox
+      - libreoffice-fresh
+      - gimp
+      - vlc
+      - thunderbird
+    profiles:
+      - personal
+    action: install
+    package_manager: pacman
+
+  # Multi-profile packages - useful for both work and development
+  - names:
+      - tmux
+      - zsh
+      - zsh-completions
+      - fzf
+    profiles:
+      - work
+      - dev
+    action: install
+    package_manager: pacman
+
+  # Database tools - for development and work
+  - names:
+      - postgresql
+      - redis
+      - mongodb-tools
+    profiles:
+      - dev
+      - work
+      - database
+    action: install
+    package_manager: pacman
+
+  # AUR packages for development (using yay)
+  - names:
+      - visual-studio-code-bin
+      - google-chrome
+      - slack-desktop
+      - zoom
+    profiles:
+      - work
+    action: install
+    package_manager: yay
+
+  # Security tools
+  - names:
+      - nmap
+      - wireshark-qt
+      - openssh
+    profiles:
+      - security
+      - work
+    action: install
+    package_manager: pacman
+    elevated: true

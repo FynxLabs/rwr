@@ -22,8 +22,14 @@ func ProcessGitRepositories(blueprintData []byte, format string, initConfig *typ
 		return fmt.Errorf("error unmarshaling Git repository blueprint: %w", err)
 	}
 
-	// Process the Git repositories
-	err = processGitRepositories(gitData.Repos, initConfig)
+	// Filter Git repositories based on active profiles
+	filteredRepos := helpers.FilterByProfiles(gitData.Repos, initConfig.Variables.Flags.Profiles)
+
+	log.Debugf("Filtering Git repositories: %d total, %d matching active profiles %v",
+		len(gitData.Repos), len(filteredRepos), initConfig.Variables.Flags.Profiles)
+
+	// Process the filtered Git repositories
+	err = processGitRepositories(filteredRepos, initConfig)
 	if err != nil {
 		log.Errorf("Error processing Git repositories: %v", err)
 		return fmt.Errorf("error processing Git repositories: %w", err)

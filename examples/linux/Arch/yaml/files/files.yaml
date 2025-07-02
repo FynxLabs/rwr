@@ -1,24 +1,194 @@
 files:
+  # Base configuration files - always created (no profiles field)
   - name: .bashrc
     action: create
-    target: {{ .User.home }}/
+    target: "{{ .User.Home }}/"
     content: |
       # Custom .bashrc content
       alias ll='ls -alF'
+      alias la='ls -A'
+      alias l='ls -CF'
       export PATH=$PATH:$HOME/.local/bin
-  - name: .gitignore
+      export EDITOR=nvim
+
+  - name: .vimrc
+    action: create
+    target: "{{ .User.Home }}/"
+    content: |
+      " Basic vim configuration
+      set number
+      set relativenumber
+      set tabstop=4
+      set shiftwidth=4
+      set expandtab
+      syntax on
+
+  # Work profile configuration files
+  - name: .gitconfig-work
+    profiles:
+      - work
+    action: create
+    target: "{{ .User.Home }}/"
+    content: |
+      [user]
+          name = Work User
+          email = user@company.com
+      [core]
+          editor = code --wait
+      [push]
+          default = simple
+
+  - name: work-ssh-config
+    profiles:
+      - work
     action: copy
-    source: ./src/
-    target: {{ .User.home }}/
+    source: ./src/ssh/work_config
+    target: "{{ .User.Home }}/.ssh/config"
+    mode: 600
+
+  # Development profile configuration files
+  - name: .gitconfig-dev
+    profiles:
+      - dev
+    action: create
+    target: "{{ .User.Home }}/"
+    content: |
+      [user]
+          name = Developer
+          email = dev@personal.com
+      [core]
+          editor = nvim
+      [alias]
+          st = status
+          co = checkout
+          br = branch
+
+  - name: .zshrc
+    profiles:
+      - dev
+      - work
+    action: create
+    target: "{{ .User.Home }}/"
+    content: |
+      # Zsh configuration
+      export ZSH="$HOME/.oh-my-zsh"
+      ZSH_THEME="robbyrussell"
+      plugins=(git docker kubectl)
+      source $ZSH/oh-my-zsh.sh
+
+  # Gaming profile configuration files
+  - name: gamemode.ini
+    profiles:
+      - gaming
+    action: copy
+    source: ./src/gamemode.ini
+    target: "{{ .User.Home }}/.config/gamemode/"
+
+  # Personal profile files
+  - name: .aliases
+    profiles:
+      - personal
+    action: create
+    target: "{{ .User.Home }}/"
+    content: |
+      # Personal aliases
+      alias music='vlc ~/Music'
+      alias photos='gimp'
+      alias backup='rsync -av ~/Documents/ ~/Backup/'
 
 directories:
+  # Base directories - always created
   - name: .config
-    action: copy
-    source: ./src/
-    target: {{ .User.home }}/
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: 755
+
+  - name: .local/bin
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: 755
+
+  # Work profile directories
+  - name: work
+    profiles:
+      - work
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: 755
+
+  - name: .ssh
+    profiles:
+      - work
+      - dev
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: 700
+
+  # Development profile directories
+  - name: projects
+    profiles:
+      - dev
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: 755
+
+  - name: .config/nvim
+    profiles:
+      - dev
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: 755
+
+  # Gaming profile directories
+  - name: .config/gamemode
+    profiles:
+      - gaming
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: 755
+
+  - name: Games
+    profiles:
+      - gaming
+      - personal
+    action: create
+    target: "{{ .User.Home }}/"
+    mode: 755
 
 templates:
+  # Base template files
   - name: .profile
     action: copy
-    source: ./src/
-    target: {{ .User.home }}/
+    source: ./src/.profile
+    target: "{{ .User.Home }}/"
+
+  # Work profile templates
+  - name: work-environment
+    profiles:
+      - work
+    action: copy
+    source: ./src/work-environment.j2
+    target: "{{ .User.Home }}/.work-env"
+    variables:
+      company: '{{ .Flags.Company | default "MyCompany" }}'
+      department: '{{ .Flags.Department | default "Engineering" }}'
+
+  # Development profile templates
+  - name: nvim-config
+    profiles:
+      - dev
+    action: copy
+    source: ./src/nvim/init.lua.j2
+    target: "{{ .User.Home }}/.config/nvim/init.lua"
+    variables:
+      theme: '{{ .Flags.Theme | default "dracula" }}'
+      plugins: '{{ .Flags.Plugins | default "basic" }}'
+
+  # Personal profile templates
+  - name: personal-scripts
+    profiles:
+      - personal
+    action: copy
+    source: ./src/personal-scripts.j2
+    target: "{{ .User.Home }}/.local/bin/personal-tools"
+    mode: 755

@@ -1,8 +1,62 @@
 packages:
+  # Base system packages
+  - names:
+      - git
+      - curl
+      - vim
+      - htop
+      - tree
+      - unzip
+      - build-essential
+    action: install
+    package_manager: apt
+
+  # Development packages
+  - names:
+      - nodejs
+      - npm
+      - python3
+      - python3-pip
+      - code
+    profiles:
+      - dev
+    action: install
+    package_manager: apt
+
+  # Work environment
+  - names:
+      - firefox
+      - libreoffice
+      - keepassxc
+    profiles:
+      - work
+    action: install
+    package_manager: apt
+
+  # Gaming essentials
+  - names:
+      - steam
+      - wine
+      - discord
+    profiles:
+      - gaming
+    action: install
+    package_manager: apt
+
+  # Container tools
   - names:
       - docker.io
-      - code
-      - vim
-      - tree
+      - docker-compose
+    profiles:
+      - docker
+    action: install
+    package_manager: apt
+
+  # Database essentials
+  - names:
+      - postgresql
+      - postgresql-contrib
+    profiles:
+      - database
     action: install
     package_manager: apt

@@ -31,7 +31,13 @@ func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, i
 		return fmt.Errorf("error unmarshaling SSH key blueprint: %v", err)
 	}
 
-	err = processSSHKeys(sshKeyData.SSHKeys, osInfo, initConfig)
+	// Filter SSH keys based on active profiles
+	filteredSSHKeys := helpers.FilterByProfiles(sshKeyData.SSHKeys, initConfig.Variables.Flags.Profiles)
+
+	log.Debugf("Filtering SSH keys: %d total, %d matching active profiles %v",
+		len(sshKeyData.SSHKeys), len(filteredSSHKeys), initConfig.Variables.Flags.Profiles)
+
+	err = processSSHKeys(filteredSSHKeys, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing SSH Keys: %v", err)
 		return fmt.Errorf("error processing SSH Keys: %w", err)

@@ -1,8 +1,65 @@
 packages:
+  # Base system packages - always installed
+  - names:
+      - git
+      - curl
+      - vim
+      - htop
+      - tree
+      - unzip
+    action: install
+    package_manager: dnf
+
+  # Development packages
+  - names:
+      - gcc
+      - make
+      - nodejs
+      - npm
+      - python3
+      - python3-pip
+      - code
+    profiles:
+      - dev
+    action: install
+    package_manager: dnf
+
+  # Work environment
+  - names:
+      - firefox
+      - libreoffice
+      - keepassxc
+    profiles:
+      - work
+    action: install
+    package_manager: dnf
+
+  # Gaming essentials
+  - names:
+      - steam
+      - wine
+      - discord
+    profiles:
+      - gaming
+    action: install
+    package_manager: dnf
+
+  # Container tools
   - names:
       - docker-ce
-      - code
-      - vim
-      - tree
+      - docker-compose
+      - podman
+    profiles:
+      - docker
+      - dev
+    action: install
+    package_manager: dnf
+
+  # Database essentials
+  - names:
+      - postgresql
+      - postgresql-server
+    profiles:
+      - database
     action: install
     package_manager: dnf

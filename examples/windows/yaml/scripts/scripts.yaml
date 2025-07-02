@@ -1,6 +1,52 @@
+# Essential system scripts for all Windows systems
 scripts:
-  - name: hello_world
-    action: run
+  - name: update-system
     content: |
-      #!/bin/bash
-      echo "Hello, from this example!"
+      @echo off
+      choco upgrade all -y
+      winget upgrade --all
+    mode: "755"
+
+  - name: setup-chocolatey
+    content: |
+      @echo off
+      powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"
+    mode: "755"
+
+  # Development setup for dev profile
+  - name: setup-wsl
+    content: |
+      @echo off
+      dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+      dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+      wsl --set-default-version 2
+    profiles: [dev]
+    mode: "755"
+
+  # Work setup for work profile
+  - name: configure-rdp
+    content: |
+      @echo off
+      reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+      netsh advfirewall firewall set rule group="remote desktop" new enable=Yes
+    profiles: [work]
+    mode: "755"
+
+  # Gaming setup for gaming profile
+  - name: optimize-gaming
+    content: |
+      @echo off
+      powercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+      bcdedit /set useplatformclock true
+      bcdedit /set disabledynamictick yes
+    profiles: [gaming]
+    mode: "755"
+
+  # Minimal system cleanup for minimal profile
+  - name: cleanup-system
+    content: |
+      @echo off
+      cleanmgr /sagerun:1
+      dism /online /cleanup-image /startcomponentcleanup
+    profiles: [minimal]
+    mode: "755"

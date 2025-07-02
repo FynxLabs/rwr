@@ -1,0 +1,39 @@
+{
+  "users": [
+    {
+      "username": "Administrator",
+      "groups": ["Administrators"],
+      "create_home": false
+    },
+    {
+      "username": "Guest",
+      "groups": ["Guests"],
+      "create_home": false,
+      "enabled": false
+    },
+    {
+      "username": "developer",
+      "groups": ["Administrators", "Remote Desktop Users"],
+      "create_home": true,
+      "profiles": ["dev"]
+    },
+    {
+      "username": "remote_worker",
+      "groups": ["Remote Desktop Users", "Users"],
+      "create_home": true,
+      "profiles": ["work"]
+    },
+    {
+      "username": "service_account",
+      "groups": ["Log on as a service"],
+      "create_home": false,
+      "profiles": ["work"]
+    },
+    {
+      "username": "gamer",
+      "groups": ["Users", "Performance Log Users"],
+      "create_home": true,
+      "profiles": ["gaming"]
+    }
+  ]
+}

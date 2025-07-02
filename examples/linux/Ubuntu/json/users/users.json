@@ -1,12 +1,38 @@
 {
-  "ssh_keys": [
+  "users": [
     {
-      "name": "id_rsa",
-      "type": "ed25519",
-      "path": "{{ .User.home }}/.ssh/",
-      "comment": "{{ .User.username }}@github",
-      "no_passphrase": true,
-      "copy_to_github": false
+      "username": "sysadmin",
+      "shell": "/bin/bash",
+      "groups": ["sudo", "adm"],
+      "create_home": true
+    },
+    {
+      "username": "developer",
+      "shell": "/bin/bash",
+      "groups": ["sudo", "docker", "www-data"],
+      "create_home": true,
+      "profiles": ["dev"]
+    },
+    {
+      "username": "webserver",
+      "shell": "/bin/false",
+      "groups": ["www-data"],
+      "create_home": false,
+      "profiles": ["server"]
+    },
+    {
+      "username": "backup",
+      "shell": "/bin/bash",
+      "groups": ["backup"],
+      "create_home": true,
+      "profiles": ["server"]
+    },
+    {
+      "username": "guest",
+      "shell": "/bin/bash",
+      "groups": ["users", "audio", "video"],
+      "create_home": true,
+      "profiles": ["desktop"]
     }
   ]
 }

@@ -1,24 +1,45 @@
+# Basic configuration files for all Ubuntu systems
 files:
-  - name: .bashrc
-    action: create
-    target: {{ .User.home }}/
+  - src: /etc/apt/apt.conf.d/99custom
+    dest: /etc/apt/apt.conf.d/99custom
     content: |
-      # Custom .bashrc content
-      alias ll='ls -alF'
-      export PATH=$PATH:$HOME/.local/bin
-  - name: .gitignore
-    action: copy
-    target: {{ .User.home }}/
-    source: ./src/
+      APT::Get::Assume-Yes "true";
+      APT::Install-Suggests "false";
+    mode: "644"
+    owner: root
+    group: root
 
-directories:
-  - name: .config
-    action: copy
-    source: ./src/
-    target: {{ .User.home }}/
+  - src: ~/.bashrc
+    dest: "{{.User.Home}}/.bashrc"
+    content: |
+      export EDITOR=vim
+      export PATH=$PATH:~/.local/bin
+      alias ll='ls -la'
+      alias grep='grep --color=auto'
+    mode: "644"
 
-templates:
-  - name: .profile
-    action: copy
-    source: ./src/
-    target: {{ .User.home }}/
+  # Development configuration for dev profile
+  - src: ~/.gitconfig
+    dest: "{{.User.Home}}/.gitconfig"
+    content: |
+      [user]
+          name = Developer
+          email = dev@example.com
+      [core]
+          editor = vim
+    profiles: [dev]
+    mode: "644"
+
+  # Server configuration for server profile
+  - src: /etc/nginx/sites-available/default
+    dest: /etc/nginx/sites-available/default
+    content: |
+      server {
+          listen 80 default_server;
+          root /var/www/html;
+          index index.html;
+      }
+    profiles: [server]
+    mode: "644"
+    owner: root
+    group: root

@@ -1,9 +1,54 @@
+# Basic system packages installed on all Windows setups
 [[packages]]
-names = ["docker-desktop", "vscode", "vim", "tree"]
+names = [
+    "git",
+    "curl",
+    "vim",
+    "7zip",
+    "notepadplusplus"
+]
 action = "install"
 package_manager = "chocolatey"
 
+# Core Microsoft packages via WinGet
 [[packages]]
-names = ["Microsoft.WindowsTerminal"]
+names = [
+    "Microsoft.WindowsTerminal",
+    "Microsoft.PowerShell"
+]
 action = "install"
 package_manager = "winget"
+
+# Development tools for development profile
+[[packages]]
+names = [
+    "nodejs",
+    "python3",
+    "vscode",
+    "docker-desktop"
+]
+profiles = ["dev"]
+action = "install"
+package_manager = "chocolatey"
+
+# Work applications for work profile
+[[packages]]
+names = [
+    "firefox",
+    "slack",
+    "zoom",
+    "keepass"
+]
+profiles = ["work"]
+action = "install"
+package_manager = "chocolatey"
+
+# Gaming applications for gaming profile
+[[packages]]
+names = [
+    "steam",
+    "discord"
+]
+profiles = ["gaming"]
+action = "install"
+package_manager = "chocolatey"

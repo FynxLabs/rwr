@@ -1,18 +1,32 @@
+# Essential repositories for all Ubuntu systems
 repositories:
-  - name: vscode
-    package_manager: apt
-    action: add
-    url: "https://packages.microsoft.com/repos/code"
-    arch: amd64
-    key_url: "https://packages.microsoft.com/keys/microsoft.asc"
-    channel: stable
-    component: main
+  - name: universe
+    uri: "deb http://archive.ubuntu.com/ubuntu/ $(lsb_release -sc) universe"
+    key: ""
 
+  - name: multiverse
+    uri: "deb http://archive.ubuntu.com/ubuntu/ $(lsb_release -sc) multiverse"
+    key: ""
+
+  # Development repositories for dev profile
   - name: docker
-    package_manager: apt
-    action: add
-    url: "https://download.docker.com/linux/ubuntu"
-    arch: amd64
-    key_url: "https://download.docker.com/linux/ubuntu/gpg"
-    channel: jammy
-    component: stable
+    uri: "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    key: "https://download.docker.com/linux/ubuntu/gpg"
+    profiles: [dev]
+
+  - name: nodejs
+    uri: "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x $(lsb_release -cs) main"
+    key: "https://deb.nodesource.com/gpgkey/nodesource.gpg.key"
+    profiles: [dev]
+
+  # Media repositories for desktop profile
+  - name: multimedia
+    uri: "deb http://www.deb-multimedia.org $(lsb_release -cs) main non-free"
+    key: "https://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2016.8.1_all.deb"
+    profiles: [desktop]
+
+  # Server repositories for server profile
+  - name: nginx
+    uri: "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/ubuntu $(lsb_release -cs) nginx"
+    key: "https://nginx.org/keys/nginx_signing.key"
+    profiles: [server]

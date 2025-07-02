@@ -1,12 +1,48 @@
 packages:
+  # Base system packages - Chocolatey
   - names:
-      - docker-desktop
-      - vscode
+      - git
+      - curl
       - vim
-      - tree
+      - 7zip
+      - notepadplusplus
     action: install
     package_manager: chocolatey
+
+  # Base system packages - WinGet
   - names:
       - Microsoft.WindowsTerminal
+      - Microsoft.PowerShell
     action: install
     package_manager: winget
+
+  # Development packages
+  - names:
+      - nodejs
+      - python3
+      - vscode
+      - docker-desktop
+    profiles:
+      - dev
+    action: install
+    package_manager: chocolatey
+
+  # Work environment
+  - names:
+      - firefox
+      - slack
+      - zoom
+      - keepass
+    profiles:
+      - work
+    action: install
+    package_manager: chocolatey
+
+  # Gaming essentials
+  - names:
+      - steam
+      - discord
+    profiles:
+      - gaming
+    action: install
+    package_manager: chocolatey

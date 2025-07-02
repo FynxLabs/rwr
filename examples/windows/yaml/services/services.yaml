@@ -1,8 +1,36 @@
+# Essential services for all Windows systems
 services:
-  - name: Docker Desktop Service
-    action: set_startup
-    startup_type: automatic
-    elevated: true
-  - name: Docker Desktop Service
-    action: start
-    elevated: true
+  - names:
+      - Themes
+      - Windows Update
+      - Windows Defender Antivirus Service
+    action: enable
+
+  # Development services for dev profile
+  - names:
+      - Docker Desktop Service
+      - Windows Subsystem for Linux
+    profiles: [dev]
+    action: enable
+
+  # Work services for work profile
+  - names:
+      - Remote Desktop Services
+      - Windows Remote Management
+    profiles: [work]
+    action: enable
+
+  # Gaming services for gaming profile
+  - names:
+      - Xbox Live Auth Manager
+      - Xbox Live Game Save
+    profiles: [gaming]
+    action: enable
+
+  # Disable unnecessary services on minimal systems
+  - names:
+      - Windows Search
+      - Print Spooler
+      - Fax
+    profiles: [minimal]
+    action: disable

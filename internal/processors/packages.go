@@ -37,8 +37,14 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 		return fmt.Errorf("no package managers available")
 	}
 
-	// Process each package
-	for _, pkg := range packages.Packages {
+	// Filter packages based on active profiles
+	filteredPackages := helpers.FilterByProfiles(packages.Packages, initConfig.Variables.Flags.Profiles)
+
+	log.Debugf("Filtering packages: %d total, %d matching active profiles %v",
+		len(packages.Packages), len(filteredPackages), initConfig.Variables.Flags.Profiles)
+
+	// Process each filtered package
+	for _, pkg := range filteredPackages {
 		// Get provider
 		var provider *types.Provider
 		var exists bool

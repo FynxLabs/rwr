@@ -1,9 +1,99 @@
 users:
-  - name: {{ .User.username }}
+  # Base user modification - always applied (no profiles field)
+  - name: "{{ .User.Username }}"
+    action: modify
+    add_groups:
+      - wheel
+      - users
+
+  # Development profile user modifications
+  - name: "{{ .User.Username }}"
+    profiles:
+      - dev
     action: modify
     add_groups:
       - docker
+      - developers
+      - git
+
+  # Work profile user modifications
+  - name: "{{ .User.Username }}"
+    profiles:
+      - work
+    action: modify
+    add_groups:
+      - docker
+      - sudo
+      - developers
+
+  # Gaming profile user modifications
+  - name: "{{ .User.Username }}"
+    profiles:
+      - gaming
+    action: modify
+    add_groups:
+      - games
+      - audio
+      - video
+
+  # Create dedicated development user
+  - name: developer
+    profiles:
+      - dev
+      - work
+    action: create
+    shell: /bin/zsh
+    home: /home/developer
+    groups:
+      - developers
+      - docker
+
+  # Create gaming user for shared systems
+  - name: gamer
+    profiles:
+      - gaming
+    action: create
+    shell: /bin/bash
+    home: /home/gamer
+    groups:
+      - games
+      - audio
+      - video
 
 groups:
+  # Base groups - always created
+  - name: users
+    action: create
+
+  # Development profile groups
   - name: developers
+    profiles:
+      - dev
+      - work
+    action: create
+
+  - name: docker
+    profiles:
+      - dev
+      - work
+    action: create
+
+  # Gaming profile groups
+  - name: games
+    profiles:
+      - gaming
+    action: create
+
+  # Security profile groups
+  - name: security
+    profiles:
+      - security
+      - work
+    action: create
+
+  # Database profile groups
+  - name: database
+    profiles:
+      - database
+      - dev
     action: create
