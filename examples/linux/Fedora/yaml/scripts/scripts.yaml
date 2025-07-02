@@ -1,6 +1,33 @@
 scripts:
-  - name: hello_world
+  # Base system script
+  - name: update_system
+    action: run
+    elevated: true
+    content: |
+      #!/bin/bash
+      dnf update -y
+      echo "System updated successfully"
+
+  # Development setup
+  - name: setup_dev_environment
+    profiles:
+      - dev
     action: run
     content: |
       #!/bin/bash
-      echo "Hello, from this example!"
+      mkdir -p "{{ .User.Home }}/Projects"
+      echo 'alias ll="ls -alF"' >> "{{ .User.Home }}/.bashrc"
+      echo "Development environment setup complete"
+
+  # Docker setup
+  - name: docker_user_setup
+    profiles:
+      - docker
+    action: run
+    elevated: true
+    content: |
+      #!/bin/bash
+      usermod -a -G docker "{{ .User.Username }}"
+      systemctl enable docker
+      systemctl start docker
+      echo "Docker setup complete"

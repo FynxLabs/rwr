@@ -1,31 +1,65 @@
+# Basic configuration files for all Windows systems
 [[files]]
-name = ".gitconfig"
-action = "create"
-target = "{{ .User.home }}/"
-content = """
-[user]
-  name = Your Name
-  email = your.email@example.com
+src = "C:\\Windows\\System32\\drivers\\etc\\hosts"
+dest = "C:\\Windows\\System32\\drivers\\etc\\hosts"
+content = """127.0.0.1       localhost
+::1             localhost
 """
+mode = "644"
 
 [[files]]
-name = ".gitignore"
-action = "copy"
-target = "{{ .User.home }}/"
-source = "./src/"
+src = "C:\\ProgramData\\chocolatey\\config\\chocolatey.config"
+dest = "C:\\ProgramData\\chocolatey\\config\\chocolatey.config"
+content = """<?xml version="1.0" encoding="utf-8"?>
+<chocolatey>
+  <config>
+    <add key="cacheLocation" value="C:\\temp\\chocolatey" />
+  </config>
+</chocolatey>
+"""
+mode = "644"
 
-[[directories]]
-name = "RWR"
-action = "create"
-target = "{{ .User.home }}/AppData/Local/"
+# Development configuration for dev profile
+[[files]]
+src = "C:\\Users\\{{.User.Username}}\\.gitconfig"
+dest = "C:\\Users\\{{.User.Username}}\\.gitconfig"
+content = """[user]
+    name = Developer
+    email = dev@example.com
+[core]
+    autocrlf = true
+    editor = code
+"""
+profiles = ["dev"]
+mode = "644"
 
-[[directories]]
-name = "WindowsPowerShell"
-action = "create"
-target = "{{ .User.home }}/Documents/"
+# Work configuration for work profile
+[[files]]
+src = "C:\\Users\\{{.User.Username}}\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+dest = "C:\\Users\\{{.User.Username}}\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+content = """Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+Set-Alias -Name ll -Value Get-ChildItem
+"""
+profiles = ["work"]
+mode = "644"
 
-[[templates]]
-name = ".profile"
-action = "copy"
-source = "./src/"
-target = "{{ .User.home }}/"
+# Gaming configuration for gaming profile
+[[files]]
+src = "C:\\Users\\{{.User.Username}}\\AppData\\Local\\Steam\\config\\config.vdf"
+dest = "C:\\Users\\{{.User.Username}}\\AppData\\Local\\Steam\\config\\config.vdf"
+content = """"InstallConfigStore"
+{
+    "Software"
+    {
+        "valve"
+        {
+            "Steam"
+            {
+                "AutoLaunchGameListOnStart"    "0"
+            }
+        }
+    }
+}
+"""
+profiles = ["gaming"]
+mode = "644"

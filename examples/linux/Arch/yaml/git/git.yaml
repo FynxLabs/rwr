@@ -1,6 +1,111 @@
 git:
+  # Base repositories - always cloned (no profiles field)
+  - name: dotfiles
+    action: clone
+    url: https://github.com/user/dotfiles.git
+    path: "{{ .User.Home }}/.dotfiles"
+    private: false
+
+  - name: configs
+    action: clone
+    url: https://github.com/user/configs.git
+    path: "{{ .User.Home }}/configs"
+    private: false
+
+  # Work profile repositories
+  - name: work-configs
+    profiles:
+      - work
+    action: clone
+    url: https://github.com/company/work-configs.git
+    path: "{{ .User.Home }}/work/configs"
+    private: true
+
+  - name: company-tools
+    profiles:
+      - work
+    action: clone
+    url: https://github.com/company/internal-tools.git
+    path: "{{ .User.Home }}/work/tools"
+    private: true
+
+  # Development profile repositories
+  - name: awesome-project
+    profiles:
+      - dev
+    action: clone
+    url: https://github.com/user/awesome-project.git
+    path: "{{ .User.Home }}/projects/awesome-project"
+    private: false
+
+  - name: learning-rust
+    profiles:
+      - dev
+    action: clone
+    url: https://github.com/rust-lang/book.git
+    path: "{{ .User.Home }}/projects/rust-book"
+    private: false
+
   - name: rwr
+    profiles:
+      - dev
+      - work
     action: clone
     url: https://github.com/FynxLabs/rwr.git
-    path: {{ .User.home }}/git/rwr
+    path: "{{ .User.Home }}/projects/rwr"
     private: false
+
+  # Gaming profile repositories
+  - name: gaming-configs
+    profiles:
+      - gaming
+    action: clone
+    url: https://github.com/user/gaming-configs.git
+    path: "{{ .User.Home }}/.config/gaming"
+    private: false
+
+  - name: game-mods
+    profiles:
+      - gaming
+    action: clone
+    url: https://github.com/user/game-modifications.git
+    path: "{{ .User.Home }}/Games/mods"
+    private: false
+
+  # Personal profile repositories
+  - name: personal-scripts
+    profiles:
+      - personal
+    action: clone
+    url: https://github.com/user/personal-scripts.git
+    path: "{{ .User.Home }}/scripts"
+    private: true
+
+  - name: photo-organizer
+    profiles:
+      - personal
+    action: clone
+    url: https://github.com/user/photo-organizer.git
+    path: "{{ .User.Home }}/tools/photo-organizer"
+    private: false
+
+  # Security profile repositories
+  - name: security-tools
+    profiles:
+      - security
+      - work
+    action: clone
+    url: https://github.com/security/tools.git
+    path: "{{ .User.Home }}/security/tools"
+    private: true
+
+  # Database profile repositories
+  - name: db-migrations
+    profiles:
+      - database
+      - work
+      - dev
+    action: clone
+    url: https://github.com/company/database-migrations.git
+    path: "{{ .User.Home }}/database/migrations"
+    private: true

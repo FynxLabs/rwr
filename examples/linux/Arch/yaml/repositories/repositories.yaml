@@ -1,5 +1,139 @@
 repositories:
+  # Core additional repositories - always enabled
+  - name: multilib
+    package_manager: pacman
+    action: add
+    url: "https://mirrors.kernel.org/archlinux/multilib/os/$arch"
+    arch: "x86_64"
+
+  # Chinese Community Repository - comprehensive package collection
   - name: archlinuxcn
     package_manager: pacman
     action: add
     url: "https://repo.archlinuxcn.org/$arch"
+    key_url: "https://www.archlinuxcn.org/archlinux-keyring.gpg"
+
+  # Development tools repository
+  - name: chaotic-aur
+    profiles:
+      - dev
+      - aur
+    package_manager: pacman
+    action: add
+    url: "https://cdn-mirror.chaotic.cx/$repo/$arch"
+    key_url: "https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.xz"
+
+  # Security and penetration testing repository
+  - name: blackarch
+    profiles:
+      - security
+      - pentesting
+    package_manager: pacman
+    action: add
+    url: "https://blackarch.org/blackarch/$repo/os/$arch"
+    key_url: "https://blackarch.org/keyring/blackarch-keyring.pkg.tar.xz"
+
+  # Gaming repository for latest wine, lutris, etc.
+  - name: wine-staging
+    profiles:
+      - gaming
+      - wine
+    package_manager: pacman
+    action: add
+    url: "https://dl.winehq.org/wine-builds/arch/$arch"
+    key_url: "https://dl.winehq.org/wine-builds/Release.key"
+
+  # Multimedia and codecs repository
+  - name: archlinux-multimedia
+    profiles:
+      - multimedia
+      - media
+    package_manager: pacman
+    action: add
+    url: "https://pkgbuild.com/~allan/archlinux-multimedia/os/$arch"
+
+  # Docker and container tools
+  - name: docker-ce
+    profiles:
+      - docker
+      - dev
+    package_manager: pacman
+    action: add
+    url: "https://download.docker.com/linux/arch/$arch/stable"
+    key_url: "https://download.docker.com/linux/arch/gpg"
+
+  # Academic and research tools
+  - name: arch4edu
+    profiles:
+      - academic
+      - research
+    package_manager: pacman
+    action: add
+    url: "https://mirrors.tuna.tsinghua.edu.cn/arch4edu/$arch"
+    key_url: "https://mirrors.tuna.tsinghua.edu.cn/arch4edu/arch4edu.key"
+
+  # Custom local repository
+  - name: local-packages
+    profiles:
+      - personal
+      - custom
+    package_manager: pacman
+    action: add
+    url: "file:///home/{{ .User.Username }}/local-repo"
+
+  # Alternative architecture repository
+  - name: archlinux32
+    profiles:
+      - legacy
+      - i686
+    package_manager: pacman
+    action: add
+    url: "https://mirror.archlinux32.org/$arch/$repo"
+    arch: "i686"
+    key_url: "https://archlinux32.org/public_key.asc"
+
+  # Flatpak repository
+  - name: flathub
+    profiles:
+      - flatpak
+      - desktop
+    package_manager: flatpak
+    action: add
+    url: "https://flathub.org/repo/flathub.flatpakrepo"
+
+  # Snap repository
+  - name: snapcraft
+    profiles:
+      - snap
+      - ubuntu-compat
+    package_manager: snap
+    action: add
+    url: "https://api.snapcraft.io"
+
+  # Custom enterprise repository
+  - name: company-internal
+    profiles:
+      - work
+      - enterprise
+    package_manager: pacman
+    action: add
+    url: "https://repo.company.internal/arch/$arch"
+    key_url: "https://repo.company.internal/company-keyring.gpg"
+
+  # Testing repository for bleeding edge packages
+  - name: archlinux-testing
+    profiles:
+      - testing
+      - bleeding-edge
+    package_manager: pacman
+    action: add
+    url: "https://mirrors.kernel.org/archlinux/testing/os/$arch"
+
+  # Kernel development repository
+  - name: archlinux-kernel
+    profiles:
+      - kernel-dev
+      - advanced
+    package_manager: pacman
+    action: add
+    url: "https://archlinux.org/packages/kernel/$arch"

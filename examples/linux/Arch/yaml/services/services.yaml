@@ -1,7 +1,69 @@
 services:
-  - name: docker
+  # Base service - always enabled (no profiles field)
+  - name: sshd
     action: enable
     elevated: true
+
+  # Work profile services - enterprise development
   - name: docker
+    profiles:
+      - work
+    action: enable
+    elevated: true
+
+  - name: docker
+    profiles:
+      - work
     action: start
+    elevated: true
+
+  # Development profile services - database and development tools
+  - name: postgresql
+    profiles:
+      - dev
+    action: enable
+    elevated: true
+
+  - name: redis
+    profiles:
+      - dev
+      - database
+    action: enable
+    elevated: true
+
+  # Multi-profile service - web server for both work and dev
+  - name: nginx
+    profiles:
+      - work
+      - dev
+    action: enable
+    elevated: true
+
+  # Personal profile services - media and productivity
+  - name: bluetooth
+    profiles:
+      - personal
+      - desktop
+    action: enable
+    elevated: true
+
+  - name: cups
+    profiles:
+      - personal
+      - office
+    action: enable
+    elevated: true
+
+  # Security profile services
+  - name: fail2ban
+    profiles:
+      - security
+      - server
+    action: enable
+    elevated: true
+
+  - name: ufw
+    profiles:
+      - security
+    action: enable
     elevated: true

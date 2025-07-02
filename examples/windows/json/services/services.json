@@ -1,15 +1,45 @@
 {
   "services": [
     {
-      "name": "Docker Desktop Service",
-      "action": "set_startup",
-      "startup_type": "automatic",
-      "elevated": true
+      "names": [
+        "Themes",
+        "Windows Update",
+        "Windows Defender Antivirus Service"
+      ],
+      "action": "enable"
     },
     {
-      "name": "Docker Desktop Service",
-      "action": "start",
-      "elevated": true
+      "names": [
+        "Docker Desktop Service",
+        "Windows Subsystem for Linux"
+      ],
+      "profiles": ["dev"],
+      "action": "enable"
+    },
+    {
+      "names": [
+        "Remote Desktop Services",
+        "Windows Remote Management"
+      ],
+      "profiles": ["work"],
+      "action": "enable"
+    },
+    {
+      "names": [
+        "Xbox Live Auth Manager",
+        "Xbox Live Game Save"
+      ],
+      "profiles": ["gaming"],
+      "action": "enable"
+    },
+    {
+      "names": [
+        "Windows Search",
+        "Print Spooler",
+        "Fax"
+      ],
+      "profiles": ["minimal"],
+      "action": "disable"
     }
   ]
 }

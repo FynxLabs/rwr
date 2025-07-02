@@ -1,9 +1,32 @@
 {
   "scripts": [
     {
-      "name": "hello_world",
-      "action": "run",
-      "content": "#!/bin/bash\necho \"Hello, from this example!\""
+      "name": "update-system",
+      "content": "#!/bin/bash\nbrew update && brew upgrade\nbrew cleanup\n",
+      "mode": "755"
+    },
+    {
+      "name": "setup-developer-tools",
+      "content": "#!/bin/bash\nxcode-select --install\nsudo xcodebuild -license accept\n",
+      "profiles": ["dev"],
+      "mode": "755"
+    },
+    {
+      "name": "configure-dock",
+      "content": "#!/bin/bash\ndefaults write com.apple.dock autohide -bool true\ndefaults write com.apple.dock tilesize -int 48\nkillall Dock\n",
+      "profiles": ["desktop"],
+      "mode": "755"
+    },
+    {
+      "name": "setup-homebrew-permissions",
+      "content": "#!/bin/bash\nsudo chown -R $(whoami) /usr/local/var/homebrew\nsudo chmod u+w /usr/local/var/homebrew\n",
+      "mode": "755"
+    },
+    {
+      "name": "configure-git",
+      "content": "#!/bin/bash\ngit config --global init.defaultBranch main\ngit config --global pull.rebase false\n",
+      "profiles": ["dev"],
+      "mode": "755"
     }
   ]
 }

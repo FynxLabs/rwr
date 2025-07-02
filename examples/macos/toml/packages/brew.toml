@@ -1,4 +1,26 @@
+# Base system packages
 [[packages]]
-names = ["neovim", "jq", "docker", "visual-studio-code", "vim", "tree"]
+names = ["git", "curl", "vim", "htop", "tree", "jq"]
+action = "install"
+package_manager = "brew"
+
+# Development packages
+[[packages]]
+names = ["node", "python3", "visual-studio-code", "docker", "iterm2"]
+profiles = ["dev"]
+action = "install"
+package_manager = "brew"
+
+# Work environment
+[[packages]]
+names = ["firefox", "slack", "zoom", "1password"]
+profiles = ["work"]
+action = "install"
+package_manager = "brew"
+
+# Gaming essentials
+[[packages]]
+names = ["steam", "discord"]
+profiles = ["gaming"]
 action = "install"
 package_manager = "brew"

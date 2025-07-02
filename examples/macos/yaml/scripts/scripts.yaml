@@ -1,6 +1,29 @@
 scripts:
-  - name: hello_world
+  # Base system script
+  - name: update_homebrew
     action: run
     content: |
       #!/bin/bash
-      echo "Hello, from this example!"
+      brew update && brew upgrade
+      echo "Homebrew updated successfully"
+
+  # Development setup
+  - name: setup_dev_environment
+    profiles:
+      - dev
+    action: run
+    content: |
+      #!/bin/bash
+      mkdir -p "{{ .User.Home }}/Projects"
+      echo 'alias ll="ls -alF"' >> "{{ .User.Home }}/.zshrc"
+      echo "Development environment setup complete"
+
+  # Docker setup
+  - name: docker_setup
+    profiles:
+      - docker
+    action: run
+    content: |
+      #!/bin/bash
+      open /Applications/Docker.app
+      echo "Docker Desktop starting..."

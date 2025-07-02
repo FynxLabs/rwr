@@ -1,6 +1,49 @@
+# Essential system scripts for all Ubuntu systems
 scripts:
-  - name: hello_world
-    action: run
+  - name: update-system
     content: |
       #!/bin/bash
-      echo "Hello, from this example!"
+      apt update && apt upgrade -y
+      apt autoremove -y
+    mode: "755"
+
+  - name: setup-firewall
+    content: |
+      #!/bin/bash
+      ufw --force reset
+      ufw default deny incoming
+      ufw default allow outgoing
+      ufw allow ssh
+      ufw --force enable
+    mode: "755"
+
+  # Development setup for dev profile
+  - name: setup-dev-env
+    content: |
+      #!/bin/bash
+      curl -fsSL https://get.docker.com -o get-docker.sh
+      sh get-docker.sh
+      usermod -aG docker {{.User.Username}}
+      systemctl enable docker
+    profiles: [dev]
+    mode: "755"
+
+  # Server setup for server profile
+  - name: configure-server
+    content: |
+      #!/bin/bash
+      systemctl enable apache2
+      systemctl enable mysql
+      a2enmod rewrite
+      systemctl restart apache2
+    profiles: [server]
+    mode: "755"
+
+  # Desktop customization for desktop profile
+  - name: setup-desktop
+    content: |
+      #!/bin/bash
+      gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
+      gsettings set org.gnome.shell.extensions.dash-to-dock dock-position BOTTOM
+    profiles: [desktop]
+    mode: "755"

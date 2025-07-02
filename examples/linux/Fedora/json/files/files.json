@@ -3,22 +3,36 @@
     {
       "name": ".bashrc",
       "action": "create",
-      "target": "{{ .User.home }}/",
-      "content": "# Custom .bashrc content\nalias ll='ls -alF'\nexport PATH=$PATH:$HOME/.local/bin\n"
+      "target": "{{ .User.Home }}/",
+      "content": "# Custom .bashrc content\nalias ll='ls -alF'\nexport PATH=$PATH:$HOME/.local/bin"
     },
     {
       "name": ".gitignore",
       "action": "copy",
-      "target": "{{ .User.home }}/",
+      "target": "{{ .User.Home }}/",
       "source": "./src/"
+    },
+    {
+      "name": ".vimrc",
+      "profiles": ["dev"],
+      "action": "create",
+      "target": "{{ .User.Home }}/",
+      "content": "set number\nset tabstop=4\nset shiftwidth=4\nset expandtab"
     }
   ],
   "directories": [
     {
-      "name": ".config",
-      "action": "copy",
-      "source": "./src/",
-      "target": "{{ .User.home }}/"
+      "name": "Projects",
+      "action": "create",
+      "target": "{{ .User.Home }}/",
+      "mode": "0755"
+    },
+    {
+      "name": ".config/code",
+      "profiles": ["dev"],
+      "action": "create",
+      "target": "{{ .User.Home }}/",
+      "mode": "0755"
     }
   ],
   "templates": [
@@ -26,7 +40,7 @@
       "name": ".profile",
       "action": "copy",
       "source": "./src/",
-      "target": "{{ .User.home }}/"
+      "target": "{{ .User.Home }}/"
     }
   ]
 }

@@ -2,6 +2,7 @@ package types
 
 type Package struct {
 	Name           string   `mapstructure:"name" yaml:"name" json:"name" toml:"name"`
+	Profiles       []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`
 	Elevated       bool     `mapstructure:"elevated,omitempty" yaml:"elevated,omitempty" json:"elevated,omitempty" toml:"elevated,omitempty"`
 	Action         string   `mapstructure:"action" yaml:"action" json:"action" toml:"action"`
 	PackageManager string   `mapstructure:"package_manager,omitempty" yaml:"package_manager,omitempty" json:"package_manager,omitempty" toml:"package_manager,omitempty"`
@@ -11,4 +12,9 @@ type Package struct {
 
 type PackagesData struct {
 	Packages []Package `mapstructure:"packages,omitempty" yaml:"packages,omitempty" json:"packages,omitempty" toml:"packages,omitempty"`
+}
+
+// GetProfiles returns the profiles for this package
+func (p Package) GetProfiles() []string {
+	return p.Profiles
 }

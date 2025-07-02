@@ -1,13 +1,15 @@
 package types
 
 type Group struct {
-	Name    string `mapstructure:"name" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`                           // Name of the group
-	NewName string `mapstructure:"new_name,omitempty" yaml:"new_name,omitempty" json:"new_name,omitempty" toml:"new_name,omitempty"` // New name for the group (for modify action)
-	Action  string `mapstructure:"action" yaml:"action,omitempty" json:"action,omitempty" toml:"action,omitempty"`                   // Action to perform with the group
+	Name     string   `mapstructure:"name" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`                           // Name of the group
+	Profiles []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"` // Profiles this group belongs to
+	NewName  string   `mapstructure:"new_name,omitempty" yaml:"new_name,omitempty" json:"new_name,omitempty" toml:"new_name,omitempty"` // New name for the group (for modify action)
+	Action   string   `mapstructure:"action" yaml:"action,omitempty" json:"action,omitempty" toml:"action,omitempty"`                   // Action to perform with the group
 }
 
 type User struct {
 	Name       string   `mapstructure:"name" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`                                       // Name of the user
+	Profiles   []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`           // Profiles this user belongs to
 	NewName    string   `mapstructure:"new_name,omitempty" yaml:"new_name,omitempty" json:"new_name,omitempty" toml:"new_name,omitempty"`             // New name for the user (for modify action)
 	Action     string   `mapstructure:"action" yaml:"action,omitempty" json:"action,omitempty" toml:"action,omitempty"`                               // Action to perform with the user
 	Password   string   `mapstructure:"password,omitempty" yaml:"password,omitempty" json:"password,omitempty" toml:"password,omitempty"`             // Password of the user
@@ -23,4 +25,14 @@ type User struct {
 type UsersData struct {
 	Groups []Group `mapstructure:"groups,omitempty" yaml:"groups,omitempty" json:"groups,omitempty" toml:"groups,omitempty"` // Groups data
 	Users  []User  `mapstructure:"users,omitempty" yaml:"users,omitempty" json:"users,omitempty" toml:"users,omitempty"`     // Users data
+}
+
+// GetProfiles returns the profiles for this group
+func (g Group) GetProfiles() []string {
+	return g.Profiles
+}
+
+// GetProfiles returns the profiles for this user
+func (u User) GetProfiles() []string {
+	return u.Profiles
 }

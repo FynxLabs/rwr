@@ -26,20 +26,35 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 		return fmt.Errorf("error unmarshaling file blueprint data: %w", err)
 	}
 
-	// Process regular files
-	err = processFiles(fileData.Files, blueprintDir, osInfo)
+	// Filter files based on active profiles
+	filteredFiles := helpers.FilterByProfiles(fileData.Files, initConfig.Variables.Flags.Profiles)
+	log.Debugf("Filtering files: %d total, %d matching active profiles %v",
+		len(fileData.Files), len(filteredFiles), initConfig.Variables.Flags.Profiles)
+
+	// Filter directories based on active profiles
+	filteredDirectories := helpers.FilterByProfiles(fileData.Directories, initConfig.Variables.Flags.Profiles)
+	log.Debugf("Filtering directories: %d total, %d matching active profiles %v",
+		len(fileData.Directories), len(filteredDirectories), initConfig.Variables.Flags.Profiles)
+
+	// Filter templates based on active profiles
+	filteredTemplates := helpers.FilterByProfiles(fileData.Templates, initConfig.Variables.Flags.Profiles)
+	log.Debugf("Filtering templates: %d total, %d matching active profiles %v",
+		len(fileData.Templates), len(filteredTemplates), initConfig.Variables.Flags.Profiles)
+
+	// Process filtered files
+	err = processFiles(filteredFiles, blueprintDir, osInfo)
 	if err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
 
-	// Process directories
-	err = processDirectories(fileData.Directories, blueprintDir, initConfig)
+	// Process filtered directories
+	err = processDirectories(filteredDirectories, blueprintDir, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing directories: %w", err)
 	}
 
-	// Process templates
-	err = processTemplates(fileData.Templates, blueprintDir, osInfo, initConfig)
+	// Process filtered templates
+	err = processTemplates(filteredTemplates, blueprintDir, osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing templates: %w", err)
 	}

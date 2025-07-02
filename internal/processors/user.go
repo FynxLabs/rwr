@@ -22,15 +22,25 @@ func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitCon
 		return fmt.Errorf("error unmarshaling users blueprint: %w", err)
 	}
 
-	// Process the groups
-	err = processGroups(usersData.Groups, initConfig)
+	// Filter groups based on active profiles
+	filteredGroups := helpers.FilterByProfiles(usersData.Groups, initConfig.Variables.Flags.Profiles)
+	log.Debugf("Filtering groups: %d total, %d matching active profiles %v",
+		len(usersData.Groups), len(filteredGroups), initConfig.Variables.Flags.Profiles)
+
+	// Filter users based on active profiles
+	filteredUsers := helpers.FilterByProfiles(usersData.Users, initConfig.Variables.Flags.Profiles)
+	log.Debugf("Filtering users: %d total, %d matching active profiles %v",
+		len(usersData.Users), len(filteredUsers), initConfig.Variables.Flags.Profiles)
+
+	// Process the filtered groups
+	err = processGroups(filteredGroups, initConfig)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return fmt.Errorf("error processing groups: %w", err)
 	}
 
-	// Process the users
-	err = processUsers(usersData.Users, initConfig)
+	// Process the filtered users
+	err = processUsers(filteredUsers, initConfig)
 	if err != nil {
 		log.Errorf("Error processing users: %v", err)
 		return fmt.Errorf("error processing users: %w", err)

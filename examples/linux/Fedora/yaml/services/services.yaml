@@ -1,7 +1,44 @@
 services:
-  - name: docker
+  # Base services - always managed
+  - name: sshd
     action: enable
     elevated: true
+
+  - name: firewalld
+    action: enable
+    elevated: true
+
+  # Development services
   - name: docker
+    profiles:
+      - dev
+      - docker
+    action: enable
+    elevated: true
+
+  - name: docker
+    profiles:
+      - dev
+      - docker
     action: start
+    elevated: true
+
+  # Database services
+  - name: postgresql
+    profiles:
+      - database
+    action: enable
+    elevated: true
+
+  - name: postgresql
+    profiles:
+      - database
+    action: start
+    elevated: true
+
+  # Web server
+  - name: httpd
+    profiles:
+      - webserver
+    action: enable
     elevated: true

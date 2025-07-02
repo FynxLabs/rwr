@@ -21,8 +21,14 @@ func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSIn
 		return fmt.Errorf("error unmarshaling repository blueprint: %w", err)
 	}
 
-	// Process the repositories
-	err = processRepositories(repositoriesBlueprint.Repositories, osInfo, initConfig)
+	// Filter repositories based on active profiles
+	filteredRepositories := helpers.FilterByProfiles(repositoriesBlueprint.Repositories, initConfig.Variables.Flags.Profiles)
+	
+	log.Debugf("Filtering repositories: %d total, %d matching active profiles %v",
+		len(repositoriesBlueprint.Repositories), len(filteredRepositories), initConfig.Variables.Flags.Profiles)
+
+	// Process the filtered repositories
+	err = processRepositories(filteredRepositories, osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing repositories: %w", err)
 	}

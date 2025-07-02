@@ -70,6 +70,7 @@ var (
 	logLevel         string
 	configLocation   string
 	runOnceLocation  string
+	profiles         []string // Global variable for active profiles
 	initConfig       *types.InitConfig
 	initFilePath     string
 	osInfo           *types.OSInfo
@@ -124,6 +125,7 @@ func initializeSystemInfo() {
 		SkipVersionCheck: skipVersionCheck,
 		ConfigLocation:   configLocation,
 		RunOnceLocation:  runOnceLocation,
+		Profiles:         profiles,
 	}
 
 	err = system.SetPaths()
@@ -177,9 +179,10 @@ func init() {
 
 	// GitHub API Key flag
 	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-api-key", "", "Github's API Key (stored under repository.gh_api_token)")
-	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("api-key"))
+	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("gh-api-key"))
 	if err != nil {
-		return
+		log.With("err", err).Errorf("Error binding gh-api-key flag")
+		os.Exit(1)
 	}
 
 	//
@@ -195,6 +198,14 @@ func init() {
 	err = viper.BindPFlag("rwr.skipVersionCheck", rootCmd.PersistentFlags().Lookup("skip-version-check"))
 	if err != nil {
 		log.With("err", err).Errorf("Error initializing system information")
+		os.Exit(1)
+	}
+
+	// Profile selection flag
+	rootCmd.PersistentFlags().StringSliceVarP(&profiles, "profile", "p", []string{}, "Specify profiles to activate (can be used multiple times)")
+	err = viper.BindPFlag("rwr.profiles", rootCmd.PersistentFlags().Lookup("profile"))
+	if err != nil {
+		log.With("err", err).Errorf("Error binding profile flag")
 		os.Exit(1)
 	}
 

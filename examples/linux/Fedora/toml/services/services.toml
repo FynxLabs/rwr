@@ -1,9 +1,43 @@
+# Base services
+[[services]]
+name = "sshd"
+action = "enable"
+elevated = true
+
+[[services]]
+name = "firewalld"
+action = "enable"
+elevated = true
+
+# Development services
 [[services]]
 name = "docker"
+profiles = ["dev", "docker"]
 action = "enable"
 elevated = true
 
 [[services]]
 name = "docker"
+profiles = ["dev", "docker"]
 action = "start"
+elevated = true
+
+# Database services
+[[services]]
+name = "postgresql"
+profiles = ["database"]
+action = "enable"
+elevated = true
+
+[[services]]
+name = "postgresql"
+profiles = ["database"]
+action = "start"
+elevated = true
+
+# Web server
+[[services]]
+name = "httpd"
+profiles = ["webserver"]
+action = "enable"
 elevated = true

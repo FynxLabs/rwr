@@ -22,8 +22,14 @@ func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, 
 		return fmt.Errorf("error unmarshaling service blueprint: %w", err)
 	}
 
-	// Process the services
-	err = processServices(servicesData.Services, osInfo, initConfig)
+	// Filter services based on active profiles
+	filteredServices := helpers.FilterByProfiles(servicesData.Services, initConfig.Variables.Flags.Profiles)
+
+	log.Debugf("Filtering services: %d total, %d matching active profiles %v",
+		len(servicesData.Services), len(filteredServices), initConfig.Variables.Flags.Profiles)
+
+	// Process the filtered services
+	err = processServices(filteredServices, osInfo, initConfig)
 	if err != nil {
 		return fmt.Errorf("error processing services: %w", err)
 	}

@@ -3,6 +3,7 @@ package types
 type File struct {
 	Name      string                 `mapstructure:"name" yaml:"name" json:"name" toml:"name"`
 	Names     []string               `mapstructure:"names,omitempty" yaml:"names,omitempty" json:"names,omitempty" toml:"names,omitempty"`
+	Profiles  []string               `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`
 	Action    string                 `mapstructure:"action" yaml:"action" json:"action" toml:"action"`
 	Content   string                 `mapstructure:"content,omitempty" yaml:"content,omitempty" json:"content,omitempty" toml:"content,omitempty"`
 	Source    string                 `mapstructure:"source,omitempty" yaml:"source,omitempty" json:"source,omitempty" toml:"source,omitempty"`
@@ -17,6 +18,7 @@ type File struct {
 type Directory struct {
 	Name     string   `mapstructure:"name,omitempty" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`
 	Names    []string `mapstructure:"names,omitempty" yaml:"names,omitempty" json:"names,omitempty" toml:"names,omitempty"`
+	Profiles []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`
 	Action   string   `mapstructure:"action" yaml:"action" json:"action" toml:"action"`
 	Source   string   `mapstructure:"source,omitempty" yaml:"source,omitempty" json:"source,omitempty" toml:"source,omitempty"`
 	Target   string   `mapstructure:"target" yaml:"target" json:"target" toml:"target"`
@@ -30,4 +32,14 @@ type FileData struct {
 	Files       []File      `yaml:"files" json:"files" toml:"files"`
 	Templates   []File      `yaml:"templates" json:"templates" toml:"templates"`
 	Directories []Directory `yaml:"directories" json:"directories" toml:"directories"`
+}
+
+// GetProfiles returns the profiles for this file
+func (f File) GetProfiles() []string {
+	return f.Profiles
+}
+
+// GetProfiles returns the profiles for this directory
+func (d Directory) GetProfiles() []string {
+	return d.Profiles
 }

@@ -1,32 +1,34 @@
 {
   "files": [
     {
-      "name": ".bashrc",
-      "action": "create",
-      "target": "{{ .User.home }}/",
-      "content": "# Custom .bashrc content\nalias ll='ls -alF'\nexport PATH=$PATH:$HOME/.local/bin\n"
+      "src": "/etc/apt/apt.conf.d/99custom",
+      "dest": "/etc/apt/apt.conf.d/99custom",
+      "content": "APT::Get::Assume-Yes \"true\";\nAPT::Install-Suggests \"false\";\n",
+      "mode": "644",
+      "owner": "root",
+      "group": "root"
     },
     {
-      "name": ".gitignore",
-      "action": "copy",
-      "target": "{{ .User.home }}/",
-      "source": "./src/"
-    }
-  ],
-  "directories": [
+      "src": "~/.bashrc",
+      "dest": "{{.User.Home}}/.bashrc",
+      "content": "export EDITOR=vim\nexport PATH=$PATH:~/.local/bin\nalias ll='ls -la'\nalias grep='grep --color=auto'\n",
+      "mode": "644"
+    },
     {
-      "name": ".config",
-      "action": "copy",
-      "source": "./src/",
-      "target": "{{ .User.home }}/"
-    }
-  ],
-  "templates": [
+      "src": "~/.gitconfig",
+      "dest": "{{.User.Home}}/.gitconfig",
+      "content": "[user]\n    name = Developer\n    email = dev@example.com\n[core]\n    editor = vim\n",
+      "profiles": ["dev"],
+      "mode": "644"
+    },
     {
-      "name": ".profile",
-      "action": "copy",
-      "source": "./src/",
-      "target": "{{ .User.home }}/"
+      "src": "/etc/nginx/sites-available/default",
+      "dest": "/etc/nginx/sites-available/default",
+      "content": "server {\n    listen 80 default_server;\n    root /var/www/html;\n    index index.html;\n}\n",
+      "profiles": ["server"],
+      "mode": "644",
+      "owner": "root",
+      "group": "root"
     }
   ]
 }

@@ -1,4 +1,40 @@
+# Base system packages
 [[packages]]
-names = ["docker-ce", "code", "vim", "tree"]
+names = ["git", "curl", "vim", "htop", "tree", "unzip"]
+action = "install"
+package_manager = "dnf"
+
+# Development packages
+[[packages]]
+names = ["gcc", "make", "nodejs", "npm", "python3", "python3-pip", "code"]
+profiles = ["dev"]
+action = "install"
+package_manager = "dnf"
+
+# Work environment
+[[packages]]
+names = ["firefox", "libreoffice", "keepassxc"]
+profiles = ["work"]
+action = "install"
+package_manager = "dnf"
+
+# Gaming essentials
+[[packages]]
+names = ["steam", "wine", "discord"]
+profiles = ["gaming"]
+action = "install"
+package_manager = "dnf"
+
+# Container tools
+[[packages]]
+names = ["docker-ce", "docker-compose", "podman"]
+profiles = ["docker", "dev"]
+action = "install"
+package_manager = "dnf"
+
+# Database essentials
+[[packages]]
+names = ["postgresql", "postgresql-server"]
+profiles = ["database"]
 action = "install"
 package_manager = "dnf"

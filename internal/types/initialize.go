@@ -27,6 +27,7 @@ type Flags struct {
 	SkipVersionCheck bool
 	ConfigLocation   string
 	RunOnceLocation  string
+	Profiles         []string
 }
 
 type System struct {
@@ -80,6 +81,7 @@ func (f Flags) ToMap() map[string]interface{} {
 		"skipVersionCheck": f.SkipVersionCheck,
 		"configLocation":   f.ConfigLocation,
 		"runOnceLocation":  f.RunOnceLocation,
+		"profiles":         f.Profiles,
 	}
 }
 

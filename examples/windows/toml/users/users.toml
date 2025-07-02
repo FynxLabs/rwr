@@ -1,0 +1,38 @@
+# Basic user management for all Windows systems
+[[users]]
+username = "Administrator"
+groups = ["Administrators"]
+create_home = false
+
+[[users]]
+username = "Guest"
+groups = ["Guests"]
+create_home = false
+enabled = false
+
+# Development users for dev profile
+[[users]]
+username = "developer"
+groups = ["Administrators", "Remote Desktop Users"]
+create_home = true
+profiles = ["dev"]
+
+# Work users for work profile
+[[users]]
+username = "remote_worker"
+groups = ["Remote Desktop Users", "Users"]
+create_home = true
+profiles = ["work"]
+
+[[users]]
+username = "service_account"
+groups = ["Log on as a service"]
+create_home = false
+profiles = ["work"]
+
+# Gaming users for gaming profile
+[[users]]
+username = "gamer"
+groups = ["Users", "Performance Log Users"]
+create_home = true
+profiles = ["gaming"]
