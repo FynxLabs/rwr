@@ -1,0 +1,13 @@
+[[git]]
+name = "dotfiles"
+action = "clone"
+url = "{{ .UserDefined.repo_url }}"
+path = "{{ .User.home }}/dotfiles"
+private = false
+
+[[git]]
+name = "useful-scripts"
+action = "clone"
+url = "https://github.com/user/useful-scripts.git"
+path = "{{ .User.home }}/scripts"
+private = false

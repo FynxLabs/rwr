@@ -1,0 +1,52 @@
+# All blueprint types in a single file
+# RWR identifies each section by its key, not the filename
+
+[[packages]]
+name = "git"
+action = "install"
+
+[[packages]]
+name = "curl"
+action = "install"
+
+[[packages]]
+name = "vim"
+action = "install"
+
+[[git]]
+name = "dotfiles"
+action = "clone"
+url = "{{ .UserDefined.repo_url }}"
+path = "{{ .User.home }}/dotfiles"
+private = false
+
+[[files]]
+name = ".bashrc"
+action = "create"
+target = "{{ .User.home }}/"
+content = """# Custom .bashrc for {{ .UserDefined.project_name }}
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+export PATH=$PATH:$HOME/.local/bin"""
+
+[[files]]
+name = ".gitconfig"
+action = "create"
+target = "{{ .User.home }}/"
+content = """[user]
+    name = {{ .User.fullName }}
+    email = {{ .User.username }}@example.com
+[core]
+    editor = vim
+[init]
+    defaultBranch = main"""
+
+[[scripts]]
+name = "setup-dev-env"
+action = "inline"
+content = """#!/bin/bash
+echo "Setting up development environment for {{ .User.username }}"
+mkdir -p {{ .User.home }}/projects
+echo "Development environment ready!\""""
+asUser = "{{ .User.username }}"

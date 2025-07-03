@@ -1,0 +1,40 @@
+files:
+  - name: .bashrc
+    action: create
+    target: "{{ .User.home }}/"
+    content: |
+      # Custom .bashrc for {{ .UserDefined.project_name }}
+      alias ll='ls -alF'
+      alias la='ls -A'
+      alias l='ls -CF'
+      alias grep='grep --color=auto'
+      export PATH=$PATH:$HOME/.local/bin
+      export EDITOR=vim
+
+  - name: .gitconfig
+    action: create
+    target: "{{ .User.home }}/"
+    content: |
+      [user]
+          name = {{ .User.fullName }}
+          email = {{ .User.username }}@example.com
+      [core]
+          editor = vim
+      [init]
+          defaultBranch = main
+      [pull]
+          rebase = false
+
+  - name: .vimrc
+    action: create
+    target: "{{ .User.home }}/"
+    content: |
+      " Basic vim configuration for {{ .User.username }}
+      set number
+      set relativenumber
+      set tabstop=4
+      set shiftwidth=4
+      set expandtab
+      syntax on
+      set hlsearch
+      set incsearch

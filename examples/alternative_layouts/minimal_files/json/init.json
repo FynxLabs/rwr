@@ -1,0 +1,18 @@
+{
+  "blueprints": {
+    "format": "json",
+    "location": ".",
+    "order": [
+      "packages",
+      "git",
+      "files",
+      "scripts"
+    ]
+  },
+  "variables": {
+    "userDefined": {
+      "project_name": "minimal-setup",
+      "repo_url": "https://github.com/user/dotfiles.git"
+    }
+  }
+}

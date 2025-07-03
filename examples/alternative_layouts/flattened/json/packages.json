@@ -1,0 +1,20 @@
+{
+  "packages": [
+    {
+      "name": "git",
+      "action": "install"
+    },
+    {
+      "name": "curl",
+      "action": "install"
+    },
+    {
+      "name": "vim",
+      "action": "install"
+    },
+    {
+      "name": "htop",
+      "action": "install"
+    }
+  ]
+}

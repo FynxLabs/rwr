@@ -1,0 +1,15 @@
+[[packages]]
+name = "git"
+action = "install"
+
+[[packages]]
+name = "curl"
+action = "install"
+
+[[packages]]
+name = "vim"
+action = "install"
+
+[[packages]]
+name = "htop"
+action = "install"
