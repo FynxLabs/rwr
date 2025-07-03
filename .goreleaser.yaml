@@ -123,7 +123,7 @@ nfpms:
       - curl
       - wget
 
-brews:
+homebrew:
   - repository:
       owner: FynxLabs
       name: brew-tap
