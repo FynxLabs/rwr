@@ -123,7 +123,7 @@ nfpms:
       - curl
       - wget
 
-homebrew:
+homebrew_casks:
   - repository:
       owner: FynxLabs
       name: brew-tap
@@ -131,10 +131,9 @@ homebrew:
         url: "ssh://git@github.com/FynxLabs/brew-tap.git"
         private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
     directory: Formula
-    goarm: "7"
+    binary: rwr
     homepage: "https://github.com/fynxlabs/rwr"
     description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
-    license: MIT
 
 release:
   name_template: "v{{ .Version }}"
