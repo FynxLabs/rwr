@@ -12,8 +12,8 @@
     },
     {
       "name": "goreleaser",
-      "source": "github.com/goreleaser/goreleaser@v2.7.0",
-      "pin": "8aacb197877091cea0d18523ad672eb99087b18d"
+      "source": "github.com/act3-ai/dagger/goreleaser@v0.1.3",
+      "pin": ""
     }
   ],
   "source": ".dagger"

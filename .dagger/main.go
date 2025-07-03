@@ -73,16 +73,13 @@ func (m *Rwr) Release(
 	// Homebrew token for tap updates
 	homebrewToken *dagger.Secret,
 ) (string, error) {
-	args := []string{"release", "--clean"}
-
-	releaseContainer := dag.Goreleaser().Base().
+	// Use the act3-ai goreleaser module with proper API
+	return dag.Goreleaser(m.Source).
 		WithSecretVariable("GITHUB_TOKEN", githubToken).
 		WithSecretVariable("HOMEBREW_TAP_DEPLOY_KEY", homebrewToken).
-		WithWorkdir("/src").
-		WithMountedDirectory("/src", m.Source).
-		WithExec(args)
-
-	return releaseContainer.Stdout(ctx)
+		Release().
+		WithClean().
+		Run(ctx)
 }
 
 // Build compiles the RWR binary
