@@ -1,4 +1,4 @@
-# Rinse, Wash, Repeat (RWR)
+# Rinse, Wash, Repeat (RWR)<!-- omit in toc -->
 
 ![RWR Logo](img/rwr_128.gif)
 
@@ -19,6 +19,38 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 - **Script Execution**: Execute scripts with multiple interpreter support
 - **SSH Key Management**: Generate and manage SSH keys with GitHub integration
 - **Extensible Architecture**: Add new package managers through TOML-based provider configurations
+
+## Table of Contents<!-- omit in toc -->
+
+- [Features](#features)
+- [Quick Install](#quick-install)
+  - [Unix-based Systems (Linux and macOS)](#unix-based-systems-linux-and-macos)
+  - [Windows](#windows)
+- [Installation](#installation)
+  - [Packages](#packages)
+  - [From Releases](#from-releases)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Profile System](#profile-system)
+- [Blueprint Types](#blueprint-types)
+- [Documentation](#documentation)
+  - [Documentation Index](#documentation-index)
+  - [RWR Command Line Interface](#rwr-command-line-interface)
+  - [Blueprints](#blueprints)
+  - [Advanced Topics](#advanced-topics)
+- [Development](#development)
+  - [Prerequisites](#prerequisites)
+  - [Setting Up Development Environment](#setting-up-development-environment)
+  - [Development Commands](#development-commands)
+    - [Local Development (No Dagger)](#local-development-no-dagger)
+    - [Unit Testing Commands](#unit-testing-commands)
+    - [Pipeline Testing (Using Dagger)](#pipeline-testing-using-dagger)
+    - [Individual Dagger Functions](#individual-dagger-functions)
+  - [CI/CD Pipeline](#cicd-pipeline)
+    - [Environment Variables](#environment-variables)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
 ## Quick Install
 
