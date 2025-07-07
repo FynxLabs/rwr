@@ -21,27 +21,27 @@ func TestIntegration_RealWorldScenario(t *testing.T) {
 		filteredServices := FilterByProfiles(workstationConfig.services, activeProfiles)
 		filteredFiles := FilterByProfiles(workstationConfig.files, activeProfiles)
 
-		// Should only get base items (items with no profiles)
-		expectedPackageCount := 3 // vim, git, curl
-		expectedServiceCount := 1 // sshd
-		expectedFileCount := 1    // bashrc
+		// Should get all items (permissive default when no profiles specified)
+		expectedPackageCount := 12 // all packages
+		expectedServiceCount := 5  // all services
+		expectedFileCount := 3     // all files
 
 		if len(filteredPackages) != expectedPackageCount {
-			t.Errorf("Expected %d base packages, got %d", expectedPackageCount, len(filteredPackages))
+			t.Errorf("Expected %d packages, got %d", expectedPackageCount, len(filteredPackages))
 		}
 		if len(filteredServices) != expectedServiceCount {
-			t.Errorf("Expected %d base services, got %d", expectedServiceCount, len(filteredServices))
+			t.Errorf("Expected %d services, got %d", expectedServiceCount, len(filteredServices))
 		}
 		if len(filteredFiles) != expectedFileCount {
-			t.Errorf("Expected %d base files, got %d", expectedFileCount, len(filteredFiles))
+			t.Errorf("Expected %d files, got %d", expectedFileCount, len(filteredFiles))
 		}
 
-		// Verify we got the right base items
-		basePackageNames := extractPackageNames(filteredPackages)
-		expectedBase := []string{"curl", "git", "vim"}
-		slices.Sort(basePackageNames)
-		if !reflect.DeepEqual(basePackageNames, expectedBase) {
-			t.Errorf("Base packages = %v, expected %v", basePackageNames, expectedBase)
+		// Verify we got all packages (permissive default)
+		packageNames := extractPackageNames(filteredPackages)
+		expectedAll := []string{"code", "curl", "discord", "docker", "git", "kubectl", "nodejs", "python", "steam", "terraform", "tmux", "vim"}
+		slices.Sort(packageNames)
+		if !reflect.DeepEqual(packageNames, expectedAll) {
+			t.Errorf("All packages = %v, expected %v", packageNames, expectedAll)
 		}
 	})
 
@@ -273,7 +273,7 @@ func TestIntegration_ComplexProfileCombinations(t *testing.T) {
 		{
 			name:             "no_profiles",
 			activeProfiles:   []string{},
-			expectedPackages: []string{"base-tool"},
+			expectedPackages: []string{"base-tool", "dev-tool", "work-tool", "shared-tool", "all-env-tool"},
 		},
 		{
 			name:             "all_profiles",

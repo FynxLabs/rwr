@@ -15,9 +15,9 @@ func ShouldInclude(itemProfiles []string, activeProfiles []string) bool {
 		return true
 	}
 
-	// If no active profiles are specified, only include base items
+	// If no active profiles are specified, include ALL items (permissive default behavior)
 	if len(activeProfiles) == 0 {
-		return false
+		return true
 	}
 
 	// If "all" is in active profiles, include everything
@@ -39,14 +39,9 @@ func ShouldInclude(itemProfiles []string, activeProfiles []string) bool {
 // This is a generic function that works with any type that has a Profiles []string field.
 func FilterByProfiles[T interface{ GetProfiles() []string }](items []T, activeProfiles []string) []T {
 	if len(activeProfiles) == 0 {
-		// If no profiles specified, only return items with no profiles (base items)
-		var filtered []T
-		for _, item := range items {
-			if len(item.GetProfiles()) == 0 {
-				filtered = append(filtered, item)
-			}
-		}
-		return filtered
+		// If no profiles specified, include ALL items (base behavior should be permissive)
+		// This allows RWR to work without requiring profile knowledge
+		return items
 	}
 
 	// If "all" is in active profiles, return everything
