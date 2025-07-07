@@ -91,36 +91,69 @@ func SetLinuxDetails(osInfo *types.OSInfo) error {
 
 // getLinuxDistro returns the Linux distribution name from /etc/os-release
 func getLinuxDistro() string {
+	log.Debug("Starting Linux distribution detection")
+
+	// Try /etc/os-release first (standard location)
 	if fileExists("/etc/os-release") {
-		log.Debugf("Getting Linux Dristro ID from /etc/os-release")
+		log.Debug("Found /etc/os-release, reading distribution ID")
 		content, err := os.ReadFile("/etc/os-release")
-		if err == nil {
+		if err != nil {
+			log.Debugf("Error reading /etc/os-release: %v", err)
+		} else {
+			log.Debugf("Successfully read /etc/os-release (%d bytes)", len(content))
 			lines := strings.Split(string(content), "\n")
-			for _, line := range lines {
+			log.Debugf("Parsing %d lines from /etc/os-release", len(lines))
+
+			for i, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+
+				log.Debugf("Line %d: %s", i+1, line)
 				if strings.HasPrefix(line, "ID=") {
 					id := strings.Trim(strings.TrimPrefix(line, "ID="), "\"")
-					log.Debugf("Found Linux ID: %s", id)
+					log.Debugf("Successfully extracted Linux ID from /etc/os-release: '%s'", id)
 					return id
 				}
 			}
+			log.Debug("No ID= field found in /etc/os-release")
 		}
+	} else {
+		log.Debug("/etc/os-release does not exist")
 	}
 
+	// Fallback to /etc/lsb-release
 	if fileExists("/etc/lsb-release") {
-		log.Debugf("Getting Linux Dristro ID from /etc/lsb-release")
+		log.Debug("Found /etc/lsb-release, reading distribution ID as fallback")
 		content, err := os.ReadFile("/etc/lsb-release")
-		if err == nil {
+		if err != nil {
+			log.Debugf("Error reading /etc/lsb-release: %v", err)
+		} else {
+			log.Debugf("Successfully read /etc/lsb-release (%d bytes)", len(content))
 			lines := strings.Split(string(content), "\n")
-			for _, line := range lines {
+			log.Debugf("Parsing %d lines from /etc/lsb-release", len(lines))
+
+			for i, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" || strings.HasPrefix(line, "#") {
+					continue
+				}
+
+				log.Debugf("Line %d: %s", i+1, line)
 				if strings.HasPrefix(line, "DISTRIB_ID=") {
 					id := strings.Trim(strings.TrimPrefix(line, "DISTRIB_ID="), "\"")
-					log.Debugf("Found Linux ID: %s", id)
+					log.Debugf("Successfully extracted Linux ID from /etc/lsb-release: '%s'", id)
 					return id
 				}
 			}
+			log.Debug("No DISTRIB_ID= field found in /etc/lsb-release")
 		}
+	} else {
+		log.Debug("/etc/lsb-release does not exist")
 	}
 
+	log.Warn("Failed to detect Linux distribution from both /etc/os-release and /etc/lsb-release, returning 'Unknown Linux'")
 	return "Unknown Linux"
 }
 

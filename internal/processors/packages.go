@@ -34,7 +34,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 	// Get available providers
 	available := system.GetAvailableProviders()
 	if len(available) == 0 {
-		return fmt.Errorf("no package managers available")
+		return fmt.Errorf("no package managers available - check debug logs for detailed provider detection information. Common issues: missing binaries in PATH, missing config files, or unsupported platform")
 	}
 
 	// Filter packages based on active profiles
