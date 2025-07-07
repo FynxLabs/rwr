@@ -5,7 +5,7 @@ elevated = true
 [provider.detection]
 binary = "pamac"
 files = ["/etc/pacman.conf", "/var/lib/pacman"]
-distributions = ["arch", "manjaro"]
+distributions = ["arch", "cachyos", "linux/cachyos", "manjaro"]
 
 [provider.commands]
 install = "build --no-confirm"     # build for AUR packages

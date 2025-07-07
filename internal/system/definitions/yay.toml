@@ -5,7 +5,7 @@ elevated = true
 [provider.detection]
 binary = "yay"
 files = ["/etc/pacman.conf", "/var/lib/pacman"]
-distributions = ["arch"]
+distributions = ["arch", "cachyos", "linux/cachyos", "manjaro"]
 
 [provider.commands]
 install = "-S --noconfirm --needed"  # -S for install, --needed to avoid reinstalling
