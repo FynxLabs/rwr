@@ -12,7 +12,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-//go:embed definitions/*.toml
+//go:embed definitions/providers/*.toml
 var embeddedProviders embed.FS
 
 // LoadEmbeddedProviders loads all provider definitions from the embedded filesystem
@@ -32,17 +32,17 @@ func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 	}
 
 	// Read all .toml files from the embedded filesystem
-	entries, err := embeddedProviders.ReadDir("definitions")
+	entries, err := embeddedProviders.ReadDir("definitions/providers")
 	if err != nil {
-		log.Errorf("LoadEmbeddedProviders: Failed to read embedded definitions: %v", err)
-		return nil, fmt.Errorf("error reading embedded definitions: %w", err)
+		log.Errorf("LoadEmbeddedProviders: Failed to read embedded provider definitions: %v", err)
+		return nil, fmt.Errorf("error reading embedded provider definitions: %w", err)
 	}
 
 	log.Debugf("LoadEmbeddedProviders: Found %d entries in embedded filesystem", len(entries))
 
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".toml") {
-			path := filepath.Join("definitions", entry.Name())
+			path := filepath.Join("definitions/providers", entry.Name())
 
 			// Read the file content
 			data, err := embeddedProviders.ReadFile(path)
@@ -81,7 +81,7 @@ func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 func GetEmbeddedProviderFiles() (map[string][]byte, error) {
 	files := make(map[string][]byte)
 
-	err := fs.WalkDir(embeddedProviders, "definitions", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(embeddedProviders, "definitions/providers", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
