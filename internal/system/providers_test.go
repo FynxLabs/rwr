@@ -63,8 +63,9 @@ func TestGetAvailableProviders_WithValidBinaries(t *testing.T) {
 
 	// The actual number depends on OS compatibility checks in provider definitions
 	// But at minimum we should not get a panic or error
-	if len(providers) < 0 {
-		t.Error("Provider detection should not return negative count")
+	// Note: len() never returns negative values, so this is just a structural check
+	if providers == nil {
+		t.Error("Provider detection should not return nil")
 	}
 }
 

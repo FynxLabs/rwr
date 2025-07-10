@@ -1,6 +1,7 @@
 package system
 
 import (
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -64,7 +65,7 @@ func TestGetBinPath_ValidCommand(t *testing.T) {
 	}
 
 	// Verify the path is clean (no redundant separators)
-	if path != path {
+	if filepath.Clean(path) != path {
 		t.Errorf("Expected clean path, got potentially unclean path: %s", path)
 	}
 }
@@ -176,10 +177,10 @@ func TestCommand_EmptyCommand(t *testing.T) {
 
 func TestCommand_WithNilVariables(t *testing.T) {
 	cmd := types.Command{
-		Exec:      "echo",
-		Args:      []string{"test"},
 		Variables: nil, // Explicitly set to nil
 	}
+	_ = cmd.Exec // Assign values to avoid unused write warnings
+	_ = cmd.Args
 
 	// Should handle nil Variables gracefully
 	if cmd.Variables != nil {
@@ -194,9 +195,9 @@ func TestCommand_WithNilVariables(t *testing.T) {
 
 func TestCommand_WithEmptyArgs(t *testing.T) {
 	cmd := types.Command{
-		Exec: "echo",
 		Args: []string{}, // Empty args
 	}
+	_ = cmd.Exec // Assign value to avoid unused write warning
 
 	if len(cmd.Args) != 0 {
 		t.Errorf("Expected Args length to be 0, got %d", len(cmd.Args))
@@ -205,7 +206,6 @@ func TestCommand_WithEmptyArgs(t *testing.T) {
 
 func TestCommand_WithSpecialCharacters(t *testing.T) {
 	cmd := types.Command{
-		Exec: "echo",
 		Args: []string{"hello world", "special!@#$%^&*()", "unicode-ñáéíóú"},
 		Variables: map[string]string{
 			"SPECIAL_VAR": "value with spaces",
@@ -213,6 +213,7 @@ func TestCommand_WithSpecialCharacters(t *testing.T) {
 			"SYMBOLS_VAR": "!@#$%^&*()",
 		},
 	}
+	_ = cmd.Exec // Assign value to avoid unused write warning
 
 	// Test that special characters are preserved
 	if cmd.Args[0] != "hello world" {

@@ -1,0 +1,5 @@
+templates:
+  - name: "config.txt"
+    action: "create"
+    source: "templates"
+    target: "{{.TestDir}}/"

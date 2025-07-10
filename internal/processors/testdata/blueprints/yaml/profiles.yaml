@@ -1,0 +1,13 @@
+files:
+  - name: "dev-only.txt"
+    action: "create"
+    content: "Development only file"
+    target: "{{.TestDir}}/"
+    profiles:
+      - "development"
+  - name: "prod-only.txt"
+    action: "create"
+    content: "Production only file"
+    target: "{{.TestDir}}/"
+    profiles:
+      - "production"
