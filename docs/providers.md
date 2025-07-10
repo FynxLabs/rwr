@@ -4,7 +4,7 @@ The Providers system is a flexible and extensible way to manage package managers
 
 ## Provider Configuration
 
-Providers are configured using TOML files in the `providers/` directory. For example, `providers/apt.toml` defines the configuration for the APT package manager.
+Providers are configured using TOML files in the `internal/system/definitions/providers/` directory. For example, `internal/system/definitions/providers/apt.toml` defines the configuration for the APT package manager.
 
 ### Basic Structure
 
@@ -181,7 +181,7 @@ Variables available in repository steps:
 
 To add support for a new package manager:
 
-1. Copy `providers/template.toml` to `providers/<name>.toml`
+1. Copy `internal/system/definitions/provider_template.toml` to `internal/system/definitions/providers/<name>.toml`
 2. Configure the provider sections:
    - Basic information (name, elevation)
    - Detection rules (binary, files, distros)

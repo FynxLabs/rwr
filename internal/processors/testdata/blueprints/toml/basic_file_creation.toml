@@ -1,0 +1,5 @@
+[[files]]
+name = "test.txt"
+action = "create"
+content = "Hello, World!"
+target = "{{.TestDir}}/"

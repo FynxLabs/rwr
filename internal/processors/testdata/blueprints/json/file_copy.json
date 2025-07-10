@@ -1,0 +1,10 @@
+{
+  "files": [
+    {
+      "name": "source.txt",
+      "action": "copy",
+      "source": "sources",
+      "target": "{{.TestDir}}/"
+    }
+  ]
+}

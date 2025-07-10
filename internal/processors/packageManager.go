@@ -45,11 +45,12 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 
 		// Get steps based on action
 		var steps []types.ActionStep
-		if pm.Action == "install" {
+		switch pm.Action {
+		case "install":
 			steps = provider.Install.Steps
-		} else if pm.Action == "remove" {
+		case "remove":
 			steps = provider.Remove.Steps
-		} else {
+		default:
 			return fmt.Errorf("unsupported package manager action: %s", pm.Action)
 		}
 

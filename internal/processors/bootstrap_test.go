@@ -286,28 +286,6 @@ func TestPackageProcessingEdgeCases(t *testing.T) {
 	})
 }
 
-// Helper function to check if a string contains a substring
-func containsString(haystack, needle string) bool {
-	return len(haystack) >= len(needle) &&
-		(haystack == needle ||
-			haystack[:len(needle)] == needle ||
-			haystack[len(haystack)-len(needle):] == needle ||
-			findSubstring(haystack, needle))
-}
-
-// Simple substring search
-func findSubstring(haystack, needle string) bool {
-	if len(needle) > len(haystack) {
-		return false
-	}
-	for i := 0; i <= len(haystack)-len(needle); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return true
-		}
-	}
-	return false
-}
-
 // BenchmarkProcessPackagesError benchmarks the error path for performance
 func BenchmarkProcessPackagesError(b *testing.B) {
 	// Save original PATH

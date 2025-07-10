@@ -23,7 +23,7 @@ func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSIn
 
 	// Filter repositories based on active profiles
 	filteredRepositories := helpers.FilterByProfiles(repositoriesBlueprint.Repositories, initConfig.Variables.Flags.Profiles)
-	
+
 	log.Debugf("Filtering repositories: %d total, %d matching active profiles %v",
 		len(repositoriesBlueprint.Repositories), len(filteredRepositories), initConfig.Variables.Flags.Profiles)
 
@@ -57,11 +57,12 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 
 		// Execute repository action steps
 		var steps []types.ActionStep
-		if repo.Action == "add" {
+		switch repo.Action {
+		case "add":
 			steps = repoConfig.Add.Steps
-		} else if repo.Action == "remove" {
+		case "remove":
 			steps = repoConfig.Remove.Steps
-		} else {
+		default:
 			return fmt.Errorf("unsupported repository action: %s", repo.Action)
 		}
 

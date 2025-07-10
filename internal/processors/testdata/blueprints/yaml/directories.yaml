@@ -1,0 +1,4 @@
+directories:
+  - name: "testdir"
+    action: "create"
+    target: "{{.TestDir}}/"
