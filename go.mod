@@ -10,7 +10,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
-	github.com/ulikunitz/xz v0.5.12
+	github.com/ulikunitz/xz v0.5.13
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/term v0.34.0
 	gopkg.in/yaml.v3 v3.0.1
