@@ -1,5 +1,5 @@
 [tools]
-go = "1.24"
+go = "1.25.1"
 dagger = "0.18.10"
 goreleaser = "latest"
 gotestsum = "latest"
