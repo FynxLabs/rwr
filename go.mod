@@ -1,6 +1,6 @@
 module github.com/fynxlabs/rwr
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/BurntSushi/toml v1.5.0
@@ -11,7 +11,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.21.0
 	github.com/ulikunitz/xz v0.5.13
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.31.0
 	golang.org/x/term v0.34.0
 	gopkg.in/yaml.v3 v3.0.1
 )
