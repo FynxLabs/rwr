@@ -1,6 +1,5 @@
 [tools]
-go = "1.24"
-dagger = "0.18.10"
+go = "1.25"
 goreleaser = "latest"
 gotestsum = "latest"
 
@@ -28,17 +27,3 @@ test = "gotestsum --format pkgname --jsonfile /tmp/gotest.json -- ./..."  # Form
 "test:helpers:raw" = "go test ./internal/helpers -v"  # Raw helpers tests
 "test:processors:raw" = "go test ./internal/processors -v"  # Raw processors tests
 "test:system:raw" = "go test ./internal/system -v"  # Raw system tests
-
-# Dagger-based commands - Full pipelines
-"dagger:test" = "dagger call test"  # Just run tests through Dagger
-"dagger:local" = "dagger call ci --ref=local --github-token='' --homebrew-token=''"  # Test full release pipeline without publishing
-"dagger:ci" = "dagger call ci --ref=$GITHUB_REF_NAME"  # Full CI pipeline with publishing
-
-# Individual Dagger functions
-"dagger:build" = "dagger call build"  # Build binary through Dagger
-"dagger:lint" = "dagger call lint"  # Run linting through Dagger
-"dagger:release" = "dagger call release --ref=local --github-token='' --homebrew-token=''"  # Test release process
-"dagger:version" = "dagger call version"  # Get version information
-
-# Dagger maintenance commands
-"dagger:clean" = "rm -rf .dagger/go.sum .dagger/internal"  # Clean Dagger generated files to fix dependency issues
