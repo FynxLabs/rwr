@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/log v0.4.2
 	github.com/go-git/go-git/v5 v5.16.3
 	github.com/google/go-github/v70 v70.0.0
+	github.com/google/go-github/v75 v75.0.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
