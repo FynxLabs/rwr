@@ -2,22 +2,53 @@ package processors
 
 import (
 	"bufio"
-	"context"
+	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
-	"github.com/google/go-github/v70/github"
 	"github.com/spf13/viper"
-	"golang.org/x/oauth2"
 )
+
+// GitHub API request structure
+type githubKeyRequest struct {
+	Title string `json:"title"`
+	Key   string `json:"key"`
+}
+
+// GitHub API success response structure
+type githubKeyResponse struct {
+	Key       string `json:"key"`
+	ID        int    `json:"id"`
+	URL       string `json:"url"`
+	Title     string `json:"title"`
+	CreatedAt string `json:"created_at"`
+	Verified  bool   `json:"verified"`
+	ReadOnly  bool   `json:"read_only"`
+}
+
+// GitHub API error structure
+type githubError struct {
+	Message          string `json:"message"`
+	DocumentationURL string `json:"documentation_url,omitempty"`
+	Errors           []struct {
+		Resource string `json:"resource"`
+		Code     string `json:"code"`
+		Field    string `json:"field"`
+		Message  string `json:"message"`
+	} `json:"errors,omitempty"`
+}
 
 func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var sshKeyData types.SSHKeyData
@@ -172,27 +203,21 @@ func setAsRWRSSHKey(keyPath string) error {
 }
 
 func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error {
+	// Validate GitHub API token
 	token := initConfig.Variables.Flags.GHAPIToken
 	if token == "" {
-		return fmt.Errorf("GitHub API token not found")
+		return fmt.Errorf("GitHub API token not found. Set via --gh-api-key flag or config")
 	}
 
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	tc := oauth2.NewClient(context.TODO(), ts)
-	client := github.NewClient(tc)
-
+	// Read SSH public key
 	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
-
 	publicKeyPath := sshPath + ".pub"
 	publicKeyBytes, err := os.ReadFile(publicKeyPath)
 	if err != nil {
 		return fmt.Errorf("error reading public key file: %v", err)
 	}
 
-	key := string(publicKeyBytes)
-
+	// Get or prompt for title
 	var title string
 	if sshKey.GithubTitle == "" {
 		hostname, err := os.Hostname()
@@ -215,14 +240,69 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 		title = sshKey.GithubTitle
 	}
 
-	_, _, err = client.Users.CreateKey(context.TODO(), &github.Key{
-		Title: &title,
-		Key:   &key,
-	})
-	if err != nil {
-		return fmt.Errorf("error adding SSH key to GitHub: %v", err)
+	// Create request payload
+	payload := githubKeyRequest{
+		Title: title,
+		Key:   strings.TrimSpace(string(publicKeyBytes)),
 	}
 
-	log.Infof("SSH public key added to GitHub: %s", title)
-	return nil
+	// Marshal JSON
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("error marshaling JSON: %v", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest("POST", "https://api.github.com/user/keys", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("error creating request: %v", err)
+	}
+
+	// Set headers
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send request
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("network error connecting to GitHub API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response: %v", err)
+	}
+
+	// Handle response based on status code
+	switch resp.StatusCode {
+	case 201:
+		log.Infof("SSH public key added to GitHub: %s", title)
+		return nil
+	case 401:
+		return fmt.Errorf("authentication failed: invalid GitHub API token")
+	case 403:
+		return fmt.Errorf("forbidden: GitHub token requires 'write:public_key' scope")
+	case 422:
+		// Parse error details
+		var ghErr githubError
+		if err := json.Unmarshal(body, &ghErr); err == nil && ghErr.Message != "" {
+			// Check if it's a duplicate key error
+			if len(ghErr.Errors) > 0 {
+				for _, e := range ghErr.Errors {
+					if e.Field == "key" && strings.Contains(strings.ToLower(e.Message), "already in use") {
+						return fmt.Errorf("validation failed: this SSH key already exists in your GitHub account")
+					}
+				}
+			}
+			return fmt.Errorf("validation failed: %s", ghErr.Message)
+		}
+		return fmt.Errorf("validation failed: key may already exist or be invalid")
+	default:
+		return fmt.Errorf("unexpected GitHub API response (%d): %s", resp.StatusCode, string(body))
+	}
 }
