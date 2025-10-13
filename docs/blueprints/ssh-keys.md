@@ -22,16 +22,16 @@ ssh_keys:
 
 The following settings are available for each SSH key in the SSH Keys blueprint:
 
-| Setting | Required | Description |
-|---------|----------|-------------|
-| `name` | Yes | The name of the SSH key file (e.g., `id_rsa`) |
-| `type` | No | The type of the SSH key (e.g., `rsa`, `dsa`, `ecdsa`, `ed25519`). Default is `rsa` |
-| `path` | No | The directory where the SSH key will be stored. Default is `~/.ssh` |
-| `comment` | No | A comment to include in the SSH key (e.g., email address) |
-| `no_passphrase` | No | Set to `true` to generate the SSH key without a passphrase. Default is `false` |
-| `copy_to_github` | No | Set to `true` to copy the public key to your GitHub account. Default is `false` |
-| `github_title` | No | The title to use for the SSH key when copying it to GitHub |
-| `set_as_rwr_ssh_key` | No | Set to `true` to use this key as the default RWR SSH key. Default is `false` |
+| Setting              | Required | Description                                                                        |
+| -------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `name`               | Yes      | The name of the SSH key file (e.g., `id_rsa`)                                      |
+| `type`               | No       | The type of the SSH key (e.g., `rsa`, `dsa`, `ecdsa`, `ed25519`). Default is `rsa` |
+| `path`               | No       | The directory where the SSH key will be stored. Default is `~/.ssh`                |
+| `comment`            | No       | A comment to include in the SSH key (e.g., email address)                          |
+| `no_passphrase`      | No       | Set to `true` to generate the SSH key without a passphrase. Default is `false`     |
+| `copy_to_github`     | No       | Set to `true` to copy the public key to your GitHub account. Default is `false`    |
+| `github_title`       | No       | The title to use for the SSH key when copying it to GitHub                         |
+| `set_as_rwr_ssh_key` | No       | Set to `true` to use this key as the default RWR SSH key. Default is `false`       |
 
 ## Generating SSH Keys
 
@@ -41,11 +41,76 @@ If `no_passphrase` is set to `true`, the SSH key will be generated without a pas
 
 ## Copying Public Keys to GitHub
 
-If `copy_to_github` is set to `true`, RWR will attempt to copy the public key to your GitHub account. To use this feature, you need to provide a GitHub API token with the necessary permissions.
+If `copy_to_github` is set to `true`, RWR will attempt to copy the public key to your GitHub account.
 
-You can set the GitHub API token using the `--gh-api-key` flag when running RWR or by configuring it in the `config.yaml` file under the `repository.gh_api_token` setting.
+### GitHub Authentication
+
+RWR supports three methods for GitHub authentication (in priority order):
+
+1. **`--gh-api-key` / `--gh-key` flag** - Provide an explicit GitHub token
+2. **`--gh-auth` flag** - Authenticate using OAuth device flow (recommended for first-time setup)
+3. **`GITHUB_TOKEN` environment variable** - For CI/CD environments
+
+#### First Time Setup - OAuth Authentication
+
+```bash
+rwr run ssh_keys --gh-auth
+```
+
+This will:
+
+1. Display a device code (e.g., `ABCD-1234`)
+2. Prompt you to visit <https://github.com/login/device>
+3. Wait for you to authorize the application
+4. Save the token to your RWR config
+
+After this initial setup, future runs won't require `--gh-auth` as the token is saved in your config.
+
+#### Using an Explicit Token
+
+```bash
+rwr run ssh_keys --gh-key ghp_your_token_here
+```
+
+Or use the longer form:
+
+```bash
+rwr run ssh_keys --gh-api-key ghp_your_token_here
+```
+
+#### Using Environment Variable (CI/CD)
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+rwr run ssh_keys
+```
+
+### Token Requirements
+
+The GitHub token needs the `write:public_key` scope to upload SSH keys.
+
+### GitHub Key Title
 
 If `github_title` is provided, it will be used as the title for the SSH key on GitHub. If not specified, the hostname of the machine will be used as the title.
+
+### Troubleshooting
+
+#### GitHub token not found
+
+- Use `--gh-auth` to authenticate via OAuth
+- Or use `--gh-key` flag with your token
+- Or set `GITHUB_TOKEN` environment variable
+
+#### Authentication timeout
+
+- You have 5 minutes to authorize after running `--gh-auth`
+- Run the command again to get a new code
+
+#### Authentication failed: invalid GitHub API token
+
+- Token may have expired
+- Re-authenticate with `--gh-auth`
+- Or generate a new token with `write:public_key` scope
 
 ## Setting the RWR SSH Key
 

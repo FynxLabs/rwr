@@ -21,6 +21,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	// RWR GitHub App - https://github.com/apps/rwr-rinse-wash-repeat
+	// App ID: 2107251
+	githubClientID       = "Iv23lifvLgztwMVAOEEu"
+	githubDeviceCodeURL  = "https://github.com/login/device/code"
+	githubAccessTokenURL = "https://github.com/login/oauth/access_token"
+)
+
 // GitHub API request structure
 type githubKeyRequest struct {
 	Title string `json:"title"`
@@ -48,6 +56,33 @@ type githubError struct {
 		Field    string `json:"field"`
 		Message  string `json:"message"`
 	} `json:"errors,omitempty"`
+}
+
+// OAuth device flow structures
+type deviceCodeRequest struct {
+	ClientID string `json:"client_id"`
+	Scope    string `json:"scope"`
+}
+
+type deviceCodeResponse struct {
+	DeviceCode      string `json:"device_code"`
+	UserCode        string `json:"user_code"`
+	VerificationURI string `json:"verification_uri"`
+	ExpiresIn       int    `json:"expires_in"`
+	Interval        int    `json:"interval"`
+}
+
+type accessTokenRequest struct {
+	ClientID   string `json:"client_id"`
+	DeviceCode string `json:"device_code"`
+	GrantType  string `json:"grant_type"`
+}
+
+type accessTokenResponse struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	Scope       string `json:"scope"`
+	Error       string `json:"error,omitempty"`
 }
 
 func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
@@ -202,12 +237,200 @@ func setAsRWRSSHKey(keyPath string) error {
 	return nil
 }
 
-func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error {
-	// Validate GitHub API token
-	token := initConfig.Variables.Flags.GHAPIToken
-	if token == "" {
-		return fmt.Errorf("GitHub API token not found. Set via --gh-api-key flag or config")
+// AuthenticateWithGitHub performs OAuth device flow authentication
+func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
+	log.Infof("Starting GitHub authentication...")
+
+	// Step 1: Request device code
+	deviceResp, err := requestDeviceCode()
+	if err != nil {
+		return "", fmt.Errorf("failed to request device code: %w", err)
 	}
+
+	// Step 2: Display instructions to user
+	log.Infof("")
+	log.Infof("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Infof("  GitHub Authentication Required")
+	log.Infof("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	log.Infof("")
+	log.Infof("1. Visit: %s", deviceResp.VerificationURI)
+	log.Infof("2. Enter code: %s", deviceResp.UserCode)
+	log.Infof("")
+	log.Infof("Waiting for authorization...")
+	log.Infof("")
+
+	// Step 3: Poll for access token
+	token, err := pollForAccessToken(deviceResp.DeviceCode, deviceResp.Interval)
+	if err != nil {
+		return "", fmt.Errorf("failed to get access token: %w", err)
+	}
+
+	// Step 4: Store token in config
+	viper.Set("repository.gh_api_token", token)
+
+	// Try to write config - create if doesn't exist
+	err = viper.WriteConfig()
+	if err != nil {
+		// If config doesn't exist, try SafeWriteConfig
+		err = viper.SafeWriteConfig()
+		if err != nil {
+			log.Warnf("Failed to save token to config: %v", err)
+			log.Infof("Token obtained but not saved. Use --gh-api-key=%s", token)
+		} else {
+			log.Infof("✓ Authentication successful! Token saved to config.")
+		}
+	} else {
+		log.Infof("✓ Authentication successful! Token saved to config.")
+	}
+
+	return token, nil
+}
+
+// requestDeviceCode requests a device code from GitHub
+func requestDeviceCode() (*deviceCodeResponse, error) {
+	payload := deviceCodeRequest{
+		ClientID: githubClientID,
+		Scope:    "write:public_key",
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", githubDeviceCodeURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var deviceResp deviceCodeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&deviceResp); err != nil {
+		return nil, err
+	}
+
+	return &deviceResp, nil
+}
+
+// pollForAccessToken polls GitHub for access token approval
+func pollForAccessToken(deviceCode string, interval int) (string, error) {
+	if interval == 0 {
+		interval = 5 // Default to 5 seconds
+	}
+
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	defer ticker.Stop()
+
+	timeout := time.After(5 * time.Minute)
+
+	for {
+		select {
+		case <-timeout:
+			return "", fmt.Errorf("authentication timeout: user did not authorize within 5 minutes")
+		case <-ticker.C:
+			token, err := checkAccessToken(deviceCode)
+			if err != nil {
+				if strings.Contains(err.Error(), "authorization_pending") {
+					continue
+				}
+				if strings.Contains(err.Error(), "slow_down") {
+					ticker.Reset(time.Duration(interval+5) * time.Second)
+					continue
+				}
+				return "", err
+			}
+			return token, nil
+		}
+	}
+}
+
+// checkAccessToken attempts to get access token
+func checkAccessToken(deviceCode string) (string, error) {
+	payload := accessTokenRequest{
+		ClientID:   githubClientID,
+		DeviceCode: deviceCode,
+		GrantType:  "urn:ietf:params:oauth:grant-type:device_code",
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", githubAccessTokenURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var tokenResp accessTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return "", err
+	}
+
+	if tokenResp.Error != "" {
+		return "", fmt.Errorf("OAuth error: %s", tokenResp.Error)
+	}
+
+	if tokenResp.AccessToken == "" {
+		return "", fmt.Errorf("no access token received")
+	}
+
+	return tokenResp.AccessToken, nil
+}
+
+// getGitHubToken retrieves GitHub token with priority: flag → env
+func getGitHubToken(initConfig *types.InitConfig) (string, string, error) {
+	// Priority 1: Explicit token from config/flag
+	if token := initConfig.Variables.Flags.GHAPIToken; token != "" {
+		log.Debugf("Using GitHub token from --gh-api-key flag")
+		return token, "flag", nil
+	}
+
+	// Priority 2: GITHUB_TOKEN environment variable
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		log.Debugf("Using GitHub token from GITHUB_TOKEN environment variable")
+		return token, "GITHUB_TOKEN", nil
+	}
+
+	// No token found
+	return "", "", fmt.Errorf(`GitHub token not found. Please use one of:
+	 1. --gh-api-key / --gh-key flag
+	 2. --gh-auth to authenticate via OAuth
+	 3. GITHUB_TOKEN environment variable`)
+}
+
+func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error {
+	// Get GitHub token with fallback hierarchy
+	token, source, err := getGitHubToken(initConfig)
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Using GitHub token from: %s", source)
 
 	// Read SSH public key
 	sshPath := filepath.Join(sshKey.Path, sshKey.Name)

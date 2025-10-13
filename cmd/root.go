@@ -62,6 +62,7 @@ var rootCmd = &cobra.Command{
 
 var (
 	ghApiToken       string // Global variable for API Key
+	ghAuth           bool   // Global variable for GitHub OAuth authentication
 	sshKey           string // Global variable for SSH Key
 	skipVersionCheck bool
 	debug            bool
@@ -177,13 +178,22 @@ func init() {
 
 	viper.SetDefault("log.level", "info") // Default log level
 
-	// GitHub API Key flag
-	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-api-key", "", "Github's API Key (stored under repository.gh_api_token)")
+	// GitHub API Key flags
+	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-api-key", "", "GitHub API token (stored under repository.gh_api_token)")
+	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-key", "", "GitHub API token (alias for --gh-api-key)")
 	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("gh-api-key"))
 	if err != nil {
 		log.With("err", err).Errorf("Error binding gh-api-key flag")
 		os.Exit(1)
 	}
+	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("gh-key"))
+	if err != nil {
+		log.With("err", err).Errorf("Error binding gh-key flag")
+		os.Exit(1)
+	}
+
+	// GitHub OAuth authentication flag
+	rootCmd.PersistentFlags().BoolVar(&ghAuth, "gh-auth", false, "Authenticate with GitHub using OAuth device flow")
 
 	//
 	rootCmd.PersistentFlags().StringVar(&sshKey, "ssh-key", "", "Path to the SSH key file or Base64-encoded SSH key for Git authentication (stored under repository.ssh_private_key)")

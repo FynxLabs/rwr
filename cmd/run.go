@@ -135,6 +135,18 @@ var runSSHKeysCmd = &cobra.Command{
 	Use:   "ssh_keys",
 	Short: "Run SSH key processor",
 	Run: func(cmd *cobra.Command, args []string) {
+		// Handle GitHub OAuth authentication if --gh-auth flag is set
+		if ghAuth {
+			token, err := processors.AuthenticateWithGitHub(initConfig)
+			if err != nil {
+				log.With("err", err).Errorf("GitHub authentication failed")
+				os.Exit(1)
+			}
+			// Update the token in both global var and initConfig
+			ghApiToken = token
+			initConfig.Variables.Flags.GHAPIToken = token
+		}
+
 		err := processors.All(initConfig, osInfo, []string{"ssh_keys"})
 		if err != nil {
 			log.With("err", err).Errorf("Error running SSH key processor")
