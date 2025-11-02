@@ -1,0 +1,11 @@
+packages:
+  # Common AUR packages shared across multiple configurations
+  - names:
+      - yay
+      - paru
+      - visual-studio-code-bin
+      - google-chrome
+      - slack-desktop
+      - discord
+    action: install
+    package_manager: paru

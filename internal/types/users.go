@@ -5,11 +5,12 @@ type Group struct {
 	Profiles []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"` // Profiles this group belongs to
 	NewName  string   `mapstructure:"new_name,omitempty" yaml:"new_name,omitempty" json:"new_name,omitempty" toml:"new_name,omitempty"` // New name for the group (for modify action)
 	Action   string   `mapstructure:"action" yaml:"action,omitempty" json:"action,omitempty" toml:"action,omitempty"`                   // Action to perform with the group
+	Import   string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`         // Import path for external group definitions
 }
 
 type User struct {
 	Name       string   `mapstructure:"name" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`                                       // Name of the user
-	Profiles   []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`           // Profiles this user belongs to
+	Profiles   []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`             // Profiles this user belongs to
 	NewName    string   `mapstructure:"new_name,omitempty" yaml:"new_name,omitempty" json:"new_name,omitempty" toml:"new_name,omitempty"`             // New name for the user (for modify action)
 	Action     string   `mapstructure:"action" yaml:"action,omitempty" json:"action,omitempty" toml:"action,omitempty"`                               // Action to perform with the user
 	Password   string   `mapstructure:"password,omitempty" yaml:"password,omitempty" json:"password,omitempty" toml:"password,omitempty"`             // Password of the user
@@ -20,6 +21,7 @@ type User struct {
 	NewShell   string   `mapstructure:"new_shell,omitempty" yaml:"new_shell,omitempty" json:"new_shell,omitempty" toml:"new_shell,omitempty"`         // New shell for the user (for modify action)
 	Home       string   `mapstructure:"home,omitempty" yaml:"home,omitempty" json:"home,omitempty" toml:"home,omitempty"`                             // Home directory of the user
 	NewHome    string   `mapstructure:"new_home,omitempty" yaml:"new_home,omitempty" json:"new_home,omitempty" toml:"new_home,omitempty"`             // New home directory for the user (for modify action)
+	Import     string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`                     // Import path for external user definitions
 }
 
 type UsersData struct {

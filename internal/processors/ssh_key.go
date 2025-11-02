@@ -16,6 +16,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/prompts"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
@@ -96,6 +97,14 @@ func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, i
 	if err != nil {
 		return fmt.Errorf("error unmarshaling SSH key blueprint: %v", err)
 	}
+
+	// Process imports and merge imported SSH keys
+	blueprintDir := initConfig.Init.Location
+	allSSHKeys, err := processSSHKeyImports(sshKeyData.SSHKeys, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing SSH key imports: %w", err)
+	}
+	sshKeyData.SSHKeys = allSSHKeys
 
 	// Filter SSH keys based on active profiles
 	filteredSSHKeys := helpers.FilterByProfiles(sshKeyData.SSHKeys, initConfig.Variables.Flags.Profiles)
@@ -402,7 +411,7 @@ func checkAccessToken(deviceCode string) (string, error) {
 	return tokenResp.AccessToken, nil
 }
 
-// getGitHubToken retrieves GitHub token with priority: flag → env
+// getGitHubToken retrieves GitHub token with priority: flag → env → prompt
 func getGitHubToken(initConfig *types.InitConfig) (string, string, error) {
 	// Priority 1: Explicit token from config/flag
 	if token := initConfig.Variables.Flags.GHAPIToken; token != "" {
@@ -416,11 +425,8 @@ func getGitHubToken(initConfig *types.InitConfig) (string, string, error) {
 		return token, "GITHUB_TOKEN", nil
 	}
 
-	// No token found
-	return "", "", fmt.Errorf(`GitHub token not found. Please use one of:
-	 1. --gh-api-key / --gh-key flag
-	 2. --gh-auth to authenticate via OAuth
-	 3. GITHUB_TOKEN environment variable`)
+	// Priority 3: Prompt user for authentication method
+	return prompts.PromptForGitHubAuth(initConfig, AuthenticateWithGitHub)
 }
 
 func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error {
@@ -528,4 +534,50 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	default:
 		return fmt.Errorf("unexpected GitHub API response (%d): %s", resp.StatusCode, string(body))
 	}
+}
+
+func processSSHKeyImports(sshKeys []types.SSHKey, blueprintDir string, format string) ([]types.SSHKey, error) {
+	allSSHKeys := make([]types.SSHKey, 0)
+	visited := make(map[string]bool)
+
+	for _, key := range sshKeys {
+		if key.Import != "" {
+			log.Debugf("Processing SSH key import: %s", key.Import)
+
+			importPath := filepath.Join(blueprintDir, key.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedSSHKeyData types.SSHKeyData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedSSHKeyData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allSSHKeys = append(allSSHKeys, importedSSHKeyData.SSHKeys...)
+			log.Debugf("Imported %d SSH keys from %s", len(importedSSHKeyData.SSHKeys), key.Import)
+		} else {
+			allSSHKeys = append(allSSHKeys, key)
+		}
+	}
+
+	return allSSHKeys, nil
 }

@@ -3,6 +3,7 @@ package processors
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/fynxlabs/rwr/internal/types"
 
@@ -21,6 +22,14 @@ func ProcessGitRepositories(blueprintData []byte, format string, initConfig *typ
 	if err != nil {
 		return fmt.Errorf("error unmarshaling Git repository blueprint: %w", err)
 	}
+
+	// Process imports and merge imported git repos
+	blueprintDir := initConfig.Init.Location
+	allRepos, err := processGitImports(gitData.Repos, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing git imports: %w", err)
+	}
+	gitData.Repos = allRepos
 
 	// Filter Git repositories based on active profiles
 	filteredRepos := helpers.FilterByProfiles(gitData.Repos, initConfig.Variables.Flags.Profiles)
@@ -110,3 +119,49 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 
 // 	return nil
 // }
+
+func processGitImports(repos []types.Git, blueprintDir string, format string) ([]types.Git, error) {
+	allRepos := make([]types.Git, 0)
+	visited := make(map[string]bool)
+
+	for _, repo := range repos {
+		if repo.Import != "" {
+			log.Debugf("Processing git import: %s", repo.Import)
+
+			importPath := filepath.Join(blueprintDir, repo.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedGitData types.GitData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedGitData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allRepos = append(allRepos, importedGitData.Repos...)
+			log.Debugf("Imported %d git repos from %s", len(importedGitData.Repos), repo.Import)
+		} else {
+			allRepos = append(allRepos, repo)
+		}
+	}
+
+	return allRepos, nil
+}

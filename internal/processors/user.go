@@ -2,6 +2,8 @@ package processors
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/fynxlabs/rwr/internal/system"
@@ -21,6 +23,20 @@ func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitCon
 		log.Errorf("Error unmarshaling users blueprint: %v", err)
 		return fmt.Errorf("error unmarshaling users blueprint: %w", err)
 	}
+
+	// Process imports and merge imported users and groups
+	blueprintDir := initConfig.Init.Location
+	allGroups, err := processGroupImports(usersData.Groups, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing group imports: %w", err)
+	}
+	usersData.Groups = allGroups
+
+	allUsers, err := processUserImports(usersData.Users, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing user imports: %w", err)
+	}
+	usersData.Users = allUsers
 
 	// Filter groups based on active profiles
 	filteredGroups := helpers.FilterByProfiles(usersData.Groups, initConfig.Variables.Flags.Profiles)
@@ -258,4 +274,96 @@ func removeUser(user types.User, initConfig *types.InitConfig) error {
 		return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
 	return nil
+}
+
+func processGroupImports(groups []types.Group, blueprintDir string, format string) ([]types.Group, error) {
+	allGroups := make([]types.Group, 0)
+	visited := make(map[string]bool)
+
+	for _, group := range groups {
+		if group.Import != "" {
+			log.Debugf("Processing group import: %s", group.Import)
+
+			importPath := filepath.Join(blueprintDir, group.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedUsersData types.UsersData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedUsersData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allGroups = append(allGroups, importedUsersData.Groups...)
+			log.Debugf("Imported %d groups from %s", len(importedUsersData.Groups), group.Import)
+		} else {
+			allGroups = append(allGroups, group)
+		}
+	}
+
+	return allGroups, nil
+}
+
+func processUserImports(users []types.User, blueprintDir string, format string) ([]types.User, error) {
+	allUsers := make([]types.User, 0)
+	visited := make(map[string]bool)
+
+	for _, user := range users {
+		if user.Import != "" {
+			log.Debugf("Processing user import: %s", user.Import)
+
+			importPath := filepath.Join(blueprintDir, user.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedUsersData types.UsersData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedUsersData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allUsers = append(allUsers, importedUsersData.Users...)
+			log.Debugf("Imported %d users from %s", len(importedUsersData.Users), user.Import)
+		} else {
+			allUsers = append(allUsers, user)
+		}
+	}
+
+	return allUsers, nil
 }

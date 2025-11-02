@@ -320,7 +320,8 @@ func TestGetGitHubToken_NoToken(t *testing.T) {
 	initConfig := &types.InitConfig{
 		Variables: types.Variables{
 			Flags: types.Flags{
-				GHAPIToken: "",
+				GHAPIToken:  "",
+				Interactive: false, // Disable interactive mode for testing
 			},
 		},
 	}

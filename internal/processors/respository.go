@@ -2,6 +2,8 @@ package processors
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -20,6 +22,14 @@ func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSIn
 	if err != nil {
 		return fmt.Errorf("error unmarshaling repository blueprint: %w", err)
 	}
+
+	// Process imports and merge imported repositories
+	blueprintDir := initConfig.Init.Location
+	allRepositories, err := processRepositoryImports(repositoriesBlueprint.Repositories, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing repository imports: %w", err)
+	}
+	repositoriesBlueprint.Repositories = allRepositories
 
 	// Filter repositories based on active profiles
 	filteredRepositories := helpers.FilterByProfiles(repositoriesBlueprint.Repositories, initConfig.Variables.Flags.Profiles)
@@ -128,4 +138,50 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 	}
 
 	return nil
+}
+
+func processRepositoryImports(repositories []types.Repository, blueprintDir string, format string) ([]types.Repository, error) {
+	allRepositories := make([]types.Repository, 0)
+	visited := make(map[string]bool)
+
+	for _, repo := range repositories {
+		if repo.Import != "" {
+			log.Debugf("Processing repository import: %s", repo.Import)
+
+			importPath := filepath.Join(blueprintDir, repo.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedRepoData types.RepositoriesData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedRepoData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allRepositories = append(allRepositories, importedRepoData.Repositories...)
+			log.Debugf("Imported %d repositories from %s", len(importedRepoData.Repositories), repo.Import)
+		} else {
+			allRepositories = append(allRepositories, repo)
+		}
+	}
+
+	return allRepositories, nil
 }
