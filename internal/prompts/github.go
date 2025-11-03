@@ -54,7 +54,7 @@ func PromptGitHubToken() (string, error) {
 			huh.NewInput().
 				Title("Enter your GitHub personal access token").
 				Description("Token needs 'write:public_key' scope").
-				Password(true).
+				EchoMode(huh.EchoModePassword).
 				Value(&token).
 				Validate(func(s string) error {
 					if s == "" {
@@ -77,27 +77,72 @@ func PromptGitHubToken() (string, error) {
 }
 
 // PromptAndSaveGitHubToken prompts for a token and saves it to config
-func PromptAndSaveGitHubToken() (string, error) {
+func PromptAndSaveGitHubToken(initConfig *types.InitConfig) (string, error) {
 	token, err := PromptGitHubToken()
 	if err != nil {
 		return "", err
 	}
 
-	// Save token to config
-	viper.Set("repository.gh_api_token", token)
-	if err := viper.WriteConfig(); err != nil {
-		// If config doesn't exist, try SafeWriteConfig
-		if err := viper.SafeWriteConfig(); err != nil {
-			log.Warnf("Failed to save token to config: %v", err)
-			log.Infof("Token obtained but not saved. Use --gh-api-key=%s", token)
-		} else {
-			log.Debugf("Token saved to config")
-		}
+	// Save token using the same logic as OAuth
+	if err := SaveGitHubTokenToConfig(token, initConfig); err != nil {
+		log.Warnf("Failed to save token to config: %v", err)
+		log.Infof("Token obtained but not saved. Use --gh-api-key=%s", token)
 	} else {
 		log.Debugf("Token saved to config")
 	}
 
 	return token, nil
+}
+
+// SaveGitHubTokenToConfig saves a GitHub token to config with optional confirmation
+func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
+	// Check if token already exists in config
+	existingToken := viper.GetString("repository.gh_api_token")
+
+	// If token exists and is different, prompt to confirm replacement (if interactive)
+	if existingToken != "" && existingToken != token && initConfig.Variables.Flags.Interactive {
+		replace, err := PromptConfirmTokenReplace()
+		if err != nil {
+			return fmt.Errorf("confirmation prompt failed: %w", err)
+		}
+		if !replace {
+			return fmt.Errorf("user declined to replace existing token")
+		}
+	}
+
+	// Set the new token
+	viper.Set("repository.gh_api_token", token)
+
+	// Try to write config
+	err := viper.WriteConfig()
+	if err != nil {
+		// If config doesn't exist, create it
+		return viper.SafeWriteConfig()
+	}
+	return nil
+}
+
+// PromptConfirmTokenReplace prompts user to confirm replacing existing token
+func PromptConfirmTokenReplace() (bool, error) {
+	var confirm bool
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("A GitHub token already exists in your config").
+				Description("Do you want to replace it with the new token?").
+				Affirmative("Yes, replace it").
+				Negative("No, keep existing").
+				Value(&confirm),
+		),
+	)
+
+	err := form.Run()
+	if err != nil {
+		return false, fmt.Errorf("confirmation prompt failed: %w", err)
+	}
+
+	return confirm, nil
 }
 
 // PromptForGitHubAuth handles the complete GitHub authentication prompt flow
@@ -130,7 +175,7 @@ To enable interactive prompts, use --interactive flag (or remove --interactive=f
 
 	case GitHubAuthManual:
 		// Prompt for manual token entry
-		token, err := PromptAndSaveGitHubToken()
+		token, err := PromptAndSaveGitHubToken(initConfig)
 		if err != nil {
 			return "", "", err
 		}

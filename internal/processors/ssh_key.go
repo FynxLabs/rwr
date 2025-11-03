@@ -275,19 +275,9 @@ func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 	}
 
 	// Step 4: Store token in config
-	viper.Set("repository.gh_api_token", token)
-
-	// Try to write config - create if doesn't exist
-	err = viper.WriteConfig()
-	if err != nil {
-		// If config doesn't exist, try SafeWriteConfig
-		err = viper.SafeWriteConfig()
-		if err != nil {
-			log.Warnf("Failed to save token to config: %v", err)
-			log.Infof("Token obtained but not saved. Use --gh-api-key=%s", token)
-		} else {
-			log.Infof("✓ Authentication successful! Token saved to config.")
-		}
+	if err := prompts.SaveGitHubTokenToConfig(token, initConfig); err != nil {
+		log.Warnf("Failed to save token to config: %v", err)
+		log.Infof("Token obtained but not saved. Use --gh-api-key=%s", token)
 	} else {
 		log.Infof("✓ Authentication successful! Token saved to config.")
 	}
