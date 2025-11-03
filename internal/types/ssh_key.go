@@ -10,6 +10,7 @@ type SSHKey struct {
 	CopyToGitHub   bool     `mapstructure:"copy_to_github" yaml:"copy_to_github" json:"copy_to_github" toml:"copy_to_github"`
 	GithubTitle    string   `mapstructure:"github_title" yaml:"github_title" json:"github_title" toml:"github_title"`
 	SetAsRWRSSHKey bool     `mapstructure:"set_as_rwr_ssh_key" yaml:"set_as_rwr_ssh_key" json:"set_as_rwr_ssh_key" toml:"set_as_rwr_ssh_key"`
+	Import         string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
 }
 
 type SSHKeyData struct {

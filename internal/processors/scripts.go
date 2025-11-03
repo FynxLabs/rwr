@@ -25,6 +25,13 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 
 	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
+	// Process imports and merge imported scripts
+	allScripts, err := processScriptImports(scriptData.Scripts, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing script imports: %w", err)
+	}
+	scriptData.Scripts = allScripts
+
 	// Filter scripts based on active profiles
 	filteredScripts := helpers.FilterByProfiles(scriptData.Scripts, initConfig.Variables.Flags.Profiles)
 
@@ -173,4 +180,50 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	}
 
 	return nil
+}
+
+func processScriptImports(scripts []types.Script, blueprintDir string, format string) ([]types.Script, error) {
+	allScripts := make([]types.Script, 0)
+	visited := make(map[string]bool)
+
+	for _, script := range scripts {
+		if script.Import != "" {
+			log.Debugf("Processing script import: %s", script.Import)
+
+			importPath := filepath.Join(blueprintDir, script.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedScriptData types.ScriptData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedScriptData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allScripts = append(allScripts, importedScriptData.Scripts...)
+			log.Debugf("Imported %d scripts from %s", len(importedScriptData.Scripts), script.Import)
+		} else {
+			allScripts = append(allScripts, script)
+		}
+	}
+
+	return allScripts, nil
 }

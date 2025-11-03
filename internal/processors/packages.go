@@ -2,6 +2,8 @@ package processors
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -25,6 +27,60 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 	if packages == nil || len(packages.Packages) == 0 {
 		return nil
 	}
+
+	// Process imports and merge imported packages
+	blueprintDir := initConfig.Init.Location
+	allPackages := make([]types.Package, 0)
+	visited := make(map[string]bool)
+
+	for _, pkg := range packages.Packages {
+		if pkg.Import != "" {
+			// This is an import directive
+			log.Debugf("Processing package import: %s", pkg.Import)
+
+			importPath := filepath.Join(blueprintDir, pkg.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			// Check for circular import
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			// Read the import file
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			// Determine format from file extension if not explicitly provided
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			// Unmarshal the imported package data
+			var importedPkgData types.PackagesData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedPkgData); err != nil {
+				return fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			// Add imported packages to our list
+			allPackages = append(allPackages, importedPkgData.Packages...)
+			log.Debugf("Imported %d packages from %s", len(importedPkgData.Packages), pkg.Import)
+		} else {
+			// Regular package entry
+			allPackages = append(allPackages, pkg)
+		}
+	}
+
+	// Update packages with merged list
+	packages.Packages = allPackages
 
 	// Initialize providers if needed
 	if err := system.InitProviders(); err != nil {
@@ -57,7 +113,6 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 				continue
 			}
 		} else {
-			// Use first available provider
 			for _, p := range available {
 				provider = p
 				break

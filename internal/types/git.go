@@ -16,6 +16,7 @@ type Git struct {
 	URL      string   `mapstructure:"url" yaml:"url,omitempty" json:"url,omitempty" toml:"url,omitempty"`                               // URL of the git repository
 	Branch   string   `mapstructure:"branch,omitempty" yaml:"branch,omitempty" json:"branch,omitempty" toml:"branch,omitempty"`         // Branch of the repository
 	Private  bool     `mapstructure:"private,omitempty" yaml:"private,omitempty" json:"private,omitempty" toml:"private,omitempty"`     // Whether the repository is private
+	Import   string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`         // Import path for external git definitions
 }
 
 type GitData struct {

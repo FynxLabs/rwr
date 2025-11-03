@@ -12,6 +12,18 @@ var allCmd = &cobra.Command{
 	Use:   "all",
 	Short: "Run All Blueprints - New System Initialization",
 	Run: func(cmd *cobra.Command, args []string) {
+		// Handle GitHub OAuth authentication if --gh-auth flag is set
+		if ghAuth {
+			token, err := processors.AuthenticateWithGitHub(initConfig)
+			if err != nil {
+				log.With("err", err).Errorf("GitHub authentication failed")
+				os.Exit(1)
+			}
+			// Update the token in both global var and initConfig
+			ghApiToken = token
+			initConfig.Variables.Flags.GHAPIToken = token
+		}
+
 		log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 		err := processors.All(initConfig, osInfo, nil)
 		if err != nil {

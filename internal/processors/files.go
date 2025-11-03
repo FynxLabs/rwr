@@ -26,6 +26,27 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 		return fmt.Errorf("error unmarshaling file blueprint data: %w", err)
 	}
 
+	// Process imports for files
+	allFiles, err := processFileImports(fileData.Files, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing file imports: %w", err)
+	}
+	fileData.Files = allFiles
+
+	// Process imports for directories
+	allDirectories, err := processDirectoryImports(fileData.Directories, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing directory imports: %w", err)
+	}
+	fileData.Directories = allDirectories
+
+	// Process imports for templates
+	allTemplates, err := processFileImports(fileData.Templates, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing template imports: %w", err)
+	}
+	fileData.Templates = allTemplates
+
 	// Filter files based on active profiles
 	filteredFiles := helpers.FilterByProfiles(fileData.Files, initConfig.Variables.Flags.Profiles)
 	log.Debugf("Filtering files: %d total, %d matching active profiles %v",
@@ -623,4 +644,96 @@ func determineSourceAndTargetPaths(file types.File, blueprintDir string) (string
 	}
 
 	return sourcePath, targetPath, nil
+}
+
+func processFileImports(files []types.File, blueprintDir string, format string) ([]types.File, error) {
+	allFiles := make([]types.File, 0)
+	visited := make(map[string]bool)
+
+	for _, file := range files {
+		if file.Import != "" {
+			log.Debugf("Processing file import: %s", file.Import)
+
+			importPath := filepath.Join(blueprintDir, file.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedFileData types.FileData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedFileData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allFiles = append(allFiles, importedFileData.Files...)
+			log.Debugf("Imported %d files from %s", len(importedFileData.Files), file.Import)
+		} else {
+			allFiles = append(allFiles, file)
+		}
+	}
+
+	return allFiles, nil
+}
+
+func processDirectoryImports(directories []types.Directory, blueprintDir string, format string) ([]types.Directory, error) {
+	allDirectories := make([]types.Directory, 0)
+	visited := make(map[string]bool)
+
+	for _, dir := range directories {
+		if dir.Import != "" {
+			log.Debugf("Processing directory import: %s", dir.Import)
+
+			importPath := filepath.Join(blueprintDir, dir.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedFileData types.FileData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedFileData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allDirectories = append(allDirectories, importedFileData.Directories...)
+			log.Debugf("Imported %d directories from %s", len(importedFileData.Directories), dir.Import)
+		} else {
+			allDirectories = append(allDirectories, dir)
+		}
+	}
+
+	return allDirectories, nil
 }

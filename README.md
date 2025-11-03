@@ -7,6 +7,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 ## Features
 
 - **Blueprint-based Configuration**: Uses configuration files called blueprints to define and manage your system's configuration
+- **Blueprint Imports**: Share and reuse blueprint configurations across multiple files and projects
 - **Profile System**: Additive profile model for managing different environments (dev, staging, production) or use cases (work, personal)
 - **Multi-format Support**: Blueprints can be written in YAML, JSON, or TOML format
 - **Cross-platform Package Management**: Integrates with various package managers across Linux, macOS, and Windows
@@ -32,6 +33,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 - [Getting Started](#getting-started)
 - [Configuration](#configuration)
 - [Profile System](#profile-system)
+- [Blueprint Imports](#blueprint-imports)
 - [Blueprint Types](#blueprint-types)
 - [Documentation](#documentation)
   - [Documentation Index](#documentation-index)
@@ -141,6 +143,29 @@ rwr all --profiles dev,work
 ```
 
 For detailed information, see the [Profile System documentation](docs/profiles.md).
+
+## Blueprint Imports
+
+RWR supports importing blueprint definitions from other files, enabling you to share common configurations across multiple systems:
+
+```yaml
+packages:
+  # Import shared packages from another file
+  - import: ../../Common/packages/base.yaml
+  # Add system-specific packages
+  - names:
+      - custom-package
+    action: install
+```
+
+Import features:
+
+- **Relative Paths**: Import paths are resolved relative to the blueprint directory
+- **Circular Detection**: Automatically prevents infinite import loops
+- **All Blueprint Types**: Works with packages, files, services, git, scripts, and more
+- **Profile Support**: Imported items respect profile filtering
+
+See the [examples/imports/](examples/imports/) directory for detailed examples.
 
 ## Blueprint Types
 

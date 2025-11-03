@@ -1,0 +1,16 @@
+packages:
+  # Import common base AUR packages shared with Archcraft
+  # See: Common/packages/arch/base-aur.yaml
+  - import: ../../Common/packages/arch/base-aur.yaml
+  # Arch-specific AUR packages not in Archcraft
+  - names:
+      - nvm
+      - gosec
+      - protontricks
+      - protonup-qt-bin
+      - opencl-amd
+      - r8126-dkms
+      - nsis
+      - uno-calculator-bin
+    action: install
+    package_manager: paru

@@ -28,12 +28,34 @@ The following settings are available for each repository in the Git blueprint:
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes | A unique name for the repository |
+| `name` | Yes, if `import` is not provided | A unique name for the repository |
+| `import` | Yes, if `name` is not provided | Path to import git repository definitions from another file (relative to blueprint directory) |
 | `action` | Yes | The action to perform (`clone` is the only supported action) |
 | `url` | Yes | The URL of the Git repository to clone |
 | `branch` | No | The branch to clone (defaults to the repository's default branch) |
 | `path` | Yes | The local path where the repository should be cloned |
 | `private` | No | Indicates whether the repository is private (defaults to `false`) |
+| `profiles` | No | List of profiles this repository belongs to. If empty, repository is always cloned (base item) |
+
+## Blueprint Imports
+
+Import git repository definitions from other files:
+
+```yaml
+git:
+  # Import shared repositories
+  - import: ../../Common/git/base-repos.yaml
+
+  # Add project-specific repositories
+  - name: my-project
+    action: clone
+    url: https://github.com/username/my-project.git
+    path: ~/projects/my-project
+    profiles:
+      - dev
+```
+
+This allows you to maintain common repository lists separately from project-specific ones.
 
 ## Private Repositories
 

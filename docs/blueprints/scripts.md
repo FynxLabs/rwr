@@ -123,7 +123,8 @@ The Scripts blueprint supports the following fields:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | Yes | The name of the script. |
+| `name` | Yes, if `import` is not provided | The name of the script. |
+| `import` | Yes, if `name` is not provided | Path to import script definitions from another file (relative to blueprint directory) |
 | `profiles` | No | List of profiles this script belongs to. If empty, script always runs (base item). |
 | `action` | Yes | The action to perform with the script. Currently, only `run` is supported. |
 | `exec` | No | The script interpreter/executor (e.g., `bash`, `python`, `ruby`, `powershell`, `self`). Auto-detected if not specified. |
@@ -134,7 +135,29 @@ The Scripts blueprint supports the following fields:
 | `log` | No | Log name for script output. |
 
 > [!NOTE]
-> Either the `source` or `content` field must be provided. If both are present, `source` takes precedence.
+> Either the `source`, `content`, or `import` field must be provided. If both `source` and `content` are present, `source` takes precedence.
+
+## Blueprint Imports
+
+Import script definitions from other files:
+
+```yaml
+scripts:
+  # Import common setup scripts
+  - import: ../../Common/scripts/base-setup.yaml
+
+  # Add environment-specific scripts
+  - name: custom_setup
+    content: |
+      #!/bin/bash
+      echo "Running custom setup..."
+    action: run
+    exec: bash
+    profiles:
+      - dev
+```
+
+This allows you to reuse common scripts across multiple configurations.
 
 ## Script Execution
 

@@ -8,6 +8,7 @@ type Package struct {
 	PackageManager string   `mapstructure:"package_manager,omitempty" yaml:"package_manager,omitempty" json:"package_manager,omitempty" toml:"package_manager,omitempty"`
 	Names          []string `mapstructure:"names,omitempty" yaml:"names,omitempty" json:"names,omitempty" toml:"names,omitempty"`
 	Args           []string `mapstructure:"args,omitempty" yaml:"args,omitempty" json:"args,omitempty" toml:"args,omitempty"`
+	Import         string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
 }
 
 type PackagesData struct {

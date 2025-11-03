@@ -24,7 +24,8 @@ The following settings are available for each repository in the Repositories Blu
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes | The name of the repository |
+| `name` | Yes, if `import` is not provided | The name of the repository |
+| `import` | Yes, if `name` is not provided | Path to import repository definitions from another file (relative to blueprint directory) |
 | `package_manager` | Yes | The package manager associated with the repository (e.g., apt, brew, dnf, zypper, pacman, choco, scoop) |
 | `action` | Yes | The action to perform on the repository (`add` or `remove`) |
 | `url` | Yes | The URL of the repository |
@@ -32,6 +33,28 @@ The following settings are available for each repository in the Repositories Blu
 | `channel` | No | The channel of the repository (applicable for some package managers) |
 | `component` | No | The component of the repository (applicable for some package managers) |
 | `repository` | No | The name of the repository (applicable for some package managers) |
+| `profiles` | No | List of profiles this repository belongs to. If empty, repository is always managed (base item) |
+
+## Blueprint Imports
+
+Import repository definitions from other files:
+
+```yaml
+repositories:
+  # Import shared repositories
+  - import: ../../Common/repositories/base-repos.yaml
+
+  # Add environment-specific repositories
+  - name: custom-repo
+    package_manager: apt
+    action: add
+    url: https://custom.example.com/repo
+    key_url: https://custom.example.com/gpg
+    profiles:
+      - production
+```
+
+This allows you to maintain common repository configurations separately from environment-specific ones.
 
 ## Examples
 

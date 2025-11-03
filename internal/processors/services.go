@@ -3,6 +3,7 @@ package processors
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/fynxlabs/rwr/internal/system"
@@ -21,6 +22,14 @@ func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, 
 	if err != nil {
 		return fmt.Errorf("error unmarshaling service blueprint: %w", err)
 	}
+
+	// Process imports and merge imported services
+	blueprintDir := initConfig.Init.Location
+	allServices, err := processServiceImports(servicesData.Services, blueprintDir, format)
+	if err != nil {
+		return fmt.Errorf("error processing service imports: %w", err)
+	}
+	servicesData.Services = allServices
 
 	// Filter services based on active profiles
 	filteredServices := helpers.FilterByProfiles(servicesData.Services, initConfig.Variables.Flags.Profiles)
@@ -349,4 +358,50 @@ func processWindowsService(service types.Service, osInfo *types.OSInfo, initConf
 
 	log.Infof("Service %s: %s", service.Name, service.Action)
 	return nil
+}
+
+func processServiceImports(services []types.Service, blueprintDir string, format string) ([]types.Service, error) {
+	allServices := make([]types.Service, 0)
+	visited := make(map[string]bool)
+
+	for _, svc := range services {
+		if svc.Import != "" {
+			log.Debugf("Processing service import: %s", svc.Import)
+
+			importPath := filepath.Join(blueprintDir, svc.Import)
+			absPath, err := filepath.Abs(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+			}
+
+			if visited[absPath] {
+				log.Warnf("Circular import detected, skipping: %s", absPath)
+				continue
+			}
+			visited[absPath] = true
+
+			importData, err := os.ReadFile(importPath)
+			if err != nil {
+				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
+			}
+
+			fileFormat := format
+			if fileFormat == "" {
+				ext := filepath.Ext(importPath)
+				fileFormat = ext
+			}
+
+			var importedServiceData types.ServiceData
+			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedServiceData); err != nil {
+				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
+			}
+
+			allServices = append(allServices, importedServiceData.Services...)
+			log.Debugf("Imported %d services from %s", len(importedServiceData.Services), svc.Import)
+		} else {
+			allServices = append(allServices, svc)
+		}
+	}
+
+	return allServices, nil
 }
