@@ -8,7 +8,7 @@ on:
 
 jobs:
   ci:
-    runs-on: warp-ubuntu-2204-x64-4x
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
