@@ -22,7 +22,8 @@ Each service object in the Services Blueprint can have the following properties:
 
 | Property | Required | Description |
 |----------|----------|-------------|
-| `name` | Yes | The name of the service |
+| `name` | Yes, if `import` is not provided | The name of the service |
+| `import` | Yes, if `name` is not provided | Path to import service definitions from another file (relative to blueprint directory) |
 | `profiles` | No | List of profiles this service belongs to. If empty, service is always managed (base item) |
 | `action` | Yes | The action to perform on the service (start, stop, enable, disable, restart, reload, status, create, delete) |
 | `elevated` | No | Whether the service requires elevated privileges (default: false) |
@@ -30,6 +31,25 @@ Each service object in the Services Blueprint can have the following properties:
 | `content` | No | The content of the service file (used with the create action) |
 | `source` | No | The source file for the service (used with the create action) |
 | `file` | No | The file associated with the service (used with the delete action) |
+
+## Blueprint Imports
+
+Import service definitions from other files to share common service configurations:
+
+```yaml
+services:
+  # Import shared base services
+  - import: ../../Common/services/base-services.yaml
+
+  # Add environment-specific services
+  - name: custom-app
+    action: enable
+    elevated: true
+    profiles:
+      - production
+```
+
+This allows you to maintain common service configurations separately from system-specific ones.
 
 ## Supported Actions
 

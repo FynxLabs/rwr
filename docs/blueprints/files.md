@@ -37,8 +37,9 @@ The following settings are available for the Files Blueprint:
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes, if `names` is not provided | The name of the file or template. |
-| `names` | Yes, if `name` is not provided | A list of file names to manage (allows batch operations). |
+| `name` | Yes, if `names` or `import` is not provided | The name of the file or template. |
+| `names` | Yes, if `name` or `import` is not provided | A list of file names to manage (allows batch operations). |
+| `import` | Yes, if `name` or `names` is not provided | Path to import file/template definitions from another file (relative to blueprint directory) |
 | `profiles` | No | List of profiles this file/template belongs to. If empty, file is always processed (base item). |
 | `action` | Yes | The action to perform on the file or template. Valid values are `copy`, `move`, `delete`, `create`, `chmod`, `chown`, `chgrp`, and `symlink`. |
 | `source` | No | The source path or URL of the file or template. Required for `copy` and `move` actions. Can be a local path or a URL. |
@@ -49,6 +50,34 @@ The following settings are available for the Files Blueprint:
 | `mode` | No | The file mode in octal notation. Used for the `chmod` action. |
 | `elevated` | No | Whether to perform the action with elevated privileges. Defaults to `false`. |
 | `variables` | No | A map of variables and their values to be used for template rendering. Only applicable to the `templates` section. |
+
+## Blueprint Imports
+
+Import file and template definitions from other blueprint files:
+
+```yaml
+files:
+  # Import common dotfiles
+  - import: ../../Common/files/dotfiles.yaml
+
+  # Add system-specific files
+  - name: local-config.ini
+    action: create
+    target: /etc/myapp/
+    content: |
+      [settings]
+      local=true
+
+directories:
+  # Import shared directory structure
+  - import: ../shared/directories.yaml
+
+templates:
+  # Import common templates
+  - import: ../../Common/templates/configs.yaml
+```
+
+Import features work for files, directories, and templates within the Files Blueprint.
 
 ## File Processing
 

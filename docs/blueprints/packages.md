@@ -41,15 +41,46 @@ The Packages Blueprint supports the following settings:
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes, if `names` is not provided | The name of the package to manage |
-| `names` | Yes, if `name` is not provided | A list of package names to manage |
+| `name` | Yes, if `names` or `import` is not provided | The name of the package to manage |
+| `names` | Yes, if `name` or `import` is not provided | A list of package names to manage |
+| `import` | Yes, if `name` or `names` is not provided | Path to import package definitions from another file (relative to blueprint directory) |
 | `action` | Yes | The action to perform on the package(s) (`install` or `remove`) |
 | `package_manager` | No | The package manager to use (e.g., `apt`, `brew`, `chocolatey`) |
 | `elevated` | No | Whether to run the package manager with elevated privileges (default: `false`) |
 | `args` | No | Additional arguments to pass to the package manager (as a list of strings) |
 | `profiles` | No | List of profiles this package belongs to. If empty, package is always installed (base item) |
 
-Note that you must provide either `name` or `names` for each package entry. If both are provided, `names` will take precedence.
+Note that you must provide either `name`, `names`, or `import` for each package entry. If both are provided, `names` will take precedence.
+
+## Blueprint Imports
+
+You can import package definitions from other files to share common package lists across multiple configurations:
+
+```yaml
+packages:
+  # Import shared base packages
+  - import: ../../Common/packages/base-packages.yaml
+
+  # Import development tools
+  - import: ../shared/dev-tools.yaml
+
+  # Add system-specific packages
+  - names:
+      - system-specific-tool
+      - custom-package
+    action: install
+    package_manager: apt
+```
+
+Import features:
+
+- Paths are resolved relative to your blueprint directory
+- Prevents circular imports automatically
+- Works with all package managers and formats
+- Imported packages respect profile filtering
+- Multiple imports can be used in a single file
+
+For complete import examples, see [`examples/imports/`](../../examples/imports/).
 
 ## Supported Package Managers
 

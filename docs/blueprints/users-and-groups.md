@@ -48,7 +48,15 @@ An array of user objects representing the user accounts to manage.
 
 #### `name`
 
-The username for the user account.
+The username for the user account (required if `import` is not provided).
+
+#### `import`
+
+Path to import user definitions from another file, relative to blueprint directory (required if `name` is not provided).
+
+#### `profiles`
+
+List of profiles this user belongs to. If empty, user is always managed (base item).
 
 #### `action`
 
@@ -96,7 +104,15 @@ An array of group objects representing the groups to manage.
 
 #### Group `name`
 
-The name of the group.
+The name of the group (required if `import` is not provided).
+
+#### Group `import`
+
+Path to import group definitions from another file, relative to blueprint directory (required if `name` is not provided).
+
+#### Group `profiles`
+
+List of profiles this group belongs to. If empty, group is always managed (base item).
 
 #### Group `action`
 
@@ -231,5 +247,35 @@ new_name = "design_team"
 ```
 
 These examples demonstrate how to define users and groups using the Users and Groups blueprint in YAML, JSON, and TOML formats, including the new options for modifying and removing users and groups.
+
+## Blueprint Imports
+
+Import user and group definitions from other files:
+
+```yaml
+users:
+  # Import shared user accounts
+  - import: ../../Common/users/base-users.yaml
+
+  # Add environment-specific users
+  - name: dev_user
+    action: create
+    password: "$6$secrethash"
+    groups:
+      - developers
+    shell: /bin/bash
+    profiles:
+      - dev
+
+groups:
+  # Import shared groups
+  - import: ../../Common/users/base-groups.yaml
+
+  # Add local groups
+  - name: local_admins
+    action: create
+```
+
+This allows you to maintain common user and group configurations separately from environment-specific ones.
 
 For more information on managing users and groups in RWR, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Best Practices](../best-practices.md) sections of the documentation.

@@ -24,7 +24,8 @@ The following settings are available for each SSH key in the SSH Keys blueprint:
 
 | Setting              | Required | Description                                                                        |
 | -------------------- | -------- | ---------------------------------------------------------------------------------- |
-| `name`               | Yes      | The name of the SSH key file (e.g., `id_rsa`)                                      |
+| `name`               | Yes, if `import` is not provided      | The name of the SSH key file (e.g., `id_rsa`)                                      |
+| `import`             | Yes, if `name` is not provided | Path to import SSH key definitions from another file (relative to blueprint directory) |
 | `type`               | No       | The type of the SSH key (e.g., `rsa`, `dsa`, `ecdsa`, `ed25519`). Default is `rsa` |
 | `path`               | No       | The directory where the SSH key will be stored. Default is `~/.ssh`                |
 | `comment`            | No       | A comment to include in the SSH key (e.g., email address)                          |
@@ -32,6 +33,29 @@ The following settings are available for each SSH key in the SSH Keys blueprint:
 | `copy_to_github`     | No       | Set to `true` to copy the public key to your GitHub account. Default is `false`    |
 | `github_title`       | No       | The title to use for the SSH key when copying it to GitHub                         |
 | `set_as_rwr_ssh_key` | No       | Set to `true` to use this key as the default RWR SSH key. Default is `false`       |
+| `profiles`           | No       | List of profiles this SSH key belongs to. If empty, key is always generated (base item) |
+
+## Blueprint Imports
+
+Import SSH key definitions from other files:
+
+```yaml
+ssh_keys:
+  # Import common SSH keys
+  - import: ../../Common/ssh_keys/base-keys.yaml
+
+  # Add machine-specific keys
+  - name: id_ed25519_work
+    type: ed25519
+    path: ~/.ssh
+    comment: work@example.com
+    copy_to_github: true
+    github_title: Work Machine Key
+    profiles:
+      - work
+```
+
+This allows you to share SSH key configurations across multiple machines.
 
 ## Generating SSH Keys
 
