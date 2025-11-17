@@ -1,3 +1,8 @@
+// Package processors handles the execution of blueprint-defined operations.
+// It processes various components including packages, repositories, files,
+// services, Git configurations, scripts, SSH keys, fonts, and user management.
+// The package orchestrates the complete blueprint workflow, from initialization
+// and bootstrap to final configuration application on the target system.
 package processors
 
 import (

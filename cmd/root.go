@@ -1,3 +1,8 @@
+// Package cmd provides the command-line interface for rwr (Rinse, Wash, and Repeat).
+// It implements CLI commands using the Cobra framework for managing Linux system
+// packages, repositories, and configuration through blueprint files. The package
+// handles initialization, configuration management, and command execution for the
+// distrohopper's toolkit.
 package cmd
 
 import (

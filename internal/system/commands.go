@@ -1,3 +1,8 @@
+// Package system provides system-level operations and abstractions for rwr.
+// It handles command execution, operating system detection, package manager
+// discovery, file operations, and cross-platform compatibility. The package
+// supports Linux, macOS, and Windows systems, providing utilities for path
+// management, embedded file handling, and interactive user prompts.
 package system
 
 import (
