@@ -10,7 +10,12 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// ValidateProviders validates provider configuration files
+// ValidateProviders validates provider configuration files.
+// It checks provider TOML files for required fields, validates detection
+// settings, commands, and action steps. The function can validate a single
+// provider file or all provider files in a directory. It also verifies that
+// specified distributions and binaries are properly configured.
+// Returns an error if validation encounters a critical failure.
 func ValidateProviders(path string, verbose bool, results *types.ValidationResults, osInfo *types.OSInfo) error {
 	log.Infof("Validating providers in %s", path)
 

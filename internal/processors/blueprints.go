@@ -12,6 +12,10 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
+// GetBlueprints retrieves blueprints from a Git repository or local location.
+// If Git options are configured in the init file, it clones or updates the
+// blueprint repository. Otherwise, it returns the configured local location.
+// Returns the path to the blueprints directory or an error if retrieval fails.
 func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 	// Check if GitOptions is provided in the init configuration
 	if initConfig.Init.Git != nil {
@@ -79,6 +83,11 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 	return location, nil
 }
 
+// GetBlueprintRunOrder determines the order in which blueprint processors should run.
+// If a custom order is specified in the init configuration, it uses that order.
+// Otherwise, it returns the default processor execution order (packageManagers,
+// repositories, packages, ssh_keys, files, fonts, services, git, scripts, configuration).
+// Returns a slice of processor names in execution order.
 func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 	var runOrder []string
 
@@ -100,6 +109,12 @@ func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 	return runOrder, nil
 }
 
+// GetBlueprintFileOrder builds a mapping of processors to their blueprint files.
+// It processes files in the specified order and optionally scans for additional
+// files if runOnlyListed is false. The function walks directory trees and identifies
+// which processor each blueprint file belongs to based on the file path structure.
+// Returns a map of processor names to slices of blueprint file paths, or an error
+// if file scanning fails.
 func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyListed bool, initConfig *types.InitConfig) (map[string][]string, error) {
 	fileOrder := make(map[string][]string)
 

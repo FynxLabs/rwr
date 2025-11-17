@@ -82,6 +82,10 @@ var (
 	osInfo           *types.OSInfo
 )
 
+// initializeSystemInfo initializes system configuration and loads the init file.
+// It searches for init files in the configured location or current directory,
+// sets up system paths, processes the initialization configuration, retrieves
+// blueprints from Git if configured, and detects the operating system.
 func initializeSystemInfo() {
 	var err error
 
@@ -157,6 +161,11 @@ func initializeSystemInfo() {
 	osInfo = system.DetectOS()
 }
 
+// init initializes the Cobra command structure and sets up persistent flags.
+// It registers the config function to run on initialization, configures all
+// command-line flags including debug mode, init file path, GitHub authentication,
+// SSH keys, profiles, and version checking. Flags are bound to viper for
+// configuration file integration.
 func init() {
 	cobra.OnInitialize(config)
 	var err error
@@ -228,6 +237,11 @@ func init() {
 	viper.AutomaticEnv()
 }
 
+// config sets up logging configuration and initializes application directories.
+// It creates the config directory at ~/.config/rwr and the run_once directory
+// for tracking bootstrap operations. The function also configures the logger
+// with appropriate output settings and log levels based on flags and configuration.
+// It reads the config file if available and sets up GitHub API tokens and SSH keys.
 func config() {
 	// Create a new logger
 	log.SetTimeFormat(time.Kitchen)
@@ -288,6 +302,9 @@ func config() {
 	sshKey = viper.GetString("repository.ssh_private_key")
 }
 
+// Execute runs the root command and handles any errors that occur during execution.
+// This is the main entry point for the CLI application and should be called from main.
+// It exits with status code 1 if an error occurs.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		log.With("err", err).Fatalf("Error executing command")

@@ -18,6 +18,10 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// RunCommand executes a system command with the specified configuration.
+// It handles elevated (sudo) execution, running commands as specific users,
+// setting environment variables, and configuring input/output streams based
+// on the interactive flag and debug mode. Returns an error if the command fails.
 func RunCommand(cmd types.Command, debug bool) error {
 	var command *exec.Cmd
 
@@ -72,7 +76,10 @@ func RunCommand(cmd types.Command, debug bool) error {
 	return nil
 }
 
-// RunCommandOutput runs a command and returns the output as a string.
+// RunCommandOutput executes a system command and returns its output as a string.
+// It handles elevated execution and running as specific users, similar to RunCommand,
+// but captures and returns stdout instead of streaming it. Returns the command output
+// and an error if the command fails.
 func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
 	var command *exec.Cmd
 
@@ -146,12 +153,16 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) {
 	}
 }
 
-// CommandExists Checks if a command exists in the system.
+// CommandExists checks if a command exists in the system's PATH.
+// It returns true if the command is found, false otherwise.
 func CommandExists(cmd string) bool {
 	_, err := exec.LookPath(cmd)
 	return err == nil
 }
 
+// GetBinPath returns the absolute path to the specified binary.
+// It searches for the binary in the system's PATH and returns a cleaned
+// absolute path. Returns an error if the binary is not found.
 func GetBinPath(binName string) (string, error) {
 	path, err := exec.LookPath(binName)
 	if err != nil {
