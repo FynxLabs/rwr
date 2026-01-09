@@ -1,3 +1,8 @@
+// Package helpers provides utility functions for blueprint processing.
+// It includes profile filtering, import resolution, blueprint unmarshaling,
+// Git operations, and configuration file creation. These helper functions
+// support the core blueprint processing workflow by handling common tasks
+// such as template rendering, system checks, and blueprint file parsing.
 package helpers
 
 import (

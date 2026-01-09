@@ -9,7 +9,11 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// ValidatePackages validates package definitions
+// ValidatePackages validates package definitions.
+// It checks that each package has required fields (name, action) and validates
+// that the action is one of the supported types (install, remove, update).
+// It also verifies that specified package managers exist in the system.
+// Validation issues are added to the results parameter.
 func ValidatePackages(packages []types.Package, file string, results *types.ValidationResults) {
 	for i, pkg := range packages {
 		if pkg.Name == "" {
@@ -38,7 +42,11 @@ func ValidatePackages(packages []types.Package, file string, results *types.Vali
 	}
 }
 
-// ValidateRepositories validates repository definitions
+// ValidateRepositories validates repository definitions.
+// It checks that each repository has required fields (name, package_manager, action)
+// and validates that the action is either 'add' or 'remove'. It also verifies
+// that specified package managers exist and that add actions have a URL.
+// Validation issues are added to the results parameter.
 func ValidateRepositories(repositories []types.Repository, file string, results *types.ValidationResults) {
 	for i, repo := range repositories {
 		if repo.Name == "" {
@@ -67,7 +75,11 @@ func ValidateRepositories(repositories []types.Repository, file string, results 
 	}
 }
 
-// ValidateFiles validates file definitions
+// ValidateFiles validates file definitions.
+// It checks that each file has required fields (target, action) and validates
+// that the action is one of the supported types (create, delete, append, template).
+// It verifies that create/append/template actions have content or source, and
+// warns about relative paths. Validation issues are added to the results parameter.
 func ValidateFiles(files []types.File, file string, results *types.ValidationResults) {
 	for i, f := range files {
 		if f.Target == "" {
@@ -93,7 +105,10 @@ func ValidateFiles(files []types.File, file string, results *types.ValidationRes
 	}
 }
 
-// ValidateGitRepositories validates git repository definitions
+// ValidateGitRepositories validates git repository definitions.
+// It checks that each git repository has required fields (url, path) and
+// warns about relative paths that should use absolute paths or ~ prefix.
+// Validation issues are added to the results parameter.
 func ValidateGitRepositories(gitRepositories []types.Git, file string, results *types.ValidationResults) {
 	for i, repo := range gitRepositories {
 		if repo.URL == "" {
@@ -111,7 +126,10 @@ func ValidateGitRepositories(gitRepositories []types.Git, file string, results *
 	}
 }
 
-// ValidateScripts validates script definitions
+// ValidateScripts validates script definitions.
+// It checks that each script has a name and either an exec command or content.
+// At least one of exec or content must be specified for the script to be valid.
+// Validation issues are added to the results parameter.
 func ValidateScripts(scripts []types.Script, file string, results *types.ValidationResults) {
 	for i, script := range scripts {
 		if script.Name == "" {
@@ -124,7 +142,10 @@ func ValidateScripts(scripts []types.Script, file string, results *types.Validat
 	}
 }
 
-// ValidateServices validates service definitions
+// ValidateServices validates service definitions.
+// It checks that each service has required fields (name, action) and validates
+// that the action is one of the supported types (enable, disable, start, stop, restart).
+// Validation issues are added to the results parameter.
 func ValidateServices(services []types.Service, file string, results *types.ValidationResults) {
 	for i, service := range services {
 		if service.Name == "" {
@@ -139,7 +160,10 @@ func ValidateServices(services []types.Service, file string, results *types.Vali
 	}
 }
 
-// ValidateSSHKeys validates SSH key definitions
+// ValidateSSHKeys validates SSH key definitions.
+// It checks that each SSH key has a name and validates the key type if specified
+// (rsa, ed25519, ecdsa are recommended). It also verifies that paths are absolute
+// or use the ~ prefix. Validation issues are added to the results parameter.
 func ValidateSSHKeys(sshKeys []types.SSHKey, file string, results *types.ValidationResults) {
 	for i, key := range sshKeys {
 		if key.Name == "" {
@@ -160,7 +184,10 @@ func ValidateSSHKeys(sshKeys []types.SSHKey, file string, results *types.Validat
 	}
 }
 
-// ValidateUsers validates user definitions
+// ValidateUsers validates user definitions.
+// It checks that each user has required fields (name, action) and validates
+// that the action is one of the supported types (create, modify, delete).
+// Validation issues are added to the results parameter.
 func ValidateUsers(users []types.User, file string, results *types.ValidationResults) {
 	for i, user := range users {
 		if user.Name == "" {

@@ -11,7 +11,11 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// ValidateBlueprints validates blueprint files in the specified directory
+// ValidateBlueprints validates blueprint files in the specified directory.
+// It searches for an init file, validates its structure, and then validates
+// all blueprint files in the directory with matching extensions. Each blueprint
+// file is validated based on its type (packages, repositories, files, git, etc.).
+// Returns an error if validation encounters a critical failure.
 func ValidateBlueprints(path string, verbose bool, results *types.ValidationResults, osInfo *types.OSInfo) error {
 	log.Infof("Validating blueprints in %s", path)
 
