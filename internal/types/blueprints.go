@@ -1,3 +1,7 @@
+// Package types defines data structures and type definitions used throughout rwr.
+// It provides type definitions for blueprints, configuration, initialization,
+// packages, repositories, services, files, users, validation, and system information.
+// These types form the core data model for blueprint processing and system management.
 package types
 
 type Init struct {

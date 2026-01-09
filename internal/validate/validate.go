@@ -1,3 +1,8 @@
+// Package validate provides validation functionality for blueprints and providers.
+// It validates blueprint structure, component definitions, bootstrap configurations,
+// and provider availability. The package reports validation issues with severity
+// levels (error, warning, info) and provides detailed feedback for troubleshooting
+// blueprint configuration problems.
 package validate
 
 import (

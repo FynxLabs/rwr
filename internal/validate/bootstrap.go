@@ -6,7 +6,11 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// ValidateBootstrap validates a bootstrap configuration
+// ValidateBootstrap validates a bootstrap configuration.
+// It validates all components within a bootstrap file including packages,
+// files, directories, git repositories, SSH keys, services, groups, and users.
+// Each component is validated for required fields and proper structure.
+// Validation issues are added to the results parameter.
 func ValidateBootstrap(bootstrap types.BootstrapData, blueprintFile string, results *types.ValidationResults) {
 	// Validate packages
 	if bootstrap.Packages != nil {
