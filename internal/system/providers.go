@@ -93,100 +93,20 @@ func GetPackageManagerInfo(provider *types.Provider, binPath string) PackageMana
 func GetAvailableProviders() map[string]*types.Provider {
 	available := make(map[string]*types.Provider)
 
-	log.Debugf("GetAvailableProviders: Starting provider detection")
-
-	// Initialize providers if needed
 	if err := InitProviders(); err != nil {
 		log.Errorf("GetAvailableProviders: Error initializing providers: %v", err)
 		return available
 	}
 
-	log.Debugf("GetAvailableProviders: Loaded %d total providers: %v", len(providers), getProviderNames())
+	currentOS, currentDistro := getSystemInfo()
+	log.Debugf("GetAvailableProviders: Loaded %d providers, OS: %s, distro: %s", len(providers), currentOS, currentDistro)
 
-	// Get current OS
-	currentOS := runtime.GOOS
-	log.Debugf("GetAvailableProviders: Current OS: %s", currentOS)
-
-	// Get Linux distribution if on Linux
-	var currentDistro string
-	if currentOS == "linux" {
-		currentDistro = getLinuxDistro()
-		log.Debugf("GetAvailableProviders: Current Linux distribution: %s", currentDistro)
-	}
-
-	// Check each provider
 	for name, provider := range providers {
-		log.Debugf("GetAvailableProviders: Checking provider %s", name)
-		log.Debugf("GetAvailableProviders: Provider %s binary: %s", name, provider.Detection.Binary)
-		log.Debugf("GetAvailableProviders: Provider %s supported distributions: %v", name, provider.Detection.Distributions)
-		log.Debugf("GetAvailableProviders: Provider %s required files: %v", name, provider.Detection.Files)
-
-		// Check if provider supports current OS/distro
-		supportsSystem := false
-		for _, dist := range provider.Detection.Distributions {
-			// For Linux, any provider that supports "linux" works for all distros
-			if currentOS == "linux" && (dist == types.OSLinux || dist == currentDistro || IsDistroInFamily(currentDistro, dist)) {
-				log.Debugf("GetAvailableProviders: Provider %s supports Linux (dist: %s matches %s)", name, dist, currentDistro)
-				supportsSystem = true
-				break
-			}
-
-			// For non-Linux, check exact OS match
-			if dist == currentOS {
-				log.Debugf("GetAvailableProviders: Provider %s supports platform %s", name, currentOS)
-				supportsSystem = true
-				break
-			}
+		if binPath, ok := isProviderAvailable(provider, currentOS, currentDistro); ok {
+			provider.BinPath = binPath
+			available[name] = provider
+			log.Infof("GetAvailableProviders: Provider %s is available with binary at %s", name, binPath)
 		}
-		if !supportsSystem {
-			log.Debugf("GetAvailableProviders: Provider %s does not support current system %s/%s", name, currentOS, currentDistro)
-			continue
-		}
-
-		log.Debugf("GetAvailableProviders: Provider %s is system-compatible, checking binary availability", name)
-
-		// Check if binary exists using FindTool
-		tool := FindTool(provider.Detection.Binary)
-		if !tool.Exists {
-			log.Debugf("GetAvailableProviders: Provider %s binary '%s' not found in PATH", name, provider.Detection.Binary)
-			continue
-		}
-		binPath := tool.Bin
-		log.Debugf("GetAvailableProviders: Provider %s binary found at: %s", name, binPath)
-
-		// Check if required files exist
-		filesExist := true
-		var missingFiles []string
-		for _, file := range provider.Detection.Files {
-			// Expand ~ to home directory if needed
-			expandedFile := file
-			if file[0] == '~' {
-				home, err := os.UserHomeDir()
-				if err != nil {
-					log.Debugf("GetAvailableProviders: Provider %s - error getting home directory for file %s: %v", name, file, err)
-					filesExist = false
-					missingFiles = append(missingFiles, file)
-					continue
-				}
-				expandedFile = filepath.Join(home, file[1:])
-			}
-			if _, err := os.Stat(expandedFile); err != nil {
-				log.Debugf("GetAvailableProviders: Provider %s required file missing: %s (expanded: %s) - %v", name, file, expandedFile, err)
-				filesExist = false
-				missingFiles = append(missingFiles, file)
-			} else {
-				log.Debugf("GetAvailableProviders: Provider %s required file found: %s", name, expandedFile)
-			}
-		}
-		if !filesExist {
-			log.Debugf("GetAvailableProviders: Provider %s missing required files: %v", name, missingFiles)
-			continue
-		}
-
-		// Provider is available
-		provider.BinPath = binPath
-		available[name] = provider
-		log.Infof("GetAvailableProviders: Provider %s is available with binary at %s", name, binPath)
 	}
 
 	log.Debugf("GetAvailableProviders: Found %d available providers: %v", len(available), getAvailableProviderNames(available))
@@ -196,6 +116,71 @@ func GetAvailableProviders() map[string]*types.Provider {
 	}
 
 	return available
+}
+
+// getSystemInfo returns the current OS and Linux distribution (empty for non-Linux).
+func getSystemInfo() (string, string) {
+	currentOS := runtime.GOOS
+	var currentDistro string
+	if currentOS == "linux" {
+		currentDistro = getLinuxDistro()
+	}
+	return currentOS, currentDistro
+}
+
+// isProviderAvailable checks if a provider is usable on the current system by
+// verifying OS/distro support, binary availability, and required files.
+// Returns the binary path and true if available.
+func isProviderAvailable(provider *types.Provider, currentOS, currentDistro string) (string, bool) {
+	if !supportsSystem(provider, currentOS, currentDistro) {
+		log.Debugf("GetAvailableProviders: Provider %s does not support %s/%s", provider.Name, currentOS, currentDistro)
+		return "", false
+	}
+
+	tool := FindTool(provider.Detection.Binary)
+	if !tool.Exists {
+		log.Debugf("GetAvailableProviders: Provider %s binary '%s' not found", provider.Name, provider.Detection.Binary)
+		return "", false
+	}
+
+	if !areRequiredFilesPresent(provider) {
+		return "", false
+	}
+
+	return tool.Bin, true
+}
+
+// supportsSystem checks if a provider's distribution list matches the current OS/distro.
+func supportsSystem(provider *types.Provider, currentOS, currentDistro string) bool {
+	for _, dist := range provider.Detection.Distributions {
+		if currentOS == "linux" && (dist == types.OSLinux || dist == currentDistro || IsDistroInFamily(currentDistro, dist)) {
+			return true
+		}
+		if dist == currentOS {
+			return true
+		}
+	}
+	return false
+}
+
+// areRequiredFilesPresent checks that all files listed in provider.Detection.Files exist.
+func areRequiredFilesPresent(provider *types.Provider) bool {
+	for _, file := range provider.Detection.Files {
+		expandedFile := file
+		if file[0] == '~' {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				log.Debugf("GetAvailableProviders: Provider %s - error expanding %s: %v", provider.Name, file, err)
+				return false
+			}
+			expandedFile = filepath.Join(home, file[1:])
+		}
+		if _, err := os.Stat(expandedFile); err != nil {
+			log.Debugf("GetAvailableProviders: Provider %s missing required file: %s", provider.Name, expandedFile)
+			return false
+		}
+	}
+	return true
 }
 
 // GetProvider returns a specific provider by name from the available providers.
@@ -384,29 +369,17 @@ func GetDefaultProviderFromOSRelease() string {
 // GetProviderForDistro returns the first available provider whose detection
 // distributions list includes the given distro name.
 func GetProviderForDistro(distro string) (*types.Provider, bool) {
-	// Initialize providers if needed
 	if err := InitProviders(); err != nil {
 		log.Errorf("GetProviderForDistro: Error initializing providers: %v", err)
 		return nil, false
 	}
 
-	// Check each provider's supported distributions
+	currentOS := runtime.GOOS
 	for _, provider := range providers {
-		for _, dist := range provider.Detection.Distributions {
-			// For Linux, any provider that supports "linux" works for all distros
-			if runtime.GOOS == "linux" && (dist == types.OSLinux || dist == distro || IsDistroInFamily(distro, dist)) {
-				if tool := FindTool(provider.Detection.Binary); tool.Exists {
-					provider.BinPath = tool.Bin
-					return provider, true
-				}
-			}
-
-			// For non-Linux, check exact OS match
-			if dist == runtime.GOOS {
-				if tool := FindTool(provider.Detection.Binary); tool.Exists {
-					provider.BinPath = tool.Bin
-					return provider, true
-				}
+		if supportsSystem(provider, currentOS, distro) {
+			if tool := FindTool(provider.Detection.Binary); tool.Exists {
+				provider.BinPath = tool.Bin
+				return provider, true
 			}
 		}
 	}
@@ -492,43 +465,16 @@ func logDetectionSummary(currentOS, currentDistro string) {
 		log.Errorf("  Supported distributions: %v", provider.Detection.Distributions)
 		log.Errorf("  Required files: %v", provider.Detection.Files)
 
-		// Check system compatibility
-		compatible := false
-		for _, dist := range provider.Detection.Distributions {
-			if currentOS == "linux" && (dist == types.OSLinux || dist == currentDistro || IsDistroInFamily(currentDistro, dist)) {
-				compatible = true
-				break
-			}
-			if dist == currentOS {
-				compatible = true
-				break
-			}
-		}
+		compatible := supportsSystem(provider, currentOS, currentDistro)
 		log.Errorf("  System compatible: %v", compatible)
 
 		if compatible {
-			// Check binary
 			tool := FindTool(provider.Detection.Binary)
 			log.Errorf("  Binary found: %v", tool.Exists)
 			if tool.Exists {
 				log.Errorf("  Binary path: %s", tool.Bin)
 			}
-
-			// Check files
-			allFilesExist := true
-			for _, file := range provider.Detection.Files {
-				expandedFile := file
-				if file[0] == '~' {
-					if home, err := os.UserHomeDir(); err == nil {
-						expandedFile = filepath.Join(home, file[1:])
-					}
-				}
-				if _, err := os.Stat(expandedFile); err != nil {
-					log.Errorf("  Missing file: %s", expandedFile)
-					allFilesExist = false
-				}
-			}
-			log.Errorf("  All files exist: %v", allFilesExist)
+			log.Errorf("  All files exist: %v", areRequiredFilesPresent(provider))
 		}
 		log.Errorf("  ---")
 	}
