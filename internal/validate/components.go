@@ -2,6 +2,7 @@ package validate
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -12,7 +13,12 @@ import (
 // It also verifies that specified package managers exist in the system.
 // Validation issues are added to the results parameter.
 func ValidatePackages(packages []types.Package, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
 	for i, pkg := range packages {
+		if validateImport(pkg.Import, fmt.Sprintf("packages[%d]", i), blueprintDir, file, results, &types.PackagesData{}) {
+			continue
+		}
+
 		validateRequired(pkg.Name, fmt.Sprintf("packages[%d].name", i), file, results, "Add name field to package")
 
 		validateEnum(pkg.Action, fmt.Sprintf("packages[%d].action", i),
@@ -36,7 +42,12 @@ func ValidatePackages(packages []types.Package, file string, results *types.Vali
 // that specified package managers exist and that add actions have a URL.
 // Validation issues are added to the results parameter.
 func ValidateRepositories(repositories []types.Repository, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
 	for i, repo := range repositories {
+		if validateImport(repo.Import, fmt.Sprintf("repositories[%d]", i), blueprintDir, file, results, &types.RepositoriesData{}) {
+			continue
+		}
+
 		validateRequired(repo.Name, fmt.Sprintf("repositories[%d].name", i), file, results, "Add name field to repository")
 
 		validateRequired(repo.PackageManager, fmt.Sprintf("repositories[%d].package_manager", i), file, results, "Add package_manager field to repository")
@@ -57,7 +68,12 @@ func ValidateRepositories(repositories []types.Repository, file string, results 
 // It verifies that create/append/template actions have content or source, and
 // warns about relative paths. Validation issues are added to the results parameter.
 func ValidateFiles(files []types.File, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
 	for i, f := range files {
+		if validateImport(f.Import, fmt.Sprintf("files[%d]", i), blueprintDir, file, results, &types.FileData{}) {
+			continue
+		}
+
 		validateRequired(f.Target, fmt.Sprintf("files[%d].target", i), file, results, "Add target field to file")
 
 		validateEnum(f.Action, fmt.Sprintf("files[%d].action", i),
@@ -78,7 +94,12 @@ func ValidateFiles(files []types.File, file string, results *types.ValidationRes
 // warns about relative paths that should use absolute paths or ~ prefix.
 // Validation issues are added to the results parameter.
 func ValidateGitRepositories(gitRepositories []types.Git, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
 	for i, repo := range gitRepositories {
+		if validateImport(repo.Import, fmt.Sprintf("git[%d]", i), blueprintDir, file, results, &types.GitData{}) {
+			continue
+		}
+
 		validateRequired(repo.URL, fmt.Sprintf("git[%d].url", i), file, results, "Add URL field to git repository")
 		validateRequired(repo.Path, fmt.Sprintf("git[%d].path", i), file, results, "Add path field to git repository")
 
@@ -91,7 +112,12 @@ func ValidateGitRepositories(gitRepositories []types.Git, file string, results *
 // At least one of exec or content must be specified for the script to be valid.
 // Validation issues are added to the results parameter.
 func ValidateScripts(scripts []types.Script, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
 	for i, script := range scripts {
+		if validateImport(script.Import, fmt.Sprintf("scripts[%d]", i), blueprintDir, file, results, &types.ScriptData{}) {
+			continue
+		}
+
 		validateRequired(script.Name, fmt.Sprintf("scripts[%d].name", i), file, results, "Add name field to script")
 
 		if script.Exec == "" && script.Content == "" {
@@ -105,7 +131,12 @@ func ValidateScripts(scripts []types.Script, file string, results *types.Validat
 // that the action is one of the supported types (enable, disable, start, stop, restart).
 // Validation issues are added to the results parameter.
 func ValidateServices(services []types.Service, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
 	for i, service := range services {
+		if validateImport(service.Import, fmt.Sprintf("services[%d]", i), blueprintDir, file, results, &types.ServiceData{}) {
+			continue
+		}
+
 		validateRequired(service.Name, fmt.Sprintf("services[%d].name", i), file, results, "Add name field to service")
 
 		validateEnum(service.Action, fmt.Sprintf("services[%d].action", i),
@@ -118,7 +149,12 @@ func ValidateServices(services []types.Service, file string, results *types.Vali
 // (rsa, ed25519, ecdsa are recommended). It also verifies that paths are absolute
 // or use the ~ prefix. Validation issues are added to the results parameter.
 func ValidateSSHKeys(sshKeys []types.SSHKey, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
 	for i, key := range sshKeys {
+		if validateImport(key.Import, fmt.Sprintf("ssh_keys[%d]", i), blueprintDir, file, results, &types.SSHKeyData{}) {
+			continue
+		}
+
 		validateRequired(key.Name, fmt.Sprintf("ssh_keys[%d].name", i), file, results, "Add name field to SSH key")
 
 		if key.Type == "" {
@@ -140,7 +176,12 @@ func ValidateSSHKeys(sshKeys []types.SSHKey, file string, results *types.Validat
 // that the action is one of the supported types (create, modify, delete).
 // Validation issues are added to the results parameter.
 func ValidateUsers(users []types.User, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
 	for i, user := range users {
+		if validateImport(user.Import, fmt.Sprintf("users[%d]", i), blueprintDir, file, results, &types.UsersData{}) {
+			continue
+		}
+
 		validateRequired(user.Name, fmt.Sprintf("users[%d].name", i), file, results, "Add name field to user")
 
 		validateEnum(user.Action, fmt.Sprintf("users[%d].action", i),

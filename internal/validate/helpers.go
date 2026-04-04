@@ -2,9 +2,11 @@ package validate
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -52,6 +54,58 @@ func validatePath(path string, fieldName string, file string, results *types.Val
 			fmt.Sprintf("Relative path specified for %s: '%s'", fieldName, path),
 			file, 0, "Use absolute path or path with ~ prefix")
 	}
+}
+
+// validateImport checks that an import path references a valid, parseable blueprint file.
+// It verifies the file exists and can be unmarshaled as the expected blueprint type.
+// Returns true if this item is an import (so callers can skip other field validation).
+func validateImport(importPath string, fieldPath string, blueprintDir string, file string, results *types.ValidationResults, target interface{}) bool {
+	if importPath == "" {
+		return false
+	}
+
+	fullPath := filepath.Join(blueprintDir, importPath)
+	absPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		AddIssue(results, types.ValidationError,
+			fmt.Sprintf("Invalid import path '%s' for %s: %v", importPath, fieldPath, err),
+			file, 0, "Use a valid relative path for the import")
+		return true
+	}
+
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
+		AddIssue(results, types.ValidationError,
+			fmt.Sprintf("Import file not found '%s' for %s", importPath, fieldPath),
+			file, 0, "Ensure the import file exists at the specified path")
+		return true
+	}
+
+	// Try to parse the imported file
+	importData, err := os.ReadFile(absPath)
+	if err != nil {
+		AddIssue(results, types.ValidationError,
+			fmt.Sprintf("Cannot read import file '%s' for %s: %v", importPath, fieldPath, err),
+			file, 0, "Check file permissions")
+		return true
+	}
+
+	fileFormat := strings.TrimPrefix(filepath.Ext(absPath), ".")
+	if fileFormat == "" {
+		AddIssue(results, types.ValidationWarning,
+			fmt.Sprintf("Import file '%s' has no extension, cannot determine format", importPath),
+			file, 0, "Use a file with .yaml, .json, or .toml extension")
+		return true
+	}
+
+	if target != nil {
+		if err := helpers.UnmarshalBlueprint(importData, fileFormat, target); err != nil {
+			AddIssue(results, types.ValidationError,
+				fmt.Sprintf("Cannot parse import file '%s' for %s: %v", importPath, fieldPath, err),
+				file, 0, "Check the import file format and structure")
+		}
+	}
+
+	return true
 }
 
 // validateProviderExists checks if a named package manager provider exists.
