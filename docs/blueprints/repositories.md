@@ -34,6 +34,7 @@ The following settings are available for each repository in the Repositories Blu
 | `component` | No | The component of the repository (applicable for some package managers) |
 | `repository` | No | The name of the repository (applicable for some package managers) |
 | `profiles` | No | List of profiles this repository belongs to. If empty, repository is always managed (base item) |
+| `interactive` | No | Override global interactive mode for this repository (`true`/`false`). If omitted, uses the global `--interactive` flag |
 
 ## Blueprint Imports
 

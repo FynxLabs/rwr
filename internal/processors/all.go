@@ -25,6 +25,12 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
+	if system.IsDryRun() {
+		log.Warnf("=== DRY-RUN MODE ===")
+		log.Warnf("No changes will be made to the system")
+		log.Warnf("====================")
+	}
+
 	// First, ensure the blueprint repository is set up
 	_, err = GetBlueprints(initConfig)
 	if err != nil {
@@ -173,9 +179,25 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	}
 
 	// Clean up package managers
-	log.Infof("Cleaning up package managers")
-	if err = system.CleanPackageManagers(osInfo, initConfig); err != nil {
-		return fmt.Errorf("error cleaning package managers: %w", err)
+	if !system.IsDryRun() {
+		log.Infof("Cleaning up package managers")
+		if err = system.CleanPackageManagers(osInfo, initConfig); err != nil {
+			return fmt.Errorf("error cleaning package managers: %w", err)
+		}
+	}
+
+	if system.IsDryRun() {
+		log.Infof("")
+		log.Infof("=== DRY-RUN SUMMARY ===")
+		log.Infof("Processors that would run: %d", len(blueprintRunOrder))
+		for _, p := range blueprintRunOrder {
+			if files, ok := fileOrder[p]; ok {
+				log.Infof("  %s: %d blueprint file(s)", p, len(files))
+			}
+		}
+		log.Infof("=======================")
+		log.Infof("")
+		log.Infof("No changes were made to the system.")
 	}
 
 	log.Info("RWR Run Complete!")

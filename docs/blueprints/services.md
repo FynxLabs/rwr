@@ -31,6 +31,7 @@ Each service object in the Services Blueprint can have the following properties:
 | `content` | No | The content of the service file (used with the create action) |
 | `source` | No | The source file for the service (used with the create action) |
 | `file` | No | The file associated with the service (used with the delete action) |
+| `interactive` | No | Override global interactive mode for this service (`true`/`false`). If omitted, uses the global `--interactive` flag |
 
 ## Blueprint Imports
 

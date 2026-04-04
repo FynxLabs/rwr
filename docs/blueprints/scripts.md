@@ -133,6 +133,7 @@ The Scripts blueprint supports the following fields:
 | `args` | No | Additional arguments to pass to the script. |
 | `elevated` | No | Whether to run the script with elevated privileges. Default is `false`. |
 | `log` | No | Log name for script output. |
+| `interactive` | No | Override global interactive mode for this script (`true`/`false`). If omitted, uses the global `--interactive` flag. |
 
 > [!NOTE]
 > Either the `source`, `content`, or `import` field must be provided. If both `source` and `content` are present, `source` takes precedence.

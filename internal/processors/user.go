@@ -6,11 +6,10 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
-
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
 // ProcessUsers creates, modifies, or removes system users and groups
@@ -69,6 +68,10 @@ func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitCon
 
 func processGroups(groups []types.Group, initConfig *types.InitConfig) error {
 	for _, group := range groups {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would %s group: %s", group.Action, group.Name)
+			continue
+		}
 		switch group.Action {
 		case "create":
 			err := createGroup(group, initConfig)
@@ -94,6 +97,10 @@ func processGroups(groups []types.Group, initConfig *types.InitConfig) error {
 
 func processUsers(users []types.User, initConfig *types.InitConfig) error {
 	for _, user := range users {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would %s user: %s", user.Action, user.Name)
+			continue
+		}
 		switch user.Action {
 		case "create":
 			err := createUser(user, initConfig)
@@ -197,9 +204,10 @@ func createUser(user types.User, initConfig *types.InitConfig) error {
 		}
 		args = append(args, user.Name)
 		createUserCmd := types.Command{
-			Exec:     "useradd",
-			Args:     args,
-			Elevated: true,
+			Exec:        "useradd",
+			Args:        args,
+			Elevated:    true,
+			Interactive: helpers.ResolveInteractive(user.Interactive, initConfig.Variables.Flags.Interactive),
 		}
 		err := system.RunCommand(createUserCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
@@ -246,9 +254,10 @@ func modifyUser(user types.User, initConfig *types.InitConfig) error {
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		modifyUserCmd := types.Command{
-			Exec:     "usermod",
-			Args:     []string{user.Name},
-			Elevated: true,
+			Exec:        "usermod",
+			Args:        []string{user.Name},
+			Elevated:    true,
+			Interactive: helpers.ResolveInteractive(user.Interactive, initConfig.Variables.Flags.Interactive),
 		}
 		if user.NewName != "" {
 			modifyUserCmd.Args = append(modifyUserCmd.Args, "--login", user.NewName)
@@ -312,9 +321,10 @@ func removeUser(user types.User, initConfig *types.InitConfig) error {
 	switch runtime.GOOS {
 	case "linux", "darwin":
 		removeUserCmd := types.Command{
-			Exec:     "userdel",
-			Args:     []string{user.Name},
-			Elevated: true,
+			Exec:        "userdel",
+			Args:        []string{user.Name},
+			Elevated:    true,
+			Interactive: helpers.ResolveInteractive(user.Interactive, initConfig.Variables.Flags.Interactive),
 		}
 		if user.RemoveHome {
 			removeUserCmd.Args = append(removeUserCmd.Args, "--remove")

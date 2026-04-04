@@ -36,6 +36,7 @@ The following settings are available for the Directories Blueprint:
 | `mode` | int | The permissions of the directory in octal notation (for chmod action) |
 | `create` | bool | Whether to create the parent directories if they don't exist (default: false) |
 | `elevated` | bool | Whether to perform the action with elevated privileges (default: false) |
+| `interactive` | bool | Override global interactive mode for this directory (`true`/`false`). If omitted, uses the global `--interactive` flag. Controls whether diffs are shown before overwriting existing files during copy operations |
 
 ## Examples
 

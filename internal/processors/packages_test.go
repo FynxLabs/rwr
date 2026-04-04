@@ -511,3 +511,73 @@ packages:
 		_ = helpers.UnmarshalBlueprint(blueprintData, "yaml", &pkgData)
 	}
 }
+
+// Test interactive override parsing from blueprints
+func TestProcessPackages_InteractiveOverrideParsing(t *testing.T) {
+	blueprintData := []byte(`
+packages:
+  - name: "interactive-pkg"
+    action: "install"
+    interactive: true
+  - name: "non-interactive-pkg"
+    action: "install"
+    interactive: false
+  - name: "default-pkg"
+    action: "install"
+`)
+
+	var pkgData types.PackagesData
+	err := helpers.UnmarshalBlueprint(blueprintData, "yaml", &pkgData)
+	if err != nil {
+		t.Fatalf("Blueprint parsing failed: %v", err)
+	}
+
+	if len(pkgData.Packages) != 3 {
+		t.Fatalf("Expected 3 packages, got %d", len(pkgData.Packages))
+	}
+
+	// First package: interactive=true
+	if pkgData.Packages[0].Interactive == nil {
+		t.Error("Expected interactive to be set for interactive-pkg")
+	} else if !*pkgData.Packages[0].Interactive {
+		t.Error("Expected interactive to be true for interactive-pkg")
+	}
+
+	// Second package: interactive=false
+	if pkgData.Packages[1].Interactive == nil {
+		t.Error("Expected interactive to be set for non-interactive-pkg")
+	} else if *pkgData.Packages[1].Interactive {
+		t.Error("Expected interactive to be false for non-interactive-pkg")
+	}
+
+	// Third package: interactive=nil (use global)
+	if pkgData.Packages[2].Interactive != nil {
+		t.Error("Expected interactive to be nil for default-pkg")
+	}
+}
+
+// Test ResolveInteractive integration for packages
+func TestProcessPackages_ResolveInteractiveIntegration(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
+
+	tests := []struct {
+		name              string
+		pkgInteractive    *bool
+		globalInteractive bool
+		want              bool
+	}{
+		{"nil uses global true", nil, true, true},
+		{"nil uses global false", nil, false, false},
+		{"true overrides global false", boolPtr(true), false, true},
+		{"false overrides global true", boolPtr(false), true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := helpers.ResolveInteractive(tt.pkgInteractive, tt.globalInteractive)
+			if got != tt.want {
+				t.Errorf("ResolveInteractive() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

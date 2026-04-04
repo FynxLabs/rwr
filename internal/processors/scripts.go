@@ -54,6 +54,11 @@ func processScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *ty
 	for _, script := range scripts {
 		log.Debugf("Processing script: %+v", script)
 
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would run script: %s (exec: %s)", script.Name, script.Exec)
+			continue
+		}
+
 		if script.Action == "run" {
 			err := runScript(script, osInfo, initConfig, blueprintDir)
 			if err != nil {
@@ -172,6 +177,9 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 
 	// Set the elevated flag
 	scriptCmd.Elevated = script.Elevated
+
+	// Set the interactive flag using per-blueprint override or global default
+	scriptCmd.Interactive = helpers.ResolveInteractive(script.Interactive, initConfig.Variables.Flags.Interactive)
 
 	log.Debugf("Running script command: %+v", scriptCmd)
 

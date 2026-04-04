@@ -96,16 +96,25 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 				}
 
 				cmd = types.Command{
-					Exec:     step.Exec,
-					Args:     processedArgs,
-					Elevated: provider.Elevated,
+					Exec:        step.Exec,
+					Args:        processedArgs,
+					Elevated:    provider.Elevated,
+					Interactive: helpers.ResolveInteractive(repo.Interactive, initConfig.Variables.Flags.Interactive),
 				}
 			case "write":
+				if system.IsDryRun() {
+					log.Infof("[DRY-RUN] Would write file: %s", step.Dest)
+					continue
+				}
 				if err := system.WriteToFile(step.Dest, step.Content, provider.Elevated); err != nil {
 					return fmt.Errorf("error writing file: %w", err)
 				}
 				continue
 			case "copy":
+				if system.IsDryRun() {
+					log.Infof("[DRY-RUN] Would copy file: %s -> %s", step.Source, step.Dest)
+					continue
+				}
 				if err := system.CopyFile(step.Source, step.Dest, provider.Elevated, osInfo); err != nil {
 					return fmt.Errorf("error copying file: %w", err)
 				}

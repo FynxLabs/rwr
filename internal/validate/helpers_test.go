@@ -120,6 +120,149 @@ func TestValidateImport(t *testing.T) {
 	}
 }
 
+func TestValidateImport_CircularDetection(t *testing.T) {
+	// Create temp dir with two files that import each other
+	tempDir, err := os.MkdirTemp("", "rwr_circular_")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// File A imports File B
+	fileA := filepath.Join(tempDir, "a.yaml")
+	os.WriteFile(fileA, []byte("packages:\n  - import: b.yaml\n"), 0644)
+
+	// File B imports File A (circular)
+	fileB := filepath.Join(tempDir, "b.yaml")
+	os.WriteFile(fileB, []byte("packages:\n  - import: a.yaml\n"), 0644)
+
+	results := &types.ValidationResults{}
+	visited := make(map[string]bool)
+
+	// Mark a.yaml as visited (simulating we started from a.yaml)
+	absA, _ := filepath.Abs(fileA)
+	visited[absA] = true
+
+	// Now validate b.yaml's import of a.yaml - should detect circular
+	got := validateImportWithVisited("a.yaml", "packages[0]", tempDir, fileB, results, &types.PackagesData{}, visited)
+	if !got {
+		t.Error("Expected validateImportWithVisited to return true for import")
+	}
+
+	// Should have a circular import error
+	foundCircular := false
+	for _, issue := range results.Issues {
+		if contains(issue.Message, "Circular import") {
+			foundCircular = true
+			break
+		}
+	}
+	if !foundCircular {
+		t.Error("Expected circular import to be detected")
+	}
+}
+
+func TestValidateImport_RecursiveValidation(t *testing.T) {
+	// Create temp dir with a main file that imports a file with invalid content
+	tempDir, err := os.MkdirTemp("", "rwr_recursive_")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Create an imported file with a package missing required fields
+	importFile := filepath.Join(tempDir, "imported.yaml")
+	os.WriteFile(importFile, []byte("packages:\n  - name: \"\"\n    action: install\n"), 0644)
+
+	results := &types.ValidationResults{}
+	got := validateImport("imported.yaml", "packages[0]", tempDir, filepath.Join(tempDir, "main.yaml"), results, &types.PackagesData{})
+	if !got {
+		t.Error("Expected validateImport to return true for import")
+	}
+
+	// Should have validation errors from the imported content (empty name)
+	foundNameError := false
+	for _, issue := range results.Issues {
+		if contains(issue.Message, "Missing required field") && contains(issue.Message, "name") {
+			foundNameError = true
+			break
+		}
+	}
+	if !foundNameError {
+		t.Error("Expected recursive validation to detect missing name in imported file")
+	}
+}
+
+func TestValidateImport_NestedImports(t *testing.T) {
+	// Create temp dir with chained imports: main -> a.yaml -> b.yaml
+	tempDir, err := os.MkdirTemp("", "rwr_nested_")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// b.yaml has actual packages
+	fileB := filepath.Join(tempDir, "b.yaml")
+	os.WriteFile(fileB, []byte("packages:\n  - name: vim\n    action: install\n"), 0644)
+
+	// a.yaml imports b.yaml
+	fileA := filepath.Join(tempDir, "a.yaml")
+	os.WriteFile(fileA, []byte("packages:\n  - import: b.yaml\n"), 0644)
+
+	results := &types.ValidationResults{}
+	got := validateImport("a.yaml", "packages[0]", tempDir, filepath.Join(tempDir, "main.yaml"), results, &types.PackagesData{})
+	if !got {
+		t.Error("Expected validateImport to return true for import")
+	}
+
+	// Should have no errors (valid chain)
+	errorCount := 0
+	for _, issue := range results.Issues {
+		if issue.Severity == types.ValidationError {
+			errorCount++
+		}
+	}
+	if errorCount > 0 {
+		t.Errorf("Expected no errors for valid nested imports, got %d", errorCount)
+		for _, issue := range results.Issues {
+			t.Logf("  Issue: %s", issue.Message)
+		}
+	}
+}
+
+func TestValidateImport_SelfImportCircular(t *testing.T) {
+	// Create a file that imports itself
+	tempDir, err := os.MkdirTemp("", "rwr_self_")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	selfFile := filepath.Join(tempDir, "self.yaml")
+	os.WriteFile(selfFile, []byte("packages:\n  - import: self.yaml\n"), 0644)
+
+	results := &types.ValidationResults{}
+	// Simulate that we're validating self.yaml and it imports itself
+	got := validateImport("self.yaml", "packages[0]", tempDir, selfFile, results, &types.PackagesData{})
+	if !got {
+		t.Error("Expected validateImport to return true for import")
+	}
+
+	// The recursive validation should detect the self-import as circular
+	// since validateImportedContent will try to follow the import again
+	// First call adds self.yaml to visited, recursive call should detect it
+	foundCircular := false
+	for _, issue := range results.Issues {
+		if contains(issue.Message, "Circular import") {
+			foundCircular = true
+			break
+		}
+	}
+	if !foundCircular {
+		t.Error("Expected self-import circular to be detected")
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstring(s, substr))
 }

@@ -18,72 +18,63 @@ import (
 // It supports create, delete, copy, append, symlink, and template rendering actions
 // with optional profile filtering and interactive diff-based overwrite prompts.
 func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var fileData types.FileData
-	var err error
-
 	log.Debugf("Processing files from blueprint")
 
-	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &fileData)
+	files, dirs, templates, err := resolveAndFilterFileData(blueprintData, blueprintDir, format, initConfig)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling file blueprint data: %w", err)
+		return err
 	}
 
-	// Process imports for files
-	allFiles, err := processFileImports(fileData.Files, blueprintDir, format)
-	if err != nil {
-		return fmt.Errorf("error processing file imports: %w", err)
-	}
-	fileData.Files = allFiles
-
-	// Process imports for directories
-	allDirectories, err := processDirectoryImports(fileData.Directories, blueprintDir, format)
-	if err != nil {
-		return fmt.Errorf("error processing directory imports: %w", err)
-	}
-	fileData.Directories = allDirectories
-
-	// Process imports for templates
-	allTemplates, err := processFileImports(fileData.Templates, blueprintDir, format)
-	if err != nil {
-		return fmt.Errorf("error processing template imports: %w", err)
-	}
-	fileData.Templates = allTemplates
-
-	// Filter files based on active profiles
-	filteredFiles := helpers.FilterByProfiles(fileData.Files, initConfig.Variables.Flags.Profiles)
-	log.Debugf("Filtering files: %d total, %d matching active profiles %v",
-		len(fileData.Files), len(filteredFiles), initConfig.Variables.Flags.Profiles)
-
-	// Filter directories based on active profiles
-	filteredDirectories := helpers.FilterByProfiles(fileData.Directories, initConfig.Variables.Flags.Profiles)
-	log.Debugf("Filtering directories: %d total, %d matching active profiles %v",
-		len(fileData.Directories), len(filteredDirectories), initConfig.Variables.Flags.Profiles)
-
-	// Filter templates based on active profiles
-	filteredTemplates := helpers.FilterByProfiles(fileData.Templates, initConfig.Variables.Flags.Profiles)
-	log.Debugf("Filtering templates: %d total, %d matching active profiles %v",
-		len(fileData.Templates), len(filteredTemplates), initConfig.Variables.Flags.Profiles)
-
-	// Process filtered files
-	err = processFiles(filteredFiles, blueprintDir, osInfo)
-	if err != nil {
+	if err := processFiles(files, blueprintDir, osInfo); err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
 
-	// Process filtered directories
-	err = processDirectories(filteredDirectories, blueprintDir, initConfig)
-	if err != nil {
+	if err := processDirectories(dirs, blueprintDir, initConfig); err != nil {
 		return fmt.Errorf("error processing directories: %w", err)
 	}
 
-	// Process filtered templates
-	err = processTemplates(filteredTemplates, blueprintDir, osInfo, initConfig)
-	if err != nil {
+	if err := processTemplates(templates, blueprintDir, osInfo, initConfig); err != nil {
 		return fmt.Errorf("error processing templates: %w", err)
 	}
 
 	return nil
+}
+
+// resolveAndFilterFileData unmarshals blueprint data, resolves all imports for files,
+// directories, and templates, then filters each by active profiles.
+func resolveAndFilterFileData(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) ([]types.File, []types.Directory, []types.File, error) {
+	var fileData types.FileData
+	if err := helpers.UnmarshalBlueprint(blueprintData, format, &fileData); err != nil {
+		return nil, nil, nil, fmt.Errorf("error unmarshaling file blueprint data: %w", err)
+	}
+
+	allFiles, err := processFileImports(fileData.Files, blueprintDir, format)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error processing file imports: %w", err)
+	}
+
+	allDirs, err := processDirectoryImports(fileData.Directories, blueprintDir, format)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error processing directory imports: %w", err)
+	}
+
+	allTemplates, err := processFileImports(fileData.Templates, blueprintDir, format)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error processing template imports: %w", err)
+	}
+
+	profiles := initConfig.Variables.Flags.Profiles
+
+	filteredFiles := helpers.FilterByProfiles(allFiles, profiles)
+	log.Debugf("Filtering files: %d total, %d matching active profiles %v", len(allFiles), len(filteredFiles), profiles)
+
+	filteredDirs := helpers.FilterByProfiles(allDirs, profiles)
+	log.Debugf("Filtering directories: %d total, %d matching active profiles %v", len(allDirs), len(filteredDirs), profiles)
+
+	filteredTemplates := helpers.FilterByProfiles(allTemplates, profiles)
+	log.Debugf("Filtering templates: %d total, %d matching active profiles %v", len(allTemplates), len(filteredTemplates), profiles)
+
+	return filteredFiles, filteredDirs, filteredTemplates, nil
 }
 
 func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo) error {
@@ -470,11 +461,7 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
-	interactive := initConfig.Variables.Flags.Interactive
-	if dir.Interactive != nil {
-		interactive = *dir.Interactive
-	}
-	if err := system.CopyDirectory(source, target, dir.Elevated, interactive); err != nil {
+	if err := system.CopyDirectory(source, target, dir.Elevated, helpers.ResolveInteractive(dir.Interactive, initConfig.Variables.Flags.Interactive)); err != nil {
 		return fmt.Errorf("error copying directory: %w", err)
 	}
 

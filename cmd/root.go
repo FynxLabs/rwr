@@ -178,6 +178,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().BoolVar(&forceBootstrap, "force-bootstrap", false, "Force Bootstrap to be ran again")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Log operations without executing (no-op mode)")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "no-op", false, "Alias for --dry-run")
 
 	rootCmd.PersistentFlags().BoolVarP(&interactive, "interactive", "I", true, "Enable interactive mode (use --interactive=false to disable)")
 

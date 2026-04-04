@@ -24,6 +24,10 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 	}
 
 	for _, config := range configData.Configurations {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would apply %s configuration: %s", config.Tool, config.Name)
+			continue
+		}
 		var err error
 		switch config.Tool {
 		case "dconf":

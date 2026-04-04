@@ -465,3 +465,126 @@ files:
 		}
 	}
 }
+
+// Tests for the resolveAndFilterFileData helper
+
+func TestResolveAndFilterFileData_BasicParsing(t *testing.T) {
+	blueprintData := []byte(`
+files:
+  - name: "test.txt"
+    action: "create"
+    content: "hello"
+    target: "/tmp"
+directories:
+  - name: "testdir"
+    action: "create"
+    target: "/tmp/testdir"
+templates:
+  - name: "tmpl.txt"
+    action: "create"
+    source: "templates"
+    target: "/tmp"
+`)
+
+	config := &types.InitConfig{
+		Variables: types.Variables{
+			Flags: types.Flags{},
+		},
+	}
+
+	files, dirs, templates, err := resolveAndFilterFileData(blueprintData, "/tmp", "yaml", config)
+	if err != nil {
+		t.Fatalf("resolveAndFilterFileData failed: %v", err)
+	}
+
+	if len(files) != 1 {
+		t.Errorf("Expected 1 file, got %d", len(files))
+	}
+	if len(dirs) != 1 {
+		t.Errorf("Expected 1 directory, got %d", len(dirs))
+	}
+	if len(templates) != 1 {
+		t.Errorf("Expected 1 template, got %d", len(templates))
+	}
+}
+
+func TestResolveAndFilterFileData_ProfileFiltering(t *testing.T) {
+	blueprintData := []byte(`
+files:
+  - name: "base.txt"
+    action: "create"
+    content: "base"
+    target: "/tmp"
+  - name: "dev.txt"
+    action: "create"
+    content: "dev"
+    target: "/tmp"
+    profiles:
+      - dev
+  - name: "prod.txt"
+    action: "create"
+    content: "prod"
+    target: "/tmp"
+    profiles:
+      - prod
+`)
+
+	config := &types.InitConfig{
+		Variables: types.Variables{
+			Flags: types.Flags{
+				Profiles: []string{"dev"},
+			},
+		},
+	}
+
+	files, _, _, err := resolveAndFilterFileData(blueprintData, "/tmp", "yaml", config)
+	if err != nil {
+		t.Fatalf("resolveAndFilterFileData failed: %v", err)
+	}
+
+	// Should include base.txt (no profile) and dev.txt (matching profile)
+	// Should exclude prod.txt (non-matching profile)
+	if len(files) != 2 {
+		t.Errorf("Expected 2 files after filtering, got %d", len(files))
+	}
+}
+
+func TestResolveAndFilterFileData_InvalidBlueprint(t *testing.T) {
+	blueprintData := []byte(`invalid: [yaml: broken`)
+
+	config := &types.InitConfig{
+		Variables: types.Variables{
+			Flags: types.Flags{},
+		},
+	}
+
+	_, _, _, err := resolveAndFilterFileData(blueprintData, "/tmp", "yaml", config)
+	if err == nil {
+		t.Error("Expected error for invalid blueprint data")
+	}
+}
+
+func TestResolveAndFilterFileData_EmptyBlueprint(t *testing.T) {
+	blueprintData := []byte(`{}`)
+
+	config := &types.InitConfig{
+		Variables: types.Variables{
+			Flags: types.Flags{},
+		},
+	}
+
+	files, dirs, templates, err := resolveAndFilterFileData(blueprintData, "/tmp", "yaml", config)
+	if err != nil {
+		t.Fatalf("resolveAndFilterFileData failed on empty blueprint: %v", err)
+	}
+
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files, got %d", len(files))
+	}
+	if len(dirs) != 0 {
+		t.Errorf("Expected 0 directories, got %d", len(dirs))
+	}
+	if len(templates) != 0 {
+		t.Errorf("Expected 0 templates, got %d", len(templates))
+	}
+}

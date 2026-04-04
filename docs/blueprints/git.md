@@ -36,6 +36,7 @@ The following settings are available for each repository in the Git blueprint:
 | `path` | Yes | The local path where the repository should be cloned |
 | `private` | No | Indicates whether the repository is private (defaults to `false`) |
 | `profiles` | No | List of profiles this repository belongs to. If empty, repository is always cloned (base item) |
+| `interactive` | No | Override global interactive mode for this git repository (`true`/`false`). If omitted, uses the global `--interactive` flag |
 
 ## Blueprint Imports
 

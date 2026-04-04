@@ -29,8 +29,9 @@ type User struct {
 	System       bool     `mapstructure:"system,omitempty" yaml:"system,omitempty" json:"system,omitempty" toml:"system,omitempty"`                           // Create as a system user
 	Expire       string   `mapstructure:"expire,omitempty" yaml:"expire,omitempty" json:"expire,omitempty" toml:"expire,omitempty"`                           // Account expiration date (YYYY-MM-DD)
 	Lock         bool     `mapstructure:"lock,omitempty" yaml:"lock,omitempty" json:"lock,omitempty" toml:"lock,omitempty"`                                   // Lock the user account (for modify action)
-	Unlock       bool     `mapstructure:"unlock,omitempty" yaml:"unlock,omitempty" json:"unlock,omitempty" toml:"unlock,omitempty"`                           // Unlock the user account (for modify action)
-	Import       string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`                           // Import path for external user definitions
+	Unlock      bool   `mapstructure:"unlock,omitempty" yaml:"unlock,omitempty" json:"unlock,omitempty" toml:"unlock,omitempty"`                           // Unlock the user account (for modify action)
+	Interactive *bool  `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"` // Override global interactive mode
+	Import      string `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`                           // Import path for external user definitions
 }
 
 type UsersData struct {

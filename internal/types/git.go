@@ -15,8 +15,9 @@ type Git struct {
 	Path     string   `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty" toml:"path,omitempty"`                           // Path for the git operation
 	URL      string   `mapstructure:"url" yaml:"url,omitempty" json:"url,omitempty" toml:"url,omitempty"`                               // URL of the git repository
 	Branch   string   `mapstructure:"branch,omitempty" yaml:"branch,omitempty" json:"branch,omitempty" toml:"branch,omitempty"`         // Branch of the repository
-	Private  bool     `mapstructure:"private,omitempty" yaml:"private,omitempty" json:"private,omitempty" toml:"private,omitempty"`     // Whether the repository is private
-	Import   string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`         // Import path for external git definitions
+	Private     bool   `mapstructure:"private,omitempty" yaml:"private,omitempty" json:"private,omitempty" toml:"private,omitempty"`     // Whether the repository is private
+	Interactive *bool  `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"` // Override global interactive mode
+	Import      string `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`         // Import path for external git definitions
 }
 
 type GitData struct {

@@ -161,10 +161,11 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 
 			// Execute command directly with environment variables
 			cmd := types.Command{
-				Exec:      provider.BinPath,
-				Args:      args,
-				Elevated:  provider.Elevated,
-				Variables: provider.Environment,
+				Exec:        provider.BinPath,
+				Args:        args,
+				Elevated:    provider.Elevated,
+				Variables:   provider.Environment,
+				Interactive: helpers.ResolveInteractive(pkg.Interactive, initConfig.Variables.Flags.Interactive),
 			}
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
 				log.Warnf("Error %s package %s: %v", pkg.Action, name, err)

@@ -50,6 +50,7 @@ The following settings are available for the Files Blueprint:
 | `mode` | No | The file mode in octal notation. Used for the `chmod` action. |
 | `elevated` | No | Whether to perform the action with elevated privileges. Defaults to `false`. |
 | `variables` | No | A map of variables and their values to be used for template rendering. Only applicable to the `templates` section. |
+| `interactive` | No | Override global interactive mode for this file (`true`/`false`). If omitted, uses the global `--interactive` flag. Controls whether diffs are shown before overwriting existing files. |
 
 ## Blueprint Imports
 
