@@ -10,7 +10,8 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-// AddCommonPaths checks for common paths and appends them to the existing PATH environment variable.
+// AddCommonPaths appends common tool directories (/usr/local/bin, Homebrew, Cargo,
+// Go, Flatpak, Snap, etc.) to the current PATH if they exist on disk.
 func AddCommonPaths() string {
 	var paths []string
 	existingPath := os.Getenv("PATH")
@@ -87,7 +88,7 @@ func AddCommonPaths() string {
 	return strings.Join(paths, string(os.PathListSeparator))
 }
 
-// SetPaths sets the PATH environment variable with the common paths appended.
+// SetPaths updates the PATH environment variable by appending common tool directories.
 func SetPaths() error {
 	newPath := AddCommonPaths()
 	switch runtime.GOOS {

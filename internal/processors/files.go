@@ -14,73 +14,67 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
+// ProcessFiles handles file, directory, and template operations from blueprint data.
+// It supports create, delete, copy, append, symlink, and template rendering actions
+// with optional profile filtering and interactive diff-based overwrite prompts.
 func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
-	var fileData types.FileData
-	var err error
-
 	log.Debugf("Processing files from blueprint")
 
-	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &fileData)
+	files, dirs, templates, err := resolveAndFilterFileData(blueprintData, blueprintDir, format, initConfig)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling file blueprint data: %w", err)
+		return err
 	}
 
-	// Process imports for files
-	allFiles, err := processFileImports(fileData.Files, blueprintDir, format)
-	if err != nil {
-		return fmt.Errorf("error processing file imports: %w", err)
-	}
-	fileData.Files = allFiles
-
-	// Process imports for directories
-	allDirectories, err := processDirectoryImports(fileData.Directories, blueprintDir, format)
-	if err != nil {
-		return fmt.Errorf("error processing directory imports: %w", err)
-	}
-	fileData.Directories = allDirectories
-
-	// Process imports for templates
-	allTemplates, err := processFileImports(fileData.Templates, blueprintDir, format)
-	if err != nil {
-		return fmt.Errorf("error processing template imports: %w", err)
-	}
-	fileData.Templates = allTemplates
-
-	// Filter files based on active profiles
-	filteredFiles := helpers.FilterByProfiles(fileData.Files, initConfig.Variables.Flags.Profiles)
-	log.Debugf("Filtering files: %d total, %d matching active profiles %v",
-		len(fileData.Files), len(filteredFiles), initConfig.Variables.Flags.Profiles)
-
-	// Filter directories based on active profiles
-	filteredDirectories := helpers.FilterByProfiles(fileData.Directories, initConfig.Variables.Flags.Profiles)
-	log.Debugf("Filtering directories: %d total, %d matching active profiles %v",
-		len(fileData.Directories), len(filteredDirectories), initConfig.Variables.Flags.Profiles)
-
-	// Filter templates based on active profiles
-	filteredTemplates := helpers.FilterByProfiles(fileData.Templates, initConfig.Variables.Flags.Profiles)
-	log.Debugf("Filtering templates: %d total, %d matching active profiles %v",
-		len(fileData.Templates), len(filteredTemplates), initConfig.Variables.Flags.Profiles)
-
-	// Process filtered files
-	err = processFiles(filteredFiles, blueprintDir, osInfo)
-	if err != nil {
+	if err := processFiles(files, blueprintDir, osInfo); err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
 
-	// Process filtered directories
-	err = processDirectories(filteredDirectories, blueprintDir, initConfig)
-	if err != nil {
+	if err := processDirectories(dirs, blueprintDir, initConfig); err != nil {
 		return fmt.Errorf("error processing directories: %w", err)
 	}
 
-	// Process filtered templates
-	err = processTemplates(filteredTemplates, blueprintDir, osInfo, initConfig)
-	if err != nil {
+	if err := processTemplates(templates, blueprintDir, osInfo, initConfig); err != nil {
 		return fmt.Errorf("error processing templates: %w", err)
 	}
 
 	return nil
+}
+
+// resolveAndFilterFileData unmarshals blueprint data, resolves all imports for files,
+// directories, and templates, then filters each by active profiles.
+func resolveAndFilterFileData(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) ([]types.File, []types.Directory, []types.File, error) {
+	var fileData types.FileData
+	if err := helpers.UnmarshalBlueprint(blueprintData, format, &fileData); err != nil {
+		return nil, nil, nil, fmt.Errorf("error unmarshaling file blueprint data: %w", err)
+	}
+
+	allFiles, err := processFileImports(fileData.Files, blueprintDir, format)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error processing file imports: %w", err)
+	}
+
+	allDirs, err := processDirectoryImports(fileData.Directories, blueprintDir, format)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error processing directory imports: %w", err)
+	}
+
+	allTemplates, err := processFileImports(fileData.Templates, blueprintDir, format)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("error processing template imports: %w", err)
+	}
+
+	profiles := initConfig.Variables.Flags.Profiles
+
+	filteredFiles := helpers.FilterByProfiles(allFiles, profiles)
+	log.Debugf("Filtering files: %d total, %d matching active profiles %v", len(allFiles), len(filteredFiles), profiles)
+
+	filteredDirs := helpers.FilterByProfiles(allDirs, profiles)
+	log.Debugf("Filtering directories: %d total, %d matching active profiles %v", len(allDirs), len(filteredDirs), profiles)
+
+	filteredTemplates := helpers.FilterByProfiles(allTemplates, profiles)
+	log.Debugf("Filtering templates: %d total, %d matching active profiles %v", len(allTemplates), len(filteredTemplates), profiles)
+
+	return filteredFiles, filteredDirs, filteredTemplates, nil
 }
 
 func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo) error {
@@ -153,6 +147,11 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 	}
 
 	log.Debugf("sourcePath set to: %s; targetPath set to: %s", sourcePath, targetPath)
+
+	if system.IsDryRun() {
+		log.Infof("[DRY-RUN] Would %s file: %s (source: %s, target: %s)", file.Action, file.Name, sourcePath, targetPath)
+		return nil
+	}
 
 	switch file.Action {
 	case "copy":
@@ -272,38 +271,42 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 
 func processDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
 	for _, dir := range directories {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would %s directory: %s (target: %s)", dir.Action, dir.Name, dir.Target)
+			continue
+		}
 		switch dir.Action {
 		case "copy":
 			if err := copyDirectory(dir, blueprintDir, initConfig); err != nil {
-				log.Fatalf("error copying directory: %v", err)
+				return fmt.Errorf("error copying directory: %w", err)
 			}
 		case "move":
 			if err := moveDirectory(dir, blueprintDir); err != nil {
-				log.Fatalf("error moving directory: %v", err)
+				return fmt.Errorf("error moving directory: %w", err)
 			}
 		case "delete":
 			if err := deleteDirectory(dir); err != nil {
-				log.Fatalf("error deleting directory: %v", err)
+				return fmt.Errorf("error deleting directory: %w", err)
 			}
 		case "create":
 			if err := createDirectory(dir); err != nil {
-				log.Fatalf("error creating directory: %v", err)
+				return fmt.Errorf("error creating directory: %w", err)
 			}
 		case "chmod":
 			if err := chmodDirectory(dir); err != nil {
-				log.Fatalf("error changing directory permissions: %v", err)
+				return fmt.Errorf("error changing directory permissions: %w", err)
 			}
 		case "chown":
 			if err := chownDirectory(dir); err != nil {
-				log.Fatalf("error changing directory owner: %v", err)
+				return fmt.Errorf("error changing directory owner: %w", err)
 			}
 		case "chgrp":
 			if err := chgrpDirectory(dir); err != nil {
-				log.Fatalf("error changing directory group: %v", err)
+				return fmt.Errorf("error changing directory group: %w", err)
 			}
 		case "symlink":
 			if err := symlinkDirectory(dir, blueprintDir); err != nil {
-				log.Fatalf("error creating symlink: %v", err)
+				return fmt.Errorf("error creating symlink: %w", err)
 			}
 		default:
 			return fmt.Errorf("unsupported action for directory: %s", dir.Action)
@@ -316,14 +319,13 @@ func moveFile(file types.File, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, file.Source, file.Name)
 	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
 
-	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(target)
 	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
-		log.Fatalf("error creating target directory: %v", err)
+		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
 	if err := os.Rename(source, target); err != nil {
-		log.Fatalf("error moving file: %v", err)
+		return fmt.Errorf("error moving file: %w", err)
 	}
 
 	log.Infof("File moved: %s -> %s", source, target)
@@ -334,7 +336,7 @@ func deleteFile(file types.File) error {
 	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
 
 	if err := os.Remove(target); err != nil {
-		log.Fatalf("error deleting file: %v", err)
+		return fmt.Errorf("error deleting file: %w", err)
 	}
 
 	log.Infof("File deleted: %s", target)
@@ -388,7 +390,7 @@ func chmodFile(file types.File) error {
 	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
 
 	if err := os.Chmod(target, os.FileMode(file.Mode)); err != nil {
-		log.Fatalf("error changing file permissions: %v", err)
+		return fmt.Errorf("error changing file permissions: %w", err)
 	}
 
 	log.Infof("File permissions changed: %s (mode: %o)", target, file.Mode)
@@ -401,20 +403,20 @@ func chownFile(file types.File) error {
 	if file.Owner != "" {
 		uid, err := system.LookupUID(file.Owner)
 		if err != nil {
-			log.Fatalf("error looking up owner UID: %v", err)
+			return fmt.Errorf("error looking up owner UID: %w", err)
 		}
 		if err := os.Chown(target, uid, -1); err != nil {
-			log.Fatalf("error changing file owner: %v", err)
+			return fmt.Errorf("error changing file owner: %w", err)
 		}
 	}
 
 	if file.Group != "" {
 		gid, err := system.LookupGID(file.Group)
 		if err != nil {
-			log.Fatalf("error looking up group GID: %v", err)
+			return fmt.Errorf("error looking up group GID: %w", err)
 		}
 		if err := os.Chown(target, -1, gid); err != nil {
-			log.Fatalf("error changing file group: %v", err)
+			return fmt.Errorf("error changing file group: %w", err)
 		}
 	}
 
@@ -428,10 +430,10 @@ func chgrpFile(file types.File) error {
 	if file.Group != "" {
 		gid, err := system.LookupGID(file.Group)
 		if err != nil {
-			log.Fatalf("error looking up group GID: %v", err)
+			return fmt.Errorf("error looking up group GID: %w", err)
 		}
 		if err := os.Chown(target, -1, gid); err != nil {
-			log.Fatalf("error changing file group: %v", err)
+			return fmt.Errorf("error changing file group: %w", err)
 		}
 	}
 
@@ -444,7 +446,7 @@ func symlinkFile(file types.File, blueprintDir string) error {
 	target := system.ExpandPath(file.Target)
 
 	if err := os.Symlink(source, target); err != nil {
-		log.Fatalf("error creating symlink: %v", err)
+		return fmt.Errorf("error creating symlink: %w", err)
 	}
 
 	log.Infof("Symlink created: %s -> %s", source, target)
@@ -455,17 +457,16 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	// Create the target directory if it doesn't exist
 	if err := os.MkdirAll(target, os.ModePerm); err != nil {
-		log.Fatalf("error creating target directory: %v", err)
+		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
-	if err := system.CopyDirectory(source, target, dir.Elevated, initConfig.Variables.Flags.Interactive); err != nil {
-		log.Fatalf("error copying directory: %v", err)
+	if err := system.CopyDirectory(source, target, dir.Elevated, helpers.ResolveInteractive(dir.Interactive, initConfig.Variables.Flags.Interactive)); err != nil {
+		return fmt.Errorf("error copying directory: %w", err)
 	}
 
 	if err := applyDirectoryAttributes(dir); err != nil {
-		log.Fatalf("error applying directory attributes: %v", err)
+		return fmt.Errorf("error applying directory attributes: %w", err)
 	}
 
 	log.Infof("Directory copied: %s -> %s", source, target)
@@ -476,14 +477,13 @@ func moveDirectory(dir types.Directory, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(target)
 	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
-		log.Fatalf("error creating target directory: %v", err)
+		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
 	if err := os.Rename(source, target); err != nil {
-		log.Fatalf("error moving directory: %v", err)
+		return fmt.Errorf("error moving directory: %w", err)
 	}
 
 	log.Infof("Directory moved: %s -> %s", source, target)
@@ -494,7 +494,7 @@ func deleteDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
 	if err := os.RemoveAll(target); err != nil {
-		log.Fatalf("error deleting directory: %v", err)
+		return fmt.Errorf("error deleting directory: %w", err)
 	}
 
 	log.Infof("Directory deleted: %s", target)
@@ -505,11 +505,11 @@ func createDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
 	if err := os.MkdirAll(target, os.ModePerm); err != nil {
-		log.Fatalf("error creating directory: %v", err)
+		return fmt.Errorf("error creating directory: %w", err)
 	}
 
 	if err := applyDirectoryAttributes(dir); err != nil {
-		log.Fatalf("error applying directory attributes: %v", err)
+		return fmt.Errorf("error applying directory attributes: %w", err)
 	}
 
 	log.Infof("Directory created: %s", target)
@@ -520,7 +520,7 @@ func chmodDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
 	if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil {
-		log.Fatalf("error changing directory permissions: %v", err)
+		return fmt.Errorf("error changing directory permissions: %w", err)
 	}
 
 	log.Infof("Directory permissions changed: %s (mode: %o)", target, dir.Mode)
@@ -533,20 +533,20 @@ func chownDirectory(dir types.Directory) error {
 	if dir.Owner != "" {
 		uid, err := system.LookupUID(dir.Owner)
 		if err != nil {
-			log.Fatalf("error looking up owner UID: %v", err)
+			return fmt.Errorf("error looking up owner UID: %w", err)
 		}
 		if err := os.Chown(target, uid, -1); err != nil {
-			log.Fatalf("error changing directory owner: %v", err)
+			return fmt.Errorf("error changing directory owner: %w", err)
 		}
 	}
 
 	if dir.Group != "" {
 		gid, err := system.LookupGID(dir.Group)
 		if err != nil {
-			log.Fatalf("error looking up group GID: %v", err)
+			return fmt.Errorf("error looking up group GID: %w", err)
 		}
 		if err := os.Chown(target, -1, gid); err != nil {
-			log.Fatalf("error changing directory group: %v", err)
+			return fmt.Errorf("error changing directory group: %w", err)
 		}
 	}
 
@@ -560,10 +560,10 @@ func chgrpDirectory(dir types.Directory) error {
 	if dir.Group != "" {
 		gid, err := system.LookupGID(dir.Group)
 		if err != nil {
-			log.Fatalf("error looking up group GID: %v", err)
+			return fmt.Errorf("error looking up group GID: %w", err)
 		}
 		if err := os.Chown(target, -1, gid); err != nil {
-			log.Fatalf("error changing directory group: %v", err)
+			return fmt.Errorf("error changing directory group: %w", err)
 		}
 	}
 
@@ -576,7 +576,7 @@ func symlinkDirectory(dir types.Directory, blueprintDir string) error {
 	target := system.ExpandPath(dir.Target)
 
 	if err := os.Symlink(source, target); err != nil {
-		log.Fatalf("error creating symlink: %v", err)
+		return fmt.Errorf("error creating symlink: %w", err)
 	}
 
 	log.Infof("Symlink created: %s -> %s", source, target)
@@ -604,13 +604,13 @@ func applyDirectoryAttributes(dir types.Directory) error {
 
 	if dir.Mode != 0 {
 		if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil {
-			log.Fatalf("error changing directory permissions: %v", err)
+			return fmt.Errorf("error changing directory permissions: %w", err)
 		}
 	}
 
 	if dir.Owner != "" || dir.Group != "" {
 		if err := chownDirectory(dir); err != nil {
-			log.Fatalf("error changing directory owner/group: %v", err)
+			return fmt.Errorf("error changing directory owner/group: %w", err)
 		}
 	}
 
@@ -627,7 +627,7 @@ func determineSourceAndTargetPaths(file types.File, blueprintDir string) (string
 
 	// Determine source path
 	if isURL(file.Source) {
-		log.Fatalf("Source is URL, should not be URL at this point - URL Check/Download has failed")
+		return "", "", fmt.Errorf("source is URL, should not be URL at this point - URL check/download has failed")
 	} else if file.Content != "" {
 		log.Debug("File Content present, sourcePath will be empty")
 		sourcePath = ""

@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fynxlabs/rwr/internal/types"
-
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// ProcessGitRepositories clones or updates Git repositories defined in blueprint data,
+// with support for profile filtering and import resolution.
 func ProcessGitRepositories(blueprintData []byte, format string, initConfig *types.InitConfig) error {
 	var gitData types.GitData
 	var err error
@@ -49,6 +51,10 @@ func ProcessGitRepositories(blueprintData []byte, format string, initConfig *typ
 
 func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) error {
 	for _, repo := range gitRepos {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would clone/update git repository: %s -> %s", repo.URL, repo.Path)
+			continue
+		}
 		gitOpts := types.GitOptions{
 			URL:     repo.URL,
 			Private: repo.Private,

@@ -13,6 +13,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
+// ProcessServices manages system services (enable, disable, start, stop, restart)
+// as defined in blueprint data, with cross-platform support via systemctl, launchctl, etc.
 func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var servicesData types.ServiceData
 	var err error
@@ -70,10 +72,18 @@ func processServices(services []types.Service, osInfo *types.OSInfo, initConfig 
 
 func createServiceFile(service types.Service, osInfo *types.OSInfo) error {
 	if service.Content != "" {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would create service file: %s", service.Target)
+			return nil
+		}
 		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would copy service file: %s -> %s", service.Source, service.Target)
+			return nil
+		}
 		if err := system.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying service file: %v", err)
 		}
@@ -85,6 +95,10 @@ func createServiceFile(service types.Service, osInfo *types.OSInfo) error {
 
 func deleteServiceFile(service types.Service) error {
 	if service.File != "" {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would delete service file: %s", service.File)
+			return nil
+		}
 		if err := os.Remove(service.File); err != nil {
 			return fmt.Errorf("error deleting service file: %v", err)
 		}
@@ -96,6 +110,7 @@ func deleteServiceFile(service types.Service) error {
 
 func processLinuxService(service types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var serviceCmd types.Command
+	interactive := helpers.ResolveInteractive(service.Interactive, initConfig.Variables.Flags.Interactive)
 
 	switch service.Action {
 	case "enable":
@@ -154,6 +169,7 @@ func processLinuxService(service types.Service, osInfo *types.OSInfo, initConfig
 	}
 
 	serviceCmd.Elevated = service.Elevated
+	serviceCmd.Interactive = interactive
 	if err := system.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error running service command: %v", err)
 	}
@@ -164,10 +180,18 @@ func processLinuxService(service types.Service, osInfo *types.OSInfo, initConfig
 
 func createLaunchDaemon(service types.Service, osInfo *types.OSInfo) error {
 	if service.Content != "" {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would create launch daemon: %s", service.Target)
+			return nil
+		}
 		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
 			return fmt.Errorf("error creating launch daemon: %v", err)
 		}
 	} else if service.Source != "" {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would copy launch daemon: %s -> %s", service.Source, service.Target)
+			return nil
+		}
 		if err := system.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying launch daemon: %v", err)
 		}
@@ -179,6 +203,10 @@ func createLaunchDaemon(service types.Service, osInfo *types.OSInfo) error {
 
 func deleteLaunchDaemon(service types.Service) error {
 	if service.File != "" {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would delete launch daemon: %s", service.File)
+			return nil
+		}
 		if err := os.Remove(service.File); err != nil {
 			return fmt.Errorf("error deleting launch daemon: %v", err)
 		}
@@ -190,6 +218,7 @@ func deleteLaunchDaemon(service types.Service) error {
 
 func processMacOSService(service types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var serviceCmd types.Command
+	interactive := helpers.ResolveInteractive(service.Interactive, initConfig.Variables.Flags.Interactive)
 
 	switch service.Action {
 	case "enable":
@@ -242,6 +271,7 @@ func processMacOSService(service types.Service, osInfo *types.OSInfo, initConfig
 	}
 
 	serviceCmd.Elevated = service.Elevated
+	serviceCmd.Interactive = interactive
 	if err := system.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error running service command: %v", err)
 	}
@@ -252,11 +282,15 @@ func processMacOSService(service types.Service, osInfo *types.OSInfo, initConfig
 
 func createWindowsService(service types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	if service.Content != "" {
-		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would create Windows service file: %s", service.Target)
+		} else if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
-		if err := system.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would copy Windows service file: %s -> %s", service.Source, service.Target)
+		} else if err := system.CopyFile(service.Source, service.Target, service.Elevated, osInfo); err != nil {
 			return fmt.Errorf("error copying service file: %v", err)
 		}
 	} else {
@@ -286,7 +320,9 @@ func deleteWindowsService(service types.Service, initConfig *types.InitConfig) e
 	}
 
 	if service.File != "" {
-		if err := os.Remove(service.File); err != nil {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would delete service file: %s", service.File)
+		} else if err := os.Remove(service.File); err != nil {
 			return fmt.Errorf("error deleting service file: %v", err)
 		}
 	}
@@ -296,6 +332,7 @@ func deleteWindowsService(service types.Service, initConfig *types.InitConfig) e
 
 func processWindowsService(service types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var serviceCmd types.Command
+	interactive := helpers.ResolveInteractive(service.Interactive, initConfig.Variables.Flags.Interactive)
 
 	switch service.Action {
 	case "enable":
@@ -352,6 +389,7 @@ func processWindowsService(service types.Service, osInfo *types.OSInfo, initConf
 		return fmt.Errorf("unsupported action for service: %s", service.Action)
 	}
 
+	serviceCmd.Interactive = interactive
 	if err := system.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error running service command: %v", err)
 	}

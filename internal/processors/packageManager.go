@@ -8,6 +8,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// ProcessPackageManagers installs package managers and their common dependencies
+// (OpenSSL, build essentials) before installing each requested package manager.
 func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Initialize providers if needed
 	if err := system.InitProviders(); err != nil {

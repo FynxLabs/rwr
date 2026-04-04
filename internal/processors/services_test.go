@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -626,6 +627,158 @@ func BenchmarkServiceFiltering(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = helpers.FilterByProfiles(services, activeProfiles)
+	}
+}
+
+// Test interactive override parsing from blueprints
+func TestProcessServices_InteractiveOverrideParsing(t *testing.T) {
+	blueprintData := []byte(`
+services:
+  - name: "interactive-svc"
+    action: "start"
+    interactive: true
+  - name: "non-interactive-svc"
+    action: "start"
+    interactive: false
+  - name: "default-svc"
+    action: "start"
+`)
+
+	var serviceData types.ServiceData
+	err := helpers.UnmarshalBlueprint(blueprintData, "yaml", &serviceData)
+	if err != nil {
+		t.Fatalf("Blueprint parsing failed: %v", err)
+	}
+
+	if len(serviceData.Services) != 3 {
+		t.Fatalf("Expected 3 services, got %d", len(serviceData.Services))
+	}
+
+	// First service should have interactive=true
+	if serviceData.Services[0].Interactive == nil {
+		t.Error("Expected interactive to be set for interactive-svc")
+	} else if !*serviceData.Services[0].Interactive {
+		t.Error("Expected interactive to be true for interactive-svc")
+	}
+
+	// Second service should have interactive=false
+	if serviceData.Services[1].Interactive == nil {
+		t.Error("Expected interactive to be set for non-interactive-svc")
+	} else if *serviceData.Services[1].Interactive {
+		t.Error("Expected interactive to be false for non-interactive-svc")
+	}
+
+	// Third service should have interactive=nil (use global default)
+	if serviceData.Services[2].Interactive != nil {
+		t.Error("Expected interactive to be nil for default-svc")
+	}
+}
+
+// Test that ResolveInteractive produces correct results for service commands
+func TestProcessServices_ResolveInteractiveIntegration(t *testing.T) {
+	tests := []struct {
+		name              string
+		svcInteractive    *bool
+		globalInteractive bool
+		wantInteractive   bool
+	}{
+		{
+			name:              "nil override uses global true",
+			svcInteractive:    nil,
+			globalInteractive: true,
+			wantInteractive:   true,
+		},
+		{
+			name:              "nil override uses global false",
+			svcInteractive:    nil,
+			globalInteractive: false,
+			wantInteractive:   false,
+		},
+		{
+			name:              "true override beats global false",
+			svcInteractive:    boolPtrSvc(true),
+			globalInteractive: false,
+			wantInteractive:   true,
+		},
+		{
+			name:              "false override beats global true",
+			svcInteractive:    boolPtrSvc(false),
+			globalInteractive: true,
+			wantInteractive:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := helpers.ResolveInteractive(tt.svcInteractive, tt.globalInteractive)
+			if got != tt.wantInteractive {
+				t.Errorf("ResolveInteractive() = %v, want %v", got, tt.wantInteractive)
+			}
+		})
+	}
+}
+
+func boolPtrSvc(b bool) *bool {
+	return &b
+}
+
+// Test dry-run mode for service processing
+func TestProcessServices_DryRunLinux(t *testing.T) {
+	system.SetDryRun(true)
+	defer system.SetDryRun(false)
+
+	service := types.Service{
+		Name:     "test-svc",
+		Action:   "start",
+		Elevated: true,
+	}
+
+	config := &types.InitConfig{
+		Variables: types.Variables{
+			Flags: types.Flags{Debug: false},
+		},
+	}
+	osInfo := &types.OSInfo{}
+
+	// In dry-run mode, RunCommand returns nil without executing
+	err := processLinuxService(service, osInfo, config)
+	if err != nil {
+		t.Errorf("processLinuxService should succeed in dry-run mode, got: %v", err)
+	}
+}
+
+func TestCreateServiceFile_DryRun(t *testing.T) {
+	system.SetDryRun(true)
+	defer system.SetDryRun(false)
+
+	service := types.Service{
+		Name:    "test-svc",
+		Action:  "create",
+		Target:  "/tmp/nonexistent-path/test.service",
+		Content: "[Unit]\nDescription=Test",
+	}
+
+	// In dry-run mode, file should NOT be written
+	err := createServiceFile(service, nil)
+	if err != nil {
+		t.Errorf("createServiceFile should succeed in dry-run mode, got: %v", err)
+	}
+}
+
+func TestDeleteServiceFile_DryRun(t *testing.T) {
+	system.SetDryRun(true)
+	defer system.SetDryRun(false)
+
+	service := types.Service{
+		Name:   "test-svc",
+		Action: "delete",
+		File:   "/tmp/nonexistent-service-file",
+	}
+
+	// In dry-run mode, file should NOT be deleted (and no error for missing file)
+	err := deleteServiceFile(service)
+	if err != nil {
+		t.Errorf("deleteServiceFile should succeed in dry-run mode, got: %v", err)
 	}
 }
 

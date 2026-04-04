@@ -21,8 +21,9 @@ var distroFamilies = map[string][]string{
 	"alpine":    {"postmarketos"},
 }
 
-// GetDistroFamily returns the base distribution family for a given distribution
-// For example, "endeavouros" would return "arch"
+// GetDistroFamily returns the base distribution family for a given distribution.
+// For example, "endeavouros" returns "arch", and "linuxmint" returns "ubuntu".
+// Falls back to checking ID_LIKE in /etc/os-release if no direct match is found.
 func GetDistroFamily(distro string) string {
 	// If the distro is a base distro itself, return it
 	if _, exists := distroFamilies[distro]; exists {
@@ -52,8 +53,8 @@ func GetDistroFamily(distro string) string {
 	return distro
 }
 
-// IsDistroInFamily checks if a distribution is in a specific family
-// For example, IsDistroInFamily("endeavouros", "arch") would return true
+// IsDistroInFamily reports whether a distribution belongs to a specific family.
+// For example, IsDistroInFamily("endeavouros", "arch") returns true.
 func IsDistroInFamily(distro, family string) bool {
 	// If the distro is the family itself, return true
 	if distro == family {

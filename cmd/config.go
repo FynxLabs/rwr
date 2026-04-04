@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/spf13/cobra"
@@ -14,17 +13,16 @@ var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Create or modify rwr configuration",
 	Long:  `Create or modify rwr configuration for JumpCloud and rwr settings`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if initFlag {
-			err := helpers.CreateDefaultConfig()
-			if err != nil {
-				fmt.Println("Error initializing configuration:", err)
-				os.Exit(1)
+			if err := helpers.CreateDefaultConfig(); err != nil {
+				return fmt.Errorf("error initializing configuration: %w", err)
 			}
 			fmt.Println("Configuration initialized successfully.")
 		} else {
 			cmd.Help()
 		}
+		return nil
 	},
 }
 

@@ -39,10 +39,8 @@ var rootCmd = &cobra.Command{
 			if skipInit[current.Name()] {
 				// For validate command, just detect OS
 				if current.Name() == "validate" {
-					err := system.SetPaths()
-					if err != nil {
-						log.With("err", err).Errorf("Error setting paths")
-						os.Exit(1)
+					if err := system.SetPaths(); err != nil {
+						return fmt.Errorf("error setting paths: %w", err)
 					}
 					osInfo = system.DetectOS()
 					return nil
@@ -52,8 +50,7 @@ var rootCmd = &cobra.Command{
 			current = current.Parent()
 		}
 
-		initializeSystemInfo()
-		return nil
+		return initializeSystemInfo()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Welcome to rwr - The Distrohopper's Friend!")
@@ -66,13 +63,14 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	ghApiToken       string // Global variable for API Key
-	ghAuth           bool   // Global variable for GitHub OAuth authentication
-	sshKey           string // Global variable for SSH Key
+	ghApiToken       string // GitHub API token for repository operations
+	ghAuth           bool   // Use OAuth device flow for GitHub authentication
+	sshKey           string // SSH private key for Git auth (path or base64)
 	skipVersionCheck bool
 	debug            bool
 	interactive      bool
 	forceBootstrap   bool
+	dryRun           bool
 	logLevel         string
 	configLocation   string
 	runOnceLocation  string
@@ -86,7 +84,7 @@ var (
 // It searches for init files in the configured location or current directory,
 // sets up system paths, processes the initialization configuration, retrieves
 // blueprints from Git if configured, and detects the operating system.
-func initializeSystemInfo() {
+func initializeSystemInfo() error {
 	var err error
 
 	// If no init file is specified via flag, check config
@@ -130,6 +128,7 @@ func initializeSystemInfo() {
 		LogLevel:         logLevel,
 		ForceBootstrap:   forceBootstrap,
 		Interactive:      interactive,
+		DryRun:           dryRun,
 		GHAPIToken:       ghApiToken,
 		SSHKey:           sshKey,
 		SkipVersionCheck: skipVersionCheck,
@@ -138,27 +137,29 @@ func initializeSystemInfo() {
 		Profiles:         profiles,
 	}
 
-	err = system.SetPaths()
-	if err != nil {
-		log.With("err", err).Errorf("Error setting paths")
-		os.Exit(1)
+	if dryRun {
+		system.SetDryRun(true)
+		log.Infof("Dry-run mode enabled - no changes will be made")
+	}
+
+	if err = system.SetPaths(); err != nil {
+		return fmt.Errorf("error setting paths: %w", err)
 	}
 
 	log.Debugf("Initializing system information with init file: %s", initFilePath)
 	initConfig, err = processors.Initialize(initFilePath, flags)
 	if err != nil {
-		log.With("err", err).Errorf("Error initializing system information")
-		os.Exit(1)
+		return fmt.Errorf("error initializing system information: %w", err)
 	}
 
 	log.Debugf("Checking for blueprints git configuration")
 	initFilePath, err = processors.GetBlueprints(initConfig)
 	if err != nil {
-		log.With("err", err).Errorf("Error running GetBlueprints")
-		os.Exit(1)
+		return fmt.Errorf("error running GetBlueprints: %w", err)
 	}
 
 	osInfo = system.DetectOS()
+	return nil
 }
 
 // init initializes the Cobra command structure and sets up persistent flags.
@@ -167,74 +168,57 @@ func initializeSystemInfo() {
 // SSH keys, profiles, and version checking. Flags are bound to viper for
 // configuration file integration.
 func init() {
-	cobra.OnInitialize(config)
-	var err error
+	cobra.OnInitialize(func() {
+		if err := config(); err != nil {
+			log.Fatalf("Configuration error: %v", err)
+		}
+	})
 
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().BoolVar(&forceBootstrap, "force-bootstrap", false, "Force Bootstrap to be ran again")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Log operations without executing (no-op mode)")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "no-op", false, "Alias for --dry-run")
 
 	rootCmd.PersistentFlags().BoolVarP(&interactive, "interactive", "I", true, "Enable interactive mode (use --interactive=false to disable)")
 
 	// Flag for the init file path
 	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init file")
-	err = viper.BindPFlag("rwr.init-file", rootCmd.PersistentFlags().Lookup("init-file"))
-	if err != nil {
-		log.With("err", err).Errorf("Error initializing system information")
-		os.Exit(1)
-	}
-
-	err = viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
-	if err != nil {
-		log.With("err", err).Errorf("Error initializing system information")
-		os.Exit(1)
-	}
+	mustBindFlag("rwr.init-file", "init-file")
+	mustBindFlag("log.level", "log-level")
 
 	viper.SetDefault("log.level", "info") // Default log level
 
 	// GitHub API Key flags
 	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-api-key", "", "GitHub API token (stored under repository.gh_api_token)")
 	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-key", "", "GitHub API token (alias for --gh-api-key)")
-	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("gh-api-key"))
-	if err != nil {
-		log.With("err", err).Errorf("Error binding gh-api-key flag")
-		os.Exit(1)
-	}
-	err = viper.BindPFlag("repository.gh_api_token", rootCmd.PersistentFlags().Lookup("gh-key"))
-	if err != nil {
-		log.With("err", err).Errorf("Error binding gh-key flag")
-		os.Exit(1)
-	}
+	mustBindFlag("repository.gh_api_token", "gh-api-key")
+	mustBindFlag("repository.gh_api_token", "gh-key")
 
 	// GitHub OAuth authentication flag
 	rootCmd.PersistentFlags().BoolVar(&ghAuth, "gh-auth", false, "Authenticate with GitHub using OAuth device flow")
 
-	//
 	rootCmd.PersistentFlags().StringVar(&sshKey, "ssh-key", "", "Path to the SSH key file or Base64-encoded SSH key for Git authentication (stored under repository.ssh_private_key)")
-	err = viper.BindPFlag("repository.ssh_private_key", rootCmd.PersistentFlags().Lookup("ssh-key"))
-	if err != nil {
-		log.With("err", err).Errorf("Error initializing system information")
-		os.Exit(1)
-	}
+	mustBindFlag("repository.ssh_private_key", "ssh-key")
 
 	// Adding skipVersionCheck as a global flag
 	rootCmd.PersistentFlags().BoolVar(&skipVersionCheck, "skip-version-check", false, "Skip checking for the latest version of rwr")
-	err = viper.BindPFlag("rwr.skipVersionCheck", rootCmd.PersistentFlags().Lookup("skip-version-check"))
-	if err != nil {
-		log.With("err", err).Errorf("Error initializing system information")
-		os.Exit(1)
-	}
+	mustBindFlag("rwr.skipVersionCheck", "skip-version-check")
 
 	// Profile selection flag
 	rootCmd.PersistentFlags().StringSliceVarP(&profiles, "profile", "p", []string{}, "Specify profiles to activate (can be used multiple times)")
-	err = viper.BindPFlag("rwr.profiles", rootCmd.PersistentFlags().Lookup("profile"))
-	if err != nil {
-		log.With("err", err).Errorf("Error binding profile flag")
-		os.Exit(1)
-	}
+	mustBindFlag("rwr.profiles", "profile")
 
 	viper.SetEnvPrefix("RWR")
 	viper.AutomaticEnv()
+}
+
+// mustBindFlag binds a viper config key to a persistent flag, panicking on failure.
+// Flag binding errors indicate a programming error (e.g., referencing a non-existent flag).
+func mustBindFlag(viperKey, flagName string) {
+	if err := viper.BindPFlag(viperKey, rootCmd.PersistentFlags().Lookup(flagName)); err != nil {
+		log.Fatalf("Error binding flag %s: %v", flagName, err)
+	}
 }
 
 // config sets up logging configuration and initializes application directories.
@@ -242,7 +226,7 @@ func init() {
 // for tracking bootstrap operations. The function also configures the logger
 // with appropriate output settings and log levels based on flags and configuration.
 // It reads the config file if available and sets up GitHub API tokens and SSH keys.
-func config() {
+func config() error {
 	// Create a new logger
 	log.SetTimeFormat(time.Kitchen)
 	log.SetReportCaller(true)
@@ -252,23 +236,19 @@ func config() {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.With("err", err).Errorf("Error finding home directory")
-		os.Exit(1)
+		return fmt.Errorf("error finding home directory: %w", err)
 	}
 	configLocation = filepath.Join(homeDir, ".config", "rwr")
 	runOnceLocation = filepath.Join(configLocation, "run_once")
 
-	err = os.MkdirAll(configLocation, os.ModePerm)
-	if err != nil {
-		log.With("err", err).Errorf("Error creating config directory")
-		os.Exit(1)
+	if err = os.MkdirAll(configLocation, os.ModePerm); err != nil {
+		return fmt.Errorf("error creating config directory: %w", err)
 	}
 
-	err = os.MkdirAll(runOnceLocation, os.ModePerm)
-	if err != nil {
-		log.With("err", err).Errorf("Error creating bootstrap directory")
-		os.Exit(1)
+	if err = os.MkdirAll(runOnceLocation, os.ModePerm); err != nil {
+		return fmt.Errorf("error creating bootstrap directory: %w", err)
 	}
+
 	viper.AddConfigPath(configLocation)
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
@@ -300,6 +280,7 @@ func config() {
 
 	ghApiToken = viper.GetString("repository.gh_api_token")
 	sshKey = viper.GetString("repository.ssh_private_key")
+	return nil
 }
 
 // Execute runs the root command and handles any errors that occur during execution.
@@ -308,6 +289,5 @@ func config() {
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		log.With("err", err).Fatalf("Error executing command")
-		os.Exit(1)
 	}
 }

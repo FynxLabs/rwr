@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/processors"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -11,13 +12,12 @@ import (
 var allCmd = &cobra.Command{
 	Use:   "all",
 	Short: "Run All Blueprints - New System Initialization",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Handle GitHub OAuth authentication if --gh-auth flag is set
 		if ghAuth {
 			token, err := processors.AuthenticateWithGitHub(initConfig)
 			if err != nil {
-				log.With("err", err).Errorf("GitHub authentication failed")
-				os.Exit(1)
+				return fmt.Errorf("GitHub authentication failed: %w", err)
 			}
 			// Update the token in both global var and initConfig
 			ghApiToken = token
@@ -25,11 +25,10 @@ var allCmd = &cobra.Command{
 		}
 
 		log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
-		err := processors.All(initConfig, osInfo, nil)
-		if err != nil {
-			log.With("err", err).Errorf("Error initializing system information")
-			os.Exit(1)
+		if err := processors.All(initConfig, osInfo, nil); err != nil {
+			return fmt.Errorf("error running all processors: %w", err)
 		}
+		return nil
 	},
 }
 

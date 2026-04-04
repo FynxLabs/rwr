@@ -7,24 +7,17 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// GetPackageManager retrieves the configuration for a named package manager
+// from the available providers. Returns an error if the provider is not found.
 func GetPackageManager(pm string) (types.PackageManagerInfo, error) {
 	if prov, exists := GetProviderWithAlternatives(pm); exists {
-		info := GetPackageManagerInfo(prov, prov.BinPath)
-		return types.PackageManagerInfo{
-			Name:     info.Name,
-			Bin:      info.Bin,
-			List:     info.List,
-			Search:   info.Search,
-			Install:  info.Install,
-			Remove:   info.Remove,
-			Update:   info.Update,
-			Clean:    info.Clean,
-			Elevated: info.Elevated,
-		}, nil
+		return GetPackageManagerInfo(prov, prov.BinPath), nil
 	}
 	return types.PackageManagerInfo{}, fmt.Errorf("unsupported package manager: %s", pm)
 }
 
+// InstallOpenSSL ensures OpenSSL is installed on the system, using the
+// default package manager to install it if not already present.
 func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Check if OpenSSL is already installed
 	opensslTool := FindTool("openssl")
@@ -73,7 +66,8 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	return nil
 }
 
-// InstallBuildEssentials installs build essentials on the system.
+// InstallBuildEssentials installs common build tools (make, gcc, cmake) using
+// the default package manager, skipping any that are already installed.
 func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Check for common build tools to see if they're already installed
 	makeExists := FindTool("make").Exists

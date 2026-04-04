@@ -12,7 +12,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// Validate performs validation based on the provided options
+// Validate runs blueprint and provider validation based on the provided options.
+// It returns aggregated results with issue counts by severity (error, warning, info).
 func Validate(options types.ValidationOptions, osInfo *types.OSInfo) (*types.ValidationResults, error) {
 	results := &types.ValidationResults{
 		Issues: []types.ValidationIssue{},
@@ -47,7 +48,8 @@ func Validate(options types.ValidationOptions, osInfo *types.OSInfo) (*types.Val
 	return results, nil
 }
 
-// AddIssue adds a validation issue to the results
+// AddIssue records a validation issue and logs it at the appropriate severity level.
+// If file and line are provided, they are included in the log output for traceability.
 func AddIssue(results *types.ValidationResults, severity types.ValidationSeverity, message string, file string, line int, suggestion string) {
 	issue := types.ValidationIssue{
 		Severity:   severity,

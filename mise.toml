@@ -2,6 +2,7 @@
 go = "1.26.1"
 goreleaser = "latest"
 gotestsum = "latest"
+golangci-lint = "latest"
 
 [env]
 DAGGER_NO_NAG=1
@@ -21,6 +22,7 @@ test = "gotestsum --format pkgname --jsonfile /tmp/gotest.json -- ./..."  # Form
 
 # Watch mode for development
 "test:watch" = "gotestsum --watch --format testname"  # Watch for file changes and run tests
+lint = "golangci-lint run"  # Run golangci-lint
 
 # Raw test commands (without formatting)
 "test:unit:raw" = "go test ./internal/... -v"  # Raw internal package tests

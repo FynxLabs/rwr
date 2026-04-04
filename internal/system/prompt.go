@@ -9,6 +9,8 @@ import (
 	"github.com/charmbracelet/log"
 )
 
+// PromptUserChoice displays an interactive selection prompt and returns
+// the user's chosen option, falling back to defaultOption on invalid input.
 func PromptUserChoice(prompt string, options []string, defaultOption string) string {
 	reader := bufio.NewReader(os.Stdin)
 

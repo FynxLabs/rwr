@@ -44,6 +44,8 @@ func getLatestReleaseURL() (string, error) {
 	return fmt.Sprintf("https://github.com/ryanoasis/nerd-fonts/releases/download/%s/", release.TagName), nil
 }
 
+// ProcessFonts downloads and installs Nerd Fonts from the latest GitHub release.
+// It extracts font archives to the system font directory and refreshes the font cache.
 func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var fontsData types.FontsData
 	var err error
@@ -63,6 +65,16 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 	}
 
 	for _, font := range fontsData.Fonts {
+		if system.IsDryRun() {
+			if len(font.Names) > 0 {
+				for _, name := range font.Names {
+					log.Infof("[DRY-RUN] Would install font: %s", name)
+				}
+			} else if font.Name != "" {
+				log.Infof("[DRY-RUN] Would install font: %s", font.Name)
+			}
+			continue
+		}
 		if len(font.Names) > 0 {
 			for _, name := range font.Names {
 				fontWithName := font

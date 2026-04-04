@@ -1,6 +1,8 @@
 package processors
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -219,5 +221,222 @@ func TestGetBlueprintRunOrder_MultipleMapItems(t *testing.T) {
 		if !expectedProcessors[processor] {
 			t.Errorf("Unexpected processor '%s' in result", processor)
 		}
+	}
+}
+
+// GetBlueprintFileOrder tests
+
+func TestGetBlueprintFileOrder_DirectoryScan(t *testing.T) {
+	// Create temp blueprint directory structure
+	tempDir := t.TempDir()
+
+	// Create processor directories with blueprint files
+	dirs := []string{"packages", "services", "files"}
+	for _, d := range dirs {
+		dir := filepath.Join(tempDir, d)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("Failed to create dir %s: %v", dir, err)
+		}
+		file := filepath.Join(dir, d+".yaml")
+		if err := os.WriteFile(file, []byte("test: data"), 0644); err != nil {
+			t.Fatalf("Failed to write file: %v", err)
+		}
+	}
+
+	config := &types.InitConfig{
+		Init: types.Init{
+			Format: "yaml",
+		},
+	}
+
+	result, err := GetBlueprintFileOrder(tempDir, nil, false, config)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder failed: %v", err)
+	}
+
+	// Should find files for packages, services, files processors
+	for _, processor := range dirs {
+		if files, ok := result[processor]; !ok {
+			t.Errorf("Expected processor '%s' in file order", processor)
+		} else if len(files) == 0 {
+			t.Errorf("Expected files for processor '%s'", processor)
+		}
+	}
+}
+
+func TestGetBlueprintFileOrder_OrderedItems(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a packages directory with a file
+	pkgDir := filepath.Join(tempDir, "packages")
+	os.MkdirAll(pkgDir, 0755)
+	os.WriteFile(filepath.Join(pkgDir, "packages.yaml"), []byte("test"), 0644)
+
+	// Create a services directory with a file
+	svcDir := filepath.Join(tempDir, "services")
+	os.MkdirAll(svcDir, 0755)
+	os.WriteFile(filepath.Join(svcDir, "services.yaml"), []byte("test"), 0644)
+
+	config := &types.InitConfig{
+		Init: types.Init{
+			Format: "yaml",
+		},
+	}
+
+	order := []interface{}{"packages", "services"}
+	result, err := GetBlueprintFileOrder(tempDir, order, true, config)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder failed: %v", err)
+	}
+
+	if _, ok := result["packages"]; !ok {
+		t.Error("Expected packages in file order")
+	}
+	if _, ok := result["services"]; !ok {
+		t.Error("Expected services in file order")
+	}
+}
+
+func TestGetBlueprintFileOrder_RunOnlyListed(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create packages and services dirs
+	for _, d := range []string{"packages", "services", "scripts"} {
+		dir := filepath.Join(tempDir, d)
+		os.MkdirAll(dir, 0755)
+		os.WriteFile(filepath.Join(dir, d+".yaml"), []byte("test"), 0644)
+	}
+
+	config := &types.InitConfig{
+		Init: types.Init{
+			Format: "yaml",
+		},
+	}
+
+	// Only list packages in order, with runOnlyListed=true
+	order := []interface{}{"packages"}
+	result, err := GetBlueprintFileOrder(tempDir, order, true, config)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder failed: %v", err)
+	}
+
+	// Should only have packages, not services or scripts
+	if _, ok := result["packages"]; !ok {
+		t.Error("Expected packages in file order")
+	}
+	if _, ok := result["services"]; ok {
+		t.Error("services should NOT be in file order when runOnlyListed=true")
+	}
+	if _, ok := result["scripts"]; ok {
+		t.Error("scripts should NOT be in file order when runOnlyListed=true")
+	}
+}
+
+func TestGetBlueprintFileOrder_EmptyDirectory(t *testing.T) {
+	tempDir := t.TempDir()
+
+	config := &types.InitConfig{
+		Init: types.Init{
+			Format: "yaml",
+		},
+	}
+
+	result, err := GetBlueprintFileOrder(tempDir, nil, false, config)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder failed: %v", err)
+	}
+
+	if len(result) != 0 {
+		t.Errorf("Expected empty file order for empty directory, got %d processors", len(result))
+	}
+}
+
+func TestGetBlueprintFileOrder_SingleFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create a single file directly in packages/
+	pkgDir := filepath.Join(tempDir, "packages")
+	os.MkdirAll(pkgDir, 0755)
+	os.WriteFile(filepath.Join(pkgDir, "base.yaml"), []byte("test"), 0644)
+
+	config := &types.InitConfig{
+		Init: types.Init{
+			Format: "yaml",
+		},
+	}
+
+	// Reference the single file in order
+	order := []interface{}{filepath.Join("packages", "base.yaml")}
+	result, err := GetBlueprintFileOrder(tempDir, order, true, config)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder failed: %v", err)
+	}
+
+	if _, ok := result["packages"]; !ok {
+		t.Error("Expected packages processor for single file reference")
+	}
+}
+
+func TestGetBlueprintFileOrder_MultipleFilesInProcessor(t *testing.T) {
+	tempDir := t.TempDir()
+
+	pkgDir := filepath.Join(tempDir, "packages")
+	os.MkdirAll(pkgDir, 0755)
+	os.WriteFile(filepath.Join(pkgDir, "base.yaml"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(pkgDir, "extra.yaml"), []byte("test"), 0644)
+
+	config := &types.InitConfig{
+		Init: types.Init{
+			Format: "yaml",
+		},
+	}
+
+	result, err := GetBlueprintFileOrder(tempDir, nil, false, config)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder failed: %v", err)
+	}
+
+	if files, ok := result["packages"]; !ok {
+		t.Error("Expected packages in file order")
+	} else if len(files) != 2 {
+		t.Errorf("Expected 2 files for packages, got %d", len(files))
+	}
+}
+
+// GetBlueprints tests
+
+func TestGetBlueprints_NoGitOptions(t *testing.T) {
+	// When no Git options are configured, should return the default location
+	tempDir := t.TempDir()
+	config := &types.InitConfig{
+		Init: types.Init{
+			Location: tempDir,
+		},
+	}
+
+	result, err := GetBlueprints(config)
+	if err != nil {
+		t.Fatalf("GetBlueprints failed: %v", err)
+	}
+
+	if result != tempDir {
+		t.Errorf("Expected location %s, got %s", tempDir, result)
+	}
+}
+
+func TestGetBlueprints_NoGitOptions_EmptyLocation(t *testing.T) {
+	config := &types.InitConfig{
+		Init: types.Init{
+			Location: "",
+		},
+	}
+
+	result, err := GetBlueprints(config)
+	if err != nil {
+		t.Fatalf("GetBlueprints failed: %v", err)
+	}
+
+	if result != "" {
+		t.Errorf("Expected empty location, got %s", result)
 	}
 }

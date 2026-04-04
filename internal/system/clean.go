@@ -5,6 +5,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// CleanPackageManagers runs the cleanup command for each available package manager
+// to free disk space and clear cached package data.
 func CleanPackageManagers(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Clean each available package manager
 	for name, pm := range osInfo.PackageManager.Managers {

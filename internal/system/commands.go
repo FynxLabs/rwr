@@ -18,29 +18,34 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// RunCommand executes a system command with the specified configuration.
-// It handles elevated (sudo) execution, running commands as specific users,
-// setting environment variables, and configuring input/output streams based
-// on the interactive flag and debug mode. Returns an error if the command fails.
-func RunCommand(cmd types.Command, debug bool) error {
-	var command *exec.Cmd
+// buildCommand creates an *exec.Cmd based on the execution options specified in the
+// given types.Command. It handles elevated (sudo/admin) execution, running as a
+// specific user, and normal execution, with platform-specific behavior for Windows
+// vs Unix systems.
+func buildCommand(cmd types.Command) *exec.Cmd {
+	fullCmd := fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " "))
 
 	if cmd.Elevated {
 		if runtime.GOOS == "windows" {
 			log.Debugf("Running command as elevated - Running Command: %v %v", cmd.Exec, cmd.Args)
-			command = exec.Command("cmd", "/C", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
-		} else {
-			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
-			command = exec.Command("sudo", "sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
+			return exec.Command("cmd", "/C", fullCmd)
 		}
+		log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
+		return exec.Command("sudo", "sh", "-c", fullCmd)
 	} else if cmd.AsUser != "" {
 		log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.Args)
-		command = exec.Command("sudo", "-u", cmd.AsUser, "sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
-	} else {
-		log.Debugf("Running command: %v %v", cmd.Exec, cmd.Args)
-		command = exec.Command("sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
+		return exec.Command("sudo", "-u", cmd.AsUser, "sh", "-c", fullCmd)
 	}
 
+	log.Debugf("Running command: %v %v", cmd.Exec, cmd.Args)
+	return exec.Command("sh", "-c", fullCmd)
+}
+
+// setupCommandEnvironment configures the environment variables and PATH for the
+// given *exec.Cmd. It copies the current process environment, appends any additional
+// variables defined in the types.Command, and enhances the PATH with common binary
+// directories.
+func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 	// Get the current environment variables
 	env := os.Environ()
 
@@ -55,6 +60,35 @@ func RunCommand(cmd types.Command, debug bool) error {
 
 	// Set the environment variables for the command
 	command.Env = env
+}
+
+// dryRunMode controls whether commands are actually executed.
+// When true, RunCommand and RunCommandOutput log the command but skip execution.
+var dryRunMode bool
+
+// SetDryRun enables or disables dry-run mode globally.
+func SetDryRun(enabled bool) {
+	dryRunMode = enabled
+}
+
+// IsDryRun returns whether dry-run mode is enabled.
+func IsDryRun() bool {
+	return dryRunMode
+}
+
+// RunCommand executes a system command with the specified configuration.
+// It handles elevated (sudo) execution, running commands as specific users,
+// setting environment variables, and configuring input/output streams based
+// on the interactive flag and debug mode. Returns an error if the command fails.
+// In dry-run mode, it logs the command without executing it.
+func RunCommand(cmd types.Command, debug bool) error {
+	if dryRunMode {
+		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.Args, " "))
+		return nil
+	}
+
+	command := buildCommand(cmd)
+	setupCommandEnvironment(command, cmd)
 
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
@@ -81,38 +115,13 @@ func RunCommand(cmd types.Command, debug bool) error {
 // but captures and returns stdout instead of streaming it. Returns the command output
 // and an error if the command fails.
 func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
-	var command *exec.Cmd
-
-	if cmd.Elevated {
-		if runtime.GOOS == "windows" {
-			log.Debugf("Running command as elevated - Running Command: %v %v", cmd.Exec, cmd.Args)
-			command = exec.Command("cmd", "/C", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
-		} else {
-			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
-			command = exec.Command("sudo", "sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
-		}
-	} else if cmd.AsUser != "" {
-		log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.Args)
-		command = exec.Command("sudo", "-u", cmd.AsUser, "sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
-	} else {
-		log.Debugf("Running command: %v %v", cmd.Exec, cmd.Args)
-		command = exec.Command("sh", "-c", fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " ")))
+	if dryRunMode {
+		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.Args, " "))
+		return "", nil
 	}
 
-	// Get the current environment variables
-	env := os.Environ()
-
-	// Append the additional variables from cmd.Variables
-	for key, value := range cmd.Variables {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
-	}
-
-	// Add common paths to the PATH environment variable
-	updatedPath := AddCommonPaths()
-	env = append(env, fmt.Sprintf("PATH=%s", updatedPath))
-
-	// Set the environment variables for the command
-	command.Env = env
+	command := buildCommand(cmd)
+	setupCommandEnvironment(command, cmd)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

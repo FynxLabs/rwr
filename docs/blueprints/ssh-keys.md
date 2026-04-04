@@ -34,6 +34,7 @@ The following settings are available for each SSH key in the SSH Keys blueprint:
 | `github_title`       | No       | The title to use for the SSH key when copying it to GitHub                         |
 | `set_as_rwr_ssh_key` | No       | Set to `true` to use this key as the default RWR SSH key. Default is `false`       |
 | `profiles`           | No       | List of profiles this SSH key belongs to. If empty, key is always generated (base item) |
+| `interactive`        | No       | Override global interactive mode for this SSH key (`true`/`false`). If omitted, uses the global `--interactive` flag. Useful for ensuring passphrase prompts appear even in non-interactive mode |
 
 ## Blueprint Imports
 

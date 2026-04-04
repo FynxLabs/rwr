@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 )
 
+// IsBootstrapped checks whether the system has already been bootstrapped
+// by looking for a marker file in the rwr config directory.
 func IsBootstrapped() bool {
 	// Get the configuration directory from viper
 	configDir := viper.GetString("rwr.configdir")
@@ -28,6 +30,8 @@ func IsBootstrapped() bool {
 	return true
 }
 
+// Bootstrap creates a marker file in the rwr config directory to indicate
+// that the system has been successfully bootstrapped.
 func Bootstrap() error {
 	// Get the configuration directory from viper
 	configDir := viper.GetString("rwr.configdir")

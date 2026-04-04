@@ -12,7 +12,17 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// ProcessPackages processes package management operations
+// ProcessPackages installs or removes packages based on blueprint definitions.
+// It supports two modes:
+//   - If data is provided: unmarshals it into package definitions
+//   - If packages is provided: uses the provided package list directly
+//
+// The function resolves import directives recursively (with circular detection),
+// filters packages based on active profiles from initConfig, detects available
+// package managers for the current OS, and executes install/remove commands.
+//
+// Returns an error if no package managers are available or if unmarshaling fails.
+// Individual package installation errors are logged but do not stop processing.
 func ProcessPackages(data []byte, packages *types.PackagesData, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// If data is provided, unmarshal it
 	if data != nil {
@@ -151,10 +161,11 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 
 			// Execute command directly with environment variables
 			cmd := types.Command{
-				Exec:      provider.BinPath,
-				Args:      args,
-				Elevated:  provider.Elevated,
-				Variables: provider.Environment,
+				Exec:        provider.BinPath,
+				Args:        args,
+				Elevated:    provider.Elevated,
+				Variables:   provider.Environment,
+				Interactive: helpers.ResolveInteractive(pkg.Interactive, initConfig.Variables.Flags.Interactive),
 			}
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
 				log.Warnf("Error %s package %s: %v", pkg.Action, name, err)

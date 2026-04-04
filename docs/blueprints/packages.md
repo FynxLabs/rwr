@@ -49,6 +49,7 @@ The Packages Blueprint supports the following settings:
 | `elevated` | No | Whether to run the package manager with elevated privileges (default: `false`) |
 | `args` | No | Additional arguments to pass to the package manager (as a list of strings) |
 | `profiles` | No | List of profiles this package belongs to. If empty, package is always installed (base item) |
+| `interactive` | No | Override global interactive mode for this package (`true`/`false`). If omitted, uses the global `--interactive` flag |
 
 Note that you must provide either `name`, `names`, or `import` for each package entry. If both are provided, `names` will take precedence.
 

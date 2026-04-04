@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/fynxlabs/rwr/internal/validate"
 	"github.com/spf13/cobra"
@@ -38,7 +37,7 @@ Examples:
   # Force validation as providers
   rwr validate path/to/file --providers`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Get path from args or use current directory
 		path := "."
 		if len(args) > 0 {
@@ -48,22 +47,19 @@ Examples:
 		// Resolve absolute path
 		absPath, err := filepath.Abs(path)
 		if err != nil {
-			log.With("err", err).Errorf("Error resolving path: %s", path)
-			os.Exit(1)
+			return fmt.Errorf("error resolving path %s: %w", path, err)
 		}
 
 		// Check if path exists
 		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			log.Errorf("Path does not exist: %s", absPath)
-			os.Exit(1)
+			return fmt.Errorf("path does not exist: %s", absPath)
 		}
 
 		// If no flags specified, determine type from path
 		if !validateBlueprints && !validateProviders {
 			fileInfo, err := os.Stat(absPath)
 			if err != nil {
-				log.With("err", err).Errorf("Error accessing path: %s", absPath)
-				os.Exit(1)
+				return fmt.Errorf("error accessing path %s: %w", absPath, err)
 			}
 
 			if fileInfo.IsDir() {
@@ -94,19 +90,18 @@ Examples:
 		// Run validation
 		results, err := validate.Validate(options, osInfo)
 		if err != nil {
-			log.With("err", err).Errorf("Error during validation")
-			os.Exit(1)
+			return fmt.Errorf("error during validation: %w", err)
 		}
 
 		// Display results
 		if results.ErrorCount > 0 {
-			fmt.Printf("Validation failed with %d errors and %d warnings\n", results.ErrorCount, results.WarningCount)
-			os.Exit(1)
+			return fmt.Errorf("validation failed with %d errors and %d warnings", results.ErrorCount, results.WarningCount)
 		} else if results.WarningCount > 0 {
 			fmt.Printf("Validation completed with %d warnings\n", results.WarningCount)
 		} else {
 			fmt.Println("Validation completed successfully")
 		}
+		return nil
 	},
 }
 

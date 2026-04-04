@@ -98,6 +98,10 @@ The home directory for the user account (for the `create` action).
 
 The new home directory for the user account (for the `modify` action).
 
+#### `interactive`
+
+Override global interactive mode for this user operation (`true`/`false`). If omitted, uses the global `--interactive` flag.
+
 ### Groups Configuration
 
 An array of group objects representing the groups to manage.

@@ -74,7 +74,7 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 // findInitFile searches for an init file in the specified directory (non-recursive)
 func findInitFile(dir string) string {
 	// Check for init files with common extensions
-	for _, ext := range []string{".json", ".yaml", ".yml", ".toml"} {
+	for _, ext := range []string{types.FormatExtJSON, types.FormatExtYAML, types.FormatExtYAMLAlt, types.FormatExtTOML} {
 		initFile := filepath.Join(dir, "init"+ext)
 		if _, err := os.Stat(initFile); err == nil {
 			return initFile
@@ -170,7 +170,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	var blueprintType string
 	switch {
 	case filename == "bootstrap.yaml" || filename == "bootstrap.yml" || filename == "bootstrap.json" || filename == "bootstrap.toml":
-		blueprintType = "bootstrap"
+		blueprintType = types.BlueprintTypeBootstrap
 	default:
 		blueprintType = strings.ToLower(dir)
 	}
@@ -182,83 +182,90 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 
 	log.Debugf("Processing %s from file: %s", blueprintType, blueprintFile)
 
-	// Validate based on blueprint type
-	switch blueprintType {
-	case "bootstrap":
-		var bootstrapData types.BootstrapData
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &bootstrapData)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling bootstrap blueprint: %w", err)
-		}
-		ValidateBootstrap(bootstrapData, blueprintFile, results)
-
-	case "packages":
-		var packagesData types.PackagesData
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &packagesData)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling packages blueprint: %w", err)
-		}
-		ValidatePackages(packagesData.Packages, blueprintFile, results)
-
-	case "repositories":
-		var repositories []types.Repository
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &repositories)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling repositories blueprint: %w", err)
-		}
-		ValidateRepositories(repositories, blueprintFile, results)
-
-	case "files":
-		var files []types.File
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &files)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling files blueprint: %w", err)
-		}
-		ValidateFiles(files, blueprintFile, results)
-
-	case "git":
-		var gitRepositories []types.Git
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &gitRepositories)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling git repositories blueprint: %w", err)
-		}
-		ValidateGitRepositories(gitRepositories, blueprintFile, results)
-
-	case "scripts":
-		var scripts []types.Script
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &scripts)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling scripts blueprint: %w", err)
-		}
-		ValidateScripts(scripts, blueprintFile, results)
-
-	case "services":
-		var services []types.Service
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &services)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling services blueprint: %w", err)
-		}
-		ValidateServices(services, blueprintFile, results)
-
-	case "ssh_keys":
-		var sshKeys []types.SSHKey
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &sshKeys)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling ssh keys blueprint: %w", err)
-		}
-		ValidateSSHKeys(sshKeys, blueprintFile, results)
-
-	case "users":
-		var usersData types.UsersData
-		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &usersData)
-		if err != nil {
-			return fmt.Errorf("error unmarshaling users blueprint: %w", err)
-		}
-		ValidateUsers(usersData.Users, blueprintFile, results)
-
-	default:
+	validator, ok := blueprintValidators[blueprintType]
+	if !ok {
 		AddIssue(results, types.ValidationWarning, fmt.Sprintf("Unsupported blueprint type: %s", blueprintType), blueprintFile, 0, "")
+		return nil
 	}
 
-	return nil
+	return validator(blueprintFileData, filepath.Ext(blueprintFile)[1:], blueprintFile, results)
+}
+
+// blueprintValidator unmarshals and validates a single blueprint type.
+type blueprintValidator func(data []byte, format string, file string, results *types.ValidationResults) error
+
+// blueprintValidators maps blueprint types to their unmarshal+validate functions.
+var blueprintValidators = map[string]blueprintValidator{
+	types.BlueprintTypeBootstrap: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d types.BootstrapData
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling bootstrap blueprint: %w", err)
+		}
+		ValidateBootstrap(d, file, results)
+		return nil
+	},
+	types.BlueprintTypePackages: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d types.PackagesData
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling packages blueprint: %w", err)
+		}
+		ValidatePackages(d.Packages, file, results)
+		return nil
+	},
+	types.BlueprintTypeRepositories: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d []types.Repository
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling repositories blueprint: %w", err)
+		}
+		ValidateRepositories(d, file, results)
+		return nil
+	},
+	types.BlueprintTypeFiles: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d []types.File
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling files blueprint: %w", err)
+		}
+		ValidateFiles(d, file, results)
+		return nil
+	},
+	types.BlueprintTypeGit: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d []types.Git
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling git repositories blueprint: %w", err)
+		}
+		ValidateGitRepositories(d, file, results)
+		return nil
+	},
+	types.BlueprintTypeScripts: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d []types.Script
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling scripts blueprint: %w", err)
+		}
+		ValidateScripts(d, file, results)
+		return nil
+	},
+	types.BlueprintTypeServices: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d []types.Service
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling services blueprint: %w", err)
+		}
+		ValidateServices(d, file, results)
+		return nil
+	},
+	types.BlueprintTypeSSHKeys: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d []types.SSHKey
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling ssh keys blueprint: %w", err)
+		}
+		ValidateSSHKeys(d, file, results)
+		return nil
+	},
+	types.BlueprintTypeUsers: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d types.UsersData
+		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
+			return fmt.Errorf("error unmarshaling users blueprint: %w", err)
+		}
+		ValidateUsers(d.Users, file, results)
+		return nil
+	},
 }

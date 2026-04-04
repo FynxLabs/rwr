@@ -22,6 +22,8 @@ type DiffOption struct {
 	SpaceSizeAfterLn int
 }
 
+// WriteUnifiedDiff writes a colored, side-by-side unified diff to the given writer
+// with terminal-aware formatting and line numbers.
 func WriteUnifiedDiff(w io.Writer, diff difflib.UnifiedDiff, opt DiffOption) error {
 	lnSpaceSize := countDigits(max(len(diff.A), len(diff.B)))
 
@@ -206,6 +208,7 @@ func terminalShape() (int, int, error) {
 	return width, height, nil
 }
 
+// ShowDiff displays a colored unified diff between two files to stdout.
 func ShowDiff(source, target string) error {
 	sourceContent, err := os.ReadFile(source)
 	if err != nil {

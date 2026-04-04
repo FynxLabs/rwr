@@ -102,7 +102,7 @@ func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 			}
 		}
 	} else {
-		runOrder = append(runOrder, "packageManagers", "repositories", "packages", "ssh_keys", "files", "fonts", "services", "git", "scripts", "configuration")
+		runOrder = append(runOrder, types.BlueprintTypePackageManagers, types.BlueprintTypeRepositories, types.BlueprintTypePackages, types.BlueprintTypeSSHKeys, types.BlueprintTypeFiles, types.BlueprintTypeFonts, types.BlueprintTypeServices, types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeConfiguration)
 	}
 
 	log.Debugf("Blueprint run order: %v", runOrder)
@@ -126,8 +126,8 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		// Look for known processor types in the path
 		for _, part := range parts {
 			switch part {
-			case "packages", "repositories", "files", "services", "users",
-				"git", "scripts", "ssh_keys", "fonts", "configuration":
+			case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
+				types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration:
 				return part
 			}
 		}

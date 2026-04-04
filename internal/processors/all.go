@@ -16,11 +16,20 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// All orchestrates the execution of all blueprint processors in the defined run order.
+// It handles bootstrap, package installation, file management, services, and other
+// operations sequentially, cleaning up package manager caches on completion.
 func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
 	var err error
 	var blueprintRunOrder []string
 
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
+
+	if system.IsDryRun() {
+		log.Warnf("=== DRY-RUN MODE ===")
+		log.Warnf("No changes will be made to the system")
+		log.Warnf("====================")
+	}
 
 	// First, ensure the blueprint repository is set up
 	_, err = GetBlueprints(initConfig)
@@ -29,7 +38,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	}
 
 	// Check if macOS and no package manager is installed
-	if osInfo.System.OS == "darwin" {
+	if osInfo.System.OS == types.OSDarwin {
 		// Check if any package manager is installed
 		hasPackageManager := false
 		for _, pm := range osInfo.PackageManager.Managers {
@@ -52,7 +61,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 			pmInfo := types.PackageManagerInfo{
 				Name:   chosenPM,
-				Action: "install",
+				Action: types.ActionInstall,
 			}
 
 			err = ProcessPackageManagers([]types.PackageManagerInfo{pmInfo}, osInfo, initConfig)
@@ -127,34 +136,34 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				}
 
 				switch processor {
-				case "repositories":
+				case types.BlueprintTypeRepositories:
 					log.Infof("Processing repositories")
 					err = ProcessRepositories(resolvedBlueprint, format, osInfo, initConfig)
-				case "packages":
+				case types.BlueprintTypePackages:
 					log.Infof("Processing packages")
 					err = ProcessPackages(resolvedBlueprint, nil, format, osInfo, initConfig)
-				case "files":
+				case types.BlueprintTypeFiles:
 					log.Infof("Processing files")
 					err = ProcessFiles(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case "services":
+				case types.BlueprintTypeServices:
 					log.Infof("Processing services")
 					err = ProcessServices(resolvedBlueprint, format, osInfo, initConfig)
-				case "users":
+				case types.BlueprintTypeUsers:
 					log.Infof("Processing users")
 					err = ProcessUsers(resolvedBlueprint, format, initConfig)
-				case "git":
+				case types.BlueprintTypeGit:
 					log.Infof("Processing git repositories")
 					err = ProcessGitRepositories(resolvedBlueprint, format, initConfig)
-				case "scripts":
+				case types.BlueprintTypeScripts:
 					log.Infof("Processing scripts")
 					err = ProcessScripts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case "ssh_keys":
+				case types.BlueprintTypeSSHKeys:
 					log.Infof("Processing ssh keys")
 					err = ProcessSSHKeys(resolvedBlueprint, format, osInfo, initConfig)
-				case "fonts":
+				case types.BlueprintTypeFonts:
 					log.Info("Processing fonts")
 					err = ProcessFonts(blueprintData, blueprintDir, format, osInfo, initConfig)
-				case "configuration":
+				case types.BlueprintTypeConfiguration:
 					log.Infof("Processing configurations")
 					err = ProcessConfiguration(resolvedBlueprint, blueprintDir, format, initConfig)
 				default:
@@ -170,9 +179,25 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	}
 
 	// Clean up package managers
-	log.Infof("Cleaning up package managers")
-	if err = system.CleanPackageManagers(osInfo, initConfig); err != nil {
-		return fmt.Errorf("error cleaning package managers: %w", err)
+	if !system.IsDryRun() {
+		log.Infof("Cleaning up package managers")
+		if err = system.CleanPackageManagers(osInfo, initConfig); err != nil {
+			return fmt.Errorf("error cleaning package managers: %w", err)
+		}
+	}
+
+	if system.IsDryRun() {
+		log.Infof("")
+		log.Infof("=== DRY-RUN SUMMARY ===")
+		log.Infof("Processors that would run: %d", len(blueprintRunOrder))
+		for _, p := range blueprintRunOrder {
+			if files, ok := fileOrder[p]; ok {
+				log.Infof("  %s: %d blueprint file(s)", p, len(files))
+			}
+		}
+		log.Infof("=======================")
+		log.Infof("")
+		log.Infof("No changes were made to the system.")
 	}
 
 	log.Info("RWR Run Complete!")

@@ -8,7 +8,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// SetWindowsDetails sets Windows-specific system details
+// SetWindowsDetails populates the OSInfo struct with Windows-specific package manager
+// details, detecting Chocolatey, Scoop, and WinGet providers.
 func SetWindowsDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Windows package manager details.")
 
@@ -28,18 +29,7 @@ func SetWindowsDetails(osInfo *types.OSInfo) error {
 		}
 
 		if tool := FindTool(prov.Detection.Binary); tool.Exists {
-			pmInfo := GetPackageManagerInfo(prov, tool.Bin)
-			osInfo.PackageManager.Managers[name] = types.PackageManagerInfo{
-				Name:     pmInfo.Name,
-				Bin:      pmInfo.Bin,
-				List:     pmInfo.List,
-				Search:   pmInfo.Search,
-				Install:  pmInfo.Install,
-				Remove:   pmInfo.Remove,
-				Update:   pmInfo.Update,
-				Clean:    pmInfo.Clean,
-				Elevated: pmInfo.Elevated,
-			}
+			osInfo.PackageManager.Managers[name] = GetPackageManagerInfo(prov, tool.Bin)
 			log.Debugf("Added package manager: %s", name)
 		}
 	}

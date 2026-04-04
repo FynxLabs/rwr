@@ -86,6 +86,8 @@ type accessTokenResponse struct {
 	Error       string `json:"error,omitempty"`
 }
 
+// ProcessSSHKeys generates SSH key pairs from blueprint data and optionally
+// uploads public keys to GitHub via API token or OAuth device flow.
 func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var sshKeyData types.SSHKeyData
 	var err error
@@ -124,6 +126,17 @@ func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, i
 func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Process the SSH keys
 	for _, sshKey := range sshKeys {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would generate SSH key: %s (type: %s, path: %s)", sshKey.Name, sshKey.Type, sshKey.Path)
+			if sshKey.CopyToGitHub {
+				log.Infof("[DRY-RUN] Would copy SSH key to GitHub")
+			}
+			if sshKey.SetAsRWRSSHKey {
+				log.Infof("[DRY-RUN] Would set as RWR SSH key")
+			}
+			continue
+		}
+
 		// Ensure required packages are installed
 		err := ensureSSHPackages(osInfo, initConfig)
 		if err != nil {
@@ -131,7 +144,7 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 		}
 
 		// Generate SSH key
-		keyPath, err := generateSSHKey(sshKey)
+		keyPath, err := generateSSHKey(sshKey, initConfig)
 		if err != nil {
 			log.Errorf("Error generating SSH key %s: %v", sshKey.Name, err)
 			continue // Continue with the next key instead of returning
@@ -181,7 +194,7 @@ func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error
 	}
 }
 
-func generateSSHKey(sshKey types.SSHKey) (string, error) {
+func generateSSHKey(sshKey types.SSHKey, initConfig *types.InitConfig) (string, error) {
 	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
 
 	// Check if the SSH key already exists
@@ -192,6 +205,7 @@ func generateSSHKey(sshKey types.SSHKey) (string, error) {
 
 	// Build the command differently based on whether we need a passphrase
 	var cmd types.Command
+	interactive := helpers.ResolveInteractive(sshKey.Interactive, initConfig.Variables.Flags.Interactive)
 
 	if sshKey.NoPassphrase {
 		// For no passphrase, use a single string command that properly handles the empty string
@@ -199,8 +213,9 @@ func generateSSHKey(sshKey types.SSHKey) (string, error) {
 			sshKey.Type, sshKey.Comment, sshPath)
 
 		cmd = types.Command{
-			Exec: cmdStr,
-			Args: []string{},
+			Exec:        cmdStr,
+			Args:        []string{},
+			Interactive: interactive,
 		}
 	} else {
 		// For normal case with passphrase prompt
@@ -211,6 +226,7 @@ func generateSSHKey(sshKey types.SSHKey) (string, error) {
 				"-C", sshKey.Comment,
 				"-f", sshPath,
 			},
+			Interactive: interactive,
 		}
 	}
 
@@ -246,7 +262,8 @@ func setAsRWRSSHKey(keyPath string) error {
 	return nil
 }
 
-// AuthenticateWithGitHub performs OAuth device flow authentication
+// AuthenticateWithGitHub performs OAuth device flow authentication with GitHub,
+// returning an access token that can be used for API operations like uploading SSH keys.
 func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 	log.Infof("Starting GitHub authentication...")
 

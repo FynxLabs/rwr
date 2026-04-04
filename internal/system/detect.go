@@ -8,8 +8,9 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// DetectOS detects the operating system and package managers, returns an OSInfo struct.
-// Can be used to make decisions based on the user's system.
+// DetectOS identifies the current operating system, distribution, and available
+// package managers. It returns an OSInfo struct used throughout rwr to make
+// platform-specific decisions.
 func DetectOS() *types.OSInfo {
 	log.Debug("Detecting operating system.")
 	osInfo := &types.OSInfo{} // Create a new instance of types.OSInfo

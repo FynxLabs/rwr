@@ -10,8 +10,9 @@ type Repository struct {
 	KeyURL         string   `mapstructure:"key_url,omitempty" yaml:"key_url,omitempty" json:"key_url,omitempty" toml:"key_url,omitempty"`             // Key URL of the repository
 	Channel        string   `mapstructure:"channel,omitempty" yaml:"channel,omitempty" json:"channel,omitempty" toml:"channel,omitempty"`             // Channel of the repository
 	Component      string   `mapstructure:"component,omitempty" yaml:"component,omitempty" json:"component,omitempty" toml:"component,omitempty"`     // Component of the repository
-	Repository     string   `mapstructure:"repository,omitempty" yaml:"repository,omitempty" json:"repository,omitempty" toml:"repository,omitempty"` // Repository name
-	Import         string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`                 // Import path for external repository definitions
+	Repository  string `mapstructure:"repository,omitempty" yaml:"repository,omitempty" json:"repository,omitempty" toml:"repository,omitempty"` // Repository name
+	Interactive *bool  `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"` // Override global interactive mode
+	Import      string `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`                 // Import path for external repository definitions
 }
 
 type RepositoriesData struct {

@@ -1,0 +1,46 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Reports suspicious constructs
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Advanced Go linter
+    - unused        # Check for unused code
+    - godot         # Check comments end with period
+    - stylecheck    # Enforce style guide
+    - revive        # Fast, extensible linter
+    - misspell      # Fix common spelling mistakes
+    - gofmt         # Check gofmt compliance
+    - goimports     # Check goimports compliance
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  stylecheck:
+    checks: ["all", "-ST1003"] # All checks except underscores in names
+
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+        disabled: false
+        arguments:
+          - "checkPrivateReceivers"
+          - "disableStutteringCheck"
+
+issues:
+  exclude-rules:
+    # Exclude test files from certain checks
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+
+  max-issues-per-linter: 0
+  max-same-issues: 0

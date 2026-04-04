@@ -12,6 +12,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/system"
 )
 
+// ProcessScripts executes scripts defined in blueprint data, supporting inline content
+// and external files with various interpreters (bash, python, ruby, etc.).
 func ProcessScripts(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var scriptData types.ScriptData
 	var err error
@@ -51,6 +53,11 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 func processScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig, blueprintDir string) error {
 	for _, script := range scripts {
 		log.Debugf("Processing script: %+v", script)
+
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would run script: %s (exec: %s)", script.Name, script.Exec)
+			continue
+		}
 
 		if script.Action == "run" {
 			err := runScript(script, osInfo, initConfig, blueprintDir)
@@ -170,6 +177,9 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 
 	// Set the elevated flag
 	scriptCmd.Elevated = script.Elevated
+
+	// Set the interactive flag using per-blueprint override or global default
+	scriptCmd.Interactive = helpers.ResolveInteractive(script.Interactive, initConfig.Variables.Flags.Interactive)
 
 	log.Debugf("Running script command: %+v", scriptCmd)
 

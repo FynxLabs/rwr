@@ -1,3 +1,6 @@
+// Package prompts provides interactive user prompts for authentication and configuration.
+// It handles GitHub authentication method selection, token management, and
+// credential storage using the Charm huh library for terminal-based forms.
 package prompts
 
 import (
@@ -19,7 +22,8 @@ const (
 	GitHubAuthSkip   GitHubAuthChoice = "skip"
 )
 
-// PromptGitHubAuthMethod prompts the user to choose a GitHub authentication method
+// PromptGitHubAuthMethod displays a selection form for the user to choose between
+// OAuth device flow, manual token entry, or skipping GitHub authentication.
 func PromptGitHubAuthMethod() (GitHubAuthChoice, error) {
 	var authChoice string
 
@@ -45,7 +49,8 @@ func PromptGitHubAuthMethod() (GitHubAuthChoice, error) {
 	return GitHubAuthChoice(authChoice), nil
 }
 
-// PromptGitHubToken prompts the user to manually enter a GitHub token
+// PromptGitHubToken displays a secure input form for a GitHub personal access token.
+// It validates that the token starts with a recognized prefix (ghp_, gho_, ghu_).
 func PromptGitHubToken() (string, error) {
 	var token string
 
@@ -76,7 +81,8 @@ func PromptGitHubToken() (string, error) {
 	return token, nil
 }
 
-// PromptAndSaveGitHubToken prompts for a token and saves it to config
+// PromptAndSaveGitHubToken collects a GitHub token via interactive prompt
+// and persists it to the rwr config file.
 func PromptAndSaveGitHubToken(initConfig *types.InitConfig) (string, error) {
 	token, err := PromptGitHubToken()
 	if err != nil {
@@ -94,7 +100,9 @@ func PromptAndSaveGitHubToken(initConfig *types.InitConfig) (string, error) {
 	return token, nil
 }
 
-// SaveGitHubTokenToConfig saves a GitHub token to config with optional confirmation
+// SaveGitHubTokenToConfig writes a GitHub token to the rwr config file.
+// If a different token already exists and interactive mode is on, it prompts
+// the user to confirm the replacement.
 func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 	// Check if token already exists in config
 	existingToken := viper.GetString("repository.gh_api_token")
@@ -122,7 +130,8 @@ func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 	return nil
 }
 
-// PromptConfirmTokenReplace prompts user to confirm replacing existing token
+// PromptConfirmTokenReplace asks the user to confirm overwriting an existing
+// GitHub token in the config file. Returns true if the user agrees.
 func PromptConfirmTokenReplace() (bool, error) {
 	var confirm bool
 
@@ -145,9 +154,10 @@ func PromptConfirmTokenReplace() (bool, error) {
 	return confirm, nil
 }
 
-// PromptForGitHubAuth handles the complete GitHub authentication prompt flow
-// It prompts for auth method, then executes the chosen method
-// oauthFunc should be the function that performs OAuth flow (e.g., processors.AuthenticateWithGitHub)
+// PromptForGitHubAuth orchestrates the complete GitHub authentication flow.
+// It prompts for an auth method, then executes OAuth or manual token entry.
+// The oauthFunc parameter should perform the OAuth device flow (e.g., processors.AuthenticateWithGitHub).
+// Returns the token, its source ("oauth"/"manual"), and any error.
 func PromptForGitHubAuth(initConfig *types.InitConfig, oauthFunc func(*types.InitConfig) (string, error)) (string, string, error) {
 	// Check if we're in non-interactive mode
 	if !initConfig.Variables.Flags.Interactive {

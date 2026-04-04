@@ -8,7 +8,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// SetLinuxDetails sets Linux-specific system details
+// SetLinuxDetails populates the OSInfo struct with Linux-specific package manager
+// details by querying available providers and detecting the default package manager.
 func SetLinuxDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Linux package manager details.")
 
@@ -28,18 +29,7 @@ func SetLinuxDetails(osInfo *types.OSInfo) error {
 		}
 
 		if tool := FindTool(prov.Detection.Binary); tool.Exists {
-			pmInfo := GetPackageManagerInfo(prov, tool.Bin)
-			osInfo.PackageManager.Managers[name] = types.PackageManagerInfo{
-				Name:     pmInfo.Name,
-				Bin:      pmInfo.Bin,
-				List:     pmInfo.List,
-				Search:   pmInfo.Search,
-				Install:  pmInfo.Install,
-				Remove:   pmInfo.Remove,
-				Update:   pmInfo.Update,
-				Clean:    pmInfo.Clean,
-				Elevated: pmInfo.Elevated,
-			}
+			osInfo.PackageManager.Managers[name] = GetPackageManagerInfo(prov, tool.Bin)
 			log.Debugf("Added package manager: %s", name)
 		}
 	}
