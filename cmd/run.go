@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/processors"
 
 	"github.com/spf13/cobra"
