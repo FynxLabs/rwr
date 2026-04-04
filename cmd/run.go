@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/processors"
@@ -17,153 +17,99 @@ var runCmd = &cobra.Command{
 var runPackageCmd = &cobra.Command{
 	Use:   "packages",
 	Short: "Run packages processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"packages"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running package processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"packages"})
 	},
 }
 
 var runRepositoryCmd = &cobra.Command{
 	Use:   "repository",
 	Short: "Run repository processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"repositories"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running repository processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"repositories"})
 	},
 }
 
 var runServicesCmd = &cobra.Command{
 	Use:   "services",
 	Short: "Run services processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"services"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running services processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"services"})
 	},
 }
 
 var runFilesCmd = &cobra.Command{
 	Use:   "files",
 	Short: "Run files processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"files"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running files processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"files"})
 	},
 }
 
 var runDirectoriesCmd = &cobra.Command{
 	Use:   "directories",
 	Short: "Run directories processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"directories"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running directories processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"directories"})
 	},
 }
 
 var runConfigurationCmd = &cobra.Command{
 	Use:   "configuration",
 	Short: "Run configuration processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"configuration"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running configuration processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"configuration"})
 	},
 }
 
 var runUsersCmd = &cobra.Command{
 	Use:   "users",
 	Short: "Run users processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"users"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running users processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"users"})
 	},
 }
 
 var runGitCmd = &cobra.Command{
 	Use:   "git",
 	Short: "Run git processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"git"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running git processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"git"})
 	},
 }
 
 var runScriptsCmd = &cobra.Command{
 	Use:   "scripts",
 	Short: "Run scripts processor",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		err := processors.All(initConfig, osInfo, []string{"scripts"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running scripts processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"scripts"})
 	},
 }
 
 var runSSHKeysCmd = &cobra.Command{
 	Use:   "ssh_keys",
 	Short: "Run SSH key processor",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Handle GitHub OAuth authentication if --gh-auth flag is set
 		if ghAuth {
 			token, err := processors.AuthenticateWithGitHub(initConfig)
 			if err != nil {
-				log.With("err", err).Errorf("GitHub authentication failed")
-				os.Exit(1)
+				return fmt.Errorf("GitHub authentication failed: %w", err)
 			}
 			// Update the token in both global var and initConfig
 			ghApiToken = token
 			initConfig.Variables.Flags.GHAPIToken = token
 		}
 
-		err := processors.All(initConfig, osInfo, []string{"ssh_keys"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running SSH key processor")
-			os.Exit(1)
-		}
+		return processors.All(initConfig, osInfo, []string{"ssh_keys"})
 	},
 }
 
 var runFontsCmd = &cobra.Command{
 	Use:   "fonts",
 	Short: "Run fonts processor",
-	Run: func(cmd *cobra.Command, args []string) {
-		err := processors.All(initConfig, osInfo, []string{"fonts"})
-		if err != nil {
-			log.With("err", err).Errorf("Error running fonts processor")
-			os.Exit(1)
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return processors.All(initConfig, osInfo, []string{"fonts"})
 	},
 }
 
