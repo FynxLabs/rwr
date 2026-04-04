@@ -62,11 +62,31 @@ func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 	command.Env = env
 }
 
+// dryRunMode controls whether commands are actually executed.
+// When true, RunCommand and RunCommandOutput log the command but skip execution.
+var dryRunMode bool
+
+// SetDryRun enables or disables dry-run mode globally.
+func SetDryRun(enabled bool) {
+	dryRunMode = enabled
+}
+
+// IsDryRun returns whether dry-run mode is enabled.
+func IsDryRun() bool {
+	return dryRunMode
+}
+
 // RunCommand executes a system command with the specified configuration.
 // It handles elevated (sudo) execution, running commands as specific users,
 // setting environment variables, and configuring input/output streams based
 // on the interactive flag and debug mode. Returns an error if the command fails.
+// In dry-run mode, it logs the command without executing it.
 func RunCommand(cmd types.Command, debug bool) error {
+	if dryRunMode {
+		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.Args, " "))
+		return nil
+	}
+
 	command := buildCommand(cmd)
 	setupCommandEnvironment(command, cmd)
 
@@ -95,6 +115,11 @@ func RunCommand(cmd types.Command, debug bool) error {
 // but captures and returns stdout instead of streaming it. Returns the command output
 // and an error if the command fails.
 func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
+	if dryRunMode {
+		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.Args, " "))
+		return "", nil
+	}
+
 	command := buildCommand(cmd)
 	setupCommandEnvironment(command, cmd)
 

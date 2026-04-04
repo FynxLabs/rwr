@@ -22,6 +22,7 @@ type Flags struct {
 	LogLevel         string
 	Interactive      bool
 	ForceBootstrap   bool
+	DryRun           bool
 	GHAPIToken       string
 	SSHKey           string
 	SkipVersionCheck bool
@@ -76,6 +77,7 @@ func (f Flags) ToMap() map[string]interface{} {
 		"logLevel":         f.LogLevel,
 		"interactive":      f.Interactive,
 		"forceBootstrap":   f.ForceBootstrap,
+		"dryRun":           f.DryRun,
 		"ghAPIToken":       f.GHAPIToken,
 		"sshKey":           f.SSHKey,
 		"skipVersionCheck": f.SkipVersionCheck,

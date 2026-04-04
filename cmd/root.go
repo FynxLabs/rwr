@@ -70,6 +70,7 @@ var (
 	debug            bool
 	interactive      bool
 	forceBootstrap   bool
+	dryRun           bool
 	logLevel         string
 	configLocation   string
 	runOnceLocation  string
@@ -127,12 +128,18 @@ func initializeSystemInfo() error {
 		LogLevel:         logLevel,
 		ForceBootstrap:   forceBootstrap,
 		Interactive:      interactive,
+		DryRun:           dryRun,
 		GHAPIToken:       ghApiToken,
 		SSHKey:           sshKey,
 		SkipVersionCheck: skipVersionCheck,
 		ConfigLocation:   configLocation,
 		RunOnceLocation:  runOnceLocation,
 		Profiles:         profiles,
+	}
+
+	if dryRun {
+		system.SetDryRun(true)
+		log.Infof("Dry-run mode enabled - no changes will be made")
 	}
 
 	if err = system.SetPaths(); err != nil {
@@ -170,6 +177,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().BoolVar(&forceBootstrap, "force-bootstrap", false, "Force Bootstrap to be ran again")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Log operations without executing (no-op mode)")
 
 	rootCmd.PersistentFlags().BoolVarP(&interactive, "interactive", "I", true, "Enable interactive mode (use --interactive=false to disable)")
 

@@ -157,6 +157,11 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 
 	log.Debugf("sourcePath set to: %s; targetPath set to: %s", sourcePath, targetPath)
 
+	if system.IsDryRun() {
+		log.Infof("[DRY-RUN] Would %s file: %s (source: %s, target: %s)", file.Action, file.Name, sourcePath, targetPath)
+		return nil
+	}
+
 	switch file.Action {
 	case "copy":
 		log.Debugf("Copying file: %s to %s (elevated: %v)", sourcePath, targetPath, file.Elevated)
@@ -275,6 +280,10 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 
 func processDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
 	for _, dir := range directories {
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would %s directory: %s (target: %s)", dir.Action, dir.Name, dir.Target)
+			continue
+		}
 		switch dir.Action {
 		case "copy":
 			if err := copyDirectory(dir, blueprintDir, initConfig); err != nil {
