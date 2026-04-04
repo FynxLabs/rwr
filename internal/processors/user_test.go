@@ -493,9 +493,8 @@ func TestProcessGroups_UnsupportedAction(t *testing.T) {
 		t.Skip("Skipping on Windows")
 	}
 
-	system.SetDryRun(true)
-	defer system.SetDryRun(false)
-
+	// Don't enable dry-run here: we're testing action validation,
+	// which happens in the switch default case before any command runs.
 	groups := []types.Group{
 		{Name: "badgroup", Action: "destroy"},
 	}
@@ -511,9 +510,8 @@ func TestProcessUsers_UnsupportedAction(t *testing.T) {
 		t.Skip("Skipping on Windows")
 	}
 
-	system.SetDryRun(true)
-	defer system.SetDryRun(false)
-
+	// Don't enable dry-run here: we're testing action validation,
+	// which happens in the switch default case before any command runs.
 	users := []types.User{
 		{Name: "baduser", Action: "destroy"},
 	}
