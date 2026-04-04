@@ -59,23 +59,10 @@ func InitProviders() error {
 	return nil
 }
 
-// PackageManagerInfo represents a package manager's configuration
-type PackageManagerInfo struct {
-	Name     string
-	Bin      string
-	List     string
-	Search   string
-	Install  string
-	Remove   string
-	Update   string
-	Clean    string
-	Elevated bool
-}
-
-// GetPackageManagerInfo builds a PackageManagerInfo from a provider definition
+// GetPackageManagerInfo builds a types.PackageManagerInfo from a provider definition
 // by combining the binary path with each command template.
-func GetPackageManagerInfo(provider *types.Provider, binPath string) PackageManagerInfo {
-	return PackageManagerInfo{
+func GetPackageManagerInfo(provider *types.Provider, binPath string) types.PackageManagerInfo {
+	return types.PackageManagerInfo{
 		Name:     provider.Name,
 		Bin:      binPath,
 		List:     fmt.Sprintf("%s %s", binPath, provider.Commands.List),

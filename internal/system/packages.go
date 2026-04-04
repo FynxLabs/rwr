@@ -11,18 +11,7 @@ import (
 // from the available providers. Returns an error if the provider is not found.
 func GetPackageManager(pm string) (types.PackageManagerInfo, error) {
 	if prov, exists := GetProviderWithAlternatives(pm); exists {
-		info := GetPackageManagerInfo(prov, prov.BinPath)
-		return types.PackageManagerInfo{
-			Name:     info.Name,
-			Bin:      info.Bin,
-			List:     info.List,
-			Search:   info.Search,
-			Install:  info.Install,
-			Remove:   info.Remove,
-			Update:   info.Update,
-			Clean:    info.Clean,
-			Elevated: info.Elevated,
-		}, nil
+		return GetPackageManagerInfo(prov, prov.BinPath), nil
 	}
 	return types.PackageManagerInfo{}, fmt.Errorf("unsupported package manager: %s", pm)
 }
