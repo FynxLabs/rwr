@@ -141,9 +141,17 @@ func createGroup(group types.Group, initConfig *types.InitConfig) error {
 		}
 
 		// If the group doesn't exist, create it
+		args := []string{}
+		if group.GID != "" {
+			args = append(args, "--gid", group.GID)
+		}
+		if group.System {
+			args = append(args, "--system")
+		}
+		args = append(args, group.Name)
 		createGroupCmd := types.Command{
 			Exec:     "groupadd",
-			Args:     []string{group.Name},
+			Args:     args,
 			Elevated: true,
 		}
 		err = system.RunCommand(createGroupCmd, initConfig.Variables.Flags.Debug)
@@ -162,19 +170,36 @@ func createGroup(group types.Group, initConfig *types.InitConfig) error {
 func createUser(user types.User, initConfig *types.InitConfig) error {
 	switch runtime.GOOS {
 	case "linux", "darwin":
-		createUserCmd := types.Command{
-			Exec: "useradd",
-			Args: []string{
-				"--create-home",
-				"--password", user.Password,
-				"--shell", user.Shell,
-				"--home-dir", user.Home,
-				user.Name,
-			},
-			Elevated: true,
+		args := []string{"--create-home"}
+		if user.UID != "" {
+			args = append(args, "--uid", user.UID)
+		}
+		if user.Password != "" {
+			args = append(args, "--password", user.Password)
+		}
+		if user.Shell != "" {
+			args = append(args, "--shell", user.Shell)
+		}
+		if user.Home != "" {
+			args = append(args, "--home-dir", user.Home)
+		}
+		if user.Comment != "" {
+			args = append(args, "--comment", user.Comment)
+		}
+		if user.System {
+			args = append(args, "--system")
+		}
+		if user.Expire != "" {
+			args = append(args, "--expiredate", user.Expire)
 		}
 		for _, group := range user.Groups {
-			createUserCmd.Args = append(createUserCmd.Args, "--groups", group)
+			args = append(args, "--groups", group)
+		}
+		args = append(args, user.Name)
+		createUserCmd := types.Command{
+			Exec:     "useradd",
+			Args:     args,
+			Elevated: true,
 		}
 		err := system.RunCommand(createUserCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
@@ -200,7 +225,9 @@ func modifyGroup(group types.Group, initConfig *types.InitConfig) error {
 		if group.NewName != "" {
 			modifyGroupCmd.Args = append(modifyGroupCmd.Args, "--new-name", group.NewName)
 		}
-		// TODO: More groupmod options
+		if group.GID != "" {
+			modifyGroupCmd.Args = append(modifyGroupCmd.Args, "--gid", group.GID)
+		}
 
 		err := system.RunCommand(modifyGroupCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
@@ -232,16 +259,45 @@ func modifyUser(user types.User, initConfig *types.InitConfig) error {
 		if user.NewShell != "" {
 			modifyUserCmd.Args = append(modifyUserCmd.Args, "--shell", user.NewShell)
 		}
+		if user.Password != "" {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--password", user.Password)
+		}
+		if user.Comment != "" {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--comment", user.Comment)
+		}
+		if user.UID != "" {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--uid", user.UID)
+		}
+		if user.Expire != "" {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--expiredate", user.Expire)
+		}
+		if user.Lock {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--lock")
+		}
+		if user.Unlock {
+			modifyUserCmd.Args = append(modifyUserCmd.Args, "--unlock")
+		}
 		if len(user.AddGroups) > 0 {
 			for _, group := range user.AddGroups {
 				modifyUserCmd.Args = append(modifyUserCmd.Args, "--append", "--groups", group)
 			}
 		}
-		// TODO: More usermod options
 
 		err := system.RunCommand(modifyUserCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
 			return fmt.Errorf("error modifying user: %v", err)
+		}
+
+		// Remove groups via gpasswd (usermod doesn't support removing individual groups)
+		for _, group := range user.RemoveGroups {
+			removeGroupCmd := types.Command{
+				Exec:     "gpasswd",
+				Args:     []string{"--delete", user.Name, group},
+				Elevated: true,
+			}
+			if err := system.RunCommand(removeGroupCmd, initConfig.Variables.Flags.Debug); err != nil {
+				return fmt.Errorf("error removing user %s from group %s: %v", user.Name, group, err)
+			}
 		}
 	case "windows":
 		// Not supported on Windows
