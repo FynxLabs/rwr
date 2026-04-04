@@ -10,6 +10,9 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
+// ProcessBootstrap runs one-time system bootstrap operations including packages,
+// directories, files, SSH keys, Git repos, services, groups, and users.
+// It skips execution if the system is already bootstrapped unless force is set.
 func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo *types.OSInfo) error {
 	if !initConfig.Variables.Flags.ForceBootstrap && helpers.IsBootstrapped() {
 		log.Info("System is already bootstrapped. Skipping bootstrap process.")

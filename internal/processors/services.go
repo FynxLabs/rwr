@@ -13,6 +13,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
+// ProcessServices manages system services (enable, disable, start, stop, restart)
+// as defined in blueprint data, with cross-platform support via systemctl, launchctl, etc.
 func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var servicesData types.ServiceData
 	var err error

@@ -14,6 +14,9 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
+// ProcessFiles handles file, directory, and template operations from blueprint data.
+// It supports create, delete, copy, append, symlink, and template rendering actions
+// with optional profile filtering and interactive diff-based overwrite prompts.
 func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var fileData types.FileData
 	var err error

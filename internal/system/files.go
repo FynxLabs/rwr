@@ -68,6 +68,8 @@ func moveFileWithElevatedPrivileges(source, target string) error {
 	return nil
 }
 
+// DownloadFile downloads a file from the given URL to filePath.
+// If elevated is true, the file is moved to the target using sudo.
 func DownloadFile(url, filePath string, elevated bool) error {
 
 	log.Debugf("Downloading file from %s to %s", url, filePath)
@@ -96,6 +98,8 @@ func DownloadFile(url, filePath string, elevated bool) error {
 	return nil
 }
 
+// AppendToFile appends content to the end of an existing file.
+// If elevated is true, the write is performed with sudo privileges.
 func AppendToFile(filePath, content string, elevated bool) error {
 
 	log.Debugf("Appending content to file %s", filePath)
@@ -134,6 +138,8 @@ func AppendToFile(filePath, content string, elevated bool) error {
 	return nil
 }
 
+// WriteToFile writes content to a file, replacing any existing content.
+// If elevated is true, the write is performed with sudo privileges.
 func WriteToFile(filePath, content string, elevated bool) error {
 
 	log.Debugf("Writing content to file %s", filePath)
@@ -162,6 +168,8 @@ func WriteToFile(filePath, content string, elevated bool) error {
 	return nil
 }
 
+// RemoveLineFromFile removes all lines containing the specified text from a file.
+// If elevated is true, the write is performed with sudo privileges.
 func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 
 	log.Debugf("Removing line %s from file %s", lineToRemove, filePath)
@@ -222,6 +230,8 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 	return nil
 }
 
+// CopyFile copies a file from source to target, preserving permissions.
+// If elevated is true, the copy is performed with sudo privileges.
 func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error {
 	log.Debugf("Copying file from %s to %s (elevated: %v)", source, target, elevated)
 
@@ -299,6 +309,7 @@ func setFilePermissionsElevated(path string, mode os.FileMode) error {
 	return RunCommand(cmd, false)
 }
 
+// ExpandPath replaces a leading "~/" in the path with the user's home directory.
 func ExpandPath(path string) string {
 	if strings.HasPrefix(path, "~/") {
 		homeDir, _ := os.UserHomeDir()
@@ -385,6 +396,8 @@ func copyFileContent(source, target string) error {
 // 	return nil
 // }
 
+// CopyDirectory recursively copies a directory from source to target.
+// In interactive mode, it shows diffs and prompts before overwriting existing files.
 func CopyDirectory(source, target string, elevated, interactive bool) error {
 	log.Debugf("Copying directory from %s to %s", source, target)
 
@@ -448,11 +461,13 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 	return nil
 }
 
+// FileExists reports whether the file at filePath exists.
 func FileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	return !os.IsNotExist(err)
 }
 
+// LookupUID returns the numeric user ID for the given username.
 func LookupUID(owner string) (int, error) {
 	u, err := user.Lookup(owner)
 	if err != nil {
@@ -465,6 +480,7 @@ func LookupUID(owner string) (int, error) {
 	return uid, nil
 }
 
+// LookupGID returns the numeric group ID for the given group name.
 func LookupGID(group string) (int, error) {
 	g, err := user.LookupGroup(group)
 	if err != nil {
@@ -487,6 +503,8 @@ func promptOverwrite() bool {
 	return strings.EqualFold(input, "y") || strings.EqualFold(input, "yes")
 }
 
+// ExtractInitParentDir extracts the parent directory name from a URL
+// that contains an init file (e.g., "init.yaml").
 func ExtractInitParentDir(url string) string {
 	parts := strings.Split(url, "/")
 	for i := len(parts) - 1; i >= 0; i-- {

@@ -8,7 +8,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// SetWindowsDetails sets Windows-specific system details
+// SetWindowsDetails populates the OSInfo struct with Windows-specific package manager
+// details, detecting Chocolatey, Scoop, and WinGet providers.
 func SetWindowsDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Windows package manager details.")
 

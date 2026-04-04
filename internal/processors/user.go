@@ -13,6 +13,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
+// ProcessUsers creates, modifies, or removes system users and groups
+// as defined in blueprint data, with cross-platform support.
 func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitConfig) error {
 	var usersData types.UsersData
 	var err error

@@ -12,6 +12,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/system"
 )
 
+// ProcessScripts executes scripts defined in blueprint data, supporting inline content
+// and external files with various interpreters (bash, python, ruby, etc.).
 func ProcessScripts(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var scriptData types.ScriptData
 	var err error

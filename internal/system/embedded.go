@@ -15,7 +15,8 @@ import (
 //go:embed definitions/providers/*.toml
 var embeddedProviders embed.FS
 
-// LoadEmbeddedProviders loads all provider definitions from the embedded filesystem
+// LoadEmbeddedProviders parses all TOML provider definitions from the embedded
+// filesystem and returns them as a map keyed by provider name.
 func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 	providers := make(map[string]*types.Provider)
 
@@ -77,7 +78,8 @@ func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 	return providers, nil
 }
 
-// GetEmbeddedProviderFiles returns a map of filename to content for all embedded provider files
+// GetEmbeddedProviderFiles returns a map of filename to raw TOML content
+// for all provider definitions in the embedded filesystem.
 func GetEmbeddedProviderFiles() (map[string][]byte, error) {
 	files := make(map[string][]byte)
 

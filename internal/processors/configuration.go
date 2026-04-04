@@ -13,6 +13,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// ProcessConfiguration applies desktop environment settings from blueprint data.
+// It supports dconf, gsettings, macOS defaults, and Windows registry operations.
 func ProcessConfiguration(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
 	var configData types.ConfigData
 

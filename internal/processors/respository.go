@@ -11,6 +11,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// ProcessRepositories adds or removes package manager repositories from blueprint data,
+// with support for profile filtering and import resolution.
 func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var repositoriesBlueprint types.RepositoriesData
 	var err error

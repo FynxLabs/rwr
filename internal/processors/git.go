@@ -11,6 +11,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
+// ProcessGitRepositories clones or updates Git repositories defined in blueprint data,
+// with support for profile filtering and import resolution.
 func ProcessGitRepositories(blueprintData []byte, format string, initConfig *types.InitConfig) error {
 	var gitData types.GitData
 	var err error

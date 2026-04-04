@@ -86,6 +86,8 @@ type accessTokenResponse struct {
 	Error       string `json:"error,omitempty"`
 }
 
+// ProcessSSHKeys generates SSH key pairs from blueprint data and optionally
+// uploads public keys to GitHub via API token or OAuth device flow.
 func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var sshKeyData types.SSHKeyData
 	var err error
@@ -246,7 +248,8 @@ func setAsRWRSSHKey(keyPath string) error {
 	return nil
 }
 
-// AuthenticateWithGitHub performs OAuth device flow authentication
+// AuthenticateWithGitHub performs OAuth device flow authentication with GitHub,
+// returning an access token that can be used for API operations like uploading SSH keys.
 func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 	log.Infof("Starting GitHub authentication...")
 

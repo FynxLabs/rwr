@@ -16,6 +16,9 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// All orchestrates the execution of all blueprint processors in the defined run order.
+// It handles bootstrap, package installation, file management, services, and other
+// operations sequentially, cleaning up package manager caches on completion.
 func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
 	var err error
 	var blueprintRunOrder []string

@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// CreateDefaultConfig interactively prompts the user to configure rwr settings
+// such as GitHub token, SSH key, and package managers, then writes the config file.
 func CreateDefaultConfig() error {
 	reader := bufio.NewReader(os.Stdin)
 

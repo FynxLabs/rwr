@@ -44,6 +44,8 @@ func getLatestReleaseURL() (string, error) {
 	return fmt.Sprintf("https://github.com/ryanoasis/nerd-fonts/releases/download/%s/", release.TagName), nil
 }
 
+// ProcessFonts downloads and installs Nerd Fonts from the latest GitHub release.
+// It extracts font archives to the system font directory and refreshes the font cache.
 func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var fontsData types.FontsData
 	var err error

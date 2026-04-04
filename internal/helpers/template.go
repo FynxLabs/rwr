@@ -9,6 +9,9 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// ResolveTemplate renders a Go text template with the provided variables.
+// It exposes User, Flags, System, and UserDefined variable maps to the template.
+// Returns an error if the template is invalid or references missing keys.
 func ResolveTemplate(templateData []byte, variables types.Variables) ([]byte, error) {
 	templateString := string(templateData)
 	t, err := template.New("template").Option("missingkey=error").Parse(templateString)

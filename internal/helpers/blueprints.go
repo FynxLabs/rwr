@@ -13,7 +13,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// UnmarshalBlueprint unmarshals a blueprint file into a struct
+// UnmarshalBlueprint parses blueprint data into the provided struct.
+// It supports YAML, JSON, and TOML formats specified by the format parameter.
+// Format accepts file extensions (".yaml", ".json", ".toml") or format names ("yaml", "json", "toml").
 func UnmarshalBlueprint(data []byte, format string, v interface{}) error {
 	switch format {
 	case ".yaml", ".yml", "yaml", "yml":

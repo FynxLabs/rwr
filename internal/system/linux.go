@@ -8,7 +8,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// SetLinuxDetails sets Linux-specific system details
+// SetLinuxDetails populates the OSInfo struct with Linux-specific package manager
+// details by querying available providers and detecting the default package manager.
 func SetLinuxDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Linux package manager details.")
 

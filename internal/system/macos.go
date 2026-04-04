@@ -8,7 +8,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// SetMacOSDetails sets macOS-specific system details
+// SetMacOSDetails populates the OSInfo struct with macOS-specific package manager
+// details, detecting Homebrew and other available providers.
 func SetMacOSDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting macOS package manager details.")
 

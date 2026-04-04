@@ -16,6 +16,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 
+// HandleGitOperation routes a Git operation to either clone or file download
+// based on whether the URL has a file extension.
 func HandleGitOperation(opts types.GitOptions, initConfig *types.InitConfig) error {
 	if filepath.Ext(opts.URL) != "" {
 		return HandleGitFileDownload(opts, initConfig)
@@ -24,6 +26,8 @@ func HandleGitOperation(opts types.GitOptions, initConfig *types.InitConfig) err
 	}
 }
 
+// HandleGitClone clones a Git repository to the specified path with optional
+// authentication via SSH key, GitHub API token, or OAuth.
 func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 	var auth transport.AuthMethod
 
@@ -62,6 +66,8 @@ func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 	return nil
 }
 
+// CheckAndUpdateRemoteURL verifies and updates the origin remote URL of an
+// existing Git repository if it differs from the desired URL.
 func CheckAndUpdateRemoteURL(repoPath, desiredURL string) error {
 	repo, err := git.PlainOpen(repoPath)
 	if err != nil {
@@ -176,6 +182,8 @@ func getAuthMethod(url string, initConfig *types.InitConfig) transport.AuthMetho
 	}
 }
 
+// HandleGitPull pulls the latest changes from a remote Git repository,
+// using the configured authentication method if available.
 func HandleGitPull(opts types.GitOptions, initConfig *types.InitConfig) error {
 	log.Debugf("Pulling changes from Git repository: %s", opts.Target)
 	repo, err := git.PlainOpen(opts.Target)
@@ -221,6 +229,8 @@ func HandleGitPull(opts types.GitOptions, initConfig *types.InitConfig) error {
 	return nil
 }
 
+// HandleGitFileDownload downloads a single file from a GitHub repository
+// by converting the blob URL to a raw content URL.
 func HandleGitFileDownload(opts types.GitOptions, initConfig *types.InitConfig) error {
 	log.Debugf("Downloading file from Git repository: %s", opts.URL)
 	// Extract the repository URL and file path from the opts.URL

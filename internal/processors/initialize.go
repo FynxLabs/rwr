@@ -17,6 +17,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Initialize loads and parses the init configuration file from a local path or URL.
+// It resolves template variables, sets up system paths, and returns the fully
+// populated InitConfig used to drive all subsequent blueprint processing.
 func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, error) {
 	var initConfig types.InitConfig
 	var err error

@@ -17,7 +17,9 @@ var (
 	providersInit bool
 )
 
-// InitProviders initializes the providers map if not already initialized
+// InitProviders loads provider definitions from embedded resources and the filesystem.
+// Filesystem providers override embedded ones with the same name. This is a no-op
+// if providers have already been initialized.
 func InitProviders() error {
 	if providersInit {
 		return nil
@@ -70,7 +72,8 @@ type PackageManagerInfo struct {
 	Elevated bool
 }
 
-// GetPackageManagerInfo converts a provider's commands into PackageManagerInfo
+// GetPackageManagerInfo builds a PackageManagerInfo from a provider definition
+// by combining the binary path with each command template.
 func GetPackageManagerInfo(provider *types.Provider, binPath string) PackageManagerInfo {
 	return PackageManagerInfo{
 		Name:     provider.Name,
@@ -85,7 +88,8 @@ func GetPackageManagerInfo(provider *types.Provider, binPath string) PackageMana
 	}
 }
 
-// GetAvailableProviders returns providers that match the current system and are available
+// GetAvailableProviders returns providers whose binaries exist on the system and
+// whose distribution lists match the current OS.
 func GetAvailableProviders() map[string]*types.Provider {
 	available := make(map[string]*types.Provider)
 
@@ -194,7 +198,8 @@ func GetAvailableProviders() map[string]*types.Provider {
 	return available
 }
 
-// GetProvider returns a provider by name if it exists and is available
+// GetProvider returns a specific provider by name from the available providers.
+// The second return value indicates whether the provider was found.
 func GetProvider(name string) (*types.Provider, bool) {
 	log.Debugf("Getting provider for %s", name)
 
@@ -232,7 +237,8 @@ func GetProvider(name string) (*types.Provider, bool) {
 	return provider, true
 }
 
-// GetProvidersPath returns the absolute path to the providers directory
+// GetProvidersPath returns the absolute path to the provider definitions directory,
+// searching the executable's directory and common installation paths.
 func GetProvidersPath() (string, error) {
 	// Get the executable's directory
 	execDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -277,7 +283,8 @@ func GetProvidersPath() (string, error) {
 	return "", fmt.Errorf("providers directory not found in common locations")
 }
 
-// LoadProviders loads all provider definitions from the given directory
+// LoadProviders reads all TOML provider definitions from the given directory
+// and registers them in the global providers map.
 func LoadProviders(definitionsPath string) error {
 	log.Debugf("LoadProviders: Loading providers from %s", definitionsPath)
 	entries, err := os.ReadDir(definitionsPath)
@@ -303,7 +310,8 @@ func LoadProviders(definitionsPath string) error {
 	return nil
 }
 
-// LoadProviderDefinition loads a provider definition from a file
+// LoadProviderDefinition parses a single TOML provider definition file
+// and returns the resulting Provider struct.
 func LoadProviderDefinition(path string) (*types.Provider, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -331,7 +339,8 @@ func LoadProviderDefinition(path string) (*types.Provider, error) {
 	return &provider, nil
 }
 
-// GetDefaultProviderFromOSRelease returns the default provider based on /etc/os-release
+// GetDefaultProviderFromOSRelease determines the default package manager by
+// reading the ID field from /etc/os-release and mapping it to a known provider.
 func GetDefaultProviderFromOSRelease() string {
 	// Read the contents of the /etc/os-release file
 	data, err := os.ReadFile("/etc/os-release")
@@ -372,7 +381,8 @@ func GetDefaultProviderFromOSRelease() string {
 	return ""
 }
 
-// GetProviderForDistro returns a provider that supports the given distribution
+// GetProviderForDistro returns the first available provider whose detection
+// distributions list includes the given distro name.
 func GetProviderForDistro(distro string) (*types.Provider, bool) {
 	// Initialize providers if needed
 	if err := InitProviders(); err != nil {
@@ -403,7 +413,8 @@ func GetProviderForDistro(distro string) (*types.Provider, bool) {
 	return nil, false
 }
 
-// GetProviderWithAlternatives returns a provider with distribution-specific packages resolved
+// GetProviderWithAlternatives returns a provider by name with distro-specific
+// alternative package names resolved for the current system.
 func GetProviderWithAlternatives(name string) (*types.Provider, bool) {
 	provider, exists := GetProvider(name)
 	if !exists {
@@ -428,7 +439,8 @@ func GetProviderWithAlternatives(name string) (*types.Provider, bool) {
 	return &providerCopy, true
 }
 
-// GetProviderForDistroWithAlternatives returns a provider for a specific distribution with alternatives applied
+// GetProviderForDistroWithAlternatives returns a provider matching the given
+// distro with distro-specific alternative package names resolved.
 func GetProviderForDistroWithAlternatives(distro string) (*types.Provider, bool) {
 	provider, exists := GetProviderForDistro(distro)
 	if !exists {

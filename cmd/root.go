@@ -66,9 +66,9 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	ghApiToken       string // Global variable for API Key
-	ghAuth           bool   // Global variable for GitHub OAuth authentication
-	sshKey           string // Global variable for SSH Key
+	ghApiToken       string // GitHub API token for repository operations
+	ghAuth           bool   // Use OAuth device flow for GitHub authentication
+	sshKey           string // SSH private key for Git auth (path or base64)
 	skipVersionCheck bool
 	debug            bool
 	interactive      bool
