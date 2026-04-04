@@ -470,7 +470,11 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
-	if err := system.CopyDirectory(source, target, dir.Elevated, initConfig.Variables.Flags.Interactive); err != nil {
+	interactive := initConfig.Variables.Flags.Interactive
+	if dir.Interactive != nil {
+		interactive = *dir.Interactive
+	}
+	if err := system.CopyDirectory(source, target, dir.Elevated, interactive); err != nil {
 		return fmt.Errorf("error copying directory: %w", err)
 	}
 

@@ -11,9 +11,10 @@ type File struct {
 	Owner     string                 `mapstructure:"owner,omitempty" yaml:"owner,omitempty" json:"owner,omitempty" toml:"owner,omitempty"`
 	Group     string                 `mapstructure:"group,omitempty" yaml:"group,omitempty" json:"group,omitempty" toml:"group,omitempty"`
 	Mode      int                    `mapstructure:"mode,omitempty" yaml:"mode,omitempty" json:"mode,omitempty" toml:"mode,omitempty"`
-	Elevated  bool                   `mapstructure:"elevated" yaml:"elevated" json:"elevated" toml:"elevated"`
-	Variables map[string]interface{} `mapstructure:"variables,omitempty" yaml:"variables,omitempty" json:"variables,omitempty" toml:"variables,omitempty"`
-	Import    string                 `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
+	Elevated    bool                   `mapstructure:"elevated" yaml:"elevated" json:"elevated" toml:"elevated"`
+	Interactive *bool                  `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"` // Override global interactive mode
+	Variables   map[string]interface{} `mapstructure:"variables,omitempty" yaml:"variables,omitempty" json:"variables,omitempty" toml:"variables,omitempty"`
+	Import      string                 `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
 }
 
 type Directory struct {
@@ -26,8 +27,9 @@ type Directory struct {
 	Owner    string   `mapstructure:"owner,omitempty" yaml:"owner,omitempty" json:"owner,omitempty" toml:"owner,omitempty"`
 	Group    string   `mapstructure:"group,omitempty" yaml:"group,omitempty" json:"group,omitempty" toml:"group,omitempty"`
 	Mode     int      `mapstructure:"mode,omitempty" yaml:"mode,omitempty" json:"mode,omitempty" toml:"mode,omitempty"`
-	Elevated bool     `mapstructure:"elevated" yaml:"elevated" json:"elevated" toml:"elevated"`
-	Import   string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
+	Elevated    bool   `mapstructure:"elevated" yaml:"elevated" json:"elevated" toml:"elevated"`
+	Interactive *bool  `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"` // Override global interactive mode
+	Import      string `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
 }
 
 type FileData struct {
