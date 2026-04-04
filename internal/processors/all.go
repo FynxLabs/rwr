@@ -32,7 +32,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	}
 
 	// Check if macOS and no package manager is installed
-	if osInfo.System.OS == "darwin" {
+	if osInfo.System.OS == types.OSDarwin {
 		// Check if any package manager is installed
 		hasPackageManager := false
 		for _, pm := range osInfo.PackageManager.Managers {
@@ -55,7 +55,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 			pmInfo := types.PackageManagerInfo{
 				Name:   chosenPM,
-				Action: "install",
+				Action: types.ActionInstall,
 			}
 
 			err = ProcessPackageManagers([]types.PackageManagerInfo{pmInfo}, osInfo, initConfig)
@@ -130,34 +130,34 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				}
 
 				switch processor {
-				case "repositories":
+				case types.BlueprintTypeRepositories:
 					log.Infof("Processing repositories")
 					err = ProcessRepositories(resolvedBlueprint, format, osInfo, initConfig)
-				case "packages":
+				case types.BlueprintTypePackages:
 					log.Infof("Processing packages")
 					err = ProcessPackages(resolvedBlueprint, nil, format, osInfo, initConfig)
-				case "files":
+				case types.BlueprintTypeFiles:
 					log.Infof("Processing files")
 					err = ProcessFiles(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case "services":
+				case types.BlueprintTypeServices:
 					log.Infof("Processing services")
 					err = ProcessServices(resolvedBlueprint, format, osInfo, initConfig)
-				case "users":
+				case types.BlueprintTypeUsers:
 					log.Infof("Processing users")
 					err = ProcessUsers(resolvedBlueprint, format, initConfig)
-				case "git":
+				case types.BlueprintTypeGit:
 					log.Infof("Processing git repositories")
 					err = ProcessGitRepositories(resolvedBlueprint, format, initConfig)
-				case "scripts":
+				case types.BlueprintTypeScripts:
 					log.Infof("Processing scripts")
 					err = ProcessScripts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case "ssh_keys":
+				case types.BlueprintTypeSSHKeys:
 					log.Infof("Processing ssh keys")
 					err = ProcessSSHKeys(resolvedBlueprint, format, osInfo, initConfig)
-				case "fonts":
+				case types.BlueprintTypeFonts:
 					log.Info("Processing fonts")
 					err = ProcessFonts(blueprintData, blueprintDir, format, osInfo, initConfig)
-				case "configuration":
+				case types.BlueprintTypeConfiguration:
 					log.Infof("Processing configurations")
 					err = ProcessConfiguration(resolvedBlueprint, blueprintDir, format, initConfig)
 				default:

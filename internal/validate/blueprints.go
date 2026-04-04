@@ -74,7 +74,7 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 // findInitFile searches for an init file in the specified directory (non-recursive)
 func findInitFile(dir string) string {
 	// Check for init files with common extensions
-	for _, ext := range []string{".json", ".yaml", ".yml", ".toml"} {
+	for _, ext := range []string{types.FormatExtJSON, types.FormatExtYAML, types.FormatExtYAMLAlt, types.FormatExtTOML} {
 		initFile := filepath.Join(dir, "init"+ext)
 		if _, err := os.Stat(initFile); err == nil {
 			return initFile
@@ -170,7 +170,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	var blueprintType string
 	switch {
 	case filename == "bootstrap.yaml" || filename == "bootstrap.yml" || filename == "bootstrap.json" || filename == "bootstrap.toml":
-		blueprintType = "bootstrap"
+		blueprintType = types.BlueprintTypeBootstrap
 	default:
 		blueprintType = strings.ToLower(dir)
 	}
@@ -184,7 +184,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 
 	// Validate based on blueprint type
 	switch blueprintType {
-	case "bootstrap":
+	case types.BlueprintTypeBootstrap:
 		var bootstrapData types.BootstrapData
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &bootstrapData)
 		if err != nil {
@@ -192,7 +192,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		}
 		ValidateBootstrap(bootstrapData, blueprintFile, results)
 
-	case "packages":
+	case types.BlueprintTypePackages:
 		var packagesData types.PackagesData
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &packagesData)
 		if err != nil {
@@ -200,7 +200,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		}
 		ValidatePackages(packagesData.Packages, blueprintFile, results)
 
-	case "repositories":
+	case types.BlueprintTypeRepositories:
 		var repositories []types.Repository
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &repositories)
 		if err != nil {
@@ -208,7 +208,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		}
 		ValidateRepositories(repositories, blueprintFile, results)
 
-	case "files":
+	case types.BlueprintTypeFiles:
 		var files []types.File
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &files)
 		if err != nil {
@@ -216,7 +216,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		}
 		ValidateFiles(files, blueprintFile, results)
 
-	case "git":
+	case types.BlueprintTypeGit:
 		var gitRepositories []types.Git
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &gitRepositories)
 		if err != nil {
@@ -224,7 +224,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		}
 		ValidateGitRepositories(gitRepositories, blueprintFile, results)
 
-	case "scripts":
+	case types.BlueprintTypeScripts:
 		var scripts []types.Script
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &scripts)
 		if err != nil {
@@ -232,7 +232,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		}
 		ValidateScripts(scripts, blueprintFile, results)
 
-	case "services":
+	case types.BlueprintTypeServices:
 		var services []types.Service
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &services)
 		if err != nil {
@@ -240,7 +240,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		}
 		ValidateServices(services, blueprintFile, results)
 
-	case "ssh_keys":
+	case types.BlueprintTypeSSHKeys:
 		var sshKeys []types.SSHKey
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &sshKeys)
 		if err != nil {
@@ -248,7 +248,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		}
 		ValidateSSHKeys(sshKeys, blueprintFile, results)
 
-	case "users":
+	case types.BlueprintTypeUsers:
 		var usersData types.UsersData
 		err = helpers.UnmarshalBlueprint(blueprintFileData, filepath.Ext(blueprintFile)[1:], &usersData)
 		if err != nil {

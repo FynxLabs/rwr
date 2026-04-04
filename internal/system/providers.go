@@ -125,7 +125,7 @@ func GetAvailableProviders() map[string]*types.Provider {
 		supportsSystem := false
 		for _, dist := range provider.Detection.Distributions {
 			// For Linux, any provider that supports "linux" works for all distros
-			if currentOS == "linux" && (dist == "linux" || dist == currentDistro || IsDistroInFamily(currentDistro, dist)) {
+			if currentOS == "linux" && (dist == types.OSLinux || dist == currentDistro || IsDistroInFamily(currentDistro, dist)) {
 				log.Debugf("GetAvailableProviders: Provider %s supports Linux (dist: %s matches %s)", name, dist, currentDistro)
 				supportsSystem = true
 				break
@@ -394,7 +394,7 @@ func GetProviderForDistro(distro string) (*types.Provider, bool) {
 	for _, provider := range providers {
 		for _, dist := range provider.Detection.Distributions {
 			// For Linux, any provider that supports "linux" works for all distros
-			if runtime.GOOS == "linux" && (dist == "linux" || dist == distro || IsDistroInFamily(distro, dist)) {
+			if runtime.GOOS == "linux" && (dist == types.OSLinux || dist == distro || IsDistroInFamily(distro, dist)) {
 				if tool := FindTool(provider.Detection.Binary); tool.Exists {
 					provider.BinPath = tool.Bin
 					return provider, true
@@ -495,7 +495,7 @@ func logDetectionSummary(currentOS, currentDistro string) {
 		// Check system compatibility
 		compatible := false
 		for _, dist := range provider.Detection.Distributions {
-			if currentOS == "linux" && (dist == "linux" || dist == currentDistro || IsDistroInFamily(currentDistro, dist)) {
+			if currentOS == "linux" && (dist == types.OSLinux || dist == currentDistro || IsDistroInFamily(currentDistro, dist)) {
 				compatible = true
 				break
 			}

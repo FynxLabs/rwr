@@ -22,7 +22,7 @@ func ValidatePackages(packages []types.Package, file string, results *types.Vali
 
 		if pkg.Action == "" {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'packages[%d].action'", i), file, 0, "Add action field to package")
-		} else if pkg.Action != "install" && pkg.Action != "remove" && pkg.Action != "update" {
+		} else if pkg.Action != types.ActionInstall && pkg.Action != types.ActionRemove && pkg.Action != types.ActionUpdate {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Invalid action '%s' for package '%s'", pkg.Action, pkg.Name), file, 0, "Use 'install', 'remove', or 'update'")
 		}
 
@@ -65,11 +65,11 @@ func ValidateRepositories(repositories []types.Repository, file string, results 
 
 		if repo.Action == "" {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'repositories[%d].action'", i), file, 0, "Add action field to repository")
-		} else if repo.Action != "add" && repo.Action != "remove" {
+		} else if repo.Action != types.RepoActionAdd && repo.Action != types.RepoActionRemove {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Invalid action '%s' for repository '%s'", repo.Action, repo.Name), file, 0, "Use 'add' or 'remove'")
 		}
 
-		if repo.URL == "" && repo.Action == "add" {
+		if repo.URL == "" && repo.Action == types.RepoActionAdd {
 			AddIssue(results, types.ValidationWarning, fmt.Sprintf("No URL specified for repository '%s'", repo.Name), file, 0, "Add URL field to repository")
 		}
 	}
@@ -88,11 +88,11 @@ func ValidateFiles(files []types.File, file string, results *types.ValidationRes
 
 		if f.Action == "" {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'files[%d].action'", i), file, 0, "Add action field to file")
-		} else if f.Action != "create" && f.Action != "delete" && f.Action != "append" && f.Action != "template" {
+		} else if f.Action != types.FileActionCreate && f.Action != types.FileActionDelete && f.Action != types.FileActionAppend && f.Action != types.FileActionTemplate {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Invalid action '%s' for file '%s'", f.Action, f.Target), file, 0, "Use 'create', 'delete', 'append', or 'template'")
 		}
 
-		if f.Action == "create" || f.Action == "append" || f.Action == "template" {
+		if f.Action == types.FileActionCreate || f.Action == types.FileActionAppend || f.Action == types.FileActionTemplate {
 			if f.Content == "" && f.Source == "" {
 				AddIssue(results, types.ValidationWarning, fmt.Sprintf("No content or source specified for file '%s'", f.Target), file, 0, "Add content or source field to file")
 			}
@@ -154,7 +154,7 @@ func ValidateServices(services []types.Service, file string, results *types.Vali
 
 		if service.Action == "" {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'services[%d].action'", i), file, 0, "Add action field to service")
-		} else if service.Action != "enable" && service.Action != "disable" && service.Action != "start" && service.Action != "stop" && service.Action != "restart" {
+		} else if service.Action != types.ServiceActionEnable && service.Action != types.ServiceActionDisable && service.Action != types.ServiceActionStart && service.Action != types.ServiceActionStop && service.Action != types.ServiceActionRestart {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Invalid action '%s' for service '%s'", service.Action, service.Name), file, 0, "Use 'enable', 'disable', 'start', 'stop', or 'restart'")
 		}
 	}
@@ -196,7 +196,7 @@ func ValidateUsers(users []types.User, file string, results *types.ValidationRes
 
 		if user.Action == "" {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'users[%d].action'", i), file, 0, "Add action field to user")
-		} else if user.Action != "create" && user.Action != "modify" && user.Action != "delete" {
+		} else if user.Action != types.UserActionCreate && user.Action != types.UserActionModify && user.Action != types.UserActionDelete {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Invalid action '%s' for user '%s'", user.Action, user.Name), file, 0, "Use 'create', 'modify', or 'delete'")
 		}
 	}
