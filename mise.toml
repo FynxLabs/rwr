@@ -1,11 +1,31 @@
+[settings]
+experimental = true
+
 [tools]
 go = "1.26.1"
 goreleaser = "latest"
 gotestsum = "latest"
 golangci-lint = "latest"
+node = "lts"
+pkl = "latest"
+hk = "latest"
+"npm:@fission-ai/openspec" = "latest"
 
 [env]
-DAGGER_NO_NAG=1
+HK_MISE = "1"
+
+[hooks]
+postinstall = """
+  # Install git hooks (pre-commit, pre-push, check) defined in hk.pkl.
+  hk install --mise || true
+
+  # Initialize or update the OpenSpec scaffold.
+  if [ ! -d openspec ]; then
+    openspec init --tools claude
+  else
+    openspec update
+  fi
+"""
 
 [tasks]
 # Local development commands (no Dagger)
