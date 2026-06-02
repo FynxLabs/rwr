@@ -2,7 +2,7 @@
 experimental = true
 
 [tools]
-go = "1.26.1"
+go = "1.26.4"
 goreleaser = "latest"
 gotestsum = "latest"
 golangci-lint = "latest"
