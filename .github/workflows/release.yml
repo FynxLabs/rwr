@@ -28,3 +28,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+
+      - name: Trigger naur repo update
+        if: success()
+        run: gh api /repos/FynxLabs/naur/dispatches -f event_type=release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
