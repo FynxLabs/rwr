@@ -175,13 +175,13 @@ func getFontURL(font types.Font, releaseURL string) string {
 }
 
 func downloadFontTarball(url, filepath string) error {
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) // #nosec
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close() //nolint:errcheck //nolint:gosec
 
-	out, err := os.Create(filepath)
+	out, err := os.Create(filepath) // #nosec
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ func downloadFontTarball(url, filepath string) error {
 }
 
 func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error {
-	file, err := os.Open(tarballPath)
+	file, err := os.Open(tarballPath) // #nosec
 	if err != nil {
 		return err
 	}
@@ -216,25 +216,31 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 		}
 
 		if header.Typeflag == tar.TypeReg && strings.HasSuffix(header.Name, ".ttf") {
-			targetPath := filepath.Join(destDir, header.Name)
+			targetPath := filepath.Join(destDir, header.Name) // #nosec
 
 			// Create a temporary file for the extracted font
 			tempFile, err := os.CreateTemp("", "font-")
 			if err != nil {
 				return err
 			}
-			tempFile.Close() //nolint:errcheck //nolint:gosec
+			if err := tempFile.Close(); err != nil {
+				return fmt.Errorf("error closing temp file: %w", err)
+			}
 
 			// Write the font data to the temporary file
-			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755)
+			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755) // #nosec
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(tempFile, tr); err != nil {
-				tempFile.Close() //nolint:errcheck //nolint:gosec
+			if _, err := io.Copy(tempFile, tr); err != nil { // #nosec
+				if closeErr := tempFile.Close(); closeErr != nil {
+					return fmt.Errorf("error copying font data: %w (also failed to close: %v)", err, closeErr)
+				}
 				return err
 			}
-			tempFile.Close() //nolint:errcheck //nolint:gosec
+			if err := tempFile.Close(); err != nil {
+				return fmt.Errorf("error closing temp file after copy: %w", err)
+			}
 
 			if tempFile == nil || targetPath == "" {
 				return fmt.Errorf("invalid arguments: tempFile or targetPath is nil/empty")

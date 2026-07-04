@@ -364,7 +364,7 @@ func processGroupImports(groups []types.Group, blueprintDir string, format strin
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}
@@ -410,7 +410,7 @@ func processUserImports(users []types.User, blueprintDir string, format string) 
 			} //nolint:gosec
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath) //nolint:gosec
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

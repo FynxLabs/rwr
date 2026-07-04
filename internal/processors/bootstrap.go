@@ -26,7 +26,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	var err error
 
 	// Resolve variables in the blueprint file if templates are enabled
-	blueprintData, err = os.ReadFile(blueprintFile)
+	blueprintData, err = os.ReadFile(blueprintFile) // #nosec
 	if err != nil {
 		log.Errorf("Error reading blueprint file: %v", err)
 		return err

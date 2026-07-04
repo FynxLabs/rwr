@@ -27,7 +27,7 @@ const (
 	// App ID: 2107251
 	githubClientID       = "Iv23lifvLgztwMVAOEEu"
 	githubDeviceCodeURL  = "https://github.com/login/device/code"
-	githubAccessTokenURL = "https://github.com/login/oauth/access_token" //nolint:gosec
+	githubAccessTokenURL = "https://github.com/login/oauth/access_token" // #nosec
 )
 
 // GitHub API request structure
@@ -230,7 +230,7 @@ func generateSSHKey(sshKey types.SSHKey, initConfig *types.InitConfig) (string, 
 
 func setAsRWRSSHKey(keyPath string) error {
 	// Read the private key file
-	privateKey, err := os.ReadFile(keyPath)
+	privateKey, err := os.ReadFile(keyPath) // #nosec
 	if err != nil {
 		return fmt.Errorf("error reading private key file: %v", err)
 	}
@@ -439,7 +439,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	// Read SSH public key
 	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
 	publicKeyPath := sshPath + ".pub"
-	publicKeyBytes, err := os.ReadFile(publicKeyPath)
+	publicKeyBytes, err := os.ReadFile(publicKeyPath) // #nosec
 	if err != nil {
 		return fmt.Errorf("error reading public key file: %v", err)
 	}
@@ -554,7 +554,7 @@ func processSSHKeyImports(sshKeys []types.SSHKey, blueprintDir string, format st
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

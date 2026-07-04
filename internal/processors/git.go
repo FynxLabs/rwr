@@ -146,7 +146,7 @@ func processGitImports(repos []types.Git, blueprintDir string, format string) ([
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

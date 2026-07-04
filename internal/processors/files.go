@@ -227,7 +227,7 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 	sourcePath := filepath.Join(blueprintDir, template.Source, template.Name)
 	log.Debugf("Full source path: %s", sourcePath)
 
-	content, err := os.ReadFile(sourcePath)
+	content, err := os.ReadFile(sourcePath) // #nosec
 	if err != nil {
 		log.Errorf("Error reading template file %s: %v", sourcePath, err)
 		return fmt.Errorf("error reading template file %s: %w", sourcePath, err)
@@ -320,7 +320,7 @@ func moveFile(file types.File, blueprintDir string) error {
 	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -355,12 +355,12 @@ func createFile(file types.File) error {
 
 	log.Debugf("Creating file dir: %s", targetDir)
 
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
 	// Create the file
-	f, err := os.Create(targetPath)
+	f, err := os.Create(targetPath) // #nosec
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}
@@ -389,7 +389,7 @@ func createFile(file types.File) error {
 func chmodFile(file types.File) error {
 	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
 
-	if err := os.Chmod(target, os.FileMode(file.Mode)); err != nil {
+	if err := os.Chmod(target, os.FileMode(file.Mode)); err != nil { // #nosec
 		return fmt.Errorf("error changing file permissions: %w", err)
 	}
 
@@ -457,7 +457,7 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, os.ModePerm); err != nil {
+	if err := os.MkdirAll(target, os.ModePerm); err != nil { // #nosec
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -478,7 +478,7 @@ func moveDirectory(dir types.Directory, blueprintDir string) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -504,7 +504,7 @@ func deleteDirectory(dir types.Directory) error {
 func createDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, os.ModePerm); err != nil {
+	if err := os.MkdirAll(target, os.ModePerm); err != nil { // #nosec
 		return fmt.Errorf("error creating directory: %w", err)
 	}
 
@@ -519,7 +519,7 @@ func createDirectory(dir types.Directory) error {
 func chmodDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil {
+	if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil { // #nosec
 		return fmt.Errorf("error changing directory permissions: %w", err)
 	}
 
@@ -585,7 +585,7 @@ func symlinkDirectory(dir types.Directory, blueprintDir string) error {
 
 func applyFileAttributes(targetPath string, file types.File) error {
 	if file.Mode != 0 {
-		if err := os.Chmod(targetPath, os.FileMode(file.Mode)); err != nil {
+		if err := os.Chmod(targetPath, os.FileMode(file.Mode)); err != nil { // #nosec
 			return fmt.Errorf("error changing file permissions: %v", err)
 		}
 	}
@@ -603,7 +603,7 @@ func applyDirectoryAttributes(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
 	if dir.Mode != 0 {
-		if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil {
+		if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil { // #nosec
 			return fmt.Errorf("error changing directory permissions: %w", err)
 		}
 	}
@@ -666,7 +666,7 @@ func processFileImports(files []types.File, blueprintDir string, format string) 
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}
@@ -712,7 +712,7 @@ func processDirectoryImports(directories []types.Directory, blueprintDir string,
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

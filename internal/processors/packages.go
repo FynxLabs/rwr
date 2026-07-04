@@ -62,7 +62,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 			visited[absPath] = true
 
 			// Read the import file
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

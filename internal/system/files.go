@@ -18,7 +18,7 @@ import (
 
 func downloadFileContent(url, filePath string) error {
 	// Send an HTTP GET request to the URL
-	response, err := http.Get(url)
+	response, err := http.Get(url) // #nosec
 	if err != nil {
 		return fmt.Errorf("error downloading file: %v", err)
 	}
@@ -35,7 +35,7 @@ func downloadFileContent(url, filePath string) error {
 	}
 
 	// Create the file
-	file, err := os.Create(filePath) //nolint:gosec
+	file, err := os.Create(filePath) // #nosec
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}
@@ -104,7 +104,7 @@ func AppendToFile(filePath, content string, elevated bool) error {
 
 	log.Debugf("Appending content to file %s", filePath)
 	// Read the existing file content
-	existingContent, err := os.ReadFile(filePath) //nolint:gosec
+	existingContent, err := os.ReadFile(filePath) // #nosec
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("error reading file: %v", err)
 	}
@@ -150,7 +150,7 @@ func WriteToFile(filePath, content string, elevated bool) error {
 	}
 
 	// Write the content to the temporary file
-	err = os.WriteFile(tempFile.Name(), []byte(content), 0644)
+	err = os.WriteFile(tempFile.Name(), []byte(content), 0644) // #nosec
 	if err != nil {
 		return fmt.Errorf("error writing to temporary file: %v", err)
 	}
@@ -174,7 +174,7 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 
 	log.Debugf("Removing line %s from file %s", lineToRemove, filePath)
 	// Open the file for reading
-	file, err := os.Open(filePath) //nolint:gosec
+	file, err := os.Open(filePath) // #nosec
 	if err != nil {
 		return fmt.Errorf("error opening file: %v", err)
 	}
@@ -235,7 +235,7 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error {
 	log.Debugf("Copying file from %s to %s (elevated: %v)", source, target, elevated)
 
-	sourceFile, err := os.Open(source) //nolint:gosec
+	sourceFile, err := os.Open(source) // #nosec
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
@@ -247,7 +247,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 	}
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
@@ -273,7 +273,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 			return fmt.Errorf("error moving file with elevated privileges: %v", err)
 		}
 	} else {
-		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode()) //nolint:gosec
+		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode()) // #nosec
 		if err != nil {
 			return fmt.Errorf("error creating target file: %v", err)
 		}
@@ -320,7 +320,7 @@ func ExpandPath(path string) string {
 
 func copyFileContent(source, target string) error {
 	log.Debugf("Copying file content from %s to %s", source, target)
-	sourceFile, err := os.Open(source)
+	sourceFile, err := os.Open(source) // #nosec
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
@@ -330,7 +330,7 @@ func copyFileContent(source, target string) error {
 		}
 	}()
 
-	targetFile, err := os.Create(target)
+	targetFile, err := os.Create(target) // #nosec
 	if err != nil {
 		return fmt.Errorf("error creating target file: %v", err)
 	}

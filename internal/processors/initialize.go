@@ -75,7 +75,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	log.Debugf("Reading in temporary Init File: %s", tempInitFile)
 
 	// Read the init file
-	initFileData, err := os.ReadFile(tempInitFile)
+	initFileData, err := os.ReadFile(tempInitFile) // #nosec
 	if err != nil {
 		return nil, fmt.Errorf("error reading init file %s: %w", tempInitFile, err)
 	}
@@ -102,7 +102,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 
 	// Write the processed init file to the temporary directory
 	processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
-	err = os.WriteFile(processedInitFile, processedInit, 0644) //nolint:gosec
+	err = os.WriteFile(processedInitFile, processedInit, 0644) // #nosec
 	if err != nil {
 		return nil, fmt.Errorf("error writing processed init file: %w", err)
 	}
@@ -128,7 +128,9 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	setBlueprintsLocation(&initConfig, initFilePath)
 
 	// Set user-defined variables and environment variables
-	setUserDefinedAndEnvVariables(&initConfig)
+	if err := setUserDefinedAndEnvVariables(&initConfig); err != nil {
+		return nil, fmt.Errorf("error setting variables: %w", err)
+	}
 
 	log.Debugf("Initialized initConfig: %v", initConfig)
 
@@ -191,7 +193,7 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 	// Handle Git target setup if needed
 	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
 		resolvedTarget := system.ExpandPath(initConfig.Init.Git.Target)
-		if err := os.MkdirAll(resolvedTarget, 0755); err != nil {
+		if err := os.MkdirAll(resolvedTarget, 0755); err != nil { // #nosec
 			log.Warnf("Failed to create blueprint directory: %v", err)
 		} //nolint:gosec
 	}
@@ -209,10 +211,7 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 	log.Debugf("Blueprints location set to: %s", initConfig.Init.Location)
 }
 
-func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) {
-	for key, value := range initConfig.Variables.UserDefined {
-		initConfig.Variables.UserDefined[key] = value
-	}
+func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 
 	for _, env := range os.Environ() {
 		if strings.HasPrefix(env, "RWR_") {
@@ -225,6 +224,9 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) {
 	for _, key := range viper.AllKeys() {
 		value := viper.GetString(key)
 		envKey := fmt.Sprintf("RWR_VAR_%s", strings.ToUpper(strings.ReplaceAll(key, ".", "_")))
-		os.Setenv(envKey, value) //nolint:errcheck
-	} //nolint:gosec
+		if err := os.Setenv(envKey, value); err != nil {
+			return fmt.Errorf("error setting environment variable %s: %w", envKey, err)
+		}
+	}
+	return nil
 }

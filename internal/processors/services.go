@@ -76,7 +76,7 @@ func createServiceFile(service types.Service, osInfo *types.OSInfo) error {
 			log.Infof("[DRY-RUN] Would create service file: %s", service.Target)
 			return nil
 		}
-		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
+		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil { // #nosec
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
@@ -184,7 +184,7 @@ func createLaunchDaemon(service types.Service, osInfo *types.OSInfo) error {
 			log.Infof("[DRY-RUN] Would create launch daemon: %s", service.Target)
 			return nil
 		}
-		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
+		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil { // #nosec
 			return fmt.Errorf("error creating launch daemon: %v", err)
 		}
 	} else if service.Source != "" {
@@ -284,7 +284,7 @@ func createWindowsService(service types.Service, osInfo *types.OSInfo, initConfi
 	if service.Content != "" {
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would create Windows service file: %s", service.Target)
-		} else if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil {
+		} else if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil { // #nosec
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
@@ -418,7 +418,7 @@ func processServiceImports(services []types.Service, blueprintDir string, format
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

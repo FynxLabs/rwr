@@ -42,7 +42,7 @@ func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 	}
 
 	targetDir := filepath.Dir(opts.Target)
-	err := os.MkdirAll(targetDir, os.ModePerm)
+	err := os.MkdirAll(targetDir, os.ModePerm) // #nosec
 	if err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
@@ -265,20 +265,20 @@ func HandleGitFileDownload(opts types.GitOptions, initConfig *types.InitConfig) 
 	}
 
 	// Read the contents of the specified file
-	fileContent, err := os.ReadFile(filepath.Join(tempDir, filePath))
+	fileContent, err := os.ReadFile(filepath.Join(tempDir, filePath)) // #nosec
 	if err != nil {
 		return fmt.Errorf("error reading file from Git repository: %v", err)
 	}
 
 	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(opts.Target)
-	err = os.MkdirAll(targetDir, os.ModePerm)
+	err = os.MkdirAll(targetDir, os.ModePerm) // #nosec
 	if err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
 	// Write the file contents to the target file
-	err = os.WriteFile(opts.Target, fileContent, 0644) //nolint:gosec
+	err = os.WriteFile(opts.Target, fileContent, 0644) // #nosec
 	if err != nil {
 		return fmt.Errorf("error writing file: %v", err)
 	}

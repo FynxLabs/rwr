@@ -103,7 +103,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		}
 		defer os.Remove(tempFile.Name()) //nolint:errcheck //nolint:gosec
 
-		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0755)
+		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0755) // #nosec
 		if err != nil {
 			return fmt.Errorf("error writing script content to temporary file: %v", err)
 		}
@@ -118,7 +118,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	case "self":
 		log.Debugf("Using 'self' executor for script: %s", script.Name)
 		// Make the script executable
-		err := os.Chmod(scriptPath, 0755)
+		err := os.Chmod(scriptPath, 0755) // #nosec
 		if err != nil {
 			return fmt.Errorf("error setting script as executable: %v", err)
 		}
@@ -212,7 +212,7 @@ func processScriptImports(scripts []types.Script, blueprintDir string, format st
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) // #nosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

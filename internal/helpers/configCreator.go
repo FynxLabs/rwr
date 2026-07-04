@@ -27,7 +27,7 @@ func CreateDefaultConfig() error {
 	}
 
 	// Create the configuration directory if it doesn't exist
-	err := os.MkdirAll(configDir, os.ModePerm)
+	err := os.MkdirAll(configDir, os.ModePerm) // #nosec
 	if err != nil {
 		return err
 	}

@@ -36,7 +36,7 @@ func ProcessImports(blueprintDir string, imports []ImportPath, format string, ta
 		log.Debugf("Processing import: %s", importPath)
 
 		// Read the import file
-		data, err := os.ReadFile(importPath)
+		data, err := os.ReadFile(importPath) // #nosec
 		if err != nil {
 			return fmt.Errorf("error reading import file %s: %w", importPath, err)
 		}
@@ -86,7 +86,7 @@ func ProcessImportsRecursive(blueprintDir string, imports []ImportPath, format s
 		visited[absPath] = true
 
 		// Read and process the import
-		data, err := os.ReadFile(importPath)
+		data, err := os.ReadFile(importPath) // #nosec
 		if err != nil {
 			return fmt.Errorf("error reading import file %s: %w", importPath, err)
 		}

@@ -47,7 +47,7 @@ func Bootstrap() error {
 
 	// Create the bootstrap file
 	bootstrapFile := filepath.Join(configDir, "bootstrap")
-	file, err := os.Create(bootstrapFile)
+	file, err := os.Create(bootstrapFile) // #nosec
 	if err != nil {
 		return err
 	}

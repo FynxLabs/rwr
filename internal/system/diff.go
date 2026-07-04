@@ -198,12 +198,12 @@ func terminalShape() (int, int, error) {
 
 // ShowDiff displays a colored unified diff between two files to stdout.
 func ShowDiff(source, target string) error {
-	sourceContent, err := os.ReadFile(source) //nolint:gosec
+	sourceContent, err := os.ReadFile(source) // #nosec
 	if err != nil {
 		return err
 	}
 
-	targetContent, err := os.ReadFile(target) //nolint:gosec
+	targetContent, err := os.ReadFile(target) // #nosec
 	if err != nil {
 		return err
 	}

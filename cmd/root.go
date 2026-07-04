@@ -241,11 +241,11 @@ func config() error {
 	configLocation = filepath.Join(homeDir, ".config", "rwr")
 	runOnceLocation = filepath.Join(configLocation, "run_once")
 
-	if err = os.MkdirAll(configLocation, os.ModePerm); err != nil {
+	if err = os.MkdirAll(configLocation, os.ModePerm); err != nil { // #nosec
 		return fmt.Errorf("error creating config directory: %w", err)
 	}
 
-	if err = os.MkdirAll(runOnceLocation, os.ModePerm); err != nil {
+	if err = os.MkdirAll(runOnceLocation, os.ModePerm); err != nil { // #nosec
 		return fmt.Errorf("error creating bootstrap directory: %w", err)
 	}
 

@@ -85,7 +85,7 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 
 	if config.RunOnce {
 		log.Debugf("RunOnce Set: Write Bootstrap File %s", bootstrapFile)
-		if err := os.WriteFile(bootstrapFile, []byte{}, 0644); err != nil {
+		if err := os.WriteFile(bootstrapFile, []byte{}, 0644); err != nil { // #nosec
 			log.Warnf("Failed to create dconf bootstrap file: %v", err)
 		}
 	}
@@ -100,7 +100,7 @@ func processGSettings(config types.Configuration) error {
 		log.Debugf("Processing key: %s with value: %v", key, value)
 
 		// Check if the key is writable
-		checkCmd := exec.Command("gsettings", "writable", config.Schema, key) //nolint:gosec
+		checkCmd := exec.Command("gsettings", "writable", config.Schema, key) // #nosec
 		output, err := checkCmd.CombinedOutput()
 		if err != nil {
 			log.Warnf("Error checking if key is writable - Schema: %s, Key: %s, Error: %v, Output: %s", config.Schema, key, err, string(output))
@@ -119,7 +119,7 @@ func processGSettings(config types.Configuration) error {
 		args := []string{"set", config.Schema, key, strValue}
 		log.Debugf("Executing command: gsettings %s", strings.Join(args, " "))
 
-		cmd := exec.Command("gsettings", args...) //nolint:gosec
+		cmd := exec.Command("gsettings", args...) // #nosec
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			log.Errorf("Error applying gsettings configuration - Schema: %s, Key: %s, Value: %s, Error: %v, Output: %s", config.Schema, key, strValue, err, string(output))

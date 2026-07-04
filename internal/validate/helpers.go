@@ -102,7 +102,7 @@ func validateImportWithVisited(importPath string, fieldPath string, blueprintDir
 	}
 
 	// Try to parse the imported file
-	importData, err := os.ReadFile(absPath) //nolint:gosec
+	importData, err := os.ReadFile(absPath) // #nosec
 	if err != nil {
 		AddIssue(results, types.ValidationError,
 			fmt.Sprintf("Cannot read import file '%s' for %s: %v", importPath, fieldPath, err),

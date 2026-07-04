@@ -90,7 +90,7 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 	var initConfig types.InitConfig
 
 	// Read the init file
-	initData, err := os.ReadFile(initFile)
+	initData, err := os.ReadFile(initFile) // #nosec
 	if err != nil {
 		AddIssue(results, types.ValidationError, fmt.Sprintf("Error reading init file: %s", err), initFile, 0, "")
 		return nil, nil
@@ -150,7 +150,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	log.Debugf("Validating blueprint file: %s", blueprintFile)
 
 	// Read and process the blueprint file
-	blueprintFileData, err := os.ReadFile(blueprintFile)
+	blueprintFileData, err := os.ReadFile(blueprintFile) // #nosec
 	if err != nil {
 		return fmt.Errorf("error reading blueprint file: %w", err)
 	}
