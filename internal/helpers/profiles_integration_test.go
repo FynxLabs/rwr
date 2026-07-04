@@ -8,7 +8,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// TestIntegration_RealWorldScenario tests a complete real-world configuration
+// TestIntegration_RealWorldScenario tests a complete real-world configuration.
 func TestIntegration_RealWorldScenario(t *testing.T) {
 	// Create a realistic configuration that mirrors what users might have
 	workstationConfig := createWorkstationConfiguration()
@@ -97,7 +97,7 @@ func TestIntegration_RealWorldScenario(t *testing.T) {
 	})
 }
 
-// TestIntegration_ProfileDiscovery tests cross-type profile discovery
+// TestIntegration_ProfileDiscovery tests cross-type profile discovery.
 func TestIntegration_ProfileDiscovery(t *testing.T) {
 	config := createWorkstationConfiguration()
 
@@ -165,7 +165,7 @@ func TestIntegration_ProfileDiscovery(t *testing.T) {
 	})
 }
 
-// TestIntegration_ProfileValidation tests validation across real configuration
+// TestIntegration_ProfileValidation tests validation across real configuration.
 func TestIntegration_ProfileValidation(t *testing.T) {
 	config := createWorkstationConfiguration()
 
@@ -234,7 +234,7 @@ func TestIntegration_ProfileValidation(t *testing.T) {
 	}
 }
 
-// TestIntegration_ComplexProfileCombinations tests advanced profile usage patterns
+// TestIntegration_ComplexProfileCombinations tests advanced profile usage patterns.
 func TestIntegration_ComplexProfileCombinations(t *testing.T) {
 	// Create items with complex profile combinations
 	complexPackages := []types.Package{
@@ -372,7 +372,7 @@ func extractServiceNames(services []types.Service) []string {
 	return names
 }
 
-// Benchmark integration scenarios
+// Benchmark integration scenarios.
 func BenchmarkIntegration_LargeConfiguration(b *testing.B) {
 	// Create a large configuration similar to what enterprise users might have
 	largeConfig := createLargeConfiguration()

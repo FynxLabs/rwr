@@ -9,16 +9,16 @@ type SSHKey struct {
 	NoPassphrase   bool     `mapstructure:"no_passphrase" yaml:"no_passphrase" json:"no_passphrase" toml:"no_passphrase"`
 	CopyToGitHub   bool     `mapstructure:"copy_to_github" yaml:"copy_to_github" json:"copy_to_github" toml:"copy_to_github"`
 	GithubTitle    string   `mapstructure:"github_title" yaml:"github_title" json:"github_title" toml:"github_title"`
-	SetAsRWRSSHKey bool   `mapstructure:"set_as_rwr_ssh_key" yaml:"set_as_rwr_ssh_key" json:"set_as_rwr_ssh_key" toml:"set_as_rwr_ssh_key"`
-	Interactive    *bool  `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"`
-	Import         string `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
+	SetAsRWRSSHKey bool     `mapstructure:"set_as_rwr_ssh_key" yaml:"set_as_rwr_ssh_key" json:"set_as_rwr_ssh_key" toml:"set_as_rwr_ssh_key"`
+	Interactive    *bool    `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"`
+	Import         string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
 }
 
 type SSHKeyData struct {
 	SSHKeys []SSHKey `mapstructure:"ssh_keys" yaml:"ssh_keys" json:"ssh_keys" toml:"ssh_keys"`
 }
 
-// GetProfiles returns the profiles for this SSH key
+// GetProfiles returns the profiles for this SSH key.
 func (s SSHKey) GetProfiles() []string {
 	return s.Profiles
 }

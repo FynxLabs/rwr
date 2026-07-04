@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/charmbracelet/log"
@@ -15,12 +16,16 @@ import (
 var (
 	providers     map[string]*types.Provider
 	providersInit bool
+	providersMu   sync.Mutex
 )
 
 // InitProviders loads provider definitions from embedded resources and the filesystem.
 // Filesystem providers override embedded ones with the same name. This is a no-op
 // if providers have already been initialized.
 func InitProviders() error {
+	providersMu.Lock()
+	defer providersMu.Unlock()
+
 	if providersInit {
 		return nil
 	}
@@ -84,6 +89,9 @@ func GetAvailableProviders() map[string]*types.Provider {
 		log.Errorf("GetAvailableProviders: Error initializing providers: %v", err)
 		return available
 	}
+
+	providersMu.Lock()
+	defer providersMu.Unlock()
 
 	currentOS, currentDistro := getSystemInfo()
 	log.Debugf("GetAvailableProviders: Loaded %d providers, OS: %s, distro: %s", len(providers), currentOS, currentDistro)
@@ -419,7 +427,7 @@ func GetProviderForDistroWithAlternatives(distro string) (*types.Provider, bool)
 	return &providerCopy, true
 }
 
-// getProviderNames returns a sorted list of provider names for logging
+// getProviderNames returns a sorted list of provider names for logging.
 func getProviderNames() []string {
 	names := make([]string, 0, len(providers))
 	for name := range providers {
@@ -428,7 +436,7 @@ func getProviderNames() []string {
 	return names
 }
 
-// getAvailableProviderNames returns a list of available provider names for logging
+// getAvailableProviderNames returns a list of available provider names for logging.
 func getAvailableProviderNames(available map[string]*types.Provider) []string {
 	names := make([]string, 0, len(available))
 	for name := range available {
@@ -437,7 +445,7 @@ func getAvailableProviderNames(available map[string]*types.Provider) []string {
 	return names
 }
 
-// logDetectionSummary provides a detailed summary of why provider detection failed
+// logDetectionSummary provides a detailed summary of why provider detection failed.
 func logDetectionSummary(currentOS, currentDistro string) {
 	log.Errorf("=== PROVIDER DETECTION SUMMARY ===")
 	log.Errorf("System: %s", currentOS)

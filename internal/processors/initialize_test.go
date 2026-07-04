@@ -295,7 +295,7 @@ blueprints:
 	}
 }
 
-// BenchmarkInitialize tests the performance of initialization
+// BenchmarkInitialize tests the performance of initialization.
 func BenchmarkInitialize(b *testing.B) {
 	tempDir := b.TempDir()
 

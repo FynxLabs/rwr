@@ -23,7 +23,7 @@ func downloadFileContent(url, filePath string) error {
 		return fmt.Errorf("error downloading file: %v", err)
 	}
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
+		err := Body.Close() //nolint:errcheck
 		if err != nil {
 			log.Errorf("error closing response body: %v", err)
 		}
@@ -40,7 +40,7 @@ func downloadFileContent(url, filePath string) error {
 		return fmt.Errorf("error creating file: %v", err)
 	}
 	defer func(file *os.File) {
-		err := file.Close()
+		err := file.Close() //nolint:errcheck
 		if err != nil {
 			log.Errorf("error closing file: %v", err)
 		}
@@ -179,7 +179,7 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 		return fmt.Errorf("error opening file: %v", err)
 	}
 	defer func(file *os.File) {
-		err := file.Close()
+		err := file.Close() //nolint:errcheck
 		if err != nil {
 			log.Errorf("error closing file: %v", err)
 		}
@@ -239,7 +239,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
-	defer sourceFile.Close()
+	defer sourceFile.Close() //nolint:errcheck
 
 	sourceInfo, err := sourceFile.Stat()
 	if err != nil {
@@ -256,14 +256,14 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		if err != nil {
 			return fmt.Errorf("error creating temporary file: %v", err)
 		}
-		defer os.Remove(tempFile.Name())
+		defer os.Remove(tempFile.Name()) //nolint:errcheck
 
 		_, err = io.Copy(tempFile, sourceFile)
 		if err != nil {
 			return fmt.Errorf("error copying to temporary file: %v", err)
 		}
 
-		err = tempFile.Close()
+		err = tempFile.Close() //nolint:errcheck
 		if err != nil {
 			return fmt.Errorf("error closing temporary file: %v", err)
 		}
@@ -277,7 +277,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		if err != nil {
 			return fmt.Errorf("error creating target file: %v", err)
 		}
-		defer targetFile.Close()
+		defer targetFile.Close() //nolint:errcheck
 
 		_, err = io.Copy(targetFile, sourceFile)
 		if err != nil {
@@ -312,7 +312,7 @@ func setFilePermissionsElevated(path string, mode os.FileMode) error {
 // ExpandPath replaces a leading "~/" in the path with the user's home directory.
 func ExpandPath(path string) string {
 	if strings.HasPrefix(path, "~/") {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, _ := os.UserHomeDir() //nolint:errcheck
 		path = filepath.Join(homeDir, path[2:])
 	}
 	return path
@@ -325,7 +325,7 @@ func copyFileContent(source, target string) error {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
 	defer func() {
-		if err := sourceFile.Close(); err != nil {
+		if err := sourceFile.Close(); err != nil { //nolint:errcheck
 			log.Errorf("error closing source file: %v", err)
 		}
 	}()
@@ -335,7 +335,7 @@ func copyFileContent(source, target string) error {
 		return fmt.Errorf("error creating target file: %v", err)
 	}
 	defer func() {
-		if err := targetFile.Close(); err != nil {
+		if err := targetFile.Close(); err != nil { //nolint:errcheck
 			log.Errorf("error closing target file: %v", err)
 		}
 	}()
@@ -438,7 +438,7 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 				}
 
 				// Overwrite the file
-				err := os.Remove(targetPath)
+				err := os.Remove(targetPath) //nolint:errcheck
 				if err != nil {
 					return err
 				}

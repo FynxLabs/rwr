@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// GitHubAuthChoice represents the user's authentication choice
+// GitHubAuthChoice represents the user's authentication choice.
 type GitHubAuthChoice string
 
 const (

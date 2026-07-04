@@ -9,7 +9,7 @@ import (
 )
 
 // TestProcessPackages_DefaultSystemState tests package manager detection in the default system state
-// that was previously failing with "no package managers available" error at bootstrap.go:60
+// that was previously failing with "no package managers available" error at bootstrap.go:60.
 func TestProcessPackages_DefaultSystemState(t *testing.T) {
 	t.Run("EmptyPATH_ShouldFindPackageManagers", func(t *testing.T) {
 		// Save original PATH
@@ -149,7 +149,7 @@ func TestProcessPackages_DefaultSystemState(t *testing.T) {
 }
 
 // TestBootstrapPackageManagerDetection tests the complete bootstrap flow
-// for package manager detection issues
+// for package manager detection issues.
 func TestBootstrapPackageManagerDetection(t *testing.T) {
 	t.Run("DefaultSystemStateBootstrap", func(t *testing.T) {
 		// Save original PATH
@@ -232,7 +232,7 @@ func TestBootstrapPackageManagerDetection(t *testing.T) {
 }
 
 // TestPackageProcessingEdgeCases tests various edge cases that could cause
-// the package manager detection to fail
+// the package manager detection to fail.
 func TestPackageProcessingEdgeCases(t *testing.T) {
 	// Create minimal OS info and init config for all tests
 	osInfo := &types.OSInfo{}
@@ -286,7 +286,7 @@ func TestPackageProcessingEdgeCases(t *testing.T) {
 	})
 }
 
-// BenchmarkProcessPackagesError benchmarks the error path for performance
+// BenchmarkProcessPackagesError benchmarks the error path for performance.
 func BenchmarkProcessPackagesError(b *testing.B) {
 	// Save original PATH
 	originalPath := os.Getenv("PATH")

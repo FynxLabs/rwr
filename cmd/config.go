@@ -20,7 +20,7 @@ var configCmd = &cobra.Command{
 			}
 			fmt.Println("Configuration initialized successfully.")
 		} else {
-			cmd.Help()
+			cmd.Help() //nolint:errcheck
 		}
 		return nil
 	},

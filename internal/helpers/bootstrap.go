@@ -1,10 +1,11 @@
 package helpers
 
 import (
-	"github.com/charmbracelet/log"
-	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
+
+	"github.com/charmbracelet/log"
+	"github.com/spf13/viper"
 )
 
 // IsBootstrapped checks whether the system has already been bootstrapped

@@ -31,7 +31,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	if err != nil {
 		return nil, fmt.Errorf("error creating temporary directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck
 
 	// Handle URL or local file
 	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
@@ -200,7 +200,7 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 	if initConfig.Init.Location == "" || initConfig.Init.Location == "." {
 		initConfig.Init.Location = filepath.Dir(initFilePath)
 	} else if initConfig.Init.Location == "~" || strings.HasPrefix(initConfig.Init.Location, "~/") {
-		homeDir, _ := os.UserHomeDir()
+		homeDir, _ := os.UserHomeDir() //nolint:errcheck
 		initConfig.Init.Location = filepath.Join(homeDir, initConfig.Init.Location[2:])
 	} else if !filepath.IsAbs(initConfig.Init.Location) {
 		initConfig.Init.Location = filepath.Join(filepath.Dir(initFilePath), initConfig.Init.Location)
@@ -225,6 +225,6 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) {
 	for _, key := range viper.AllKeys() {
 		value := viper.GetString(key)
 		envKey := fmt.Sprintf("RWR_VAR_%s", strings.ToUpper(strings.ReplaceAll(key, ".", "_")))
-		os.Setenv(envKey, value)
+		os.Setenv(envKey, value) //nolint:errcheck
 	}
 }

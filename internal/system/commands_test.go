@@ -96,7 +96,7 @@ func TestGetBinPath_EmptyCommand(t *testing.T) {
 	}
 }
 
-// Test Command struct validation and basic functionality
+// Test Command struct validation and basic functionality.
 func TestCommand_BasicStructure(t *testing.T) {
 	cmd := types.Command{
 		Exec:        "echo",
@@ -233,7 +233,7 @@ func TestCommand_WithSpecialCharacters(t *testing.T) {
 	}
 }
 
-// Mock tests for command execution - these test the structure without actually running commands
+// Mock tests for command execution - these test the structure without actually running commands.
 func TestCommand_ExecutionFlags(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -286,7 +286,7 @@ func TestCommand_ExecutionFlags(t *testing.T) {
 	}
 }
 
-// Benchmark tests
+// Benchmark tests.
 func BenchmarkCommandExists(b *testing.B) {
 	command := "sh"
 	if runtime.GOOS == "windows" {

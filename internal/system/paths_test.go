@@ -274,7 +274,7 @@ func TestAddCommonPaths_NoDuplicatePaths(t *testing.T) {
 	}
 }
 
-// Performance tests
+// Performance tests.
 func BenchmarkAddCommonPaths(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

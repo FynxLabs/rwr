@@ -16,7 +16,7 @@ func PromptUserChoice(prompt string, options []string, defaultOption string) str
 
 	for {
 		fmt.Printf("%s [%s]: ", prompt, strings.Join(options, "/"))
-		input, _ := reader.ReadString('\n')
+		input, _ := reader.ReadString('\n') //nolint:errcheck
 		input = strings.TrimSpace(input)
 
 		if input == "" {

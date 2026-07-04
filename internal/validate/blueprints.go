@@ -71,7 +71,7 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 	return nil
 }
 
-// findInitFile searches for an init file in the specified directory (non-recursive)
+// findInitFile searches for an init file in the specified directory (non-recursive).
 func findInitFile(dir string) string {
 	// Check for init files with common extensions
 	for _, ext := range []string{types.FormatExtJSON, types.FormatExtYAML, types.FormatExtYAMLAlt, types.FormatExtTOML} {
@@ -83,7 +83,7 @@ func findInitFile(dir string) string {
 	return ""
 }
 
-// validateInitFile validates an init file
+// validateInitFile validates an init file.
 func validateInitFile(initFile string, results *types.ValidationResults) (*types.InitConfig, error) {
 	log.Debugf("Validating init file: %s", initFile)
 
@@ -145,7 +145,7 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 	return &initConfig, nil
 }
 
-// validateBlueprintFile validates a blueprint file
+// validateBlueprintFile validates a blueprint file.
 func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, results *types.ValidationResults) error {
 	log.Debugf("Validating blueprint file: %s", blueprintFile)
 
@@ -168,8 +168,8 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	dir := filepath.Base(filepath.Dir(blueprintFile))
 
 	var blueprintType string
-	switch {
-	case filename == "bootstrap.yaml" || filename == "bootstrap.yml" || filename == "bootstrap.json" || filename == "bootstrap.toml":
+	switch filename {
+	case "bootstrap.yaml", "bootstrap.yml", "bootstrap.json", "bootstrap.toml":
 		blueprintType = types.BlueprintTypeBootstrap
 	default:
 		blueprintType = strings.ToLower(dir)

@@ -9,7 +9,7 @@ import (
 )
 
 // TestGetAvailableProviders_NoPackageManagers tests the specific regression case
-// where provider detection fails and returns empty map
+// where provider detection fails and returns empty map.
 func TestGetAvailableProviders_NoPackageManagers(t *testing.T) {
 	// Save original PATH
 	originalPath := os.Getenv("PATH")
@@ -33,7 +33,7 @@ func TestGetAvailableProviders_NoPackageManagers(t *testing.T) {
 	}
 }
 
-// TestGetAvailableProviders_WithValidBinaries tests provider detection with valid binaries
+// TestGetAvailableProviders_WithValidBinaries tests provider detection with valid binaries.
 func TestGetAvailableProviders_WithValidBinaries(t *testing.T) {
 	// Create temporary directory with mock binaries
 	tempDir := t.TempDir()
@@ -70,7 +70,7 @@ func TestGetAvailableProviders_WithValidBinaries(t *testing.T) {
 }
 
 // TestGetAvailableProviders_MissingRequiredFiles tests provider detection when
-// required files are missing (e.g., /etc/pacman.conf for pacman)
+// required files are missing (e.g., /etc/pacman.conf for pacman).
 func TestGetAvailableProviders_MissingRequiredFiles(t *testing.T) {
 	// This test verifies that providers requiring specific config files
 	// are properly filtered out when those files don't exist
@@ -96,7 +96,7 @@ func TestGetAvailableProviders_MissingRequiredFiles(t *testing.T) {
 	}
 }
 
-// TestGetAvailableProviders_ArchLinuxSpecific tests Arch Linux specific provider detection
+// TestGetAvailableProviders_ArchLinuxSpecific tests Arch Linux specific provider detection.
 func TestGetAvailableProviders_ArchLinuxSpecific(t *testing.T) {
 	// Create temporary files to simulate Arch Linux environment
 	tempDir := t.TempDir()
@@ -120,7 +120,7 @@ func TestGetAvailableProviders_ArchLinuxSpecific(t *testing.T) {
 }
 
 // TestPackageManagerDetectionRegression is the main regression test
-// for the "no package managers available" bug
+// for the "no package managers available" bug.
 func TestPackageManagerDetectionRegression(t *testing.T) {
 	t.Run("EmptyPathScenario", func(t *testing.T) {
 		// Save original PATH
@@ -193,7 +193,7 @@ func TestPackageManagerDetectionRegression(t *testing.T) {
 	})
 }
 
-// TestProviderInitialization tests the provider initialization process
+// TestProviderInitialization tests the provider initialization process.
 func TestProviderInitialization(t *testing.T) {
 	// Test that InitProviders doesn't panic
 	defer func() {
@@ -206,7 +206,7 @@ func TestProviderInitialization(t *testing.T) {
 	t.Log("InitProviders completed successfully")
 }
 
-// TestOSInfoIntegration tests the integration with OSInfo detection
+// TestOSInfoIntegration tests the integration with OSInfo detection.
 func TestOSInfoIntegration(t *testing.T) {
 	osInfo := &types.OSInfo{}
 
@@ -225,14 +225,14 @@ func TestOSInfoIntegration(t *testing.T) {
 	}
 }
 
-// BenchmarkGetAvailableProviders benchmarks the provider detection performance
+// BenchmarkGetAvailableProviders benchmarks the provider detection performance.
 func BenchmarkGetAvailableProviders(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		GetAvailableProviders()
 	}
 }
 
-// TestProviderValidation tests that all returned providers are properly validated
+// TestProviderValidation tests that all returned providers are properly validated.
 func TestProviderValidation(t *testing.T) {
 	providers := GetAvailableProviders()
 

@@ -8,27 +8,23 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// Test fixtures
+// Test fixtures.
 var (
-	// Base items (no profiles) - always included
+	// Base items (no profiles) - always included.
 	basePackage = types.Package{Name: "vim", Profiles: []string{}}
 	baseService = types.Service{Name: "sshd", Profiles: []string{}}
-	baseFile    = types.File{Name: "bashrc", Profiles: []string{}}
 
-	// Single profile items
+	// Single profile items.
 	workPackage = types.Package{Name: "docker", Profiles: []string{"work"}}
 	devService  = types.Service{Name: "postgresql", Profiles: []string{"dev"}}
-	gameFile    = types.File{Name: "steam-config", Profiles: []string{"gaming"}}
 
-	// Multi-profile items
+	// Multi-profile items.
 	multiPackage = types.Package{Name: "tmux", Profiles: []string{"work", "dev"}}
 	multiService = types.Service{Name: "nginx", Profiles: []string{"web", "server"}}
 
-	// Various profile names to test flexibility
+	// Various profile names to test flexibility.
 	personalPackage = types.Package{Name: "spotify", Profiles: []string{"personal"}}
-	laptopService   = types.Service{Name: "bluetooth", Profiles: []string{"laptop"}}
-	minimalFile     = types.File{Name: "minimal-vimrc", Profiles: []string{"minimal"}}
-	// Package list items using Names field (more realistic)
+	// Package list items using Names field (more realistic).
 	basePackageList  = types.Package{Names: []string{"vim", "git", "htop"}, Profiles: []string{}}
 	workPackageList  = types.Package{Names: []string{"docker", "kubectl", "terraform"}, Profiles: []string{"work"}}
 	gamePackageList  = types.Package{Names: []string{"steam", "discord"}, Profiles: []string{"gaming"}}
@@ -698,7 +694,7 @@ func TestValidateProfiles(t *testing.T) {
 	}
 }
 
-// Edge case tests
+// Edge case tests.
 func TestEdgeCases(t *testing.T) {
 	t.Run("unicode_profile_names", func(t *testing.T) {
 		unicodePackage := types.Package{
@@ -770,7 +766,7 @@ func TestEdgeCases(t *testing.T) {
 	})
 }
 
-// Benchmark tests
+// Benchmark tests.
 func BenchmarkShouldInclude(b *testing.B) {
 	itemProfiles := []string{"work", "dev", "testing"}
 	activeProfiles := []string{"personal", "work", "gaming"}

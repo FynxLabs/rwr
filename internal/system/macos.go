@@ -53,7 +53,7 @@ func SetMacOSDetails(osInfo *types.OSInfo) error {
 	return nil
 }
 
-// getDarwinVersion returns the macOS version
+// getDarwinVersion returns the macOS version.
 func getDarwinVersion() string {
 	cmd := exec.Command("sw_vers", "-productVersion")
 	out, err := cmd.Output()

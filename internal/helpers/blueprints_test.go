@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// Test struct for unmarshaling tests
+// Test struct for unmarshaling tests.
 type TestBlueprint struct {
 	Format   string   `yaml:"format" json:"format" toml:"format"`
 	Location string   `yaml:"location" json:"location" toml:"location"`

@@ -75,7 +75,7 @@ func TestLoadEmbeddedProviders_ProviderStructure(t *testing.T) {
 		t.Errorf("pacman detection files count: got %d, want %d", len(pacman.Detection.Files), len(expectedFiles))
 	}
 
-	expectedDistros := []string{"arch", "cachyos", "linux/cachyos", "manjaro"}
+	expectedDistros := []string{"arch", "cachyos", "linux/cachyos", "manjaro", "linux/acreetion"}
 	if len(pacman.Detection.Distributions) != len(expectedDistros) {
 		t.Errorf("pacman detection distributions count: got %d, want %d", len(pacman.Detection.Distributions), len(expectedDistros))
 	}
@@ -490,7 +490,7 @@ func TestLoadEmbeddedProviders_TemplateVariableUsage(t *testing.T) {
 	}
 }
 
-// Helper function to check if content contains valid template variables
+// Helper function to check if content contains valid template variables.
 func containsValidTemplate(content string, validTemplates []string) bool {
 	for _, tmpl := range validTemplates {
 		if strings.Contains(content, tmpl) {
@@ -500,7 +500,7 @@ func containsValidTemplate(content string, validTemplates []string) bool {
 	return false
 }
 
-// Helper function to parse TOML configuration
+// Helper function to parse TOML configuration.
 func parseTomlConfig(content string, config interface{}) (interface{}, error) {
 	_, err := toml.Decode(content, config)
 	return config, err

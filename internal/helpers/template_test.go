@@ -393,14 +393,14 @@ Shell: {{.User.shell}}`)
 		"Shell: /bin/zsh":    "/bin/zsh",
 	}
 
-	for expected, _ := range expectedFields {
+	for expected := range expectedFields {
 		if !strings.Contains(resultStr, expected) {
 			t.Errorf("Expected result to contain '%s', got: %s", expected, resultStr)
 		}
 	}
 }
 
-// Benchmark tests
+// Benchmark tests.
 func BenchmarkResolveTemplate_Simple(b *testing.B) {
 	templateData := []byte("Hello {{.User.username}}")
 	variables := types.Variables{

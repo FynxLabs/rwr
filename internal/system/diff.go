@@ -54,26 +54,22 @@ func WriteUnifiedDiff(w io.Writer, diff difflib.UnifiedDiff, opt DiffOption) err
 			if c.Tag == 'e' {
 				for ln, line := range diff.A[i1:i2] {
 					texts := splitText(line, width-2-lnSpaceSize*2-1, opt.TabSize)
-					_, err := buf.WriteString(
-						fmt.Sprintf(
-							"%*d %*d%s%s\n",
-							lnSpaceSize, i1+ln+1,
-							lnSpaceSize, j1+ln+1,
-							strings.Repeat(" ", opt.SpaceSizeAfterLn),
-							texts[0],
-						),
-					)
+					_, err := fmt.Fprintf(buf,
+
+						"%*d %*d%s%s\n",
+						lnSpaceSize, i1+ln+1,
+						lnSpaceSize, j1+ln+1,
+						strings.Repeat(" ", opt.SpaceSizeAfterLn),
+						texts[0])
 					if err != nil {
 						log.Fatalf("error writing to buffer: %v", err)
 					}
 					for i := 1; i < len(texts); i++ {
-						_, err := buf.WriteString(
-							fmt.Sprintf(
-								"%s %s\n",
-								strings.Repeat(" ", opt.SpaceSizeAfterLn+lnSpaceSize*2),
-								texts[i],
-							),
-						)
+						_, err := fmt.Fprintf(buf,
+
+							"%s %s\n",
+							strings.Repeat(" ", opt.SpaceSizeAfterLn+lnSpaceSize*2),
+							texts[i])
 						if err != nil {
 							log.Fatalf("error writing to buffer: %v", err)
 						}
@@ -83,25 +79,21 @@ func WriteUnifiedDiff(w io.Writer, diff difflib.UnifiedDiff, opt DiffOption) err
 			if c.Tag == 'r' || c.Tag == 'd' {
 				for ln, line := range diff.A[i1:i2] {
 					texts := splitText(line, width-2-lnSpaceSize*2-1, opt.TabSize)
-					_, err := buf.WriteString(
-						fmt.Sprintf(
-							"%*d %s%s\n",
-							lnSpaceSize, i1+ln+1,
-							strings.Repeat(" ", lnSpaceSize+opt.SpaceSizeAfterLn),
-							texts[0],
-						),
-					)
+					_, err := fmt.Fprintf(buf,
+
+						"%*d %s%s\n",
+						lnSpaceSize, i1+ln+1,
+						strings.Repeat(" ", lnSpaceSize+opt.SpaceSizeAfterLn),
+						texts[0])
 					if err != nil {
 						log.Fatalf("error writing to buffer: %v", err)
 					}
 					for i := 1; i < len(texts); i++ {
-						_, err := buf.WriteString(
-							fmt.Sprintf(
-								"%s %s\n",
-								strings.Repeat(" ", opt.SpaceSizeAfterLn+lnSpaceSize*2),
-								texts[i],
-							),
-						)
+						_, err := fmt.Fprintf(buf,
+
+							"%s %s\n",
+							strings.Repeat(" ", opt.SpaceSizeAfterLn+lnSpaceSize*2),
+							texts[i])
 						if err != nil {
 							log.Fatalf("error writing to buffer: %v", err)
 						}
@@ -111,25 +103,21 @@ func WriteUnifiedDiff(w io.Writer, diff difflib.UnifiedDiff, opt DiffOption) err
 			if c.Tag == 'r' || c.Tag == 'i' {
 				for ln, line := range diff.B[j1:j2] {
 					texts := splitText(line, width-2-lnSpaceSize*2-1, opt.TabSize)
-					_, err := buf.WriteString(
-						fmt.Sprintf(
-							" %*d%s%s\n",
-							lnSpaceSize*2, j1+ln+1,
-							strings.Repeat(" ", opt.SpaceSizeAfterLn),
-							texts[0],
-						),
-					)
+					_, err := fmt.Fprintf(buf,
+
+						" %*d%s%s\n",
+						lnSpaceSize*2, j1+ln+1,
+						strings.Repeat(" ", opt.SpaceSizeAfterLn),
+						texts[0])
 					if err != nil {
 						log.Fatalf("error writing to buffer: %v", err)
 					}
 					for i := 1; i < len(texts); i++ {
-						_, err := buf.WriteString(
-							fmt.Sprintf(
-								"%s %s\n",
-								strings.Repeat(" ", opt.SpaceSizeAfterLn+lnSpaceSize*2),
-								texts[i],
-							),
-						)
+						_, err := fmt.Fprintf(buf,
+
+							"%s %s\n",
+							strings.Repeat(" ", opt.SpaceSizeAfterLn+lnSpaceSize*2),
+							texts[i])
 						if err != nil {
 							log.Fatalf("error writing to buffer: %v", err)
 						}
@@ -138,7 +126,7 @@ func WriteUnifiedDiff(w io.Writer, diff difflib.UnifiedDiff, opt DiffOption) err
 			}
 		}
 		if i != len(groupedOpcodes)-1 {
-			_, err := buf.WriteString(fmt.Sprintf("%s\n", strings.Repeat(opt.SeparatorSymbol, opt.SeparatorWidth)))
+			_, err := fmt.Fprintf(buf, "%s\n", strings.Repeat(opt.SeparatorSymbol, opt.SeparatorWidth))
 			if err != nil {
 				log.Fatalf("error writing to buffer: %v", err)
 			}

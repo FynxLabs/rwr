@@ -4,8 +4,6 @@ import (
 	"os"
 	"runtime"
 	"testing"
-
-	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func TestFindTool_ToolExists(t *testing.T) {
@@ -105,12 +103,6 @@ func TestFindTool_ToolInfoStructure(t *testing.T) {
 	result := FindTool(testTool)
 
 	// Verify the result is of the correct type
-	var expected types.ToolInfo
-	if result.Exists != expected.Exists && result.Exists != true {
-		// This is fine, just checking structure
-	}
-
-	// Verify the struct has the expected fields
 	_ = result.Exists // bool field
 	_ = result.Bin    // string field
 
@@ -120,7 +112,7 @@ func TestFindTool_ToolInfoStructure(t *testing.T) {
 	}
 }
 
-// Helper function to test tool detection behavior with modified environment
+// Helper function to test tool detection behavior with modified environment.
 func TestFindTool_WithModifiedPATH(t *testing.T) {
 	// Save original PATH
 	originalPath := os.Getenv("PATH")
@@ -181,7 +173,7 @@ func TestFindTool_ReturnTypeConsistency(t *testing.T) {
 	}
 }
 
-// Benchmark test to ensure the function performs reasonably
+// Benchmark test to ensure the function performs reasonably.
 func BenchmarkFindTool(b *testing.B) {
 	toolName := "nonexistent-benchmark-tool"
 

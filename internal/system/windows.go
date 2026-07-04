@@ -56,7 +56,7 @@ func SetWindowsDetails(osInfo *types.OSInfo) error {
 	return nil
 }
 
-// getWindowsVersion returns the Windows version
+// getWindowsVersion returns the Windows version.
 func getWindowsVersion() string {
 	cmd := exec.Command("cmd", "/c", "ver")
 	out, err := cmd.Output()

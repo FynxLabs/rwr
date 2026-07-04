@@ -101,7 +101,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		if err != nil {
 			return fmt.Errorf("error creating temporary file for script: %v", err)
 		}
-		defer os.Remove(tempFile.Name())
+		defer os.Remove(tempFile.Name()) //nolint:errcheck
 
 		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0755)
 		if err != nil {

@@ -426,7 +426,7 @@ files:
 	}
 }
 
-// BenchmarkProcessFiles tests the performance of file processing
+// BenchmarkProcessFiles tests the performance of file processing.
 func BenchmarkProcessFiles(b *testing.B) {
 	tempDir := b.TempDir()
 	blueprintDir := filepath.Join(tempDir, "blueprints")

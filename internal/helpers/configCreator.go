@@ -38,7 +38,7 @@ func CreateDefaultConfig() error {
 
 	// Prompt for GitHub API Token
 	fmt.Printf("Enter GitHub API Token (press enter to keep default) [%s]: ", viper.GetString("repository.gh_api_token"))
-	ghApiTokenInput, _ := reader.ReadString('\n')
+	ghApiTokenInput, _ := reader.ReadString('\n') //nolint:errcheck
 	ghApiTokenInput = strings.TrimSpace(ghApiTokenInput)
 	if ghApiTokenInput != "" {
 		viper.Set("repository.gh_api_token", ghApiTokenInput)
@@ -46,7 +46,7 @@ func CreateDefaultConfig() error {
 
 	// Prompt for SSH Private Key
 	fmt.Printf("Enter SSH Private Key (file path or Base64 encoded) (press enter to keep default) [%s]: ", viper.GetString("repository.ssh_private_key"))
-	sshPrivateKeyInput, _ := reader.ReadString('\n')
+	sshPrivateKeyInput, _ := reader.ReadString('\n') //nolint:errcheck
 	sshPrivateKeyInput = strings.TrimSpace(sshPrivateKeyInput)
 	if sshPrivateKeyInput != "" {
 		viper.Set("repository.ssh_private_key", sshPrivateKeyInput)
@@ -54,7 +54,7 @@ func CreateDefaultConfig() error {
 
 	// Prompt for Skip Version Check
 	fmt.Printf("Skip version check? (true/false) (press enter to keep default) [%t]: ", viper.GetBool("rwr.skipVersionCheck"))
-	skipVersionCheckInput, _ := reader.ReadString('\n')
+	skipVersionCheckInput, _ := reader.ReadString('\n') //nolint:errcheck
 	skipVersionCheckInput = strings.TrimSpace(skipVersionCheckInput)
 	if skipVersionCheckInput != "" {
 		viper.Set("rwr.skipVersionCheck", skipVersionCheckInput == "true")
@@ -66,7 +66,7 @@ func CreateDefaultConfig() error {
 		defaultLogLevel = "info" // Assuming "info" as a safe default log level
 	}
 	fmt.Printf("Enter Log Level (debug, info, warn, error) (press enter to keep default) [%s]: ", defaultLogLevel)
-	logLevelInput, _ := reader.ReadString('\n')
+	logLevelInput, _ := reader.ReadString('\n') //nolint:errcheck
 	logLevelInput = strings.TrimSpace(logLevelInput)
 	if logLevelInput != "" {
 		viper.Set("log.level", logLevelInput)
@@ -76,7 +76,7 @@ func CreateDefaultConfig() error {
 
 	// Prompt for Default Package Manager on Linux
 	fmt.Printf("Set the default package manager for Linux (press enter to keep default) [%s]: ", viper.GetString("packageManager.linux.default"))
-	linuxDefaultPMInput, _ := reader.ReadString('\n')
+	linuxDefaultPMInput, _ := reader.ReadString('\n') //nolint:errcheck
 	linuxDefaultPMInput = strings.TrimSpace(linuxDefaultPMInput)
 	if linuxDefaultPMInput != "" {
 		viper.Set("packageManager.linux.default", linuxDefaultPMInput)
@@ -84,7 +84,7 @@ func CreateDefaultConfig() error {
 
 	// Prompt for Default Package Manager on macOS
 	fmt.Printf("Set the default package manager for macOS (press enter to keep default) [%s]: ", viper.GetString("packageManager.macos.default"))
-	macOSDefaultPMInput, _ := reader.ReadString('\n')
+	macOSDefaultPMInput, _ := reader.ReadString('\n') //nolint:errcheck
 	macOSDefaultPMInput = strings.TrimSpace(macOSDefaultPMInput)
 	if macOSDefaultPMInput != "" {
 		viper.Set("packageManager.macos.default", macOSDefaultPMInput)
@@ -92,7 +92,7 @@ func CreateDefaultConfig() error {
 
 	// Prompt for Default Package Manager on Windows
 	fmt.Printf("Set the default package manager for Windows (press enter to keep default) [%s]: ", viper.GetString("packageManager.windows.default"))
-	windowsDefaultPMInput, _ := reader.ReadString('\n')
+	windowsDefaultPMInput, _ := reader.ReadString('\n') //nolint:errcheck
 	windowsDefaultPMInput = strings.TrimSpace(windowsDefaultPMInput)
 	if windowsDefaultPMInput != "" {
 		viper.Set("packageManager.windows.default", windowsDefaultPMInput)
@@ -103,7 +103,7 @@ func CreateDefaultConfig() error {
 
 	// Prompt for Init File Location
 	fmt.Printf("Enter the location of the init file (local or url) (press enter to keep default) [%s]: ", viper.GetString("repository.init-file"))
-	initFileLocationInput, _ := reader.ReadString('\n')
+	initFileLocationInput, _ := reader.ReadString('\n') //nolint:errcheck
 	initFileLocationInput = strings.TrimSpace(initFileLocationInput)
 	if initFileLocationInput != "" {
 		viper.Set("repository.init-file", initFileLocationInput)

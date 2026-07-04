@@ -16,7 +16,7 @@ var (
 	validateVerbose    bool
 )
 
-// validateCmd validates the RWR Blueprints and Provider configurations
+// validateCmd validates the RWR Blueprints and Provider configurations.
 var validateCmd = &cobra.Command{
 	Use:   "validate [path]",
 	Short: "Validate RWR Blueprints and Provider configurations",

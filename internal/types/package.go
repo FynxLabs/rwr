@@ -16,7 +16,7 @@ type PackagesData struct {
 	Packages []Package `mapstructure:"packages,omitempty" yaml:"packages,omitempty" json:"packages,omitempty" toml:"packages,omitempty"`
 }
 
-// GetProfiles returns the profiles for this package
+// GetProfiles returns the profiles for this package.
 func (p Package) GetProfiles() []string {
 	return p.Profiles
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestGetGitHubToken_Priority tests token retrieval priority
+// TestGetGitHubToken_Priority tests token retrieval priority.
 func TestGetGitHubToken_Priority(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -85,7 +85,7 @@ func TestGetGitHubToken_Priority(t *testing.T) {
 	}
 }
 
-// TestRequestDeviceCode tests device code request
+// TestRequestDeviceCode tests device code request.
 func TestRequestDeviceCode(t *testing.T) {
 	// Create mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +125,7 @@ func TestRequestDeviceCode(t *testing.T) {
 	// to make the URL configurable for testing
 }
 
-// TestCheckAccessToken tests access token retrieval
+// TestCheckAccessToken tests access token retrieval.
 func TestCheckAccessToken(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -179,7 +179,7 @@ func TestCheckAccessToken(t *testing.T) {
 	}
 }
 
-// TestCopySSHKeyToGitHub_Success tests successful SSH key upload
+// TestCopySSHKeyToGitHub_Success tests successful SSH key upload.
 func TestCopySSHKeyToGitHub_Success(t *testing.T) {
 	// Create temporary SSH key files
 	tmpDir := t.TempDir()
@@ -221,7 +221,7 @@ func TestCopySSHKeyToGitHub_Success(t *testing.T) {
 	// This test documents the expected behavior
 }
 
-// TestCopySSHKeyToGitHub_Errors tests error scenarios
+// TestCopySSHKeyToGitHub_Errors tests error scenarios.
 func TestCopySSHKeyToGitHub_Errors(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -287,7 +287,7 @@ func TestCopySSHKeyToGitHub_Errors(t *testing.T) {
 	}
 }
 
-// TestGetGitHubToken_EnvVarOnly tests GITHUB_TOKEN environment variable
+// TestGetGitHubToken_EnvVarOnly tests GITHUB_TOKEN environment variable.
 func TestGetGitHubToken_EnvVarOnly(t *testing.T) {
 	oldGitHubToken := os.Getenv("GITHUB_TOKEN")
 	defer os.Setenv("GITHUB_TOKEN", oldGitHubToken)
@@ -310,7 +310,7 @@ func TestGetGitHubToken_EnvVarOnly(t *testing.T) {
 	assert.Equal(t, "GITHUB_TOKEN", source)
 }
 
-// TestGetGitHubToken_NoToken tests error when no token available
+// TestGetGitHubToken_NoToken tests error when no token available.
 func TestGetGitHubToken_NoToken(t *testing.T) {
 	oldGitHubToken := os.Getenv("GITHUB_TOKEN")
 	defer os.Setenv("GITHUB_TOKEN", oldGitHubToken)
@@ -337,7 +337,7 @@ func TestGetGitHubToken_NoToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "GITHUB_TOKEN")
 }
 
-// TestPollForAccessToken_Timeout tests timeout scenario
+// TestPollForAccessToken_Timeout tests timeout scenario.
 func TestPollForAccessToken_Timeout(t *testing.T) {
 	// Create server that always returns pending
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

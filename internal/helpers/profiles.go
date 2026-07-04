@@ -8,7 +8,7 @@ import (
 // An item should be included if:
 // 1. It has no profiles specified (base item - always included)
 // 2. At least one of its profiles matches an active profile
-// 3. "all" is in active profiles (special case to include everything)
+// 3. "all" is in active profiles (special case to include everything).
 func ShouldInclude(itemProfiles []string, activeProfiles []string) bool {
 	// If no profiles are specified for the item, it's a base item - always include
 	if len(itemProfiles) == 0 {

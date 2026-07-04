@@ -36,17 +36,6 @@ type githubKeyRequest struct {
 	Key   string `json:"key"`
 }
 
-// GitHub API success response structure
-type githubKeyResponse struct {
-	Key       string `json:"key"`
-	ID        int    `json:"id"`
-	URL       string `json:"url"`
-	Title     string `json:"title"`
-	CreatedAt string `json:"created_at"`
-	Verified  bool   `json:"verified"`
-	ReadOnly  bool   `json:"read_only"`
-}
-
 // GitHub API error structure
 type githubError struct {
 	Message          string `json:"message"`
@@ -327,10 +316,10 @@ func requestDeviceCode() (*deviceCodeResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != 200 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck
 		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -400,7 +389,7 @@ func checkAccessToken(deviceCode string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	var tokenResp accessTokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
@@ -506,10 +495,10 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	if err != nil {
 		return fmt.Errorf("network error connecting to GitHub API: %v", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	// Read response body
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body) //nolint:errcheck
 	if err != nil {
 		return fmt.Errorf("error reading response: %v", err)
 	}

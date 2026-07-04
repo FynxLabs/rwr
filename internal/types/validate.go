@@ -1,18 +1,18 @@
 package types
 
-// ValidationSeverity represents the severity level of a validation issue
+// ValidationSeverity represents the severity level of a validation issue.
 type ValidationSeverity string
 
 const (
-	// ValidationError represents a critical issue that prevents execution
+	// ValidationError represents a critical issue that prevents execution.
 	ValidationError ValidationSeverity = "ERROR"
-	// ValidationWarning represents a non-critical issue that might cause problems
+	// ValidationWarning represents a non-critical issue that might cause problems.
 	ValidationWarning ValidationSeverity = "WARNING"
-	// ValidationInfo represents informational messages
+	// ValidationInfo represents informational messages.
 	ValidationInfo ValidationSeverity = "INFO"
 )
 
-// ValidationIssue represents a single validation issue
+// ValidationIssue represents a single validation issue.
 type ValidationIssue struct {
 	Severity    ValidationSeverity
 	Message     string
@@ -24,7 +24,7 @@ type ValidationIssue struct {
 	Description string
 }
 
-// ValidationResults contains the results of a validation run
+// ValidationResults contains the results of a validation run.
 type ValidationResults struct {
 	Issues       []ValidationIssue
 	ErrorCount   int
@@ -32,7 +32,7 @@ type ValidationResults struct {
 	InfoCount    int
 }
 
-// ValidationOptions contains options for the validation process
+// ValidationOptions contains options for the validation process.
 type ValidationOptions struct {
 	Path               string
 	ValidateBlueprints bool

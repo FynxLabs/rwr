@@ -10,10 +10,10 @@ func boolPtr(b bool) *bool {
 
 func TestResolveInteractive(t *testing.T) {
 	tests := []struct {
-		name               string
-		blueprintOverride  *bool
-		globalInteractive  bool
-		want               bool
+		name              string
+		blueprintOverride *bool
+		globalInteractive bool
+		want              bool
 	}{
 		{
 			name:              "nil override uses global true",

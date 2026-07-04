@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-// ImportPath represents a single import directive
+// ImportPath represents a single import directive.
 type ImportPath struct {
 	Path string `mapstructure:"import" yaml:"import" json:"import" toml:"import"`
 }
@@ -60,7 +60,7 @@ func ProcessImports(blueprintDir string, imports []ImportPath, format string, ta
 }
 
 // ProcessImportsRecursive processes imports that may themselves contain imports
-// This prevents infinite recursion by tracking visited files
+// This prevents infinite recursion by tracking visited files.
 func ProcessImportsRecursive(blueprintDir string, imports []ImportPath, format string, target interface{}, visited map[string]bool) error {
 	if visited == nil {
 		visited = make(map[string]bool)

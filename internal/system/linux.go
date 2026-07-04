@@ -79,7 +79,7 @@ func SetLinuxDetails(osInfo *types.OSInfo) error {
 	return nil
 }
 
-// getLinuxDistro returns the Linux distribution name from /etc/os-release
+// getLinuxDistro returns the Linux distribution name from /etc/os-release.
 func getLinuxDistro() string {
 	log.Debug("Starting Linux distribution detection")
 
@@ -147,7 +147,7 @@ func getLinuxDistro() string {
 	return "Unknown Linux"
 }
 
-// getLinuxVersion returns the Linux version from /etc/os-release
+// getLinuxVersion returns the Linux version from /etc/os-release.
 func getLinuxVersion() string {
 	if fileExists("/etc/os-release") {
 		log.Debugf("Getting Linux Version from /etc/os-release")
@@ -182,7 +182,7 @@ func getLinuxVersion() string {
 	return "Unknown Version"
 }
 
-// fileExists checks if a file exists and is not a directory
+// fileExists checks if a file exists and is not a directory.
 func fileExists(filename string) bool {
 	info, err := os.Stat(filename)
 	if os.IsNotExist(err) {
@@ -191,7 +191,7 @@ func fileExists(filename string) bool {
 	return !info.IsDir()
 }
 
-// Contains checks if a string slice contains a string
+// Contains checks if a string slice contains a string.
 func Contains(slice []string, str string) bool {
 	for _, s := range slice {
 		if s == str {

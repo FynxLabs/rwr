@@ -126,7 +126,7 @@ func TestContains_SpecialCharacters(t *testing.T) {
 	}
 }
 
-// Benchmark test to ensure good performance
+// Benchmark test to ensure good performance.
 func BenchmarkContains_SmallSlice(b *testing.B) {
 	slice := []string{"item1", "item2", "item3", "item4", "item5"}
 	item := "item3"

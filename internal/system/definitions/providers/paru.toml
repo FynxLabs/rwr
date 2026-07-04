@@ -5,7 +5,7 @@ elevated = false
 [provider.detection]
 binary = "paru"
 files = ["/etc/pacman.conf", "/var/lib/pacman"]
-distributions = ["arch", "cachyos", "linux/cachyos", "manjaro"]
+distributions = ["arch", "cachyos", "linux/cachyos", "manjaro", "linux/acreetion"]
 
 [provider.commands]
 install = "-S --noconfirm"  # -S for install, paru handles sync

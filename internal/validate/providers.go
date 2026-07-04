@@ -72,7 +72,7 @@ func ValidateProviders(path string, verbose bool, results *types.ValidationResul
 	return nil
 }
 
-// validateProviderFile validates a provider configuration file
+// validateProviderFile validates a provider configuration file.
 func validateProviderFile(providerFile string, results *types.ValidationResults, osInfo *types.OSInfo) error {
 	log.Debugf("Validating provider file: %s", providerFile)
 
@@ -167,7 +167,7 @@ func validateProviderFile(providerFile string, results *types.ValidationResults,
 	return nil
 }
 
-// validateActionStep validates a provider action step
+// validateActionStep validates a provider action step.
 func validateActionStep(step types.ActionStep, index int, stepType string, file string, results *types.ValidationResults) {
 	switch step.Action {
 	case "command":

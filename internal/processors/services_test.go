@@ -9,7 +9,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// Test blueprint parsing without calling the actual ProcessServices function
+// Test blueprint parsing without calling the actual ProcessServices function.
 func TestProcessServices_BlueprintParsing(t *testing.T) {
 	blueprintData := []byte(`
 services:
@@ -55,7 +55,7 @@ services:
 	t.Log("Blueprint parsing successful")
 }
 
-// Test profile filtering logic independently
+// Test profile filtering logic independently.
 func TestProcessServices_ProfileFiltering(t *testing.T) {
 	services := []types.Service{
 		{
@@ -119,7 +119,7 @@ func TestProcessServices_ProfileFiltering(t *testing.T) {
 	t.Log("Profile filtering logic works correctly")
 }
 
-// Test service structure validation
+// Test service structure validation.
 func TestProcessServices_ServiceStructure(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -210,7 +210,7 @@ func TestProcessServices_ServiceStructure(t *testing.T) {
 	}
 }
 
-// Test command generation logic without execution
+// Test command generation logic without execution.
 func TestProcessServices_CommandGeneration(t *testing.T) {
 	testCases := []struct {
 		name            string
@@ -303,7 +303,7 @@ func TestProcessServices_CommandGeneration(t *testing.T) {
 	}
 }
 
-// Helper functions to generate commands without executing them
+// Helper functions to generate commands without executing them.
 func generateLinuxCommand(service types.Service) types.Command {
 	cmd := types.Command{Elevated: service.Elevated}
 
@@ -385,7 +385,7 @@ func generateWindowsCommand(service types.Service) types.Command {
 	return cmd
 }
 
-// Test platform-specific action support
+// Test platform-specific action support.
 func TestProcessServices_PlatformActionSupport(t *testing.T) {
 	testCases := []struct {
 		platform      string
@@ -445,7 +445,7 @@ func TestProcessServices_PlatformActionSupport(t *testing.T) {
 	}
 }
 
-// Custom error type for testing
+// Custom error type for testing.
 type ServiceError struct {
 	message string
 }
@@ -454,7 +454,7 @@ func (e *ServiceError) Error() string {
 	return e.message
 }
 
-// Test edge cases and error conditions
+// Test edge cases and error conditions.
 func TestProcessServices_EdgeCases(t *testing.T) {
 	t.Run("Empty service name", func(t *testing.T) {
 		service := types.Service{
@@ -518,7 +518,7 @@ func TestProcessServices_EdgeCases(t *testing.T) {
 	})
 }
 
-// Test blueprint format variations
+// Test blueprint format variations.
 func TestProcessServices_BlueprintFormats(t *testing.T) {
 	testCases := []struct {
 		name   string
@@ -590,7 +590,7 @@ elevated = true
 	}
 }
 
-// Test invalid blueprint data
+// Test invalid blueprint data.
 func TestProcessServices_InvalidBlueprint(t *testing.T) {
 	invalidBlueprint := []byte(`
 services:
@@ -612,7 +612,7 @@ services:
 	t.Log("Invalid blueprint properly rejected")
 }
 
-// Benchmark tests for performance
+// Benchmark tests for performance.
 func BenchmarkServiceFiltering(b *testing.B) {
 	services := []types.Service{
 		{Name: "nginx", Action: "start", Profiles: []string{"web"}},
@@ -630,7 +630,7 @@ func BenchmarkServiceFiltering(b *testing.B) {
 	}
 }
 
-// Test interactive override parsing from blueprints
+// Test interactive override parsing from blueprints.
 func TestProcessServices_InteractiveOverrideParsing(t *testing.T) {
 	blueprintData := []byte(`
 services:
@@ -674,7 +674,7 @@ services:
 	}
 }
 
-// Test that ResolveInteractive produces correct results for service commands
+// Test that ResolveInteractive produces correct results for service commands.
 func TestProcessServices_ResolveInteractiveIntegration(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -722,7 +722,7 @@ func boolPtrSvc(b bool) *bool {
 	return &b
 }
 
-// Test dry-run mode for service processing
+// Test dry-run mode for service processing.
 func TestProcessServices_DryRunLinux(t *testing.T) {
 	system.SetDryRun(true)
 	defer system.SetDryRun(false)

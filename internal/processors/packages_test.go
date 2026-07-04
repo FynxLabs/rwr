@@ -8,7 +8,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// Test blueprint parsing without calling the actual ProcessPackages function
+// Test blueprint parsing without calling the actual ProcessPackages function.
 func TestProcessPackages_BlueprintParsing(t *testing.T) {
 	blueprintData := []byte(`
 packages:
@@ -53,7 +53,7 @@ packages:
 	t.Log("Blueprint parsing successful")
 }
 
-// Test profile filtering logic independently
+// Test profile filtering logic independently.
 func TestProcessPackages_ProfileFiltering(t *testing.T) {
 	packages := []types.Package{
 		{
@@ -118,7 +118,7 @@ func TestProcessPackages_ProfileFiltering(t *testing.T) {
 	t.Log("Profile filtering logic works correctly")
 }
 
-// Test package structure validation
+// Test package structure validation.
 func TestProcessPackages_PackageStructure(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -206,7 +206,7 @@ func TestProcessPackages_PackageStructure(t *testing.T) {
 	}
 }
 
-// Test command building logic without execution
+// Test command building logic without execution.
 func TestProcessPackages_CommandGeneration(t *testing.T) {
 	// Mock provider data that would normally come from system.GetProvider()
 	mockProvider := &types.Provider{
@@ -329,7 +329,7 @@ func TestProcessPackages_CommandGeneration(t *testing.T) {
 	}
 }
 
-// Test edge cases and error conditions
+// Test edge cases and error conditions.
 func TestProcessPackages_EdgeCases(t *testing.T) {
 	t.Run("Empty package name and names", func(t *testing.T) {
 		pkg := types.Package{
@@ -389,7 +389,7 @@ func TestProcessPackages_EdgeCases(t *testing.T) {
 	})
 }
 
-// Test blueprint format variations
+// Test blueprint format variations.
 func TestProcessPackages_BlueprintFormats(t *testing.T) {
 	testCases := []struct {
 		name   string
@@ -454,7 +454,7 @@ action = "install"
 	}
 }
 
-// Test invalid blueprint data
+// Test invalid blueprint data.
 func TestProcessPackages_InvalidBlueprint(t *testing.T) {
 	invalidBlueprint := []byte(`
 packages:
@@ -476,7 +476,7 @@ packages:
 	t.Log("Invalid blueprint properly rejected")
 }
 
-// Benchmark tests for performance
+// Benchmark tests for performance.
 func BenchmarkPackageFiltering(b *testing.B) {
 	packages := []types.Package{
 		{Name: "git", Action: "install", Profiles: []string{"development"}},
@@ -512,7 +512,7 @@ packages:
 	}
 }
 
-// Test interactive override parsing from blueprints
+// Test interactive override parsing from blueprints.
 func TestProcessPackages_InteractiveOverrideParsing(t *testing.T) {
 	blueprintData := []byte(`
 packages:
@@ -556,7 +556,7 @@ packages:
 	}
 }
 
-// Test ResolveInteractive integration for packages
+// Test ResolveInteractive integration for packages.
 func TestProcessPackages_ResolveInteractiveIntegration(t *testing.T) {
 	boolPtr := func(b bool) *bool { return &b }
 

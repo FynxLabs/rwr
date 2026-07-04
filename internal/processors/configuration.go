@@ -138,7 +138,7 @@ func formatGSettingsValue(value interface{}) string {
 		if strings.HasPrefix(v, "[") || strings.HasPrefix(v, "(") {
 			return v
 		}
-		return fmt.Sprintf("'%s'", strings.Replace(v, "'", "\\'", -1))
+		return fmt.Sprintf("'%s'", strings.ReplaceAll(v, "'", "\\'"))
 	case []interface{}:
 		var elements []string
 		for _, elem := range v {

@@ -150,7 +150,7 @@ func TestValidateInitFile_NonExistentFile(t *testing.T) {
 	}
 }
 
-// Test helper functions
+// Test helper functions.
 func TestAddIssue_AddsCorrectly(t *testing.T) {
 	results := &types.ValidationResults{}
 

@@ -9,7 +9,7 @@ import (
 )
 
 // TestPackageManagerDetectionScenarios tests various scenarios for package manager detection
-// including the scenario that was previously failing with "no package managers available" error
+// including the scenario that was previously failing with "no package managers available" error.
 func TestPackageManagerDetectionScenarios(t *testing.T) {
 	t.Run("RestrictedEnvironment", func(t *testing.T) {
 		// Save originals
@@ -36,7 +36,7 @@ func TestPackageManagerDetectionScenarios(t *testing.T) {
 	})
 }
 
-// TestProviderDetectionRobustness tests the robustness of provider detection
+// TestProviderDetectionRobustness tests the robustness of provider detection.
 func TestProviderDetectionRobustness(t *testing.T) {
 	t.Run("MultipleInitCalls", func(t *testing.T) {
 		// Test that multiple InitProviders calls don't break anything
@@ -97,7 +97,7 @@ func TestProviderDetectionRobustness(t *testing.T) {
 	})
 }
 
-// TestDebugLoggingFunctionality tests that debug logging doesn't break functionality
+// TestDebugLoggingFunctionality tests that debug logging doesn't break functionality.
 func TestDebugLoggingFunctionality(t *testing.T) {
 	t.Run("DebugLoggingEnabled", func(t *testing.T) {
 		// This test ensures our debug logging additions don't cause issues
@@ -133,7 +133,7 @@ func TestDebugLoggingFunctionality(t *testing.T) {
 	})
 }
 
-// TestErrorHandlingImprovements tests error handling improvements
+// TestErrorHandlingImprovements tests error handling improvements.
 func TestErrorHandlingImprovements(t *testing.T) {
 	t.Run("DetailedErrorMessages", func(t *testing.T) {
 		// Save original PATH
@@ -164,7 +164,7 @@ func TestErrorHandlingImprovements(t *testing.T) {
 	})
 }
 
-// BenchmarkProviderDetection benchmarks provider detection performance
+// BenchmarkProviderDetection benchmarks provider detection performance.
 func BenchmarkProviderDetection(b *testing.B) {
 	b.Run("GetAvailableProviders", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

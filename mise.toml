@@ -2,7 +2,7 @@
 experimental = true
 
 [tools]
-go = "1.26.1"
+go = "1.26"
 goreleaser = "latest"
 gotestsum = "latest"
 golangci-lint = "latest"
@@ -25,6 +25,10 @@ postinstall = """
   else
     openspec update
   fi
+
+  # Pre-stage project setup so `mise install` gives a build-ready tree.
+  go mod download || true
+  command -v govulncheck >/dev/null 2>&1 || go install golang.org/x/vuln/cmd/govulncheck@latest || true
 """
 
 [tasks]
@@ -49,3 +53,41 @@ lint = "golangci-lint run"  # Run golangci-lint
 "test:helpers:raw" = "go test ./internal/helpers -v"  # Raw helpers tests
 "test:processors:raw" = "go test ./internal/processors -v"  # Raw processors tests
 "test:system:raw" = "go test ./internal/system -v"  # Raw system tests
+
+format = "go fmt ./..."  # Format Go source with gofmt
+fmt = { depends = ["format"] }  # Alias for `format`
+
+[tasks.update]
+description = "Update Go module dependencies to latest minor/patch versions"
+run = """
+go get -u ./...
+go mod tidy
+"""
+
+[tasks.start]
+description = "Run rwr locally (pass args after --)"
+run = "go run . $@"
+
+[tasks.security]
+description = "Scan for known vulnerabilities (govulncheck — staged by postinstall)"
+run = "govulncheck ./..."
+
+[tasks.install]
+description = "Install rwr to ~/.local/bin (linux/macos); errors on windows"
+run = """
+case "$(uname -s)" in
+  Linux|Darwin)
+    mkdir -p "$HOME/.local/bin"
+    go build -o "$HOME/.local/bin/rwr" .
+    echo "installed: $HOME/.local/bin/rwr"
+    ;;
+  *)
+    echo "install: not implemented for $(uname -s)" >&2
+    exit 1
+    ;;
+esac
+"""
+
+[tasks.ci]
+description = "Run the full CI check locally (test + lint + security)"
+depends = ["test", "lint", "security"]

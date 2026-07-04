@@ -7,9 +7,9 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-// Known distribution families and their variants
+// Known distribution families and their variants.
 var distroFamilies = map[string][]string{
-	"arch":      {"endeavouros", "manjaro", "artix", "garuda", "blackarch", "archbang", "archcraft", "arcolinux"},
+	"arch":      {"endeavouros", "manjaro", "artix", "garuda", "blackarch", "archbang", "archcraft", "arcolinux", "acreetion"},
 	"debian":    {"ubuntu", "elementary", "zorin", "kali", "parrot", "mx", "deepin", "devuan"},
 	"ubuntu":    {"kubuntu", "xubuntu", "lubuntu", "pop-os", "ubuntu-mate", "linuxmint", "ubuntu-budgie", "ubuntu-studio", "edubuntu", "mythbuntu"},
 	"fedora":    {"nobara"},
@@ -80,7 +80,7 @@ func IsDistroInFamily(distro, family string) bool {
 	return false
 }
 
-// getDistroIDLike returns the ID_LIKE field from /etc/os-release
+// getDistroIDLike returns the ID_LIKE field from /etc/os-release.
 func getDistroIDLike() string {
 	data, err := os.ReadFile("/etc/os-release")
 	if err != nil {
