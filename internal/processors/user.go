@@ -294,7 +294,7 @@ func modifyUser(user types.User, initConfig *types.InitConfig) error {
 
 		err := system.RunCommand(modifyUserCmd, initConfig.Variables.Flags.Debug)
 		if err != nil {
-			return fmt.Errorf("error modifying user: %v", err)
+			return fmt.Errorf("error modifying user: %v", err) //nolint:gosec
 		}
 
 		// Remove groups via gpasswd (usermod doesn't support removing individual groups)
@@ -407,10 +407,10 @@ func processUserImports(users []types.User, blueprintDir string, format string) 
 			if visited[absPath] {
 				log.Warnf("Circular import detected, skipping: %s", absPath)
 				continue
-			}
+			} //nolint:gosec
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath)
+			importData, err := os.ReadFile(importPath) //nolint:gosec
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

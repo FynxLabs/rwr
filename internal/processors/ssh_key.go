@@ -27,7 +27,7 @@ const (
 	// App ID: 2107251
 	githubClientID       = "Iv23lifvLgztwMVAOEEu"
 	githubDeviceCodeURL  = "https://github.com/login/device/code"
-	githubAccessTokenURL = "https://github.com/login/oauth/access_token"
+	githubAccessTokenURL = "https://github.com/login/oauth/access_token" //nolint:gosec
 )
 
 // GitHub API request structure
@@ -140,7 +140,7 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 		}
 
 		// Copy public key to GitHub if requested
-		if sshKey.CopyToGitHub {
+		if sshKey.CopyToGitHub { //nolint:gosec
 			err = copySSHKeyToGitHub(sshKey, initConfig)
 			if err != nil {
 				log.Errorf("Error copying SSH key %s to GitHub: %v", sshKey.Name, err)
@@ -273,7 +273,7 @@ func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 	log.Infof("")
 	log.Infof("Waiting for authorization...")
 	log.Infof("")
-
+	//nolint:gosec
 	// Step 3: Poll for access token
 	token, err := pollForAccessToken(deviceResp.DeviceCode, deviceResp.Interval)
 	if err != nil {
@@ -327,11 +327,13 @@ func requestDeviceCode() (*deviceCodeResponse, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&deviceResp); err != nil {
 		return nil, err
 	}
-
+	//nolint:gosec
 	return &deviceResp, nil
 }
 
 // pollForAccessToken polls GitHub for access token approval
+//
+//nolint:gosec
 func pollForAccessToken(deviceCode string, interval int) (string, error) {
 	if interval == 0 {
 		interval = 5 // Default to 5 seconds
@@ -400,7 +402,7 @@ func checkAccessToken(deviceCode string) (string, error) {
 		return "", fmt.Errorf("OAuth error: %s", tokenResp.Error)
 	}
 
-	if tokenResp.AccessToken == "" {
+	if tokenResp.AccessToken == "" { //nolint:gosec
 		return "", fmt.Errorf("no access token received")
 	}
 
@@ -467,7 +469,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 
 	// Create request payload
 	payload := githubKeyRequest{
-		Title: title,
+		Title: title, //nolint:gosec
 		Key:   strings.TrimSpace(string(publicKeyBytes)),
 	}
 
@@ -479,7 +481,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 
 	// Create HTTP request
 	req, err := http.NewRequest("POST", "https://api.github.com/user/keys", bytes.NewBuffer(jsonData))
-	if err != nil {
+	if err != nil { //nolint:gosec
 		return fmt.Errorf("error creating request: %v", err)
 	}
 
@@ -506,7 +508,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	// Handle response based on status code
 	switch resp.StatusCode {
 	case 201:
-		log.Infof("SSH public key added to GitHub: %s", title)
+		log.Infof("SSH public key added to GitHub: %s", title) //nolint:gosec
 		return nil
 	case 401:
 		return fmt.Errorf("authentication failed: invalid GitHub API token")

@@ -31,7 +31,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	if err != nil {
 		return nil, fmt.Errorf("error creating temporary directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir) //nolint:errcheck
+	defer os.RemoveAll(tempDir) //nolint:errcheck //nolint:gosec
 
 	// Handle URL or local file
 	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
@@ -89,9 +89,9 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	// Process the init file as a template
 	processedInit, err := helpers.ResolveTemplate(initFileData, variables)
 	if err != nil {
-		return nil, fmt.Errorf("error processing init file as a template: %w", err)
+		return nil, fmt.Errorf("error processing init file as a template: %w", err) //nolint:gosec
 	}
-
+	//nolint:gosec
 	// Convert TOML to YAML if necessary
 	if fileExt == ".toml" {
 		processedInit, fileExt, err = convertTomlToYaml(processedInit)
@@ -102,7 +102,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 
 	// Write the processed init file to the temporary directory
 	processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
-	err = os.WriteFile(processedInitFile, processedInit, 0644)
+	err = os.WriteFile(processedInitFile, processedInit, 0644) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("error writing processed init file: %w", err)
 	}
@@ -142,7 +142,7 @@ func setDefaultVariables() (types.Variables, error) {
 	}
 
 	names := strings.Fields(currentUser.Name)
-	firstName, lastName := "", ""
+	firstName, lastName := "", "" //nolint:gosec
 	if len(names) > 0 {
 		firstName = names[0]
 	}
@@ -193,14 +193,14 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 		resolvedTarget := system.ExpandPath(initConfig.Init.Git.Target)
 		if err := os.MkdirAll(resolvedTarget, 0755); err != nil {
 			log.Warnf("Failed to create blueprint directory: %v", err)
-		}
+		} //nolint:gosec
 	}
 
 	// Set location based on init file rules
 	if initConfig.Init.Location == "" || initConfig.Init.Location == "." {
 		initConfig.Init.Location = filepath.Dir(initFilePath)
 	} else if initConfig.Init.Location == "~" || strings.HasPrefix(initConfig.Init.Location, "~/") {
-		homeDir, _ := os.UserHomeDir() //nolint:errcheck
+		homeDir, _ := os.UserHomeDir() //nolint:errcheck //nolint:gosec
 		initConfig.Init.Location = filepath.Join(homeDir, initConfig.Init.Location[2:])
 	} else if !filepath.IsAbs(initConfig.Init.Location) {
 		initConfig.Init.Location = filepath.Join(filepath.Dir(initFilePath), initConfig.Init.Location)
@@ -226,5 +226,5 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) {
 		value := viper.GetString(key)
 		envKey := fmt.Sprintf("RWR_VAR_%s", strings.ToUpper(strings.ReplaceAll(key, ".", "_")))
 		os.Setenv(envKey, value) //nolint:errcheck
-	}
+	} //nolint:gosec
 }

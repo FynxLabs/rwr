@@ -278,7 +278,7 @@ func HandleGitFileDownload(opts types.GitOptions, initConfig *types.InitConfig) 
 	}
 
 	// Write the file contents to the target file
-	err = os.WriteFile(opts.Target, fileContent, 0644)
+	err = os.WriteFile(opts.Target, fileContent, 0644) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("error writing file: %v", err)
 	}

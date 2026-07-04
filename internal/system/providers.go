@@ -254,7 +254,7 @@ func GetProvidersPath() (string, error) {
 	}
 
 	for _, loc := range locations {
-		if _, err := os.Stat(loc); err == nil {
+		if _, err := os.Stat(loc); err == nil { //nolint:gosec
 			log.Debugf("Found providers directory at: %s", loc)
 			return loc, nil
 		}

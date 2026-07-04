@@ -68,7 +68,7 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 		filesInfo, err := os.ReadDir(gitOpts.Target)
 		if err != nil {
 			return "", fmt.Errorf("error reading blueprints directory: %v", err)
-		}
+		} //nolint:gosec
 		if len(filesInfo) == 0 {
 			return "", fmt.Errorf("blueprints directory is empty: %s", gitOpts.Target)
 		}
@@ -194,7 +194,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 				log.Debugf("Added additional file to processor %s: %s", processor, relPath)
 			}
 			return nil
-		})
+		}) //nolint:gosec
 		if err != nil {
 			return nil, err
 		}

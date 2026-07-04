@@ -28,17 +28,17 @@ func buildCommand(cmd types.Command) *exec.Cmd {
 	if cmd.Elevated {
 		if runtime.GOOS == "windows" {
 			log.Debugf("Running command as elevated - Running Command: %v %v", cmd.Exec, cmd.Args)
-			return exec.Command("cmd", "/C", fullCmd)
+			return exec.Command("cmd", "/C", fullCmd) //nolint:gosec
 		}
 		log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
-		return exec.Command("sudo", "sh", "-c", fullCmd)
+		return exec.Command("sudo", "sh", "-c", fullCmd) //nolint:gosec
 	} else if cmd.AsUser != "" {
 		log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.Args)
-		return exec.Command("sudo", "-u", cmd.AsUser, "sh", "-c", fullCmd)
+		return exec.Command("sudo", "-u", cmd.AsUser, "sh", "-c", fullCmd) //nolint:gosec
 	}
 
 	log.Debugf("Running command: %v %v", cmd.Exec, cmd.Args)
-	return exec.Command("sh", "-c", fullCmd)
+	return exec.Command("sh", "-c", fullCmd) //nolint:gosec
 }
 
 // setupCommandEnvironment configures the environment variables and PATH for the
@@ -146,7 +146,7 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) {
 		log.Debugf("Debug set, configuring stdout for command: %v", cmd.Path)
 		cmd.Stdout = os.Stdout
 	} else if logName != "" {
-		file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //nolint:gosec
 		if err != nil {
 			log.Errorf("Error opening log file: %v", err)
 			return

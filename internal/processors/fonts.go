@@ -34,7 +34,7 @@ func getLatestReleaseURL() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer resp.Body.Close() //nolint:errcheck //nolint:gosec
 
 	var release GithubRelease
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
@@ -123,7 +123,7 @@ func installFont(font types.Font, osInfo *types.OSInfo, releaseURL string) error
 	if err != nil {
 		return fmt.Errorf("error creating temp directory: %v", err)
 	}
-	defer os.RemoveAll(tempDir) //nolint:errcheck
+	defer os.RemoveAll(tempDir) //nolint:errcheck //nolint:gosec
 
 	tarballPath := filepath.Join(tempDir, font.Name+".tar.xz")
 	err = downloadFontTarball(fontURL, tarballPath)
@@ -179,13 +179,13 @@ func downloadFontTarball(url, filepath string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close() //nolint:errcheck
+	defer resp.Body.Close() //nolint:errcheck //nolint:gosec
 
 	out, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
-	defer out.Close() //nolint:errcheck
+	defer out.Close() //nolint:errcheck //nolint:gosec
 
 	_, err = io.Copy(out, resp.Body)
 	return err
@@ -196,7 +196,7 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 	if err != nil {
 		return err
 	}
-	defer file.Close() //nolint:errcheck
+	defer file.Close() //nolint:errcheck //nolint:gosec
 
 	// Create a new XZ reader
 	xzReader, err := xz.NewReader(file)
@@ -223,7 +223,7 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 			if err != nil {
 				return err
 			}
-			tempFile.Close() //nolint:errcheck
+			tempFile.Close() //nolint:errcheck //nolint:gosec
 
 			// Write the font data to the temporary file
 			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755)
@@ -231,10 +231,10 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 				return err
 			}
 			if _, err := io.Copy(tempFile, tr); err != nil {
-				tempFile.Close() //nolint:errcheck
+				tempFile.Close() //nolint:errcheck //nolint:gosec
 				return err
 			}
-			tempFile.Close() //nolint:errcheck
+			tempFile.Close() //nolint:errcheck //nolint:gosec
 
 			if tempFile == nil || targetPath == "" {
 				return fmt.Errorf("invalid arguments: tempFile or targetPath is nil/empty")

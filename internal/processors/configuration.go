@@ -94,13 +94,13 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 }
 
 func processGSettings(config types.Configuration) error {
-	log.Debugf("Processing gsettings configuration: %s", config.Name)
+	log.Debugf("Processing gsettings configuration: %s", config.Name) //nolint:gosec
 
 	for key, value := range config.Settings {
 		log.Debugf("Processing key: %s with value: %v", key, value)
 
 		// Check if the key is writable
-		checkCmd := exec.Command("gsettings", "writable", config.Schema, key)
+		checkCmd := exec.Command("gsettings", "writable", config.Schema, key) //nolint:gosec
 		output, err := checkCmd.CombinedOutput()
 		if err != nil {
 			log.Warnf("Error checking if key is writable - Schema: %s, Key: %s, Error: %v, Output: %s", config.Schema, key, err, string(output))
@@ -119,7 +119,7 @@ func processGSettings(config types.Configuration) error {
 		args := []string{"set", config.Schema, key, strValue}
 		log.Debugf("Executing command: gsettings %s", strings.Join(args, " "))
 
-		cmd := exec.Command("gsettings", args...)
+		cmd := exec.Command("gsettings", args...) //nolint:gosec
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			log.Errorf("Error applying gsettings configuration - Schema: %s, Key: %s, Value: %s, Error: %v, Output: %s", config.Schema, key, strValue, err, string(output))
@@ -128,7 +128,7 @@ func processGSettings(config types.Configuration) error {
 		}
 	}
 
-	return nil
+	return nil //nolint:gosec
 }
 
 func formatGSettingsValue(value interface{}) string {

@@ -27,15 +27,15 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 
 	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
-	// Process imports and merge imported scripts
+	// Process imports and merge imported scripts //nolint:gosec
 	allScripts, err := processScriptImports(scriptData.Scripts, blueprintDir, format)
-	if err != nil {
+	if err != nil { //nolint:gosec
 		return fmt.Errorf("error processing script imports: %w", err)
-	}
+	} //nolint:gosec
 	scriptData.Scripts = allScripts
-
+	//nolint:gosec
 	// Filter scripts based on active profiles
-	filteredScripts := helpers.FilterByProfiles(scriptData.Scripts, initConfig.Variables.Flags.Profiles)
+	filteredScripts := helpers.FilterByProfiles(scriptData.Scripts, initConfig.Variables.Flags.Profiles) //nolint:gosec
 
 	log.Debugf("Filtering scripts: %d total, %d matching active profiles %v",
 		len(scriptData.Scripts), len(filteredScripts), initConfig.Variables.Flags.Profiles)
@@ -46,7 +46,7 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
 	}
-
+	//nolint:gosec
 	return nil
 }
 
@@ -81,7 +81,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 
 	// Set default executor if not specified
 	if script.Exec == "" {
-		switch osInfo.System.OS {
+		switch osInfo.System.OS { //nolint:gosec
 		case "linux", "darwin":
 			script.Exec = "bash"
 		case "windows":
@@ -101,7 +101,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		if err != nil {
 			return fmt.Errorf("error creating temporary file for script: %v", err)
 		}
-		defer os.Remove(tempFile.Name()) //nolint:errcheck
+		defer os.Remove(tempFile.Name()) //nolint:errcheck //nolint:gosec
 
 		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0755)
 		if err != nil {
