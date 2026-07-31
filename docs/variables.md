@@ -53,9 +53,14 @@ RWR provides a set of built-in variables that can be used in your blueprints. Th
 | `{{ .Flags.logLevel }}` | Current Log Level Setting |
 | `{{ .Flags.interactive }}` | Current Interactive Mode setting |
 | `{{ .Flags.forceBootstrap }}` | Current Force Bootstrap setting |
-| `{{ .Flags.ghAPIToken }}` | Current Github API Token |
-| `{{ .Flags.sshKey }}` | Current Private SSH Key (base64 encoded) |
 | `{{ .Flags.skipVersionCheck }}` | Current Skip Version setting |
+
+> [!NOTE]
+> `{{ .Flags.ghAPIToken }}` and `{{ .Flags.sshKey }}` are no longer available.
+> Templates are rendered from blueprint files and written to a path the blueprint
+> chooses, so exposing the GitHub token and SSH private key there let any
+> blueprint copy your credentials anywhere. RWR uses them directly for Git and
+> GitHub operations; blueprints never need the values.
 
 ## Templating
 

@@ -27,8 +27,7 @@ func CreateDefaultConfig() error {
 	}
 
 	// Create the configuration directory if it doesn't exist
-	err := os.MkdirAll(configDir, os.ModePerm) // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
-	if err != nil {
+	if err := EnsureConfigDir(configDir); err != nil {
 		return err
 	}
 
@@ -111,6 +110,11 @@ func CreateDefaultConfig() error {
 
 	// Write the configuration to the specified file
 	if err := viper.WriteConfig(); err != nil {
+		return err
+	}
+
+	// viper writes at 0644; this file holds a GitHub token and an SSH private key.
+	if err := SecureConfigFile(configFilePath); err != nil {
 		return err
 	}
 

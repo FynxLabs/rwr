@@ -14,6 +14,7 @@ The following flags are available for all commands:
 | `--gh-api-key` | Specify the GitHub API key for accessing private repositories |
 | `--ssh-key` | Specify the SSH key (base64 encoded) for accessing private repositories |
 | `--skip-version-check` | Skip checking for the latest version of RWR |
+| `--show-secrets` | Print credential values in logs instead of redacting them. Off by default; use it only to confirm RWR is reading the token or key you expect |
 | `--dry-run` | Simulate operations without making changes (no-op mode) |
 | `--no-op` | Alias for `--dry-run` |
 | `--interactive`, `-I` | Enable interactive mode (default: true). Use `--interactive=false` to disable |

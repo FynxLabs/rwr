@@ -320,7 +320,7 @@ func moveFile(file types.File, blueprintDir string) error {
 	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -355,7 +355,7 @@ func createFile(file types.File) error {
 
 	log.Debugf("Creating file dir: %s", targetDir)
 
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
@@ -457,7 +457,7 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	if err := os.MkdirAll(target, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -478,7 +478,7 @@ func moveDirectory(dir types.Directory, blueprintDir string) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -504,7 +504,7 @@ func deleteDirectory(dir types.Directory) error {
 func createDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	if err := os.MkdirAll(target, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 		return fmt.Errorf("error creating directory: %w", err)
 	}
 

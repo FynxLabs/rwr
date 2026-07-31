@@ -192,7 +192,7 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 	// Handle Git target setup if needed
 	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
 		resolvedTarget := system.ExpandPath(initConfig.Init.Git.Target)
-		if err := os.MkdirAll(resolvedTarget, 0755); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+		if err := os.MkdirAll(resolvedTarget, 0755); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 			log.Warnf("Failed to create blueprint directory: %v", err)
 		}
 	}
@@ -220,7 +220,17 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 		}
 	}
 
+	// Export config values as RWR_VAR_* so blueprints and scripts can read them —
+	// except the credentials. setupCommandEnvironment copies os.Environ() into
+	// every command rwr spawns, so exporting the GitHub token and the base64 SSH
+	// private key put both in reach of any script a blueprint chooses to run, and
+	// blueprints are cloned from git repositories.
 	for _, key := range viper.AllKeys() {
+		if types.IsSecretConfigKey(key) {
+			log.Debugf("Not exporting %s to the environment: it holds a credential", key)
+			continue
+		}
+
 		value := viper.GetString(key)
 		envKey := fmt.Sprintf("RWR_VAR_%s", strings.ToUpper(strings.ReplaceAll(key, ".", "_")))
 		if err := os.Setenv(envKey, value); err != nil {
