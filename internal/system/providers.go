@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -123,12 +122,24 @@ func getSystemInfo() (string, string) {
 	return currentOS, currentDistro
 }
 
-// isProviderAvailable checks if a provider is usable on the current system by
-// verifying OS/distro support, binary availability, and required files.
-// Returns the binary path and true if available.
+// isProviderAvailable checks if a provider is usable on the current system,
+// returning the binary path and true if it is.
+//
+// Availability is decided by evidence on the machine rather than by what the
+// distribution calls itself. A named distro match is accepted, but so is the
+// combination of "the binary is installed" plus "every file the provider declares
+// as proof of itself exists" — for pacman that is /etc/pacman.conf and
+// /var/lib/pacman. There are far more Arch and Debian derivatives than any list
+// can track (this was found on PrismLinux, which no provider names and which sets
+// no ID_LIKE), and a machine that has pacman's binary and pacman's database is
+// running pacman whatever /etc/os-release says.
+//
+// The reverse case is covered too: a system that calls itself Arch but installs
+// packages with apt has no /etc/apt and no apt binary, so apt stays unavailable.
+// The OS gate below still applies, so Windows providers never surface on Linux.
 func isProviderAvailable(provider *types.Provider, currentOS, currentDistro string) (string, bool) {
-	if !supportsSystem(provider, currentOS, currentDistro) {
-		log.Debugf("GetAvailableProviders: Provider %s does not support %s/%s", provider.Name, currentOS, currentDistro)
+	if !targetsOS(provider, currentOS) {
+		log.Debugf("GetAvailableProviders: Provider %s does not target %s", provider.Name, currentOS)
 		return "", false
 	}
 
@@ -142,7 +153,49 @@ func isProviderAvailable(provider *types.Provider, currentOS, currentDistro stri
 		return "", false
 	}
 
-	return tool.Bin, true
+	if supportsSystem(provider, currentOS, currentDistro) {
+		return tool.Bin, true
+	}
+
+	// Unrecognised distribution. Accept it when the provider declares files that
+	// prove it is genuinely in use, and say so — a provider with no such files has
+	// only its distro list to go on, so it stays unavailable.
+	if len(provider.Detection.Files) > 0 {
+		log.Debugf("GetAvailableProviders: Provider %s not listed for %s/%s but its binary and required files are present; treating as available",
+			provider.Name, currentOS, currentDistro)
+		return tool.Bin, true
+	}
+
+	log.Debugf("GetAvailableProviders: Provider %s does not support %s/%s", provider.Name, currentOS, currentDistro)
+	return "", false
+}
+
+// osTokens are the distribution entries that name an operating system rather than
+// a Linux distribution.
+var osTokens = map[string]bool{
+	types.OSLinux:   true,
+	types.OSDarwin:  true,
+	types.OSWindows: true,
+}
+
+// targetsOS reports whether a provider is meant for the current operating system.
+//
+// A provider that names any OS token must name this one. A provider that lists
+// only distributions (pacman, apt, dnf) is not OS-specific in its declaration, so
+// the file and binary checks decide — those paths simply do not exist on the wrong
+// OS.
+func targetsOS(provider *types.Provider, currentOS string) bool {
+	namedAnOS := false
+	for _, dist := range provider.Detection.Distributions {
+		if !osTokens[dist] {
+			continue
+		}
+		namedAnOS = true
+		if dist == currentOS {
+			return true
+		}
+	}
+	return !namedAnOS
 }
 
 // supportsSystem checks if a provider's distribution list matches the current OS/distro.
@@ -317,48 +370,6 @@ func LoadProviderDefinition(path string) (*types.Provider, error) {
 
 	log.Debugf("LoadProviderDefinition: Loaded provider %s with binary %s", provider.Name, provider.Detection.Binary)
 	return &provider, nil
-}
-
-// GetDefaultProviderFromOSRelease determines the default package manager by
-// reading the ID field from /etc/os-release and mapping it to a known provider.
-func GetDefaultProviderFromOSRelease() string {
-	// Read the contents of the /etc/os-release file
-	data, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		log.Warnf("Error reading /etc/os-release file: %s", err)
-		return ""
-	}
-
-	// Parse the contents of the file
-	osRelease := make(map[string]string)
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.Contains(line, "=") {
-			parts := strings.SplitN(line, "=", 2)
-			key := strings.TrimSpace(parts[0])
-			value := strings.Trim(strings.TrimSpace(parts[1]), "\"")
-			osRelease[key] = value
-		}
-	}
-
-	// Check the ID field first
-	id := osRelease["ID"]
-	if id != "" {
-		if prov, exists := GetProviderForDistro(id); exists {
-			return prov.Name
-		}
-	}
-
-	// If ID doesn't match any known distribution, check ID_LIKE
-	idLike := osRelease["ID_LIKE"]
-	if idLike != "" {
-		for _, distro := range strings.Split(idLike, " ") {
-			if prov, exists := GetProviderForDistro(distro); exists {
-				return prov.Name
-			}
-		}
-	}
-
-	return ""
 }
 
 // GetProviderForDistro returns the first available provider whose detection

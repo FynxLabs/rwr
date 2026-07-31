@@ -7,6 +7,44 @@ import (
 	"github.com/charmbracelet/log"
 )
 
+// nativeManagers lists the package managers that belong to a distribution family,
+// in the order they should be preferred as the default.
+//
+// This is the mapping that makes "which package manager does this machine use?"
+// answerable without enumerating every derivative distribution. Families are few
+// and stable; derivatives are many and keep appearing.
+var nativeManagers = map[string][]string{
+	"arch":      {"paru", "yay", "trizen", "aura", "pamac", "pacman"},
+	"debian":    {"apt"},
+	"ubuntu":    {"apt"},
+	"fedora":    {"dnf"},
+	"rhel":      {"dnf"},
+	"suse":      {"zypper"},
+	"alpine":    {"apk"},
+	"void":      {"xbps"},
+	"gentoo":    {"emerge"},
+	"slackware": {"slackpkg"},
+	"solus":     {"eopkg"},
+}
+
+// managerFamily maps a package manager back to the family it identifies.
+//
+// Used to infer the family from what is installed when /etc/os-release names a
+// distribution nobody has heard of. A great many derivatives ship neither a known
+// ID nor an ID_LIKE — PrismLinux reports ID=prismlinux and nothing else — but the
+// presence of pacman and its database says "arch" unambiguously.
+var managerFamily = map[string]string{
+	"pacman":   "arch",
+	"apt":      "debian",
+	"dnf":      "fedora",
+	"zypper":   "suse",
+	"apk":      "alpine",
+	"xbps":     "void",
+	"emerge":   "gentoo",
+	"slackpkg": "slackware",
+	"eopkg":    "solus",
+}
+
 // Known distribution families and their variants.
 var distroFamilies = map[string][]string{
 	"arch":      {"endeavouros", "manjaro", "artix", "garuda", "blackarch", "archbang", "archcraft", "arcolinux", "acreetion"},
@@ -39,9 +77,9 @@ func GetDistroFamily(distro string) string {
 		}
 	}
 
-	// Check ID_LIKE in /etc/os-release for hints
-	idLike := getDistroIDLike()
-	if idLike != "" {
+	// Fall back to this machine's ID_LIKE, but only when the distro being asked
+	// about is this machine. See idLikeFor.
+	if idLike := idLikeFor(distro); idLike != "" {
 		for _, likeDistro := range strings.Split(idLike, " ") {
 			if _, exists := distroFamilies[likeDistro]; exists {
 				return likeDistro
@@ -71,13 +109,28 @@ func IsDistroInFamily(distro, family string) bool {
 		}
 	}
 
-	// Check ID_LIKE in /etc/os-release
-	idLike := getDistroIDLike()
-	if idLike != "" && strings.Contains(idLike, family) {
+	// Fall back to this machine's ID_LIKE, but only when the distro being asked
+	// about is this machine. See idLikeFor.
+	if idLike := idLikeFor(distro); idLike != "" && strings.Contains(idLike, family) {
 		return true
 	}
 
 	return false
+}
+
+// idLikeFor returns this machine's ID_LIKE, but only when distro names this
+// machine's own distribution.
+//
+// ID_LIKE describes the host and nothing else. Consulting it for an arbitrary
+// distro answered every question in terms of whatever the host happens to be:
+// on a Debian derivative (ID_LIKE=debian), IsDistroInFamily("arch", "debian")
+// returned true and GetDistroFamily on any unknown distro returned "debian".
+// That silently mapped unrecognised distributions onto the host's family.
+var idLikeFor = func(distro string) string {
+	if !strings.EqualFold(distro, getLinuxDistro()) {
+		return ""
+	}
+	return getDistroIDLike()
 }
 
 // getDistroIDLike returns the ID_LIKE field from /etc/os-release.
