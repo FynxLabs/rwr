@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -138,7 +139,8 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 
 		log.Infof("Processing %s Updates", name)
 		updateCmd := types.Command{
-			Exec:     fmt.Sprintf("%s %s", provider.BinPath, provider.Commands.Update),
+			Exec:     provider.BinPath,
+			Args:     strings.Fields(provider.Commands.Update),
 			Elevated: provider.Elevated,
 		}
 

@@ -100,7 +100,7 @@ func processGSettings(config types.Configuration) error {
 		log.Debugf("Processing key: %s with value: %v", key, value)
 
 		// Check if the key is writable
-		checkCmd := exec.Command("gsettings", "writable", config.Schema, key) // #nosec G204 -- TODO(PR1): replaced by argv executor; no shell interpolation after that lands
+		checkCmd := exec.Command("gsettings", "writable", config.Schema, key) // #nosec G204 -- argv, not a shell string: schema/key/value are passed as discrete arguments
 		output, err := checkCmd.CombinedOutput()
 		if err != nil {
 			log.Warnf("Error checking if key is writable - Schema: %s, Key: %s, Error: %v, Output: %s", config.Schema, key, err, string(output))
@@ -119,7 +119,7 @@ func processGSettings(config types.Configuration) error {
 		args := []string{"set", config.Schema, key, strValue}
 		log.Debugf("Executing command: gsettings %s", strings.Join(args, " "))
 
-		cmd := exec.Command("gsettings", args...) // #nosec G204 -- TODO(PR1): replaced by argv executor; no shell interpolation after that lands
+		cmd := exec.Command("gsettings", args...) // #nosec G204 -- argv, not a shell string: schema/key/value are passed as discrete arguments
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			log.Errorf("Error applying gsettings configuration - Schema: %s, Key: %s, Value: %s, Error: %v, Output: %s", config.Schema, key, strValue, err, string(output))

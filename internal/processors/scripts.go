@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -164,10 +165,13 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		return fmt.Errorf("unsupported script executor: %s", script.Exec)
 	}
 
-	// Append the script arguments
+	// Append the script arguments. `args` is a single string in the blueprint, and
+	// the shell used to word-split it on the way to the script. Now that commands are
+	// argv, split it here — otherwise `args: "--verbose --out /tmp"` would arrive as
+	// one argument instead of three.
 	if script.Args != "" {
 		log.Debugf("Adding script arguments: %s", script.Args)
-		scriptCmd.Args = append(scriptCmd.Args, script.Args)
+		scriptCmd.Args = append(scriptCmd.Args, strings.Fields(script.Args)...)
 	}
 
 	// Set the log name

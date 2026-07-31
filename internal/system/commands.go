@@ -18,27 +18,38 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// buildCommand creates an *exec.Cmd based on the execution options specified in the
-// given types.Command. It handles elevated (sudo/admin) execution, running as a
-// specific user, and normal execution, with platform-specific behavior for Windows
-// vs Unix systems.
+// buildCommand creates an *exec.Cmd from the given types.Command.
+//
+// Commands are built as argv and handed directly to the kernel — no shell is
+// interposed. Every element of cmd.Args reaches the target program as exactly one
+// argument, so blueprint-supplied values (package names, paths, comments, password
+// hashes) cannot be reinterpreted as shell syntax and arguments containing spaces
+// survive intact.
+//
+// A shell is still available when a provider genuinely wants one; it just has to
+// say so explicitly, e.g. exec = "sh" with args = ["-c", "cd /tmp/paru && makepkg"].
+//
+// Elevation is unchanged in policy — it remains per-command via Elevated/AsUser —
+// only the spawn differs. "--" terminates sudo's own option parsing so a command
+// whose name begins with a dash cannot be absorbed as a sudo flag. Windows has no
+// sudo: Elevated is a no-op there and the process must already be elevated, which
+// matches the previous behavior of running through `cmd /C` without any elevation.
 func buildCommand(cmd types.Command) *exec.Cmd {
-	fullCmd := fmt.Sprintf("%s %s", cmd.Exec, strings.Join(cmd.Args, " "))
-
-	if cmd.Elevated {
-		if runtime.GOOS == "windows" {
-			log.Debugf("Running command as elevated - Running Command: %v %v", cmd.Exec, cmd.Args)
-			return exec.Command("cmd", "/C", fullCmd) // #nosec G204 -- TODO(PR1): replaced by argv executor; no shell interpolation after that lands
+	if runtime.GOOS != "windows" {
+		if cmd.Elevated {
+			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
+			return exec.Command("sudo", append([]string{"--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
-		log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
-		return exec.Command("sudo", "sh", "-c", fullCmd) // #nosec G204 -- TODO(PR1): replaced by argv executor; no shell interpolation after that lands
-	} else if cmd.AsUser != "" {
-		log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.Args)
-		return exec.Command("sudo", "-u", cmd.AsUser, "sh", "-c", fullCmd) // #nosec G204 -- TODO(PR1): replaced by argv executor; no shell interpolation after that lands
+		if cmd.AsUser != "" {
+			log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.Args)
+			return exec.Command("sudo", append([]string{"-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
+		}
+	} else if cmd.Elevated {
+		log.Debugf("Elevated requested on Windows; running in-process (no sudo equivalent): %v %v", cmd.Exec, cmd.Args)
 	}
 
 	log.Debugf("Running command: %v %v", cmd.Exec, cmd.Args)
-	return exec.Command("sh", "-c", fullCmd) // #nosec G204 -- TODO(PR1): replaced by argv executor; no shell interpolation after that lands
+	return exec.Command(cmd.Exec, cmd.Args...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 }
 
 // setupCommandEnvironment configures the environment variables and PATH for the
@@ -82,6 +93,11 @@ func IsDryRun() bool {
 // on the interactive flag and debug mode. Returns an error if the command fails.
 // In dry-run mode, it logs the command without executing it.
 func RunCommand(cmd types.Command, debug bool) error {
+	return current.Run(cmd, debug)
+}
+
+// runCommand is the real implementation behind osExecutor.Run.
+func runCommand(cmd types.Command, debug bool) error {
 	if dryRunMode {
 		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.Args, " "))
 		return nil
@@ -91,19 +107,33 @@ func RunCommand(cmd types.Command, debug bool) error {
 	setupCommandEnvironment(command, cmd)
 
 	var stderr bytes.Buffer
-	command.Stderr = &stderr
 
 	if cmd.Interactive {
+		// Interactive commands must reach the terminal directly. Capturing stderr
+		// here would swallow sudo's password prompt and hang the run with no
+		// indication of what it was waiting for.
 		command.Stdin = os.Stdin
 		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
 	} else {
-		setOutputStreams(command, debug, cmd.LogName)
+		command.Stderr = &stderr
+		logFile, err := setOutputStreams(command, debug, cmd.LogName)
+		if err != nil {
+			return err
+		}
+		if logFile != nil {
+			// Closed after Run, not before it: the command writes to this
+			// descriptor while it executes.
+			defer func() {
+				if cerr := logFile.Close(); cerr != nil {
+					log.Errorf("Error closing log file: %v", cerr)
+				}
+			}()
+		}
 	}
 
-	err := command.Run()
-	if err != nil {
-		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
-		log.Error(errMsg)
+	if err := command.Run(); err != nil {
+		log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
 		return err
 	}
 
@@ -115,6 +145,11 @@ func RunCommand(cmd types.Command, debug bool) error {
 // but captures and returns stdout instead of streaming it. Returns the command output
 // and an error if the command fails.
 func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
+	return current.Output(cmd, debug)
+}
+
+// runCommandOutput is the real implementation behind osExecutor.Output.
+func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 	if dryRunMode {
 		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.Args, " "))
 		return "", nil
@@ -138,28 +173,32 @@ func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
 	return stdout.String(), nil
 }
 
-// setOutputStreams sets the standard output stream for a command based on the log level and log name.
-func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) {
+// setOutputStreams points the command's stdout at the terminal (debug) or at the
+// blueprint's log file. When a log file is opened it is returned so the caller can
+// close it *after* the command has run — closing it here would hand the command a
+// dead descriptor and silently discard everything it wrote.
+func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, error) {
 	log.Debugf("Debug: %v", debug)
 	log.Debugf("Log Name: %v", logName)
+
 	if debug {
 		log.Debugf("Debug set, configuring stdout for command: %v", cmd.Path)
 		cmd.Stdout = os.Stdout
-	} else if logName != "" {
-		file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // #nosec G302 G304 -- TODO(PR8): create with target mode instead of chmod-after; path is operator-supplied blueprint/config input; containment added in PR8
-		if err != nil {
-			log.Errorf("Error opening log file: %v", err)
-			return
-		}
-		defer func(file *os.File) {
-			err := file.Close()
-			if err != nil {
-				log.Errorf("Error closing log file: %v", err)
-			}
-		}(file)
-
-		cmd.Stdout = file
+		return nil, nil
 	}
+
+	if logName == "" {
+		return nil, nil
+	}
+
+	file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // #nosec G302 G304 -- TODO(PR8): create with target mode instead of chmod-after; path is operator-supplied blueprint/config input; containment added in PR8
+	if err != nil {
+		log.Errorf("Error opening log file: %v", err)
+		return nil, fmt.Errorf("error opening log file %q: %w", logName, err)
+	}
+
+	cmd.Stdout = file
+	return file, nil
 }
 
 // CommandExists checks if a command exists in the system's PATH.
