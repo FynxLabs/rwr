@@ -45,14 +45,6 @@ var runFilesCmd = &cobra.Command{
 	},
 }
 
-var runDirectoriesCmd = &cobra.Command{
-	Use:   "directories",
-	Short: "Run directories processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"directories"})
-	},
-}
-
 var runConfigurationCmd = &cobra.Command{
 	Use:   "configuration",
 	Short: "Run configuration processor",
@@ -118,7 +110,6 @@ func init() {
 	runCmd.AddCommand(runRepositoryCmd)
 	runCmd.AddCommand(runServicesCmd)
 	runCmd.AddCommand(runFilesCmd)
-	runCmd.AddCommand(runDirectoriesCmd)
 	runCmd.AddCommand(runConfigurationCmd)
 	runCmd.AddCommand(runUsersCmd)
 	runCmd.AddCommand(runGitCmd)

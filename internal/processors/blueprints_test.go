@@ -23,8 +23,11 @@ func TestGetBlueprintRunOrder_DefaultOrder(t *testing.T) {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
+	// users is included (it was missing, so `rwr all` never processed users) and
+	// packageManagers is not (it runs from initConfig ahead of the blueprint loop
+	// and has no dispatch case, so listing it only warned "Unknown processor").
 	expectedOrder := []string{
-		"packageManagers", "repositories", "packages", "ssh_keys",
+		"repositories", "packages", "ssh_keys", "users",
 		"files", "fonts", "services", "git", "scripts", "configuration",
 	}
 
