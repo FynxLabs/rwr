@@ -192,34 +192,27 @@ func generateSSHKey(sshKey types.SSHKey, initConfig *types.InitConfig) (string, 
 		return sshPath, nil
 	}
 
-	// Build the command differently based on whether we need a passphrase
-	var cmd types.Command
 	interactive := helpers.ResolveInteractive(sshKey.Interactive, initConfig.Variables.Flags.Interactive)
 
+	args := []string{
+		"-t", sshKey.Type,
+		"-C", sshKey.Comment,
+		"-f", sshPath,
+	}
 	if sshKey.NoPassphrase {
-		// For no passphrase, use a single string command that properly handles the empty string
-		cmdStr := fmt.Sprintf("ssh-keygen -t %s -C %s -f %s -N ''",
-			sshKey.Type, sshKey.Comment, sshPath)
-
-		cmd = types.Command{
-			Exec:        cmdStr,
-			Args:        []string{},
-			Interactive: interactive,
-		}
-	} else {
-		// For normal case with passphrase prompt
-		cmd = types.Command{
-			Exec: "ssh-keygen",
-			Args: []string{
-				"-t", sshKey.Type,
-				"-C", sshKey.Comment,
-				"-f", sshPath,
-			},
-			Interactive: interactive,
-		}
+		// An empty passphrase is just an empty argv element. The shell quoting that
+		// `-N ''` used to need only existed because the command was a shell string;
+		// blueprint-supplied Type/Comment went through that same shell.
+		args = append(args, "-N", "")
 	}
 
-	err := system.RunCommand(cmd, true)
+	cmd := types.Command{
+		Exec:        "ssh-keygen",
+		Args:        args,
+		Interactive: interactive,
+	}
+
+	err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 	if err != nil {
 		return "", fmt.Errorf("error generating SSH key: %v", err)
 	}

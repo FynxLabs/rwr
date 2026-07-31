@@ -1,6 +1,8 @@
 package system
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -17,8 +19,11 @@ func CleanPackageManagers(osInfo *types.OSInfo, initConfig *types.InitConfig) er
 		log.Debugf("Running clean command for package manager: %s", name)
 		log.Debugf(" Running clean command: %s", pm.Clean)
 
+		// pm.Clean is "<bin> <clean args>"; split it back into argv rather than
+		// handing the whole string to a shell.
 		cleanCmd := types.Command{
-			Exec:     pm.Clean,
+			Exec:     pm.Bin,
+			Args:     strings.Fields(strings.TrimPrefix(pm.Clean, pm.Bin)),
 			Elevated: pm.Elevated,
 		}
 
