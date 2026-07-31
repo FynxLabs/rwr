@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/BurntSushi/toml"
@@ -371,48 +370,6 @@ func LoadProviderDefinition(path string) (*types.Provider, error) {
 
 	log.Debugf("LoadProviderDefinition: Loaded provider %s with binary %s", provider.Name, provider.Detection.Binary)
 	return &provider, nil
-}
-
-// GetDefaultProviderFromOSRelease determines the default package manager by
-// reading the ID field from /etc/os-release and mapping it to a known provider.
-func GetDefaultProviderFromOSRelease() string {
-	// Read the contents of the /etc/os-release file
-	data, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		log.Warnf("Error reading /etc/os-release file: %s", err)
-		return ""
-	}
-
-	// Parse the contents of the file
-	osRelease := make(map[string]string)
-	for _, line := range strings.Split(string(data), "\n") {
-		if strings.Contains(line, "=") {
-			parts := strings.SplitN(line, "=", 2)
-			key := strings.TrimSpace(parts[0])
-			value := strings.Trim(strings.TrimSpace(parts[1]), "\"")
-			osRelease[key] = value
-		}
-	}
-
-	// Check the ID field first
-	id := osRelease["ID"]
-	if id != "" {
-		if prov, exists := GetProviderForDistro(id); exists {
-			return prov.Name
-		}
-	}
-
-	// If ID doesn't match any known distribution, check ID_LIKE
-	idLike := osRelease["ID_LIKE"]
-	if idLike != "" {
-		for _, distro := range strings.Split(idLike, " ") {
-			if prov, exists := GetProviderForDistro(distro); exists {
-				return prov.Name
-			}
-		}
-	}
-
-	return ""
 }
 
 // GetProviderForDistro returns the first available provider whose detection

@@ -2,6 +2,7 @@ package system
 
 import (
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -24,20 +25,55 @@ func SetLinuxDetails(osInfo *types.OSInfo) error {
 }
 
 // linuxPreferredManagers returns the default package manager preference order for
-// this system: whatever /etc/os-release maps to first, then — on Arch-family
-// distributions — the AUR helpers ahead of bare pacman.
+// this system: the distribution family's own package managers, AUR helpers ahead
+// of bare pacman on Arch.
+//
+// Deriving the default from /etc/os-release directly does not work. That lookup
+// returned the first provider matching the distro, and flatpak, snap, nix and
+// cargo all declare the "linux" wildcard, so they match every distribution — on
+// this machine it selected flatpak as the default package manager for an
+// Arch-based system. Families map to their native managers explicitly instead.
 func linuxPreferredManagers(osInfo *types.OSInfo) []string {
-	var preferred []string
-
-	if fromOSRelease := GetDefaultProviderFromOSRelease(); fromOSRelease != "" {
-		preferred = append(preferred, fromOSRelease)
+	family := linuxFamily(osInfo)
+	if family == "" {
+		log.Debug("Could not determine distribution family; falling back to alphabetical default")
+		return nil
 	}
 
-	if IsDistroInFamily(osInfo.System.OSFamily, "arch") {
-		preferred = append(preferred, "paru", "yay", "trizen", "aura", "pamac", "pacman")
+	log.Debugf("Distribution family resolved to %q", family)
+	return nativeManagers[family]
+}
+
+// linuxFamily determines which distribution family this machine belongs to,
+// preferring what /etc/os-release reports and falling back to what is installed.
+//
+// The fallback matters because derivative distributions routinely name themselves
+// something new and set no ID_LIKE, leaving nothing to match on. A machine with
+// pacman and /var/lib/pacman is Arch-family regardless of what it calls itself.
+func linuxFamily(osInfo *types.OSInfo) string {
+	if family := GetDistroFamily(osInfo.System.OSFamily); family != "" {
+		if _, known := nativeManagers[family]; known {
+			return family
+		}
 	}
 
-	return preferred
+	// Infer from the package managers actually present. Sorted for determinism,
+	// though in practice a system carries only one native package manager.
+	installed := make([]string, 0, len(osInfo.PackageManager.Managers))
+	for name := range osInfo.PackageManager.Managers {
+		installed = append(installed, name)
+	}
+	sort.Strings(installed)
+
+	for _, name := range installed {
+		if family, ok := managerFamily[name]; ok {
+			log.Debugf("Distribution %q is unrecognised; inferred %q family from the presence of %s",
+				osInfo.System.OSFamily, family, name)
+			return family
+		}
+	}
+
+	return ""
 }
 
 // getLinuxDistro returns the Linux distribution name from /etc/os-release.

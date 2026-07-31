@@ -322,3 +322,106 @@ func TestEmbeddedProviders_DistroScopedProvidersDeclareFileEvidence(t *testing.T
 		}
 	}
 }
+
+// Family inference is what lets an unlisted derivative still get the right
+// default. GetDistroFamily handles the distributions we know; anything else is
+// resolved from the package manager that is actually installed.
+func TestLinuxFamily(t *testing.T) {
+	tests := []struct {
+		name     string
+		osFamily string
+		managers []string
+		want     string
+	}{
+		{
+			name:     "known distro resolves from its name",
+			osFamily: "debian",
+			managers: []string{"apt", "flatpak"},
+			want:     "debian",
+		},
+		{
+			name:     "known derivative resolves through its family",
+			osFamily: "endeavouros",
+			managers: []string{"pacman"},
+			want:     "arch",
+		},
+		{
+			// PrismLinux: ID=prismlinux, no ID_LIKE, listed by nobody.
+			name:     "unlisted derivative is inferred from the installed manager",
+			osFamily: "prismlinux",
+			managers: []string{"flatpak", "pacman", "yay"},
+			want:     "arch",
+		},
+		{
+			name:     "unlisted debian derivative is inferred from apt",
+			osFamily: "somethingnew",
+			managers: []string{"apt", "snap"},
+			want:     "debian",
+		},
+		{
+			name:     "no native manager means no family",
+			osFamily: "mysterylinux",
+			managers: []string{"flatpak", "nix"},
+			want:     "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			osInfo := &types.OSInfo{}
+			osInfo.System.OSFamily = tt.osFamily
+			osInfo.PackageManager.Managers = map[string]types.PackageManagerInfo{}
+			for _, m := range tt.managers {
+				osInfo.PackageManager.Managers[m] = pm(m)
+			}
+
+			if got := linuxFamily(osInfo); got != tt.want {
+				t.Errorf("linuxFamily(%q, managers=%v) = %q, want %q",
+					tt.osFamily, tt.managers, got, tt.want)
+			}
+		})
+	}
+}
+
+// An Arch derivative nobody has listed must still prefer its AUR helper over
+// flatpak. The previous os-release lookup returned the first provider matching
+// the distro, and flatpak/snap/nix/cargo all claim the "linux" wildcard, so an
+// unrecognised Arch system ended up defaulting to flatpak.
+func TestLinuxPreferredManagers_UnlistedArchDerivativePrefersAURHelper(t *testing.T) {
+	osInfo := &types.OSInfo{}
+	osInfo.System.OSFamily = "prismlinux"
+	osInfo.PackageManager.Managers = map[string]types.PackageManagerInfo{
+		"flatpak": pm("flatpak"),
+		"pacman":  pm("pacman"),
+		"yay":     pm("yay"),
+	}
+
+	setDefaultManager(osInfo, linuxPreferredManagers(osInfo))
+
+	if got := osInfo.PackageManager.Default.Name; got != "yay" {
+		t.Errorf("default = %q, want yay (AUR helper ahead of pacman and flatpak)", got)
+	}
+}
+
+// Every family that names native managers must name ones that exist as providers,
+// otherwise the preference list silently does nothing.
+func TestNativeManagers_ReferenceRealProviders(t *testing.T) {
+	loaded := mustLoadEmbedded(t)
+
+	for family, managers := range nativeManagers {
+		for _, name := range managers {
+			if _, ok := loaded[name]; !ok {
+				t.Errorf("family %q prefers %q, which is not an embedded provider", family, name)
+			}
+		}
+	}
+
+	for manager, family := range managerFamily {
+		if _, ok := loaded[manager]; !ok {
+			t.Errorf("managerFamily maps %q, which is not an embedded provider", manager)
+		}
+		if _, ok := nativeManagers[family]; !ok {
+			t.Errorf("managerFamily maps %q to family %q, which has no native managers", manager, family)
+		}
+	}
+}
