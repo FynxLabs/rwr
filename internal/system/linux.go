@@ -2,6 +2,7 @@ package system
 
 import (
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -13,70 +14,66 @@ import (
 func SetLinuxDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Linux package manager details.")
 
-	// Initialize package manager map
-	if osInfo.PackageManager.Managers == nil {
-		osInfo.PackageManager.Managers = make(map[string]types.PackageManagerInfo)
-	}
+	collectAvailableManagers(osInfo)
+	setDefaultManager(osInfo, linuxPreferredManagers(osInfo))
 
-	// Get available providers
-	available := GetAvailableProviders()
-
-	// Add all available Linux package managers
-	for name, prov := range available {
-		// Skip if not a Linux provider
-		if !Contains(prov.Detection.Distributions, "linux") {
-			continue
-		}
-
-		if tool := FindTool(prov.Detection.Binary); tool.Exists {
-			osInfo.PackageManager.Managers[name] = GetPackageManagerInfo(prov, tool.Bin)
-			log.Debugf("Added package manager: %s", name)
-		}
-	}
-
-	// Get default from OS release
-	defaultPackageManager := GetDefaultProviderFromOSRelease()
-	if defaultPackageManager != "" && osInfo.PackageManager.Managers[defaultPackageManager].Bin != "" {
-		osInfo.PackageManager.Default = osInfo.PackageManager.Managers[defaultPackageManager]
-		log.Infof("Set %s as default package manager from OS release", defaultPackageManager)
-	} else {
-		// Check if this is an Arch-based distribution
-		if IsDistroInFamily(osInfo.System.OSFamily, "arch") {
-			// For Arch Linux, prioritize AUR helpers (in order of preference)
-			aurHelpers := []string{"paru", "yay", "trizen", "aura", "pamac"}
-			for _, helper := range aurHelpers {
-				if pm, exists := osInfo.PackageManager.Managers[helper]; exists && pm.Bin != "" {
-					osInfo.PackageManager.Default = pm
-					log.Infof("Set AUR helper %s as default package manager for Arch-based system", helper)
-					break
-				}
-			}
-
-			// If no AUR helper found, try pacman
-			if osInfo.PackageManager.Default.Name == "" {
-				if pm, exists := osInfo.PackageManager.Managers["pacman"]; exists && pm.Bin != "" {
-					osInfo.PackageManager.Default = pm
-					log.Infof("Set pacman as default package manager for Arch-based system")
-				}
-			}
-		} else {
-			// Otherwise use first available package manager as default
-			for _, pm := range osInfo.PackageManager.Managers {
-				osInfo.PackageManager.Default = pm
-				log.Infof("Set %s as default package manager", pm.Name)
-				break
-			}
-		}
-	}
-
-	// Debug log the final default package manager
 	if osInfo.PackageManager.Default.Name != "" {
 		log.Infof("Final default package manager: %s", osInfo.PackageManager.Default.Name)
-	} else {
-		log.Warn("No default package manager set")
 	}
 
 	return nil
+}
+
+// linuxPreferredManagers returns the default package manager preference order for
+// this system: the distribution family's own package managers, AUR helpers ahead
+// of bare pacman on Arch.
+//
+// Deriving the default from /etc/os-release directly does not work. That lookup
+// returned the first provider matching the distro, and flatpak, snap, nix and
+// cargo all declare the "linux" wildcard, so they match every distribution — on
+// this machine it selected flatpak as the default package manager for an
+// Arch-based system. Families map to their native managers explicitly instead.
+func linuxPreferredManagers(osInfo *types.OSInfo) []string {
+	family := linuxFamily(osInfo)
+	if family == "" {
+		log.Debug("Could not determine distribution family; falling back to alphabetical default")
+		return nil
+	}
+
+	log.Debugf("Distribution family resolved to %q", family)
+	return nativeManagers[family]
+}
+
+// linuxFamily determines which distribution family this machine belongs to,
+// preferring what /etc/os-release reports and falling back to what is installed.
+//
+// The fallback matters because derivative distributions routinely name themselves
+// something new and set no ID_LIKE, leaving nothing to match on. A machine with
+// pacman and /var/lib/pacman is Arch-family regardless of what it calls itself.
+func linuxFamily(osInfo *types.OSInfo) string {
+	if family := GetDistroFamily(osInfo.System.OSFamily); family != "" {
+		if _, known := nativeManagers[family]; known {
+			return family
+		}
+	}
+
+	// Infer from the package managers actually present. Sorted for determinism,
+	// though in practice a system carries only one native package manager.
+	installed := make([]string, 0, len(osInfo.PackageManager.Managers))
+	for name := range osInfo.PackageManager.Managers {
+		installed = append(installed, name)
+	}
+	sort.Strings(installed)
+
+	for _, name := range installed {
+		if family, ok := managerFamily[name]; ok {
+			log.Debugf("Distribution %q is unrecognised; inferred %q family from the presence of %s",
+				osInfo.System.OSFamily, family, name)
+			return family
+		}
+	}
+
+	return ""
 }
 
 // getLinuxDistro returns the Linux distribution name from /etc/os-release.
@@ -189,14 +186,4 @@ func fileExists(filename string) bool {
 		return false
 	}
 	return !info.IsDir()
-}
-
-// Contains checks if a string slice contains a string.
-func Contains(slice []string, str string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }

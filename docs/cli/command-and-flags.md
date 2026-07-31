@@ -60,11 +60,8 @@ Run the services processor.
 
 #### `rwr run files`
 
-Run the files processor.
-
-#### `rwr run directories`
-
-Run the directories processor.
+Run the files processor. This covers `files:`, `directories:` and `templates:`,
+which all live in a files blueprint.
 
 #### `rwr run configuration`
 

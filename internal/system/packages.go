@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -54,8 +55,8 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Install each package
 	log.Debugf("Installing OpenSSL packages with %s: %v", provider.Name, packages)
 	installCmd := types.Command{
-		Exec:     fmt.Sprintf("%s %s", provider.BinPath, provider.Commands.Install),
-		Args:     packages,
+		Exec:     provider.BinPath,
+		Args:     append(strings.Fields(provider.Commands.Install), packages...),
 		Elevated: provider.Elevated,
 	}
 
@@ -107,8 +108,8 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 	// Install each package
 	log.Debugf("Installing build essential packages with %s: %v", provider.Name, packages)
 	installCmd := types.Command{
-		Exec:     fmt.Sprintf("%s %s", provider.BinPath, provider.Commands.Install),
-		Args:     packages,
+		Exec:     provider.BinPath,
+		Args:     append(strings.Fields(provider.Commands.Install), packages...),
 		Elevated: provider.Elevated,
 	}
 
