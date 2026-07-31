@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
@@ -61,15 +61,7 @@ func PromptGitHubToken() (string, error) {
 				Description("Token needs 'write:public_key' scope").
 				EchoMode(huh.EchoModePassword).
 				Value(&token).
-				Validate(func(s string) error {
-					if s == "" {
-						return fmt.Errorf("token cannot be empty")
-					}
-					if !strings.HasPrefix(s, "ghp_") && !strings.HasPrefix(s, "gho_") && !strings.HasPrefix(s, "ghu_") {
-						return fmt.Errorf("invalid GitHub token format")
-					}
-					return nil
-				}),
+				Validate(validateGitHubToken),
 		),
 	)
 
@@ -79,6 +71,19 @@ func PromptGitHubToken() (string, error) {
 	}
 
 	return token, nil
+}
+
+// validateGitHubToken checks that a pasted value looks like a GitHub personal
+// access token: non-empty and carrying a recognised prefix (ghp_ personal, gho_
+// OAuth, ghu_ user-to-server).
+func validateGitHubToken(s string) error {
+	if s == "" {
+		return fmt.Errorf("token cannot be empty")
+	}
+	if !strings.HasPrefix(s, "ghp_") && !strings.HasPrefix(s, "gho_") && !strings.HasPrefix(s, "ghu_") {
+		return fmt.Errorf("invalid GitHub token format")
+	}
+	return nil
 }
 
 // PromptAndSaveGitHubToken collects a GitHub token via interactive prompt
