@@ -198,12 +198,12 @@ func terminalShape() (int, int, error) {
 
 // ShowDiff displays a colored unified diff between two files to stdout.
 func ShowDiff(source, target string) error {
-	sourceContent, err := os.ReadFile(source) // #nosec
+	sourceContent, err := os.ReadFile(source) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return err
 	}
 
-	targetContent, err := os.ReadFile(target) // #nosec
+	targetContent, err := os.ReadFile(target) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return err
 	}

@@ -62,7 +62,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 			visited[absPath] = true
 
 			// Read the import file
-			importData, err := os.ReadFile(importPath) // #nosec
+			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 			if err != nil {
 				return fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

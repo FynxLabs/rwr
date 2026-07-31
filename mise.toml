@@ -2,7 +2,7 @@
 experimental = true
 
 [tools]
-go = "1.26"
+go = "1.26.5" # >=1.26.5 required: GO-2026-5856 (crypto/tls) is reachable from our HTTP paths
 goreleaser = "latest"
 gotestsum = "latest"
 golangci-lint = "latest"

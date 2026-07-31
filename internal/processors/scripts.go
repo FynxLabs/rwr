@@ -27,15 +27,14 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 
 	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
-	// Process imports and merge imported scripts //nolint:gosec
+	// Process imports and merge imported scripts
 	allScripts, err := processScriptImports(scriptData.Scripts, blueprintDir, format)
-	if err != nil { //nolint:gosec
+	if err != nil {
 		return fmt.Errorf("error processing script imports: %w", err)
-	} //nolint:gosec
+	}
 	scriptData.Scripts = allScripts
-	//nolint:gosec
 	// Filter scripts based on active profiles
-	filteredScripts := helpers.FilterByProfiles(scriptData.Scripts, initConfig.Variables.Flags.Profiles) //nolint:gosec
+	filteredScripts := helpers.FilterByProfiles(scriptData.Scripts, initConfig.Variables.Flags.Profiles)
 
 	log.Debugf("Filtering scripts: %d total, %d matching active profiles %v",
 		len(scriptData.Scripts), len(filteredScripts), initConfig.Variables.Flags.Profiles)
@@ -46,7 +45,6 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 		log.Errorf("Error processing scripts: %v", err)
 		return fmt.Errorf("error processing scripts: %w", err)
 	}
-	//nolint:gosec
 	return nil
 }
 
@@ -81,7 +79,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 
 	// Set default executor if not specified
 	if script.Exec == "" {
-		switch osInfo.System.OS { //nolint:gosec
+		switch osInfo.System.OS {
 		case "linux", "darwin":
 			script.Exec = "bash"
 		case "windows":
@@ -101,9 +99,9 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		if err != nil {
 			return fmt.Errorf("error creating temporary file for script: %v", err)
 		}
-		defer os.Remove(tempFile.Name()) //nolint:errcheck //nolint:gosec
+		defer os.Remove(tempFile.Name()) //nolint:errcheck
 
-		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0755) // #nosec
+		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0755) // #nosec G306 -- TODO(PR8): create with target mode instead of chmod-after
 		if err != nil {
 			return fmt.Errorf("error writing script content to temporary file: %v", err)
 		}
@@ -118,7 +116,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	case "self":
 		log.Debugf("Using 'self' executor for script: %s", script.Name)
 		// Make the script executable
-		err := os.Chmod(scriptPath, 0755) // #nosec
+		err := os.Chmod(scriptPath, 0755) // #nosec G302 -- TODO(PR8): create with target mode instead of chmod-after
 		if err != nil {
 			return fmt.Errorf("error setting script as executable: %v", err)
 		}
@@ -212,7 +210,7 @@ func processScriptImports(scripts []types.Script, blueprintDir string, format st
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath) // #nosec
+			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

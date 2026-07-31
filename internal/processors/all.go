@@ -125,7 +125,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				blueprintDir := filepath.Dir(blueprintFile)
 				format := filepath.Ext(blueprintFile)[1:] // Remove the leading dot
 
-				blueprintData, err := os.ReadFile(blueprintFile) // #nosec
+				blueprintData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 				if err != nil {
 					return fmt.Errorf("error reading blueprint file %s: %w", blueprintFile, err)
 				}

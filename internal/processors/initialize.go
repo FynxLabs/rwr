@@ -31,7 +31,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	if err != nil {
 		return nil, fmt.Errorf("error creating temporary directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir) //nolint:errcheck //nolint:gosec
+	defer os.RemoveAll(tempDir) //nolint:errcheck
 
 	// Handle URL or local file
 	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
@@ -75,7 +75,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	log.Debugf("Reading in temporary Init File: %s", tempInitFile)
 
 	// Read the init file
-	initFileData, err := os.ReadFile(tempInitFile) // #nosec
+	initFileData, err := os.ReadFile(tempInitFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return nil, fmt.Errorf("error reading init file %s: %w", tempInitFile, err)
 	}
@@ -89,9 +89,8 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	// Process the init file as a template
 	processedInit, err := helpers.ResolveTemplate(initFileData, variables)
 	if err != nil {
-		return nil, fmt.Errorf("error processing init file as a template: %w", err) //nolint:gosec
+		return nil, fmt.Errorf("error processing init file as a template: %w", err)
 	}
-	//nolint:gosec
 	// Convert TOML to YAML if necessary
 	if fileExt == ".toml" {
 		processedInit, fileExt, err = convertTomlToYaml(processedInit)
@@ -102,7 +101,7 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 
 	// Write the processed init file to the temporary directory
 	processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
-	err = os.WriteFile(processedInitFile, processedInit, 0644) // #nosec
+	err = os.WriteFile(processedInitFile, processedInit, 0644) // #nosec G306 G703 -- TODO(PR8): create with target mode instead of chmod-after; TODO(PR8): path derived from operator blueprint input; containment added in PR8
 	if err != nil {
 		return nil, fmt.Errorf("error writing processed init file: %w", err)
 	}
@@ -144,7 +143,7 @@ func setDefaultVariables() (types.Variables, error) {
 	}
 
 	names := strings.Fields(currentUser.Name)
-	firstName, lastName := "", "" //nolint:gosec
+	firstName, lastName := "", ""
 	if len(names) > 0 {
 		firstName = names[0]
 	}
@@ -193,16 +192,16 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 	// Handle Git target setup if needed
 	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
 		resolvedTarget := system.ExpandPath(initConfig.Init.Git.Target)
-		if err := os.MkdirAll(resolvedTarget, 0755); err != nil { // #nosec
+		if err := os.MkdirAll(resolvedTarget, 0755); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
 			log.Warnf("Failed to create blueprint directory: %v", err)
-		} //nolint:gosec
+		}
 	}
 
 	// Set location based on init file rules
 	if initConfig.Init.Location == "" || initConfig.Init.Location == "." {
 		initConfig.Init.Location = filepath.Dir(initFilePath)
 	} else if initConfig.Init.Location == "~" || strings.HasPrefix(initConfig.Init.Location, "~/") {
-		homeDir, _ := os.UserHomeDir() //nolint:errcheck //nolint:gosec
+		homeDir, _ := os.UserHomeDir() //nolint:errcheck
 		initConfig.Init.Location = filepath.Join(homeDir, initConfig.Init.Location[2:])
 	} else if !filepath.IsAbs(initConfig.Init.Location) {
 		initConfig.Init.Location = filepath.Join(filepath.Dir(initFilePath), initConfig.Init.Location)

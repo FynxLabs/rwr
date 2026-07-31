@@ -171,7 +171,7 @@ func processRepositoryImports(repositories []types.Repository, blueprintDir stri
 			}
 			visited[absPath] = true
 
-			importData, err := os.ReadFile(importPath) // #nosec
+			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 			if err != nil {
 				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
 			}

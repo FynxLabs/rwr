@@ -39,7 +39,7 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 		if err != nil {
 			// Repository doesn't exist or was removed - clone it
 			log.Debugf("Cloning blueprint repository to %s", gitOpts.Target)
-			if err := os.MkdirAll(filepath.Dir(gitOpts.Target), 0755); err != nil { // #nosec
+			if err := os.MkdirAll(filepath.Dir(gitOpts.Target), 0755); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
 				return "", fmt.Errorf("error creating parent directory: %v", err)
 			}
 			err = helpers.HandleGitClone(*gitOpts, initConfig)
@@ -68,7 +68,7 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 		filesInfo, err := os.ReadDir(gitOpts.Target)
 		if err != nil {
 			return "", fmt.Errorf("error reading blueprints directory: %v", err)
-		} //nolint:gosec
+		}
 		if len(filesInfo) == 0 {
 			return "", fmt.Errorf("blueprints directory is empty: %s", gitOpts.Target)
 		}
@@ -194,7 +194,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 				log.Debugf("Added additional file to processor %s: %s", processor, relPath)
 			}
 			return nil
-		}) //nolint:gosec
+		})
 		if err != nil {
 			return nil, err
 		}

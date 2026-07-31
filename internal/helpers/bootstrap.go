@@ -47,7 +47,7 @@ func Bootstrap() error {
 
 	// Create the bootstrap file
 	bootstrapFile := filepath.Join(configDir, "bootstrap")
-	file, err := os.Create(bootstrapFile) // #nosec
+	file, err := os.Create(bootstrapFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return err
 	}

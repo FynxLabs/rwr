@@ -34,7 +34,7 @@ func getLatestReleaseURL() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close() //nolint:errcheck //nolint:gosec
+	defer resp.Body.Close() //nolint:errcheck
 
 	var release GithubRelease
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
@@ -123,7 +123,7 @@ func installFont(font types.Font, osInfo *types.OSInfo, releaseURL string) error
 	if err != nil {
 		return fmt.Errorf("error creating temp directory: %v", err)
 	}
-	defer os.RemoveAll(tempDir) //nolint:errcheck //nolint:gosec
+	defer os.RemoveAll(tempDir) //nolint:errcheck
 
 	tarballPath := filepath.Join(tempDir, font.Name+".tar.xz")
 	err = downloadFontTarball(fontURL, tarballPath)
@@ -175,28 +175,28 @@ func getFontURL(font types.Font, releaseURL string) string {
 }
 
 func downloadFontTarball(url, filepath string) error {
-	resp, err := http.Get(url) // #nosec
+	resp, err := http.Get(url) // #nosec G107 -- URL is operator-supplied (init/blueprint source); scheme restricted in PR6
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close() //nolint:errcheck //nolint:gosec
+	defer resp.Body.Close() //nolint:errcheck
 
-	out, err := os.Create(filepath) // #nosec
+	out, err := os.Create(filepath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return err
 	}
-	defer out.Close() //nolint:errcheck //nolint:gosec
+	defer out.Close() //nolint:errcheck
 
 	_, err = io.Copy(out, resp.Body)
 	return err
 }
 
 func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error {
-	file, err := os.Open(tarballPath) // #nosec
+	file, err := os.Open(tarballPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return err
 	}
-	defer file.Close() //nolint:errcheck //nolint:gosec
+	defer file.Close() //nolint:errcheck
 
 	// Create a new XZ reader
 	xzReader, err := xz.NewReader(file)
@@ -216,7 +216,7 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 		}
 
 		if header.Typeflag == tar.TypeReg && strings.HasSuffix(header.Name, ".ttf") {
-			targetPath := filepath.Join(destDir, header.Name) // #nosec
+			targetPath := filepath.Join(destDir, header.Name) // #nosec G305 -- TODO(PR8): bound tar entry paths to destination dir
 
 			// Create a temporary file for the extracted font
 			tempFile, err := os.CreateTemp("", "font-")
@@ -228,11 +228,11 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 			}
 
 			// Write the font data to the temporary file
-			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755) // #nosec
+			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755) // #nosec G302 -- TODO(PR8): create with target mode instead of chmod-after
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(tempFile, tr); err != nil { // #nosec
+			if _, err := io.Copy(tempFile, tr); err != nil { // #nosec G110 -- archive comes from operator-configured font source; size limit added in PR8
 				if closeErr := tempFile.Close(); closeErr != nil {
 					return fmt.Errorf("error copying font data: %w (also failed to close: %v)", err, closeErr)
 				}

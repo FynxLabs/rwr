@@ -254,7 +254,7 @@ func GetProvidersPath() (string, error) {
 	}
 
 	for _, loc := range locations {
-		if _, err := os.Stat(loc); err == nil { // #nosec
+		if _, err := os.Stat(loc); err == nil { // #nosec G703 -- TODO(PR8): path derived from operator blueprint input; containment added in PR8
 			log.Debugf("Found providers directory at: %s", loc)
 			return loc, nil
 		}
@@ -293,7 +293,7 @@ func LoadProviders(definitionsPath string) error {
 // LoadProviderDefinition parses a single TOML provider definition file
 // and returns the resulting Provider struct.
 func LoadProviderDefinition(path string) (*types.Provider, error) {
-	data, err := os.ReadFile(path) // #nosec
+	data, err := os.ReadFile(path) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return nil, err
 	}

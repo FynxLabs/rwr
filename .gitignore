@@ -110,3 +110,6 @@ rwr
 .claude/
 
 dist/
+
+# Stray `go build -o <name>` artifacts that collide with stdlib package names
+/os
