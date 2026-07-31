@@ -77,9 +77,9 @@ func GetDistroFamily(distro string) string {
 		}
 	}
 
-	// Check ID_LIKE in /etc/os-release for hints
-	idLike := getDistroIDLike()
-	if idLike != "" {
+	// Fall back to this machine's ID_LIKE, but only when the distro being asked
+	// about is this machine. See idLikeFor.
+	if idLike := idLikeFor(distro); idLike != "" {
 		for _, likeDistro := range strings.Split(idLike, " ") {
 			if _, exists := distroFamilies[likeDistro]; exists {
 				return likeDistro
@@ -109,13 +109,28 @@ func IsDistroInFamily(distro, family string) bool {
 		}
 	}
 
-	// Check ID_LIKE in /etc/os-release
-	idLike := getDistroIDLike()
-	if idLike != "" && strings.Contains(idLike, family) {
+	// Fall back to this machine's ID_LIKE, but only when the distro being asked
+	// about is this machine. See idLikeFor.
+	if idLike := idLikeFor(distro); idLike != "" && strings.Contains(idLike, family) {
 		return true
 	}
 
 	return false
+}
+
+// idLikeFor returns this machine's ID_LIKE, but only when distro names this
+// machine's own distribution.
+//
+// ID_LIKE describes the host and nothing else. Consulting it for an arbitrary
+// distro answered every question in terms of whatever the host happens to be:
+// on a Debian derivative (ID_LIKE=debian), IsDistroInFamily("arch", "debian")
+// returned true and GetDistroFamily on any unknown distro returned "debian".
+// That silently mapped unrecognised distributions onto the host's family.
+var idLikeFor = func(distro string) string {
+	if !strings.EqualFold(distro, getLinuxDistro()) {
+		return ""
+	}
+	return getDistroIDLike()
 }
 
 // getDistroIDLike returns the ID_LIKE field from /etc/os-release.

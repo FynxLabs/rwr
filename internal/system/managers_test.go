@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/types"
@@ -56,6 +57,12 @@ func TestSupportsSystem_MatchesShippedProvidersForRealDistros(t *testing.T) {
 // A provider must not be offered on a distro it does not support.
 func TestSupportsSystem_RejectsWrongDistro(t *testing.T) {
 	loaded := mustLoadEmbedded(t)
+
+	// Simulate running on a Debian-derived host. Its ID_LIKE must not leak into
+	// answers about other distributions — that is what made apt look available on
+	// Arch when these ran on the Ubuntu CI runner.
+	restore := stubHost(t, "ubuntu", "debian")
+	defer restore()
 
 	tests := []struct {
 		provider string
@@ -327,6 +334,11 @@ func TestEmbeddedProviders_DistroScopedProvidersDeclareFileEvidence(t *testing.T
 // default. GetDistroFamily handles the distributions we know; anything else is
 // resolved from the package manager that is actually installed.
 func TestLinuxFamily(t *testing.T) {
+	// Simulate a Debian-derived host: its ID_LIKE must not decide the family of
+	// the unrelated distributions these cases ask about.
+	restore := stubHost(t, "ubuntu", "debian")
+	defer restore()
+
 	tests := []struct {
 		name     string
 		osFamily string
@@ -388,6 +400,9 @@ func TestLinuxFamily(t *testing.T) {
 // the distro, and flatpak/snap/nix/cargo all claim the "linux" wildcard, so an
 // unrecognised Arch system ended up defaulting to flatpak.
 func TestLinuxPreferredManagers_UnlistedArchDerivativePrefersAURHelper(t *testing.T) {
+	restore := stubHost(t, "ubuntu", "debian")
+	defer restore()
+
 	osInfo := &types.OSInfo{}
 	osInfo.System.OSFamily = "prismlinux"
 	osInfo.PackageManager.Managers = map[string]types.PackageManagerInfo{
@@ -423,5 +438,76 @@ func TestNativeManagers_ReferenceRealProviders(t *testing.T) {
 		if _, ok := nativeManagers[family]; !ok {
 			t.Errorf("managerFamily maps %q to family %q, which has no native managers", manager, family)
 		}
+	}
+}
+
+// stubHost models a machine running host with the given ID_LIKE, for the
+// duration of a test, so results do not depend on whatever distribution the
+// tests happen to run on.
+//
+// It mirrors the real lookup: ID_LIKE answers only for the host's own
+// distribution and is empty for anything else.
+func stubHost(t *testing.T, host, idLike string) func() {
+	t.Helper()
+	previous := idLikeFor
+	idLikeFor = func(distro string) string {
+		if strings.EqualFold(distro, host) {
+			return idLike
+		}
+		return ""
+	}
+	return func() { idLikeFor = previous }
+}
+
+// ID_LIKE must only ever answer for the machine it describes. Asking whether
+// some unrelated distribution belongs to a family used to be answered from the
+// host's ID_LIKE, so on a Debian derivative every unknown distro looked like
+// debian — and apt looked available on Arch.
+func TestIsDistroInFamily_IgnoresHostIDLikeForOtherDistros(t *testing.T) {
+	restore := stubHost(t, "ubuntu", "debian")
+	defer restore()
+
+	if IsDistroInFamily("arch", "debian") {
+		t.Error("arch must not be reported as debian-family")
+	}
+	if !IsDistroInFamily("endeavouros", "arch") {
+		t.Error("endeavouros must be reported as arch-family")
+	}
+	if !IsDistroInFamily("debian", "debian") {
+		t.Error("a family is its own family")
+	}
+}
+
+func TestGetDistroFamily_UnknownDistroIsNotMappedToHostFamily(t *testing.T) {
+	restore := stubHost(t, "ubuntu", "debian")
+	defer restore()
+
+	if got := GetDistroFamily("mysterylinux"); got != "mysterylinux" {
+		t.Errorf("GetDistroFamily(mysterylinux) = %q, want it returned unchanged", got)
+	}
+	if got := GetDistroFamily("linuxmint"); got != "ubuntu" {
+		t.Errorf("GetDistroFamily(linuxmint) = %q, want ubuntu", got)
+	}
+}
+
+// When the distro being asked about *is* the host, ID_LIKE is exactly the right
+// signal and must still be used.
+func TestGetDistroFamily_UsesHostIDLikeForTheHostItself(t *testing.T) {
+	host := getLinuxDistro()
+	if _, known := distroFamilies[host]; known {
+		t.Skip("host distribution is itself a known family")
+	}
+
+	previous := idLikeFor
+	idLikeFor = func(distro string) string {
+		if distro == host {
+			return "arch"
+		}
+		return ""
+	}
+	defer func() { idLikeFor = previous }()
+
+	if got := GetDistroFamily(host); got != "arch" {
+		t.Errorf("GetDistroFamily(%q) = %q, want arch from the host ID_LIKE", host, got)
 	}
 }
