@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -123,9 +124,10 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 				continue
 			}
 		} else {
-			for _, p := range available {
-				provider = p
-				break
+			provider, exists = defaultProviderFor(osInfo, available)
+			if !exists {
+				log.Warnf("No package manager available for package %s, skipping", pkg.Name)
+				continue
 			}
 		}
 
@@ -177,4 +179,34 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 	}
 
 	return nil
+}
+
+// defaultProviderFor picks the provider to use for a package that did not name a
+// package_manager.
+//
+// It prefers the default resolved during OS detection (which honours
+// /etc/os-release and, on Arch, the AUR helper preference order), and otherwise
+// falls back to the alphabetically first available provider. The fallback is
+// sorted because Go randomizes map iteration: selecting "whatever the map yields
+// first" meant an unqualified package could be installed by a different package
+// manager on every run.
+func defaultProviderFor(osInfo *types.OSInfo, available map[string]*types.Provider) (*types.Provider, bool) {
+	if osInfo != nil {
+		if name := osInfo.PackageManager.Default.Name; name != "" {
+			if provider, ok := available[name]; ok {
+				return provider, true
+			}
+		}
+	}
+
+	names := make([]string, 0, len(available))
+	for name := range available {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	if len(names) == 0 {
+		return nil, false
+	}
+	return available[names[0]], true
 }

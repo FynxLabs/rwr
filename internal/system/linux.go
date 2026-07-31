@@ -13,70 +13,31 @@ import (
 func SetLinuxDetails(osInfo *types.OSInfo) error {
 	log.Debug("Setting Linux package manager details.")
 
-	// Initialize package manager map
-	if osInfo.PackageManager.Managers == nil {
-		osInfo.PackageManager.Managers = make(map[string]types.PackageManagerInfo)
-	}
+	collectAvailableManagers(osInfo)
+	setDefaultManager(osInfo, linuxPreferredManagers(osInfo))
 
-	// Get available providers
-	available := GetAvailableProviders()
-
-	// Add all available Linux package managers
-	for name, prov := range available {
-		// Skip if not a Linux provider
-		if !Contains(prov.Detection.Distributions, "linux") {
-			continue
-		}
-
-		if tool := FindTool(prov.Detection.Binary); tool.Exists {
-			osInfo.PackageManager.Managers[name] = GetPackageManagerInfo(prov, tool.Bin)
-			log.Debugf("Added package manager: %s", name)
-		}
-	}
-
-	// Get default from OS release
-	defaultPackageManager := GetDefaultProviderFromOSRelease()
-	if defaultPackageManager != "" && osInfo.PackageManager.Managers[defaultPackageManager].Bin != "" {
-		osInfo.PackageManager.Default = osInfo.PackageManager.Managers[defaultPackageManager]
-		log.Infof("Set %s as default package manager from OS release", defaultPackageManager)
-	} else {
-		// Check if this is an Arch-based distribution
-		if IsDistroInFamily(osInfo.System.OSFamily, "arch") {
-			// For Arch Linux, prioritize AUR helpers (in order of preference)
-			aurHelpers := []string{"paru", "yay", "trizen", "aura", "pamac"}
-			for _, helper := range aurHelpers {
-				if pm, exists := osInfo.PackageManager.Managers[helper]; exists && pm.Bin != "" {
-					osInfo.PackageManager.Default = pm
-					log.Infof("Set AUR helper %s as default package manager for Arch-based system", helper)
-					break
-				}
-			}
-
-			// If no AUR helper found, try pacman
-			if osInfo.PackageManager.Default.Name == "" {
-				if pm, exists := osInfo.PackageManager.Managers["pacman"]; exists && pm.Bin != "" {
-					osInfo.PackageManager.Default = pm
-					log.Infof("Set pacman as default package manager for Arch-based system")
-				}
-			}
-		} else {
-			// Otherwise use first available package manager as default
-			for _, pm := range osInfo.PackageManager.Managers {
-				osInfo.PackageManager.Default = pm
-				log.Infof("Set %s as default package manager", pm.Name)
-				break
-			}
-		}
-	}
-
-	// Debug log the final default package manager
 	if osInfo.PackageManager.Default.Name != "" {
 		log.Infof("Final default package manager: %s", osInfo.PackageManager.Default.Name)
-	} else {
-		log.Warn("No default package manager set")
 	}
 
 	return nil
+}
+
+// linuxPreferredManagers returns the default package manager preference order for
+// this system: whatever /etc/os-release maps to first, then — on Arch-family
+// distributions — the AUR helpers ahead of bare pacman.
+func linuxPreferredManagers(osInfo *types.OSInfo) []string {
+	var preferred []string
+
+	if fromOSRelease := GetDefaultProviderFromOSRelease(); fromOSRelease != "" {
+		preferred = append(preferred, fromOSRelease)
+	}
+
+	if IsDistroInFamily(osInfo.System.OSFamily, "arch") {
+		preferred = append(preferred, "paru", "yay", "trizen", "aura", "pamac", "pacman")
+	}
+
+	return preferred
 }
 
 // getLinuxDistro returns the Linux distribution name from /etc/os-release.
@@ -189,14 +150,4 @@ func fileExists(filename string) bool {
 		return false
 	}
 	return !info.IsDir()
-}
-
-// Contains checks if a string slice contains a string.
-func Contains(slice []string, str string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }
