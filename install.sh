@@ -20,6 +20,7 @@ case "$ARCH" in
     arm64*)     ARCH="arm64";;
     armv7*)     ARCH="armv7";;
     aarch64*)   ARCH="arm64";;
+    riscv64*)   ARCH="riscv64";;
     *)          echo "Unsupported architecture: $ARCH"; exit 1;;
 esac
 
