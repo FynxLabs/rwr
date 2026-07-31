@@ -18,7 +18,7 @@ import (
 
 func downloadFileContent(url, filePath string) error {
 	// Send an HTTP GET request to the URL
-	response, err := http.Get(url) // #nosec
+	response, err := http.Get(url) // #nosec G107 -- URL is operator-supplied (init/blueprint source); scheme restricted in PR6
 	if err != nil {
 		return fmt.Errorf("error downloading file: %v", err)
 	}
@@ -35,7 +35,7 @@ func downloadFileContent(url, filePath string) error {
 	}
 
 	// Create the file
-	file, err := os.Create(filePath) // #nosec
+	file, err := os.Create(filePath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}
@@ -104,7 +104,7 @@ func AppendToFile(filePath, content string, elevated bool) error {
 
 	log.Debugf("Appending content to file %s", filePath)
 	// Read the existing file content
-	existingContent, err := os.ReadFile(filePath) // #nosec
+	existingContent, err := os.ReadFile(filePath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("error reading file: %v", err)
 	}
@@ -150,7 +150,7 @@ func WriteToFile(filePath, content string, elevated bool) error {
 	}
 
 	// Write the content to the temporary file
-	err = os.WriteFile(tempFile.Name(), []byte(content), 0644) // #nosec
+	err = os.WriteFile(tempFile.Name(), []byte(content), 0644) // #nosec G306 -- TODO(PR8): create with target mode instead of chmod-after
 	if err != nil {
 		return fmt.Errorf("error writing to temporary file: %v", err)
 	}
@@ -174,7 +174,7 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 
 	log.Debugf("Removing line %s from file %s", lineToRemove, filePath)
 	// Open the file for reading
-	file, err := os.Open(filePath) // #nosec
+	file, err := os.Open(filePath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error opening file: %v", err)
 	}
@@ -235,7 +235,7 @@ func RemoveLineFromFile(filePath, lineToRemove string, elevated bool) error {
 func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error {
 	log.Debugf("Copying file from %s to %s (elevated: %v)", source, target, elevated)
 
-	sourceFile, err := os.Open(source) // #nosec
+	sourceFile, err := os.Open(source) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
@@ -247,7 +247,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 	}
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
@@ -256,7 +256,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		if err != nil {
 			return fmt.Errorf("error creating temporary file: %v", err)
 		}
-		defer os.Remove(tempFile.Name()) //nolint:errcheck //nolint:gosec
+		defer os.Remove(tempFile.Name()) //nolint:errcheck
 
 		_, err = io.Copy(tempFile, sourceFile)
 		if err != nil {
@@ -273,11 +273,11 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 			return fmt.Errorf("error moving file with elevated privileges: %v", err)
 		}
 	} else {
-		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode()) // #nosec
+		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode()) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 		if err != nil {
 			return fmt.Errorf("error creating target file: %v", err)
 		}
-		defer targetFile.Close() //nolint:errcheck //nolint:gosec
+		defer targetFile.Close() //nolint:errcheck
 
 		_, err = io.Copy(targetFile, sourceFile)
 		if err != nil {
@@ -295,7 +295,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		if err != nil {
 			return fmt.Errorf("error setting file permissions: %v", err)
 		}
-	} //nolint:gosec
+	}
 
 	return nil
 }
@@ -312,7 +312,7 @@ func setFilePermissionsElevated(path string, mode os.FileMode) error {
 // ExpandPath replaces a leading "~/" in the path with the user's home directory.
 func ExpandPath(path string) string {
 	if strings.HasPrefix(path, "~/") {
-		homeDir, _ := os.UserHomeDir() //nolint:errcheck //nolint:gosec
+		homeDir, _ := os.UserHomeDir() //nolint:errcheck
 		path = filepath.Join(homeDir, path[2:])
 	}
 	return path
@@ -320,7 +320,7 @@ func ExpandPath(path string) string {
 
 func copyFileContent(source, target string) error {
 	log.Debugf("Copying file content from %s to %s", source, target)
-	sourceFile, err := os.Open(source) // #nosec
+	sourceFile, err := os.Open(source) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
@@ -330,7 +330,7 @@ func copyFileContent(source, target string) error {
 		}
 	}()
 
-	targetFile, err := os.Create(target) // #nosec
+	targetFile, err := os.Create(target) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error creating target file: %v", err)
 	}

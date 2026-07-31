@@ -2,7 +2,7 @@ version: "2"
 
 run:
   timeout: 5m
-  tests: false
+  tests: true
 
 linters:
   default: none
@@ -21,6 +21,18 @@ linters:
 
     staticcheck:
       checks: ["all", "-ST1003"]
+
+  exclusions:
+    rules:
+      # Tests are now linted (run.tests: true), which is the point — govet, staticcheck,
+      # ineffassign, unused and misspell all apply to test code as of this change.
+      # errcheck is held back only because ~96 existing fixtures call os.WriteFile bare.
+      # That matters: a fixture whose write silently failed makes its test meaningless.
+      # TODO(PR1): introduce mustWriteFile/mustMkdir test helpers as part of the real
+      # test infrastructure, convert the call sites, then delete this exclusion.
+      - path: _test\.go
+        linters:
+          - errcheck
 
 formatters:
   enable:

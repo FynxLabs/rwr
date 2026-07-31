@@ -42,7 +42,7 @@ func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 	}
 
 	targetDir := filepath.Dir(opts.Target)
-	err := os.MkdirAll(targetDir, os.ModePerm) // #nosec
+	err := os.MkdirAll(targetDir, os.ModePerm) // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
 	if err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
@@ -265,20 +265,20 @@ func HandleGitFileDownload(opts types.GitOptions, initConfig *types.InitConfig) 
 	}
 
 	// Read the contents of the specified file
-	fileContent, err := os.ReadFile(filepath.Join(tempDir, filePath)) // #nosec
+	fileContent, err := os.ReadFile(filepath.Join(tempDir, filePath)) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error reading file from Git repository: %v", err)
 	}
 
 	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(opts.Target)
-	err = os.MkdirAll(targetDir, os.ModePerm) // #nosec
+	err = os.MkdirAll(targetDir, os.ModePerm) // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
 	if err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
 	// Write the file contents to the target file
-	err = os.WriteFile(opts.Target, fileContent, 0644) // #nosec
+	err = os.WriteFile(opts.Target, fileContent, 0644) // #nosec G306 G703 -- TODO(PR8): create with target mode instead of chmod-after; TODO(PR8): path derived from operator blueprint input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error writing file: %v", err)
 	}

@@ -85,7 +85,7 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 
 	if config.RunOnce {
 		log.Debugf("RunOnce Set: Write Bootstrap File %s", bootstrapFile)
-		if err := os.WriteFile(bootstrapFile, []byte{}, 0644); err != nil { // #nosec
+		if err := os.WriteFile(bootstrapFile, []byte{}, 0644); err != nil { // #nosec G306 -- TODO(PR8): create with target mode instead of chmod-after
 			log.Warnf("Failed to create dconf bootstrap file: %v", err)
 		}
 	}
@@ -94,13 +94,13 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 }
 
 func processGSettings(config types.Configuration) error {
-	log.Debugf("Processing gsettings configuration: %s", config.Name) //nolint:gosec
+	log.Debugf("Processing gsettings configuration: %s", config.Name)
 
 	for key, value := range config.Settings {
 		log.Debugf("Processing key: %s with value: %v", key, value)
 
 		// Check if the key is writable
-		checkCmd := exec.Command("gsettings", "writable", config.Schema, key) // #nosec
+		checkCmd := exec.Command("gsettings", "writable", config.Schema, key) // #nosec G204 -- TODO(PR1): replaced by argv executor; no shell interpolation after that lands
 		output, err := checkCmd.CombinedOutput()
 		if err != nil {
 			log.Warnf("Error checking if key is writable - Schema: %s, Key: %s, Error: %v, Output: %s", config.Schema, key, err, string(output))
@@ -119,7 +119,7 @@ func processGSettings(config types.Configuration) error {
 		args := []string{"set", config.Schema, key, strValue}
 		log.Debugf("Executing command: gsettings %s", strings.Join(args, " "))
 
-		cmd := exec.Command("gsettings", args...) // #nosec
+		cmd := exec.Command("gsettings", args...) // #nosec G204 -- TODO(PR1): replaced by argv executor; no shell interpolation after that lands
 		output, err = cmd.CombinedOutput()
 		if err != nil {
 			log.Errorf("Error applying gsettings configuration - Schema: %s, Key: %s, Value: %s, Error: %v, Output: %s", config.Schema, key, strValue, err, string(output))
@@ -128,7 +128,7 @@ func processGSettings(config types.Configuration) error {
 		}
 	}
 
-	return nil //nolint:gosec
+	return nil
 }
 
 func formatGSettingsValue(value interface{}) string {
