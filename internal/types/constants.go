@@ -5,7 +5,6 @@ const (
 	BlueprintTypePackages        = "packages"
 	BlueprintTypeRepositories    = "repositories"
 	BlueprintTypeFiles           = "files"
-	BlueprintTypeDirectories     = "directories"
 	BlueprintTypeGit             = "git"
 	BlueprintTypeScripts         = "scripts"
 	BlueprintTypeSSHKeys         = "ssh_keys"

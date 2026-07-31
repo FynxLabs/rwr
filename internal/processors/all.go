@@ -162,7 +162,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 					err = ProcessSSHKeys(resolvedBlueprint, format, osInfo, initConfig)
 				case types.BlueprintTypeFonts:
 					log.Info("Processing fonts")
-					err = ProcessFonts(blueprintData, blueprintDir, format, osInfo, initConfig)
+					err = ProcessFonts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case types.BlueprintTypeConfiguration:
 					log.Infof("Processing configurations")
 					err = ProcessConfiguration(resolvedBlueprint, blueprintDir, format, initConfig)

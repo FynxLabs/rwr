@@ -83,10 +83,32 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 	return location, nil
 }
 
+// defaultRunOrder is the order blueprint processors run in when the init file
+// does not specify one.
+//
+// packageManagers is deliberately absent: it is not dispatched from the blueprint
+// loop at all, it runs ahead of it from initConfig.PackageManagers. Listing it
+// here only produced an "Unknown processor" warning.
+//
+// users is present because it was previously missing, which meant `rwr all` never
+// created users unless the init file hand-wrote its own order — while
+// `rwr run users` worked, making the omission easy to miss.
+var defaultRunOrder = []string{
+	types.BlueprintTypeRepositories,
+	types.BlueprintTypePackages,
+	types.BlueprintTypeSSHKeys,
+	types.BlueprintTypeUsers,
+	types.BlueprintTypeFiles,
+	types.BlueprintTypeFonts,
+	types.BlueprintTypeServices,
+	types.BlueprintTypeGit,
+	types.BlueprintTypeScripts,
+	types.BlueprintTypeConfiguration,
+}
+
 // GetBlueprintRunOrder determines the order in which blueprint processors should run.
 // If a custom order is specified in the init configuration, it uses that order.
-// Otherwise, it returns the default processor execution order (packageManagers,
-// repositories, packages, ssh_keys, files, fonts, services, git, scripts, configuration).
+// Otherwise, it returns defaultRunOrder.
 // Returns a slice of processor names in execution order.
 func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 	var runOrder []string
@@ -102,7 +124,7 @@ func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 			}
 		}
 	} else {
-		runOrder = append(runOrder, types.BlueprintTypePackageManagers, types.BlueprintTypeRepositories, types.BlueprintTypePackages, types.BlueprintTypeSSHKeys, types.BlueprintTypeFiles, types.BlueprintTypeFonts, types.BlueprintTypeServices, types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeConfiguration)
+		runOrder = append(runOrder, defaultRunOrder...)
 	}
 
 	log.Debugf("Blueprint run order: %v", runOrder)
