@@ -1,5 +1,7 @@
 package types
 
+import "fmt"
+
 // OSInfo holds information about the detected OS, package managers, and tools.
 type OSInfo struct {
 	System         System         // System Info
@@ -71,6 +73,13 @@ func (u UserInfo) ToMap() map[string]interface{} {
 	}
 }
 
+// ToMap exposes the flags to blueprint templates as {{ .Flags.* }}.
+//
+// ghAPIToken and sshKey are deliberately absent. Templates are rendered from
+// blueprint files, which are cloned from git repositories, and the rendered
+// output is written to a path the same blueprint chooses — so exposing the
+// GitHub token or the SSH key here let any blueprint copy them anywhere it
+// liked. Nothing a blueprint legitimately does needs the credential values.
 func (f Flags) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"debug":            f.Debug,
@@ -78,13 +87,22 @@ func (f Flags) ToMap() map[string]interface{} {
 		"interactive":      f.Interactive,
 		"forceBootstrap":   f.ForceBootstrap,
 		"dryRun":           f.DryRun,
-		"ghAPIToken":       f.GHAPIToken,
-		"sshKey":           f.SSHKey,
 		"skipVersionCheck": f.SkipVersionCheck,
 		"configLocation":   f.ConfigLocation,
 		"runOnceLocation":  f.RunOnceLocation,
 		"profiles":         f.Profiles,
 	}
+}
+
+// String redacts the credential fields so a Flags value cannot leak them through
+// %v or %+v, which is how they were reaching debug logs.
+func (f Flags) String() string {
+	return fmt.Sprintf("Flags{debug:%v logLevel:%s interactive:%v forceBootstrap:%v "+
+		"dryRun:%v ghAPIToken:%s sshKey:%s skipVersionCheck:%v configLocation:%s "+
+		"runOnceLocation:%s profiles:%v}",
+		f.Debug, f.LogLevel, f.Interactive, f.ForceBootstrap,
+		f.DryRun, Redact(f.GHAPIToken), Redact(f.SSHKey), f.SkipVersionCheck,
+		f.ConfigLocation, f.RunOnceLocation, f.Profiles)
 }
 
 func (f System) ToMap() map[string]interface{} {

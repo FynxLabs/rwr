@@ -9,6 +9,7 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/charmbracelet/log"
+	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
 )
@@ -97,7 +98,7 @@ func PromptAndSaveGitHubToken(initConfig *types.InitConfig) (string, error) {
 	// Save token using the same logic as OAuth
 	if err := SaveGitHubTokenToConfig(token, initConfig); err != nil {
 		log.Warnf("Failed to save token to config: %v", err)
-		log.Infof("Token obtained but not saved. Use --gh-api-key=%s", token)
+		log.Infof("Token obtained but could not be saved to config. Re-run with --gh-api-key to supply it directly.")
 	} else {
 		log.Debugf("Token saved to config")
 	}
@@ -127,12 +128,15 @@ func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 	viper.Set("repository.gh_api_token", token)
 
 	// Try to write config
-	err := viper.WriteConfig()
-	if err != nil {
+	if err := viper.WriteConfig(); err != nil {
 		// If config doesn't exist, create it
-		return viper.SafeWriteConfig()
+		if err := viper.SafeWriteConfig(); err != nil {
+			return err
+		}
 	}
-	return nil
+
+	// viper writes at 0644, and this file holds the token.
+	return helpers.SecureConfigFile(viper.ConfigFileUsed())
 }
 
 // PromptConfirmTokenReplace asks the user to confirm overwriting an existing

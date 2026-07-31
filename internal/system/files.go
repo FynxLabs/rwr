@@ -247,7 +247,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 	}
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 

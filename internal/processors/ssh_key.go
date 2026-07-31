@@ -240,6 +240,11 @@ func setAsRWRSSHKey(keyPath string) error {
 		return fmt.Errorf("error writing updated configuration: %v", err)
 	}
 
+	// viper writes at 0644, and this file now contains the private key.
+	if err := helpers.SecureConfigFile(viper.ConfigFileUsed()); err != nil {
+		return fmt.Errorf("error restricting configuration permissions: %w", err)
+	}
+
 	log.Infof("SSH key %s set as RWR SSH Key", keyPath)
 	return nil
 }
@@ -275,7 +280,7 @@ func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 	// Step 4: Store token in config
 	if err := prompts.SaveGitHubTokenToConfig(token, initConfig); err != nil {
 		log.Warnf("Failed to save token to config: %v", err)
-		log.Infof("Token obtained but not saved. Use --gh-api-key=%s", token)
+		log.Infof("Token obtained but could not be saved to config. Re-run with --gh-api-key to supply it directly.")
 	} else {
 		log.Infof("✓ Authentication successful! Token saved to config.")
 	}

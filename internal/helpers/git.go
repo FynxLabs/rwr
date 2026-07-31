@@ -42,7 +42,7 @@ func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 	}
 
 	targetDir := filepath.Dir(opts.Target)
-	err := os.MkdirAll(targetDir, os.ModePerm) // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	err := os.MkdirAll(targetDir, os.ModePerm) // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 	if err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
@@ -272,7 +272,7 @@ func HandleGitFileDownload(opts types.GitOptions, initConfig *types.InitConfig) 
 
 	// Create the target directory if it doesn't exist
 	targetDir := filepath.Dir(opts.Target)
-	err = os.MkdirAll(targetDir, os.ModePerm) // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	err = os.MkdirAll(targetDir, os.ModePerm) // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
 	if err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}

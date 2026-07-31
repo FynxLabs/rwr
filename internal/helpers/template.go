@@ -25,6 +25,8 @@ func ResolveTemplate(templateData []byte, variables types.Variables) ([]byte, er
 	data["System"] = variables.System.ToMap()
 	data["UserDefined"] = variables.UserDefined
 
+	// data["Flags"] no longer carries credentials (see types.Flags.ToMap), so this
+	// dump is safe; it is the reason they must stay out of that map.
 	log.Debugf("Template variables: %+v", data)
 
 	var renderedTemplate bytes.Buffer

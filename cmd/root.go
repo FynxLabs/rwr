@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/processors"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -67,6 +68,7 @@ var (
 	ghAuth           bool   // Use OAuth device flow for GitHub authentication
 	sshKey           string // SSH private key for Git auth (path or base64)
 	skipVersionCheck bool
+	showSecrets      bool
 	debug            bool
 	interactive      bool
 	forceBootstrap   bool
@@ -137,6 +139,11 @@ func initializeSystemInfo() error {
 		Profiles:         profiles,
 	}
 
+	types.SetShowSecrets(showSecrets)
+	if showSecrets {
+		log.Warnf("--show-secrets is set: credential values will appear in logs")
+	}
+
 	if dryRun {
 		system.SetDryRun(true)
 		log.Infof("Dry-run mode enabled - no changes will be made")
@@ -205,6 +212,10 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&skipVersionCheck, "skip-version-check", false, "Skip checking for the latest version of rwr")
 	mustBindFlag("rwr.skipVersionCheck", "skip-version-check")
 
+	// Secrets are redacted in logs by default. This exists because "is rwr even
+	// reading my token?" has no other answer, but it has to be asked for.
+	rootCmd.PersistentFlags().BoolVar(&showSecrets, "show-secrets", false, "Show credential values in logs instead of redacting them")
+
 	// Profile selection flag
 	rootCmd.PersistentFlags().StringSliceVarP(&profiles, "profile", "p", []string{}, "Specify profiles to activate (can be used multiple times)")
 	mustBindFlag("rwr.profiles", "profile")
@@ -241,11 +252,11 @@ func config() error {
 	configLocation = filepath.Join(homeDir, ".config", "rwr")
 	runOnceLocation = filepath.Join(configLocation, "run_once")
 
-	if err = os.MkdirAll(configLocation, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	if err = helpers.EnsureConfigDir(configLocation); err != nil {
 		return fmt.Errorf("error creating config directory: %w", err)
 	}
 
-	if err = os.MkdirAll(runOnceLocation, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR4): tighten config/data dir perms to 0750
+	if err = helpers.EnsureConfigDir(runOnceLocation); err != nil {
 		return fmt.Errorf("error creating bootstrap directory: %w", err)
 	}
 
