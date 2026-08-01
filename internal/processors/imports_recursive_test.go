@@ -45,6 +45,7 @@ func installedNames(calls []exectest.Call) []string {
 }
 
 func TestImports_FollowANestedChain(t *testing.T) {
+	useTestProvider(t)
 	// A imports B, B imports C. All three packages must be installed.
 	root := writeFiles(t, map[string]string{
 		"a.yaml": "packages:\n  - import: b.yaml\n  - name: from-a\n    action: install\n    package_manager: pacman\n",
@@ -83,6 +84,7 @@ func TestImports_FollowANestedChain(t *testing.T) {
 // An import path resolves relative to the file that declares it, so a chain can
 // walk into subdirectories.
 func TestImports_ResolveRelativeToTheImportingFile(t *testing.T) {
+	useTestProvider(t)
 	root := writeFiles(t, map[string]string{
 		"top.yaml":                 "packages:\n  - import: common/base.yaml\n",
 		"common/base.yaml":         "packages:\n  - import: shared/tools.yaml\n",
@@ -138,6 +140,7 @@ func TestImports_CycleIsReported(t *testing.T) {
 // The same shared file reached from two branches is not a cycle, and must not be
 // reported as one.
 func TestImports_DiamondIsNotACycle(t *testing.T) {
+	useTestProvider(t)
 	root := writeFiles(t, map[string]string{
 		"top.yaml":   "packages:\n  - import: left.yaml\n  - import: right.yaml\n",
 		"left.yaml":  "packages:\n  - import: base.yaml\n",
