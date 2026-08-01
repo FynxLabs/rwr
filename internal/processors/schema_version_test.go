@@ -3,6 +3,7 @@ package processors
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -26,6 +27,42 @@ func newTestOSInfo() *types.OSInfo {
 		"pacman": osInfo.PackageManager.Default,
 	}
 	return osInfo
+}
+
+// useTestProvider installs a provider named "pacman" whose binary is one every
+// platform has, so these tests assert how rwr builds a command rather than
+// asserting what the runner happens to have installed.
+//
+// Without it the tests pass on a machine with pacman and fail on one without —
+// which is exactly what happened: green on an Arch workstation, red on CI's
+// Ubuntu runner.
+func useTestProvider(t *testing.T) {
+	t.Helper()
+
+	bin := "sh"
+	if runtime.GOOS == types.OSWindows {
+		bin = "cmd"
+	}
+
+	restore := system.SetProvidersForTest(map[string]*types.Provider{
+		"pacman": {
+			Name:     "pacman",
+			Elevated: true,
+			Detection: types.DetectionConfig{
+				Binary:        bin,
+				Distributions: []string{types.OSLinux, types.OSDarwin, types.OSWindows},
+			},
+			Commands: types.CommandConfig{
+				Install: "-Sy --noconfirm",
+				Remove:  "-Rns --noconfirm",
+				Update:  "-Syu --noconfirm",
+				Clean:   "-Sc --noconfirm",
+				List:    "-Q",
+				Search:  "-Ss",
+			},
+		},
+	})
+	t.Cleanup(restore)
 }
 
 // unsupportedVersionCases covers every blueprint type a processor decodes. Each
@@ -106,6 +143,7 @@ func TestProcessors_RefuseUnsupportedSchemaVersion(t *testing.T) {
 // A supported version must still work, or the check above passes for the wrong
 // reason.
 func TestProcessors_AcceptSupportedSchemaVersion(t *testing.T) {
+	useTestProvider(t)
 	rec := exectest.New()
 	defer system.SetExecutor(rec)()
 
@@ -124,6 +162,7 @@ func TestProcessors_AcceptSupportedSchemaVersion(t *testing.T) {
 // No declaration resolves to the latest supported version, so an undeclared
 // blueprint keeps working without boilerplate.
 func TestProcessors_UndeclaredVersionIsAccepted(t *testing.T) {
+	useTestProvider(t)
 	rec := exectest.New()
 	defer system.SetExecutor(rec)()
 
@@ -162,6 +201,7 @@ func TestProcessors_TreeVersionApplies(t *testing.T) {
 // A file's own declaration overrides the tree's. This is what makes a
 // single-resource migration possible, so it has to hold in both directions.
 func TestProcessors_FileVersionOverridesTree(t *testing.T) {
+	useTestProvider(t)
 	rec := exectest.New()
 	defer system.SetExecutor(rec)()
 
