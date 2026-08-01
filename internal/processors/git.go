@@ -3,7 +3,6 @@ package processors
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -127,48 +126,14 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 // 	return nil
 // }
 
-func processGitImports(repos []types.Git, blueprintDir string, format string, treeVersion int) ([]types.Git, error) {
-	allRepos := make([]types.Git, 0)
-	visited := make(map[string]bool)
-
-	for _, repo := range repos {
-		if repo.Import != "" {
-			log.Debugf("Processing git import: %s", repo.Import)
-
-			importPath := filepath.Join(blueprintDir, repo.Import)
-			absPath, err := filepath.Abs(importPath)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+func processGitImports(items []types.Git, blueprintDir string, format string, treeVersion int) ([]types.Git, error) {
+	return helpers.ResolveImports(items, blueprintDir,
+		func(item types.Git) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.Git, error) {
+			var d types.GitData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypeGit, treeVersion, &d); err != nil {
+				return nil, err
 			}
-
-			if visited[absPath] {
-				log.Warnf("Circular import detected, skipping: %s", absPath)
-				continue
-			}
-			visited[absPath] = true
-
-			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-			if err != nil {
-				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
-			}
-
-			fileFormat := format
-			if fileFormat == "" {
-				ext := filepath.Ext(importPath)
-				fileFormat = ext
-			}
-
-			var importedGitData types.GitData
-			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeGit, treeVersion, &importedGitData); err != nil {
-				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
-			}
-
-			allRepos = append(allRepos, importedGitData.Repos...)
-			log.Debugf("Imported %d git repos from %s", len(importedGitData.Repos), repo.Import)
-		} else {
-			allRepos = append(allRepos, repo)
-		}
-	}
-
-	return allRepos, nil
+			return d.Repos, nil
+		}, format)
 }

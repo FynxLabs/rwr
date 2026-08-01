@@ -81,7 +81,7 @@ func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
 			return nil
 		}
 
-		resolved, err := helpers.ResolveTemplate(data, initConfig.Variables)
+		resolved, err := helpers.ResolveTemplateForValidation(data, initConfig.Variables)
 		if err != nil {
 			log.Warnf("Could not resolve variables in %s: %v", path, err)
 			return nil

@@ -532,48 +532,14 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	}
 }
 
-func processSSHKeyImports(sshKeys []types.SSHKey, blueprintDir string, format string, treeVersion int) ([]types.SSHKey, error) {
-	allSSHKeys := make([]types.SSHKey, 0)
-	visited := make(map[string]bool)
-
-	for _, key := range sshKeys {
-		if key.Import != "" {
-			log.Debugf("Processing SSH key import: %s", key.Import)
-
-			importPath := filepath.Join(blueprintDir, key.Import)
-			absPath, err := filepath.Abs(importPath)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+func processSSHKeyImports(items []types.SSHKey, blueprintDir string, format string, treeVersion int) ([]types.SSHKey, error) {
+	return helpers.ResolveImports(items, blueprintDir,
+		func(item types.SSHKey) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.SSHKey, error) {
+			var d types.SSHKeyData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypeSSHKeys, treeVersion, &d); err != nil {
+				return nil, err
 			}
-
-			if visited[absPath] {
-				log.Warnf("Circular import detected, skipping: %s", absPath)
-				continue
-			}
-			visited[absPath] = true
-
-			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-			if err != nil {
-				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
-			}
-
-			fileFormat := format
-			if fileFormat == "" {
-				ext := filepath.Ext(importPath)
-				fileFormat = ext
-			}
-
-			var importedSSHKeyData types.SSHKeyData
-			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeSSHKeys, treeVersion, &importedSSHKeyData); err != nil {
-				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
-			}
-
-			allSSHKeys = append(allSSHKeys, importedSSHKeyData.SSHKeys...)
-			log.Debugf("Imported %d SSH keys from %s", len(importedSSHKeyData.SSHKeys), key.Import)
-		} else {
-			allSSHKeys = append(allSSHKeys, key)
-		}
-	}
-
-	return allSSHKeys, nil
+			return d.SSHKeys, nil
+		}, format)
 }

@@ -249,9 +249,9 @@ func TestProcessFiles_TemplateProcessing(t *testing.T) {
 	// Create template file
 	templateFile := filepath.Join(templatesDir, "config.txt")
 	templateContent := `
-Username: {{ .User.Username }}
-Home: {{ .User.Home }}
-Debug: {{ .Flags.Debug }}
+Username: {{ .User.username }}
+Home: {{ .User.home }}
+Debug: {{ .Flags.debug }}
 `
 	if err := os.WriteFile(templateFile, []byte(templateContent), 0644); err != nil {
 		t.Fatalf("Failed to create template file: %v", err)

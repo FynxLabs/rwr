@@ -204,13 +204,67 @@ SHALL stop when a blueprint that does exist fails to process.
 - **WHEN** the init file's order names a file that is no longer present
 - **THEN** RWR warns and processes the remaining blueprints
 
-## Known Gaps
+### Requirement: A missing template variable stops the run
 
-- **Missing template keys render as `<no value>`.** Template resolution parses with
-  `missingkey=error` but executes with `missingkey=invalid`, so an unresolved
-  variable produces `<no value>` in the output instead of an error. The examples
-  check detects this in CI; a run against an operator's own tree does not.
-- **The import resolver is duplicated per blueprint type.** Each processor carries
-  its own copy, none of which recurses, while the tested recursive resolver in
-  `helpers` has no callers. Nested import chains therefore resolve only one level
-  deep, and the cycle detection in the per-processor copies is unreachable.
+RWR SHALL report an error when a blueprint references a variable that does not
+exist, and SHALL NOT render a placeholder and continue.
+
+An unresolved reference otherwise becomes a file path, a package name, or a service
+name. Writing to `<no value>/.vimrc` is worse than refusing.
+
+`rwr validate` SHALL be lenient about user-defined variables only, because it
+cannot know which `RWR_*` variables the operator will export at run time. Every
+other namespace SHALL be strict in both.
+
+#### Scenario: A misspelled variable
+
+- **WHEN** a blueprint declares `target: "{{ .User.Home }}/.vimrc"` and the key is
+  `home`
+- **THEN** the run stops and the error names the missing key
+
+#### Scenario: Validating a tree that uses operator variables
+
+- **WHEN** `rwr validate` runs on a tree referencing `{{ .UserDefined.company }}`
+  and no such variable is exported
+- **THEN** validation reports no error
+
+#### Scenario: Running that same tree
+
+- **WHEN** `rwr all` runs on it and no such variable is exported
+- **THEN** the run stops rather than writing an empty value
+
+### Requirement: Imports resolve through the whole chain
+
+RWR SHALL follow imports that an imported file itself declares, to any depth.
+
+An import path SHALL resolve relative to the file that declares it, so a chain can
+walk into subdirectories.
+
+RWR SHALL report a circular import rather than looping or silently applying part of
+the graph. The same shared file reached from two different branches SHALL NOT be
+treated as a cycle.
+
+RWR SHALL report a missing import file.
+
+RWR SHALL enforce the schema version of every file in the chain.
+
+#### Scenario: A three-file chain
+
+- **WHEN** A imports B and B imports C, each declaring one package
+- **THEN** all three packages are installed
+
+#### Scenario: A shared base reached twice
+
+- **WHEN** two files both import the same base file
+- **THEN** the base applies and no cycle is reported
+
+#### Scenario: A genuine cycle
+
+- **WHEN** A imports B and B imports A
+- **THEN** the run stops with an error naming the circular import
+
+#### Scenario: A newer schema two levels down
+
+- **WHEN** a file three levels into an import chain declares an unsupported
+  `schema_version`
+- **THEN** the run stops and no command is issued

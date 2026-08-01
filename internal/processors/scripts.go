@@ -195,48 +195,14 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	return nil
 }
 
-func processScriptImports(scripts []types.Script, blueprintDir string, format string, treeVersion int) ([]types.Script, error) {
-	allScripts := make([]types.Script, 0)
-	visited := make(map[string]bool)
-
-	for _, script := range scripts {
-		if script.Import != "" {
-			log.Debugf("Processing script import: %s", script.Import)
-
-			importPath := filepath.Join(blueprintDir, script.Import)
-			absPath, err := filepath.Abs(importPath)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+func processScriptImports(items []types.Script, blueprintDir string, format string, treeVersion int) ([]types.Script, error) {
+	return helpers.ResolveImports(items, blueprintDir,
+		func(item types.Script) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.Script, error) {
+			var d types.ScriptData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypeScripts, treeVersion, &d); err != nil {
+				return nil, err
 			}
-
-			if visited[absPath] {
-				log.Warnf("Circular import detected, skipping: %s", absPath)
-				continue
-			}
-			visited[absPath] = true
-
-			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-			if err != nil {
-				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
-			}
-
-			fileFormat := format
-			if fileFormat == "" {
-				ext := filepath.Ext(importPath)
-				fileFormat = ext
-			}
-
-			var importedScriptData types.ScriptData
-			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeScripts, treeVersion, &importedScriptData); err != nil {
-				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
-			}
-
-			allScripts = append(allScripts, importedScriptData.Scripts...)
-			log.Debugf("Imported %d scripts from %s", len(importedScriptData.Scripts), script.Import)
-		} else {
-			allScripts = append(allScripts, script)
-		}
-	}
-
-	return allScripts, nil
+			return d.Scripts, nil
+		}, format)
 }

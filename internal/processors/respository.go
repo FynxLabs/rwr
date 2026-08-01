@@ -2,8 +2,6 @@ package processors
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"charm.land/log/v2"
@@ -154,48 +152,14 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 	return nil
 }
 
-func processRepositoryImports(repositories []types.Repository, blueprintDir string, format string, treeVersion int) ([]types.Repository, error) {
-	allRepositories := make([]types.Repository, 0)
-	visited := make(map[string]bool)
-
-	for _, repo := range repositories {
-		if repo.Import != "" {
-			log.Debugf("Processing repository import: %s", repo.Import)
-
-			importPath := filepath.Join(blueprintDir, repo.Import)
-			absPath, err := filepath.Abs(importPath)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+func processRepositoryImports(items []types.Repository, blueprintDir string, format string, treeVersion int) ([]types.Repository, error) {
+	return helpers.ResolveImports(items, blueprintDir,
+		func(item types.Repository) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.Repository, error) {
+			var d types.RepositoriesData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypeRepositories, treeVersion, &d); err != nil {
+				return nil, err
 			}
-
-			if visited[absPath] {
-				log.Warnf("Circular import detected, skipping: %s", absPath)
-				continue
-			}
-			visited[absPath] = true
-
-			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-			if err != nil {
-				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
-			}
-
-			fileFormat := format
-			if fileFormat == "" {
-				ext := filepath.Ext(importPath)
-				fileFormat = ext
-			}
-
-			var importedRepoData types.RepositoriesData
-			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeRepositories, treeVersion, &importedRepoData); err != nil {
-				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
-			}
-
-			allRepositories = append(allRepositories, importedRepoData.Repositories...)
-			log.Debugf("Imported %d repositories from %s", len(importedRepoData.Repositories), repo.Import)
-		} else {
-			allRepositories = append(allRepositories, repo)
-		}
-	}
-
-	return allRepositories, nil
+			return d.Repositories, nil
+		}, format)
 }
