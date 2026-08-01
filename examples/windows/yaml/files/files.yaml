@@ -1,61 +1,11 @@
-# Basic configuration files for all Windows systems
 files:
-  - src: C:\Windows\System32\drivers\etc\hosts
-    dest: C:\Windows\System32\drivers\etc\hosts
-    content: |
-      127.0.0.1       localhost
-      ::1             localhost
-    mode: 0644
-
-  - src: C:\ProgramData\chocolatey\config\chocolatey.config
-    dest: C:\ProgramData\chocolatey\config\chocolatey.config
-    content: |
-      <?xml version="1.0" encoding="utf-8"?>
-      <chocolatey>
-        <config>
-          <add key="cacheLocation" value="C:\temp\chocolatey" />
-        </config>
-      </chocolatey>
-    mode: 0644
-
-  # Development configuration for dev profile
-  - src: C:\Users\{{.User.username}}\.gitconfig
-    dest: C:\Users\{{.User.username}}\.gitconfig
-    content: |
-      [user]
-          name = Developer
-          email = dev@example.com
-      [core]
-          autocrlf = true
-          editor = code
-    profiles: [dev]
-    mode: 0644
-
-  # Work configuration for work profile
-  - src: C:\Users\{{.User.username}}\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
-    dest: C:\Users\{{.User.username}}\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
-    content: |
-      Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-      Set-Alias -Name ll -Value Get-ChildItem
-    profiles: [work]
-    mode: 0644
-
-  # Gaming configuration for gaming profile
-  - src: C:\Users\{{.User.username}}\AppData\Local\Steam\config\config.vdf
-    dest: C:\Users\{{.User.username}}\AppData\Local\Steam\config\config.vdf
-    content: |
-      "InstallConfigStore"
-      {
-          "Software"
-          {
-              "valve"
-              {
-                  "Steam"
-                  {
-                      "AutoLaunchGameListOnStart"		"0"
-                  }
-              }
-          }
-      }
-    profiles: [gaming]
-    mode: 0644
+- name: .gitignore
+  action: copy
+  source: ./src/.gitignore
+  target: '{{ .User.home }}'
+  mode: 420
+- name: testFile.txt
+  action: copy
+  source: ./src/.config
+  target: '{{ .User.home }}/.config'
+  mode: 420

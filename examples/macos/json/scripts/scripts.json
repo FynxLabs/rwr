@@ -1,27 +1,25 @@
 {
   "scripts": [
     {
-      "name": "update-system",
-      "content": "#!/bin/bash\nbrew update && brew upgrade\nbrew cleanup\n"
+      "name": "update_homebrew",
+      "action": "run",
+      "content": "#!/bin/bash\nbrew update && brew upgrade\necho \"Homebrew updated successfully\"\n"
     },
     {
-      "name": "setup-developer-tools",
-      "content": "#!/bin/bash\nxcode-select --install\nsudo xcodebuild -license accept\n",
-      "profiles": ["dev"]
+      "name": "setup_dev_environment",
+      "profiles": [
+        "dev"
+      ],
+      "action": "run",
+      "content": "#!/bin/bash\nmkdir -p \"{{ .User.home }}/Projects\"\necho 'alias ll=\"ls -alF\"' >> \"{{ .User.home }}/.zshrc\"\necho \"Development environment setup complete\"\n"
     },
     {
-      "name": "configure-dock",
-      "content": "#!/bin/bash\ndefaults write com.apple.dock autohide -bool true\ndefaults write com.apple.dock tilesize -int 48\nkillall Dock\n",
-      "profiles": ["desktop"]
-    },
-    {
-      "name": "setup-homebrew-permissions",
-      "content": "#!/bin/bash\nsudo chown -R $(whoami) /usr/local/var/homebrew\nsudo chmod u+w /usr/local/var/homebrew\n"
-    },
-    {
-      "name": "configure-git",
-      "content": "#!/bin/bash\ngit config --global init.defaultBranch main\ngit config --global pull.rebase false\n",
-      "profiles": ["dev"]
+      "name": "docker_setup",
+      "profiles": [
+        "docker"
+      ],
+      "action": "run",
+      "content": "#!/bin/bash\nopen /Applications/Docker.app\necho \"Docker Desktop starting...\"\n"
     }
   ]
 }

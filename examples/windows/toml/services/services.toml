@@ -1,45 +1,4 @@
-# Essential services for all Windows systems
-[[services]]
-names = [
-    "Themes",
-    "Windows Update",
-    "Windows Defender Antivirus Service"
+services = [
+    { name = "sshd", action = "enable", elevated = true },
+    { name = "W32Time", action = "start", elevated = true },
 ]
-action = "enable"
-
-# Development services for dev profile
-[[services]]
-names = [
-    "Docker Desktop Service",
-    "Windows Subsystem for Linux"
-]
-profiles = ["dev"]
-action = "enable"
-
-# Work services for work profile
-[[services]]
-names = [
-    "Remote Desktop Services",
-    "Windows Remote Management"
-]
-profiles = ["work"]
-action = "enable"
-
-# Gaming services for gaming profile
-[[services]]
-names = [
-    "Xbox Live Auth Manager",
-    "Xbox Live Game Save"
-]
-profiles = ["gaming"]
-action = "enable"
-
-# Disable unnecessary services on minimal systems
-[[services]]
-names = [
-    "Windows Search",
-    "Print Spooler",
-    "Fax"
-]
-profiles = ["minimal"]
-action = "disable"

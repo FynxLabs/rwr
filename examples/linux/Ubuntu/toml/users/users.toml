@@ -1,37 +1,20 @@
-# Basic user management for all Ubuntu systems
-[[users]]
-username = "sysadmin"
-shell = "/bin/bash"
-groups = ["sudo", "adm"]
-create_home = true
-
-# Development users for dev profile
-[[users]]
-username = "developer"
-shell = "/bin/bash"
-groups = ["sudo", "docker", "www-data"]
-create_home = true
-profiles = ["dev"]
-
-# Server users for server profile
-[[users]]
-username = "webserver"
-shell = "/bin/false"
-groups = ["www-data"]
-create_home = false
-profiles = ["server"]
+groups = [
+    { name = "developers", action = "create" },
+]
 
 [[users]]
-username = "backup"
+name = "builder"
+action = "create"
 shell = "/bin/bash"
-groups = ["backup"]
-create_home = true
-profiles = ["server"]
+home = "/home/builder"
+groups = [
+    "developers",
+]
 
-# Desktop users for desktop profile
 [[users]]
-username = "guest"
-shell = "/bin/bash"
-groups = ["users", "audio", "video"]
-create_home = true
-profiles = ["desktop"]
+name = "deploy"
+action = "create"
+shell = "/usr/sbin/nologin"
+groups = [
+    "developers",
+]

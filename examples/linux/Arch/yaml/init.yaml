@@ -1,28 +1,25 @@
 blueprints:
   format: yaml
-  location: '.'
+  location: .
   order:
-    - bootstrap
-    - repositories
-    - packages
-    - files
-    - services
-    - git
-    - scripts
-    - users
-    - ssh_keys
+  - repositories
+  - packages
+  - files
+  - fonts
+  - services
+  - git
+  - scripts
+  - users
+  - ssh_keys
+  - configuration
 packageManagers:
-  - name: cargo
-    action: install
-  - name: brew
-    action: install
-
-# Values referenced by the profile-gated templates in files/files.yaml.
-# RWR registers no template functions, so there is no `default` filter — a value a
-# template needs has to exist here (or come from an RWR_* environment variable).
+- name: cargo
+  action: install
+- name: brew
+  action: install
 variables:
   userDefined:
-    company: "MyCompany"
-    department: "Engineering"
-    editor_theme: "dracula"
-    editor_plugins: "basic"
+    company: MyCompany
+    department: Engineering
+    editor_theme: dracula
+    editor_plugins: basic

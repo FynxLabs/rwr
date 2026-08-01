@@ -1,45 +1,16 @@
-# Basic configuration files for all Ubuntu systems
 files:
-  - src: /etc/apt/apt.conf.d/99custom
-    dest: /etc/apt/apt.conf.d/99custom
-    content: |
-      APT::Get::Assume-Yes "true";
-      APT::Install-Suggests "false";
-    mode: 0644
-    owner: root
-    group: root
-
-  - src: ~/.bashrc
-    dest: "{{.User.home}}/.bashrc"
-    content: |
-      export EDITOR=vim
-      export PATH=$PATH:~/.local/bin
-      alias ll='ls -la'
-      alias grep='grep --color=auto'
-    mode: 0644
-
-  # Development configuration for dev profile
-  - src: ~/.gitconfig
-    dest: "{{.User.home}}/.gitconfig"
-    content: |
-      [user]
-          name = Developer
-          email = dev@example.com
-      [core]
-          editor = vim
-    profiles: [dev]
-    mode: 0644
-
-  # Server configuration for server profile
-  - src: /etc/nginx/sites-available/default
-    dest: /etc/nginx/sites-available/default
-    content: |
-      server {
-          listen 80 default_server;
-          root /var/www/html;
-          index index.html;
-      }
-    profiles: [server]
-    mode: 0644
-    owner: root
-    group: root
+- name: .profile
+  action: copy
+  source: ./src/.profile
+  target: '{{ .User.home }}'
+  mode: 420
+- name: .gitignore
+  action: copy
+  source: ./src/.gitignore
+  target: '{{ .User.home }}'
+  mode: 420
+- name: testFile.txt
+  action: copy
+  source: ./src/.config
+  target: '{{ .User.home }}/.config'
+  mode: 420

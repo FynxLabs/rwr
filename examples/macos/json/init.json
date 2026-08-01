@@ -3,13 +3,16 @@
     "format": "json",
     "location": ".",
     "order": [
-      "bootstrap",
+      "repositories",
       "packages",
       "files",
+      "fonts",
       "services",
       "git",
       "scripts",
-      "ssh_keys"
+      "users",
+      "ssh_keys",
+      "configuration"
     ]
   },
   "packageManagers": [

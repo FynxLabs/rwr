@@ -1,45 +1,19 @@
 {
   "services": [
     {
-      "names": [
-        "ufw",
-        "ssh",
-        "cron"
-      ],
-      "action": "enable"
+      "name": "ssh",
+      "action": "enable",
+      "elevated": true
     },
     {
-      "names": [
-        "docker",
-        "nginx"
-      ],
-      "profiles": ["dev"],
-      "action": "enable"
+      "name": "docker",
+      "action": "enable",
+      "elevated": true
     },
     {
-      "names": [
-        "apache2",
-        "mysql",
-        "fail2ban"
-      ],
-      "profiles": ["server"],
-      "action": "enable"
-    },
-    {
-      "names": [
-        "bluetooth",
-        "cups"
-      ],
-      "profiles": ["desktop"],
-      "action": "enable"
-    },
-    {
-      "names": [
-        "snapd",
-        "ModemManager"
-      ],
-      "profiles": ["minimal"],
-      "action": "disable"
+      "name": "ufw",
+      "action": "start",
+      "elevated": true
     }
   ]
 }

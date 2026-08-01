@@ -1,0 +1,17 @@
+[[fonts]]
+name = "FiraCode"
+action = "install"
+provider = "nerd"
+location = "user"
+
+[[fonts]]
+name = "JetBrainsMono"
+action = "install"
+provider = "nerd"
+location = "user"
+
+[[fonts]]
+names = ["Hack", "SourceCodePro"]
+action = "install"
+provider = "nerd"
+location = "system"
