@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 )
 
 // AddCommonPaths appends common tool directories (/usr/local/bin, Homebrew, Cargo,

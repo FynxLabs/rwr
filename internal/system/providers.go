@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"sync"
 
+	"charm.land/log/v2"
 	"github.com/BurntSushi/toml"
-	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
