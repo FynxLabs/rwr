@@ -5,7 +5,7 @@ files:
     content: |
       127.0.0.1       localhost
       ::1             localhost
-    mode: "644"
+    mode: 0644
 
   - src: C:\ProgramData\chocolatey\config\chocolatey.config
     dest: C:\ProgramData\chocolatey\config\chocolatey.config
@@ -16,11 +16,11 @@ files:
           <add key="cacheLocation" value="C:\temp\chocolatey" />
         </config>
       </chocolatey>
-    mode: "644"
+    mode: 0644
 
   # Development configuration for dev profile
-  - src: C:\Users\{{.User.Username}}\.gitconfig
-    dest: C:\Users\{{.User.Username}}\.gitconfig
+  - src: C:\Users\{{.User.username}}\.gitconfig
+    dest: C:\Users\{{.User.username}}\.gitconfig
     content: |
       [user]
           name = Developer
@@ -29,20 +29,20 @@ files:
           autocrlf = true
           editor = code
     profiles: [dev]
-    mode: "644"
+    mode: 0644
 
   # Work configuration for work profile
-  - src: C:\Users\{{.User.Username}}\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
-    dest: C:\Users\{{.User.Username}}\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
+  - src: C:\Users\{{.User.username}}\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
+    dest: C:\Users\{{.User.username}}\Documents\PowerShell\Microsoft.PowerShell_profile.ps1
     content: |
       Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
       Set-Alias -Name ll -Value Get-ChildItem
     profiles: [work]
-    mode: "644"
+    mode: 0644
 
   # Gaming configuration for gaming profile
-  - src: C:\Users\{{.User.Username}}\AppData\Local\Steam\config\config.vdf
-    dest: C:\Users\{{.User.Username}}\AppData\Local\Steam\config\config.vdf
+  - src: C:\Users\{{.User.username}}\AppData\Local\Steam\config\config.vdf
+    dest: C:\Users\{{.User.username}}\AppData\Local\Steam\config\config.vdf
     content: |
       "InstallConfigStore"
       {
@@ -58,4 +58,4 @@ files:
           }
       }
     profiles: [gaming]
-    mode: "644"
+    mode: 0644

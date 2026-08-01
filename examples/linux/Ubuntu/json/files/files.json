@@ -4,29 +4,29 @@
       "src": "/etc/apt/apt.conf.d/99custom",
       "dest": "/etc/apt/apt.conf.d/99custom",
       "content": "APT::Get::Assume-Yes \"true\";\nAPT::Install-Suggests \"false\";\n",
-      "mode": "644",
+      "mode": 420,
       "owner": "root",
       "group": "root"
     },
     {
       "src": "~/.bashrc",
-      "dest": "{{.User.Home}}/.bashrc",
+      "dest": "{{.User.home}}/.bashrc",
       "content": "export EDITOR=vim\nexport PATH=$PATH:~/.local/bin\nalias ll='ls -la'\nalias grep='grep --color=auto'\n",
-      "mode": "644"
+      "mode": 420
     },
     {
       "src": "~/.gitconfig",
-      "dest": "{{.User.Home}}/.gitconfig",
+      "dest": "{{.User.home}}/.gitconfig",
       "content": "[user]\n    name = Developer\n    email = dev@example.com\n[core]\n    editor = vim\n",
       "profiles": ["dev"],
-      "mode": "644"
+      "mode": 420
     },
     {
       "src": "/etc/nginx/sites-available/default",
       "dest": "/etc/nginx/sites-available/default",
       "content": "server {\n    listen 80 default_server;\n    root /var/www/html;\n    index index.html;\n}\n",
       "profiles": ["server"],
-      "mode": "644",
+      "mode": 420,
       "owner": "root",
       "group": "root"
     }

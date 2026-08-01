@@ -5,24 +5,24 @@ dest = "/etc/apt/apt.conf.d/99custom"
 content = """APT::Get::Assume-Yes "true";
 APT::Install-Suggests "false";
 """
-mode = "644"
+mode = 0o644
 owner = "root"
 group = "root"
 
 [[files]]
 src = "~/.bashrc"
-dest = "{{.User.Home}}/.bashrc"
+dest = "{{.User.home}}/.bashrc"
 content = """export EDITOR=vim
 export PATH=$PATH:~/.local/bin
 alias ll='ls -la'
 alias grep='grep --color=auto'
 """
-mode = "644"
+mode = 0o644
 
 # Development configuration for dev profile
 [[files]]
 src = "~/.gitconfig"
-dest = "{{.User.Home}}/.gitconfig"
+dest = "{{.User.home}}/.gitconfig"
 content = """[user]
     name = Developer
     email = dev@example.com
@@ -30,7 +30,7 @@ content = """[user]
     editor = vim
 """
 profiles = ["dev"]
-mode = "644"
+mode = 0o644
 
 # Server configuration for server profile
 [[files]]
@@ -43,6 +43,6 @@ content = """server {
 }
 """
 profiles = ["server"]
-mode = "644"
+mode = 0o644
 owner = "root"
 group = "root"

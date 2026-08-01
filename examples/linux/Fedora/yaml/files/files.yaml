@@ -2,7 +2,7 @@ files:
   # Base configuration files
   - name: .bashrc
     action: create
-    target: "{{ .User.Home }}/"
+    target: "{{ .User.home }}/"
     content: |
       # Custom .bashrc content
       alias ll='ls -alF'
@@ -10,7 +10,7 @@ files:
 
   - name: .gitignore
     action: copy
-    target: "{{ .User.Home }}/"
+    target: "{{ .User.home }}/"
     source: "./src/"
 
   # Development configuration
@@ -18,7 +18,7 @@ files:
     profiles:
       - dev
     action: create
-    target: "{{ .User.Home }}/"
+    target: "{{ .User.home }}/"
     content: |
       set number
       set tabstop=4
@@ -29,20 +29,20 @@ directories:
   # Base directories
   - name: Projects
     action: create
-    target: "{{ .User.Home }}/"
-    mode: "0755"
+    target: "{{ .User.home }}/"
+    mode: 0755
 
   # Development directories
   - name: .config/code
     profiles:
       - dev
     action: create
-    target: "{{ .User.Home }}/"
-    mode: "0755"
+    target: "{{ .User.home }}/"
+    mode: 0755
 
 templates:
   # Profile template
   - name: .profile
     action: copy
     source: "./src/"
-    target: "{{ .User.Home }}/"
+    target: "{{ .User.home }}/"

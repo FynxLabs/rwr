@@ -5,22 +5,22 @@ files:
     content: |
       APT::Get::Assume-Yes "true";
       APT::Install-Suggests "false";
-    mode: "644"
+    mode: 0644
     owner: root
     group: root
 
   - src: ~/.bashrc
-    dest: "{{.User.Home}}/.bashrc"
+    dest: "{{.User.home}}/.bashrc"
     content: |
       export EDITOR=vim
       export PATH=$PATH:~/.local/bin
       alias ll='ls -la'
       alias grep='grep --color=auto'
-    mode: "644"
+    mode: 0644
 
   # Development configuration for dev profile
   - src: ~/.gitconfig
-    dest: "{{.User.Home}}/.gitconfig"
+    dest: "{{.User.home}}/.gitconfig"
     content: |
       [user]
           name = Developer
@@ -28,7 +28,7 @@ files:
       [core]
           editor = vim
     profiles: [dev]
-    mode: "644"
+    mode: 0644
 
   # Server configuration for server profile
   - src: /etc/nginx/sites-available/default
@@ -40,6 +40,6 @@ files:
           index index.html;
       }
     profiles: [server]
-    mode: "644"
+    mode: 0644
     owner: root
     group: root

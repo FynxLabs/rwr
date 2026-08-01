@@ -16,3 +16,13 @@ packageManagers:
     action: install
   - name: brew
     action: install
+
+# Values referenced by the profile-gated templates in files/files.yaml.
+# RWR registers no template functions, so there is no `default` filter — a value a
+# template needs has to exist here (or come from an RWR_* environment variable).
+variables:
+  userDefined:
+    company: "MyCompany"
+    department: "Engineering"
+    editor_theme: "dracula"
+    editor_plugins: "basic"

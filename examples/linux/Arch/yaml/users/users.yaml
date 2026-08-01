@@ -1,13 +1,13 @@
 users:
   # Base user modification - always applied (no profiles field)
-  - name: "{{ .User.Username }}"
+  - name: "{{ .User.username }}"
     action: modify
     add_groups:
       - wheel
       - users
 
   # Development profile user modifications
-  - name: "{{ .User.Username }}"
+  - name: "{{ .User.username }}"
     profiles:
       - dev
     action: modify
@@ -17,7 +17,7 @@ users:
       - git
 
   # Work profile user modifications
-  - name: "{{ .User.Username }}"
+  - name: "{{ .User.username }}"
     profiles:
       - work
     action: modify
@@ -27,7 +27,7 @@ users:
       - developers
 
   # Gaming profile user modifications
-  - name: "{{ .User.Username }}"
+  - name: "{{ .User.username }}"
     profiles:
       - gaming
     action: modify

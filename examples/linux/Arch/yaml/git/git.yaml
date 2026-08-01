@@ -3,13 +3,13 @@ git:
   - name: dotfiles
     action: clone
     url: https://github.com/user/dotfiles.git
-    path: "{{ .User.Home }}/.dotfiles"
+    path: "{{ .User.home }}/.dotfiles"
     private: false
 
   - name: configs
     action: clone
     url: https://github.com/user/configs.git
-    path: "{{ .User.Home }}/configs"
+    path: "{{ .User.home }}/configs"
     private: false
 
   # Work profile repositories
@@ -18,7 +18,7 @@ git:
       - work
     action: clone
     url: https://github.com/company/work-configs.git
-    path: "{{ .User.Home }}/work/configs"
+    path: "{{ .User.home }}/work/configs"
     private: true
 
   - name: company-tools
@@ -26,7 +26,7 @@ git:
       - work
     action: clone
     url: https://github.com/company/internal-tools.git
-    path: "{{ .User.Home }}/work/tools"
+    path: "{{ .User.home }}/work/tools"
     private: true
 
   # Development profile repositories
@@ -35,7 +35,7 @@ git:
       - dev
     action: clone
     url: https://github.com/user/awesome-project.git
-    path: "{{ .User.Home }}/projects/awesome-project"
+    path: "{{ .User.home }}/projects/awesome-project"
     private: false
 
   - name: learning-rust
@@ -43,7 +43,7 @@ git:
       - dev
     action: clone
     url: https://github.com/rust-lang/book.git
-    path: "{{ .User.Home }}/projects/rust-book"
+    path: "{{ .User.home }}/projects/rust-book"
     private: false
 
   - name: rwr
@@ -52,7 +52,7 @@ git:
       - work
     action: clone
     url: https://github.com/FynxLabs/rwr.git
-    path: "{{ .User.Home }}/projects/rwr"
+    path: "{{ .User.home }}/projects/rwr"
     private: false
 
   # Gaming profile repositories
@@ -61,7 +61,7 @@ git:
       - gaming
     action: clone
     url: https://github.com/user/gaming-configs.git
-    path: "{{ .User.Home }}/.config/gaming"
+    path: "{{ .User.home }}/.config/gaming"
     private: false
 
   - name: game-mods
@@ -69,7 +69,7 @@ git:
       - gaming
     action: clone
     url: https://github.com/user/game-modifications.git
-    path: "{{ .User.Home }}/Games/mods"
+    path: "{{ .User.home }}/Games/mods"
     private: false
 
   # Personal profile repositories
@@ -78,7 +78,7 @@ git:
       - personal
     action: clone
     url: https://github.com/user/personal-scripts.git
-    path: "{{ .User.Home }}/scripts"
+    path: "{{ .User.home }}/scripts"
     private: true
 
   - name: photo-organizer
@@ -86,7 +86,7 @@ git:
       - personal
     action: clone
     url: https://github.com/user/photo-organizer.git
-    path: "{{ .User.Home }}/tools/photo-organizer"
+    path: "{{ .User.home }}/tools/photo-organizer"
     private: false
 
   # Security profile repositories
@@ -96,7 +96,7 @@ git:
       - work
     action: clone
     url: https://github.com/security/tools.git
-    path: "{{ .User.Home }}/security/tools"
+    path: "{{ .User.home }}/security/tools"
     private: true
 
   # Database profile repositories
@@ -107,5 +107,5 @@ git:
       - dev
     action: clone
     url: https://github.com/company/database-migrations.git
-    path: "{{ .User.Home }}/database/migrations"
+    path: "{{ .User.home }}/database/migrations"
     private: true

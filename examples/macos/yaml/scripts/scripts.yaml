@@ -14,8 +14,8 @@ scripts:
     action: run
     content: |
       #!/bin/bash
-      mkdir -p "{{ .User.Home }}/Projects"
-      echo 'alias ll="ls -alF"' >> "{{ .User.Home }}/.zshrc"
+      mkdir -p "{{ .User.home }}/Projects"
+      echo 'alias ll="ls -alF"' >> "{{ .User.home }}/.zshrc"
       echo "Development environment setup complete"
 
   # Docker setup

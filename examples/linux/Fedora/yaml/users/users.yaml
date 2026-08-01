@@ -1,5 +1,5 @@
 users:
-  - name: {{ .User.username }}
+  - name: "{{ .User.username }}"
     action: modify
     add_groups:
       - docker
