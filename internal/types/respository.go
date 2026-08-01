@@ -16,7 +16,9 @@ type Repository struct {
 }
 
 type RepositoriesData struct {
-	Repositories []Repository `mapstructure:"repositories" yaml:"repositories" json:"repositories" toml:"repositories"`
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	Repositories  []Repository `mapstructure:"repositories" yaml:"repositories" json:"repositories" toml:"repositories"`
 }
 
 // GetProfiles returns the profiles for this repository.

@@ -5,6 +5,7 @@ packageManagers = [
 
 [blueprints]
 format = "toml"
+schema_version = 1
 location = "."
 order = [
     "repositories",

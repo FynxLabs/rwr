@@ -3,6 +3,8 @@ package validate
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -110,12 +112,20 @@ func strictDecode(data []byte, format string, target interface{}) []string {
 		dec := yaml.NewDecoder(bytes.NewReader(data))
 		dec.KnownFields(true)
 		if err := dec.Decode(target); err != nil {
+			// An empty document (a fully commented-out blueprint) decodes to EOF.
+			// That is a legitimate file, not an unknown field.
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
 			return unknownFieldsFromError(err.Error())
 		}
 	case "json":
 		dec := json.NewDecoder(bytes.NewReader(data))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(target); err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
 			return unknownFieldsFromError(err.Error())
 		}
 	case "toml":

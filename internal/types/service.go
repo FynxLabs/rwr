@@ -14,7 +14,9 @@ type Service struct {
 }
 
 type ServiceData struct {
-	Services []Service `mapstructure:"services" yaml:"services" json:"services" toml:"services"`
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	Services      []Service `mapstructure:"services" yaml:"services" json:"services" toml:"services"`
 }
 
 // GetProfiles returns the profiles for this service.
