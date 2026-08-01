@@ -206,8 +206,15 @@ func TestResolveTemplate_InvalidTemplate(t *testing.T) {
 	}
 }
 
-func TestResolveTemplate_MissingVariable(t *testing.T) {
-	// Test with template that references non-existent variable
+// A reference to a variable that does not exist must stop the run.
+//
+// This used to render the literal string "<no value>" and continue, because the
+// template was parsed with missingkey=error and then executed with
+// missingkey=invalid. That string went on to become a file path, a package name or
+// a service name — rwr would write "<no value>/.vimrc" rather than say the
+// variable was missing. Two fixtures in this repository had been rendering
+// "<no value>" for exactly this reason without anybody noticing.
+func TestResolveTemplate_MissingVariableIsAnError(t *testing.T) {
 	templateData := []byte("Hello {{.User.nonExistentField}}")
 
 	variables := types.Variables{
@@ -217,16 +224,42 @@ func TestResolveTemplate_MissingVariable(t *testing.T) {
 	}
 
 	result, err := ResolveTemplate(templateData, variables)
-
-	// Should handle missing variables gracefully with "missingkey=invalid" option
-	if err != nil {
-		t.Fatalf("Expected no error for missing variable (should use invalid option), got: %v", err)
+	if err == nil {
+		t.Fatalf("missing variable was accepted, rendering: %q", string(result))
 	}
+	if !strings.Contains(err.Error(), "nonExistentField") {
+		t.Errorf("error should name the missing key, got: %v", err)
+	}
+}
 
-	resultStr := string(result)
-	// Should contain some indication of invalid/missing value
-	if resultStr == "" {
-		t.Error("Expected some result even with missing variable")
+// The same for a user-defined variable, which is where an operator's own typo
+// lands.
+func TestResolveTemplate_MissingUserDefinedIsAnError(t *testing.T) {
+	templateData := []byte("path: {{ .UserDefined.NOT_SET }}/x")
+
+	_, err := ResolveTemplate(templateData, types.Variables{
+		UserDefined: map[string]interface{}{"SET": "value"},
+	})
+	if err == nil {
+		t.Fatal("missing user-defined variable was accepted")
+	}
+}
+
+// Nothing rwr renders may contain "<no value>".
+func TestResolveTemplate_NeverRendersNoValue(t *testing.T) {
+	templateData := []byte("target: {{ .User.home }}/.vimrc\nowner: {{ .User.username }}\n")
+
+	result, err := ResolveTemplate(templateData, types.Variables{
+		User: types.UserInfo{Home: "/home/tester", Username: "tester"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(result), "<no value>") {
+		t.Errorf("rendered output contains <no value>: %q", string(result))
+	}
+	if !strings.Contains(string(result), "/home/tester/.vimrc") {
+		t.Errorf("variable did not render: %q", string(result))
 	}
 }
 
@@ -448,5 +481,38 @@ Custom3: {{.UserDefined.VAR3}}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ResolveTemplate(templateData, variables)
+	}
+}
+
+// Validation cannot know which RWR_* variables the operator will export at run
+// time, so it renders missing ones as empty rather than reporting a defect the
+// operator has not made. A run is strict, because by then the value really is
+// absent and is about to be written to disk.
+func TestResolveTemplateForValidation_ToleratesMissingKeys(t *testing.T) {
+	templateData := []byte("company: {{ .UserDefined.company }}\nhome: {{ .User.home }}\n")
+
+	result, err := ResolveTemplateForValidation(templateData, types.Variables{
+		User:        types.UserInfo{Home: "/home/tester"},
+		UserDefined: map[string]interface{}{},
+	})
+	if err != nil {
+		t.Fatalf("validation rendering should tolerate a missing key: %v", err)
+	}
+	if strings.Contains(string(result), "<no value>") {
+		t.Errorf("validation rendering produced <no value>: %q", string(result))
+	}
+	if !strings.Contains(string(result), "/home/tester") {
+		t.Errorf("present variable did not render: %q", string(result))
+	}
+}
+
+// The same template must still fail on a run.
+func TestResolveTemplate_StrictWhereValidationIsLenient(t *testing.T) {
+	templateData := []byte("company: {{ .UserDefined.company }}\n")
+
+	if _, err := ResolveTemplate(templateData, types.Variables{
+		UserDefined: map[string]interface{}{},
+	}); err == nil {
+		t.Fatal("a run accepted a missing user-defined variable")
 	}
 }

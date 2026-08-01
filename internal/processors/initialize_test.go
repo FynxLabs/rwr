@@ -196,12 +196,12 @@ func TestInitialize_TemplateVariables(t *testing.T) {
 	// Create init file with template variables
 	initContent := `
 blueprints:
-  location: "{{ .User.Home }}/blueprints"
+  location: "{{ .User.home }}/blueprints"
   format: "yaml"
 
 variables:
-  user_home: "{{ .User.Home }}"
-  username: "{{ .User.Username }}"
+  user_home: "{{ .User.home }}"
+  username: "{{ .User.username }}"
 `
 
 	initFile := filepath.Join(tempDir, "init.yaml")

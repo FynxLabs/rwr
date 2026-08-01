@@ -2,8 +2,6 @@ package processors
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"runtime"
 
 	"charm.land/log/v2"
@@ -345,94 +343,26 @@ func removeUser(user types.User, initConfig *types.InitConfig) error {
 	return nil
 }
 
-func processGroupImports(groups []types.Group, blueprintDir string, format string, treeVersion int) ([]types.Group, error) {
-	allGroups := make([]types.Group, 0)
-	visited := make(map[string]bool)
-
-	for _, group := range groups {
-		if group.Import != "" {
-			log.Debugf("Processing group import: %s", group.Import)
-
-			importPath := filepath.Join(blueprintDir, group.Import)
-			absPath, err := filepath.Abs(importPath)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+func processGroupImports(items []types.Group, blueprintDir string, format string, treeVersion int) ([]types.Group, error) {
+	return helpers.ResolveImports(items, blueprintDir,
+		func(item types.Group) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.Group, error) {
+			var d types.UsersData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypeUsers, treeVersion, &d); err != nil {
+				return nil, err
 			}
-
-			if visited[absPath] {
-				log.Warnf("Circular import detected, skipping: %s", absPath)
-				continue
-			}
-			visited[absPath] = true
-
-			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-			if err != nil {
-				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
-			}
-
-			fileFormat := format
-			if fileFormat == "" {
-				ext := filepath.Ext(importPath)
-				fileFormat = ext
-			}
-
-			var importedUsersData types.UsersData
-			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeUsers, treeVersion, &importedUsersData); err != nil {
-				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
-			}
-
-			allGroups = append(allGroups, importedUsersData.Groups...)
-			log.Debugf("Imported %d groups from %s", len(importedUsersData.Groups), group.Import)
-		} else {
-			allGroups = append(allGroups, group)
-		}
-	}
-
-	return allGroups, nil
+			return d.Groups, nil
+		}, format)
 }
 
-func processUserImports(users []types.User, blueprintDir string, format string, treeVersion int) ([]types.User, error) {
-	allUsers := make([]types.User, 0)
-	visited := make(map[string]bool)
-
-	for _, user := range users {
-		if user.Import != "" {
-			log.Debugf("Processing user import: %s", user.Import)
-
-			importPath := filepath.Join(blueprintDir, user.Import)
-			absPath, err := filepath.Abs(importPath)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+func processUserImports(items []types.User, blueprintDir string, format string, treeVersion int) ([]types.User, error) {
+	return helpers.ResolveImports(items, blueprintDir,
+		func(item types.User) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.User, error) {
+			var d types.UsersData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypeUsers, treeVersion, &d); err != nil {
+				return nil, err
 			}
-
-			if visited[absPath] {
-				log.Warnf("Circular import detected, skipping: %s", absPath)
-				continue
-			}
-			visited[absPath] = true
-
-			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-			if err != nil {
-				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
-			}
-
-			fileFormat := format
-			if fileFormat == "" {
-				ext := filepath.Ext(importPath)
-				fileFormat = ext
-			}
-
-			var importedUsersData types.UsersData
-			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeUsers, treeVersion, &importedUsersData); err != nil {
-				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
-			}
-
-			allUsers = append(allUsers, importedUsersData.Users...)
-			log.Debugf("Imported %d users from %s", len(importedUsersData.Users), user.Import)
-		} else {
-			allUsers = append(allUsers, user)
-		}
-	}
-
-	return allUsers, nil
+			return d.Users, nil
+		}, format)
 }

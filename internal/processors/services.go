@@ -3,7 +3,6 @@ package processors
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/fynxlabs/rwr/internal/system"
@@ -399,48 +398,14 @@ func processWindowsService(service types.Service, osInfo *types.OSInfo, initConf
 	return nil
 }
 
-func processServiceImports(services []types.Service, blueprintDir string, format string, treeVersion int) ([]types.Service, error) {
-	allServices := make([]types.Service, 0)
-	visited := make(map[string]bool)
-
-	for _, svc := range services {
-		if svc.Import != "" {
-			log.Debugf("Processing service import: %s", svc.Import)
-
-			importPath := filepath.Join(blueprintDir, svc.Import)
-			absPath, err := filepath.Abs(importPath)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving import path %s: %w", importPath, err)
+func processServiceImports(items []types.Service, blueprintDir string, format string, treeVersion int) ([]types.Service, error) {
+	return helpers.ResolveImports(items, blueprintDir,
+		func(item types.Service) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.Service, error) {
+			var d types.ServiceData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypeServices, treeVersion, &d); err != nil {
+				return nil, err
 			}
-
-			if visited[absPath] {
-				log.Warnf("Circular import detected, skipping: %s", absPath)
-				continue
-			}
-			visited[absPath] = true
-
-			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-			if err != nil {
-				return nil, fmt.Errorf("error reading import file %s: %w", importPath, err)
-			}
-
-			fileFormat := format
-			if fileFormat == "" {
-				ext := filepath.Ext(importPath)
-				fileFormat = ext
-			}
-
-			var importedServiceData types.ServiceData
-			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeServices, treeVersion, &importedServiceData); err != nil {
-				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
-			}
-
-			allServices = append(allServices, importedServiceData.Services...)
-			log.Debugf("Imported %d services from %s", len(importedServiceData.Services), svc.Import)
-		} else {
-			allServices = append(allServices, svc)
-		}
-	}
-
-	return allServices, nil
+			return d.Services, nil
+		}, format)
 }

@@ -198,7 +198,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	// {{ .User.home }} is not valid YAML until it is rendered — the braces read as a
 	// flow mapping — so validating the raw bytes reports a parse error against a
 	// blueprint that works.
-	blueprintFileData, err = helpers.ResolveTemplate(blueprintFileData, initConfig.Variables)
+	blueprintFileData, err = helpers.ResolveTemplateForValidation(blueprintFileData, initConfig.Variables)
 	if err != nil {
 		return fmt.Errorf("error resolving variables in %s: %w", filepath.Base(blueprintFile), err)
 	}

@@ -2,8 +2,6 @@ package processors
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -42,54 +40,18 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 
 	// Process imports and merge imported packages
 	blueprintDir := initConfig.Init.Location
-	allPackages := make([]types.Package, 0)
-	visited := make(map[string]bool)
-
-	for _, pkg := range packages.Packages {
-		if pkg.Import != "" {
-			// This is an import directive
-			log.Debugf("Processing package import: %s", pkg.Import)
-
-			importPath := filepath.Join(blueprintDir, pkg.Import)
-			absPath, err := filepath.Abs(importPath)
-			if err != nil {
-				return fmt.Errorf("error resolving import path %s: %w", importPath, err)
+	allPackages, err := helpers.ResolveImports(packages.Packages, blueprintDir,
+		func(item types.Package) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.Package, error) {
+			var d types.PackagesData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypePackages,
+				helpers.TreeSchemaVersion(initConfig), &d); err != nil {
+				return nil, err
 			}
-
-			// Check for circular import
-			if visited[absPath] {
-				log.Warnf("Circular import detected, skipping: %s", absPath)
-				continue
-			}
-			visited[absPath] = true
-
-			// Read the import file
-			importData, err := os.ReadFile(importPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-			if err != nil {
-				return fmt.Errorf("error reading import file %s: %w", importPath, err)
-			}
-
-			// Determine format from file extension if not explicitly provided
-			fileFormat := format
-			if fileFormat == "" {
-				ext := filepath.Ext(importPath)
-				fileFormat = ext
-			}
-
-			// Unmarshal the imported package data
-			var importedPkgData types.PackagesData
-			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypePackages,
-				helpers.TreeSchemaVersion(initConfig), &importedPkgData); err != nil {
-				return fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
-			}
-
-			// Add imported packages to our list
-			allPackages = append(allPackages, importedPkgData.Packages...)
-			log.Debugf("Imported %d packages from %s", len(importedPkgData.Packages), pkg.Import)
-		} else {
-			// Regular package entry
-			allPackages = append(allPackages, pkg)
-		}
+			return d.Packages, nil
+		}, format)
+	if err != nil {
+		return fmt.Errorf("error processing package imports: %w", err)
 	}
 
 	// Update packages with merged list
