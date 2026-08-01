@@ -42,16 +42,32 @@ The most specific declaration wins:
 
 1. the blueprint file's own `schema_version`
 2. the init file's `schema_version`
-3. v1
+3. the latest version supported for that blueprint type
 
-## Nothing declared means v1
+## Nothing declared means latest
 
-A blueprint that declares no version is read as v1. Every blueprint written
-before versioning existed is v1, so absence has to mean 1 rather than "unset" —
-otherwise adding versioning would have broken every existing tree.
+A blueprint that declares no version is read as the **latest** version RWR
+supports for that type.
 
-You never have to add `schema_version` to keep working. You add it when you want
-a version that is not v1.
+This keeps the common case free of boilerplate: a blueprint written today gets
+today's schema without having to say so. The version field is what you add when
+you want to be *pinned*, not something you must add to get started.
+
+The trade-off is that an undeclared blueprint follows the schema forward across
+upgrades. If a tree needs to stay on a particular version — because you are not
+ready to migrate, or you want it to behave identically on every machine
+regardless of the RWR version installed — declare it:
+
+```yaml
+blueprints:
+  schema_version: 1
+```
+
+That one line pins the whole tree, and individual files can still opt forward.
+
+Note this is per type: when `packages` gains a v2, an undeclared `packages`
+blueprint is read as v2, while `files` — which did not change — is still read as
+v1.
 
 ## Migrating one resource type
 

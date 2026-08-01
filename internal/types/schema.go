@@ -6,10 +6,9 @@ import (
 	"strings"
 )
 
-// DefaultSchemaVersion is assumed wherever no version is declared.
-//
-// Every blueprint written before versioning existed is v1, so absence has to mean
-// 1 — not "unset" — or introducing versioning would break every existing tree.
+// DefaultSchemaVersion is the version assumed for a blueprint type that has only
+// ever had one. It is not the fallback for an undeclared blueprint — see
+// ResolveSchemaVersion, which falls back to the latest version instead.
 const DefaultSchemaVersion = 1
 
 // supportedSchemaVersions lists the versions each blueprint type can be written
@@ -56,16 +55,38 @@ func (s SchemaVersion) DeclaredVersion() int { return s.SchemaVersion }
 // read as.
 //
 // Precedence is most-specific-wins: the file's own declaration, then the
-// tree-wide version from the init file, then the default. A file is never read as
-// a version older than it declares itself to be.
-func ResolveSchemaVersion(fileDeclared, treeDeclared int) int {
+// tree-wide version from the init file, then the latest version this build
+// supports for that type.
+//
+// Falling back to the latest means a blueprint written today gets today's schema
+// without boilerplate, and the version field is what you add when you want to be
+// pinned rather than something you must add to get started. The consequence is
+// that an undeclared blueprint follows the schema forward across upgrades, so a
+// tree that needs to stay on a particular version has to say so — which is what
+// the declaration is for.
+func ResolveSchemaVersion(fileDeclared, treeDeclared int, blueprintType string) int {
 	if fileDeclared > 0 {
 		return fileDeclared
 	}
 	if treeDeclared > 0 {
 		return treeDeclared
 	}
-	return DefaultSchemaVersion
+	return LatestSchemaVersion(blueprintType)
+}
+
+// LatestSchemaVersion returns the newest version this build can read for a
+// blueprint type, or DefaultSchemaVersion for a type it does not know.
+func LatestSchemaVersion(blueprintType string) int {
+	latest := 0
+	for _, v := range supportedSchemaVersions[blueprintType] {
+		if v > latest {
+			latest = v
+		}
+	}
+	if latest == 0 {
+		return DefaultSchemaVersion
+	}
+	return latest
 }
 
 // ValidateSchemaVersion reports whether this build can read blueprintType at the

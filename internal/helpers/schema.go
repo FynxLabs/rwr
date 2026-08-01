@@ -24,7 +24,7 @@ func DecodeBlueprint(data []byte, format, blueprintType string, treeVersion int)
 		return nil, 0, err
 	}
 
-	version := types.ResolveSchemaVersion(declared, treeVersion)
+	version := types.ResolveSchemaVersion(declared, treeVersion, blueprintType)
 	if err := types.ValidateSchemaVersion(blueprintType, version); err != nil {
 		return nil, version, err
 	}
