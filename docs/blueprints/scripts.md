@@ -12,7 +12,6 @@ The Scripts blueprint follows the same structure as other blueprints in RWR. It 
 scripts:
   # Base script - always runs (no profiles field)
   - name: setup_common
-    description: "Common setup script"
     source: scripts/common_setup.sh
     action: run
     exec: bash
@@ -21,7 +20,6 @@ scripts:
 
   # Development profile script
   - name: dev_environment
-    description: "Setup development environment"
     profiles:
       - dev
     content: |
@@ -34,7 +32,6 @@ scripts:
 
   # Work profile script with custom executor
   - name: work_tools
-    description: "Install work-specific tools"
     profiles:
       - work
     source: scripts/work_setup.py
@@ -50,7 +47,6 @@ scripts:
   "scripts": [
     {
       "name": "setup_common",
-      "description": "Common setup script",
       "source": "scripts/common_setup.sh",
       "action": "run",
       "exec": "bash",
@@ -59,7 +55,6 @@ scripts:
     },
     {
       "name": "dev_environment",
-      "description": "Setup development environment",
       "profiles": ["dev"],
       "content": "#!/bin/bash\necho \"Setting up development environment...\"\nexport NODE_ENV=development",
       "action": "run",
@@ -68,7 +63,6 @@ scripts:
     },
     {
       "name": "work_tools",
-      "description": "Install work-specific tools",
       "profiles": ["work"],
       "source": "scripts/work_setup.py",
       "action": "run",
@@ -85,7 +79,6 @@ scripts:
 # Base script - always runs (no profiles field)
 [[scripts]]
 name = "setup_common"
-description = "Common setup script"
 source = "scripts/common_setup.sh"
 action = "run"
 exec = "bash"
@@ -95,7 +88,6 @@ log = "setup"
 # Development profile script
 [[scripts]]
 name = "dev_environment"
-description = "Setup development environment"
 profiles = ["dev"]
 content = """
 #!/bin/bash
@@ -109,7 +101,6 @@ args = "--verbose"
 # Work profile script with custom executor
 [[scripts]]
 name = "work_tools"
-description = "Install work-specific tools"
 profiles = ["work"]
 source = "scripts/work_setup.py"
 action = "run"
@@ -127,7 +118,7 @@ The Scripts blueprint supports the following fields:
 | `import` | Yes, if `name` is not provided | Path to import script definitions from another file (relative to blueprint directory) |
 | `profiles` | No | List of profiles this script belongs to. If empty, script always runs (base item). |
 | `action` | Yes | The action to perform with the script. Currently, only `run` is supported. |
-| `exec` | No | The script interpreter/executor (e.g., `bash`, `python`, `ruby`, `powershell`, `self`). Auto-detected if not specified. |
+| `exec` | No | The program that runs the script: `bash`, `python`, `ruby`, `perl`, `lua`, `powershell`, or `self`. The default is `bash` on Linux and macOS, and `powershell` on Windows. `self` runs the script file directly |
 | `source` | No | The path to the script file (relative to blueprint directory). |
 | `content` | No | The inline content of the script. |
 | `args` | No | Additional arguments to pass to the script. |
@@ -137,6 +128,35 @@ The Scripts blueprint supports the following fields:
 
 > [!NOTE]
 > Either the `source`, `content`, or `import` field must be provided. If both `source` and `content` are present, `source` takes precedence.
+
+### How RWR runs the arguments
+
+RWR divides the `args` string at each space. It then sends each part to the
+script as one argument. The value `--verbose --out /tmp` becomes three
+arguments.
+
+RWR does not use a shell to run the script. The shell characters keep their
+literal value. These characters have no special function:
+
+| Character | Result |
+|---|---|
+| `$HOME`, `$(command)` | RWR sends the text without a change |
+| `~` | RWR sends the character without a change |
+| `*`, `?` | RWR does not expand the pattern to file names |
+| `&&`, `\|`, `;` | RWR sends the character as part of the argument |
+
+To use a shell function, run a shell as the script. Give the command in the
+script file, or run the shell directly:
+
+```yaml
+scripts:
+  - name: build.sh
+    action: run
+    exec: bash
+    source: ./scripts/
+```
+
+The script file can then use `$HOME`, pipes, and the other shell functions.
 
 ## Blueprint Imports
 
@@ -164,15 +184,21 @@ This allows you to reuse common scripts across multiple configurations.
 
 When the Scripts blueprint is processed, RWR will execute the specified scripts in the order they are defined. The scripts can be provided either as separate files using the `source` field or as inline content using the `content` field.
 
-RWR supports executing scripts written in various languages, such as Bash, Python, Ruby, and more. The appropriate interpreter will be used based on the shebang line (`#!/bin/bash`, `#!/usr/bin/env python`, etc.) or file extension.
+RWR runs scripts in Bash, Python, Ruby, Perl, Lua, and PowerShell. The `exec`
+field gives the program that runs the script.
 
-If the `elevated` field is set to `true`, the script will be executed with elevated privileges (e.g., using `sudo` on Unix-like systems).
+CAUTION: RWR does not read the shebang line and does not read the file
+extension. Give the `exec` field. Without it, RWR uses `bash` on Linux and
+macOS, and `powershell` on Windows.
+
+With `elevated: true`, RWR runs the script as `sudo -- <program> <script>`. With
+the `asUser` field, RWR runs it as `sudo -u <user> -- <program> <script>`.
 
 ## Best Practices
 
 - Keep your scripts concise and focused on specific tasks.
 - Use descriptive names for your scripts to make their purpose clear.
-- Provide a shebang line at the beginning of your scripts to specify the interpreter.
+- Give the `exec` field for each script. RWR does not read the shebang line.
 - Use the `elevated` field sparingly and only when necessary.
 - Consider using variables and templating to make your scripts more dynamic and reusable.
 - Test your scripts thoroughly before including them in your RWR configuration.
@@ -186,4 +212,4 @@ If you encounter issues with the Scripts blueprint, consider the following:
 - Check the RWR logs for any error messages or output related to script execution.
 - Use the `--debug` flag when running RWR to enable verbose output and gather more information.
 
-If you need further assistance, please refer to the [Troubleshooting](../troubleshooting.md) section or reach out to the RWR community for support.
+If you need further assistance, open an issue at [github.com/fynxlabs/rwr/issues](https://github.com/fynxlabs/rwr/issues).

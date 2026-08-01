@@ -98,19 +98,31 @@ blueprints/
 
 ## Blueprint Processing Order
 
-The order in which blueprints are processed is determined by the `blueprints.order` setting in the `init.yaml` file. If not specified, RWR will process blueprints in the following default order:
+The `blueprints.order` setting in the `init.yaml` file gives the order of the
+blueprint types. RWR uses this default order when the init file gives no order:
 
-1. Packages
-2. Repositories
-3. Files
-4. Directories
-5. Services
-6. Configuration
-7. Git
-8. Scripts
-9. Users and Groups
+1. Repositories
+2. Packages
+3. SSH keys
+4. Users and groups
+5. Files
+6. Fonts
+7. Services
+8. Git
+9. Scripts
+10. Configuration
 
-You can customize the processing order by specifying the desired order in the `blueprints.order` setting. For example:
+Two notes about this list:
+
+- Directories are not a blueprint type. The `directories` key is part of a files
+  blueprint, with the `files` and `templates` keys. The files processor reads all
+  three keys.
+- Package managers are not in this list. RWR installs the package managers from
+  the `packageManagers` section of the init file. This happens before the
+  blueprint types in the list.
+
+To use a different order, give the order in the `blueprints.order` setting. For
+example:
 
 ```yaml
 blueprints:

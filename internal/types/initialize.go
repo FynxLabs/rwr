@@ -59,6 +59,10 @@ type InitConfig struct {
 	Directories     []Directory          `mapstructure:"directories,omitempty" yaml:"directories,omitempty" json:"directories,omitempty" toml:"directories,omitempty"`
 	Configuration   []Configuration      `mapstructure:"configuration,omitempty" yaml:"configuration,omitempty" json:"configuration,omitempty" toml:"configuration,omitempty"`
 	Variables       Variables            `mapstructure:",squash"`
+	// ExposeCredentials names the credentials this tree's blueprints are allowed
+	// to read, e.g. ["gh_api_token"]. Empty — the default — means blueprints get
+	// none of them. See docs/credentials.md.
+	ExposeCredentials []string `mapstructure:"exposeCredentials,omitempty" yaml:"exposeCredentials,omitempty" json:"exposeCredentials,omitempty" toml:"exposeCredentials,omitempty"`
 }
 
 func (u UserInfo) ToMap() map[string]interface{} {
@@ -75,13 +79,14 @@ func (u UserInfo) ToMap() map[string]interface{} {
 
 // ToMap exposes the flags to blueprint templates as {{ .Flags.* }}.
 //
-// ghAPIToken and sshKey are deliberately absent. Templates are rendered from
-// blueprint files, which are cloned from git repositories, and the rendered
-// output is written to a path the same blueprint chooses — so exposing the
-// GitHub token or the SSH key here let any blueprint copy them anywhere it
-// liked. Nothing a blueprint legitimately does needs the credential values.
+// ghAPIToken and sshKey are withheld unless the init file opts into them.
+// Templates render from blueprint files cloned out of git repositories, and the
+// result is written to a path the same blueprint chooses, so exposing a
+// credential by default let any blueprint copy it anywhere. A blueprint that
+// genuinely needs one — writing a .netrc, configuring gh — opts in by name; see
+// exposeCredentials in the init file.
 func (f Flags) ToMap() map[string]interface{} {
-	return map[string]interface{}{
+	out := map[string]interface{}{
 		"debug":            f.Debug,
 		"logLevel":         f.LogLevel,
 		"interactive":      f.Interactive,
@@ -92,6 +97,15 @@ func (f Flags) ToMap() map[string]interface{} {
 		"runOnceLocation":  f.RunOnceLocation,
 		"profiles":         f.Profiles,
 	}
+
+	if IsCredentialExposed("gh_api_token") {
+		out["ghAPIToken"] = f.GHAPIToken
+	}
+	if IsCredentialExposed("ssh_private_key") {
+		out["sshKey"] = f.SSHKey
+	}
+
+	return out
 }
 
 // String redacts the credential fields so a Flags value cannot leak them through

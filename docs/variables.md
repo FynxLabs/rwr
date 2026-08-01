@@ -17,7 +17,7 @@ Example `init.yaml` file:
 
 ```yaml
 variables:
-  user_defined:
+  userDefined:
     app_version: 1.0.0
     server_port: 8080
 ```
@@ -40,12 +40,14 @@ RWR provides a set of built-in variables that can be used in your blueprints. Th
 
 | Variable | Description |
 |----------|-------------|
-| `{{ rwr.os }}` | The operating system name (e.g., linux, macos, windows) |
-| `{{ rwr.arch }}` | The system architecture (e.g., amd64, arm64) |
+| `{{ .System.os }}` | The operating system: `linux`, `darwin`, or `windows` |
+| `{{ .System.osFamily }}` | The distribution family, for example `arch` or `debian` |
+| `{{ .System.osVersion }}` | The version of the operating system |
+| `{{ .System.osArch }}` | The architecture: `amd64`, `arm64`, or `riscv64` |
 | `{{ .User.username }}` | The current user's username |
 | `{{ .User.firstName }}` | The current user's First Name |
 | `{{ .User.lastName }}` | The current user's Last Name |
-| `{{ .User.fullName }}` | The current user's home directory |
+| `{{ .User.fullName }}` | The current user's full name |
 | `{{ .User.groupName }}` | The current user's Group Name (Linux/macOS Only) |
 | `{{ .User.home }}` | The current user's home directory |
 | `{{ .User.shell }}` | The current user's shell (e.g.; bash, zsh) |
@@ -54,13 +56,17 @@ RWR provides a set of built-in variables that can be used in your blueprints. Th
 | `{{ .Flags.interactive }}` | Current Interactive Mode setting |
 | `{{ .Flags.forceBootstrap }}` | Current Force Bootstrap setting |
 | `{{ .Flags.skipVersionCheck }}` | Current Skip Version setting |
+| `{{ .Flags.dryRun }}` | Whether dry-run mode is active |
+| `{{ .Flags.profiles }}` | The list of active profiles |
+| `{{ .Flags.configLocation }}` | The path of the configuration directory |
+| `{{ .Flags.runOnceLocation }}` | The path of the run-once directory |
 
 > [!NOTE]
-> `{{ .Flags.ghAPIToken }}` and `{{ .Flags.sshKey }}` are no longer available.
-> Templates are rendered from blueprint files and written to a path the blueprint
-> chooses, so exposing the GitHub token and SSH private key there let any
-> blueprint copy your credentials anywhere. RWR uses them directly for Git and
-> GitHub operations; blueprints never need the values.
+> `{{ .Flags.ghAPIToken }}` and `{{ .Flags.sshKey }}` are withheld unless the init
+> file opts into them, because a template is written to a path the blueprint
+> itself chooses — so exposing a credential by default let any blueprint copy it
+> anywhere. If a blueprint genuinely needs one, name it under
+> `exposeCredentials`; see [credentials](credentials.md).
 
 ## Templating
 
@@ -74,45 +80,64 @@ Example:
 
 ```yaml
 packages:
-  {{if eq rwr.os "linux"}}
+  {{if eq .System.os "linux"}}
   - name: git
     action: install
   {{end}}
 
-  {{if eq rwr.os "macos"}}
+  {{if eq .System.os "darwin"}}
   - name: homebrew
     action: install
   {{end}}
 ```
 
+> [!NOTE]
+> The value for macOS is `darwin`, not `macos`. RWR uses the name that Go gives
+> for the operating system.
+
 ### Looping
 
-You can use the `{{range}}` and `{{end}}` directives to loop over a list of items.
+You can use the `{{range}}` and `{{end}}` directives to read each item in a list.
 
-Example:
+Only the four groups above are in scope. Put your list in `userDefined` in the
+init file, then read it:
 
 ```yaml
+# init.yaml
+variables:
+  userDefined:
+    editors:
+      - vim
+      - neovim
+```
+
+```yaml
+# packages/editors.yaml
 packages:
-  {{range .packages}}
-  - name: {{.name}}
-    version: {{.UserDefined.version}}
-    action: {{.UserDefined.action}}
+  {{range .UserDefined.editors}}
+  - name: {{.}}
+    action: install
   {{end}}
 ```
 
 ### Functions
 
-RWR supports a subset of the Go template functions. Here are some commonly used functions:
+RWR uses the Go template package and adds no functions of its own. These are the
+standard functions:
 
 | Function | Description |
 |----------|-------------|
-| `{{eq arg1 arg2}}` | Returns true if arg1 and arg2 are equal |
-| `{{ne arg1 arg2}}` | Returns true if arg1 and arg2 are not equal |
-| `{{lt arg1 arg2}}` | Returns true if arg1 is less than arg2 |
-| `{{gt arg1 arg2}}` | Returns true if arg1 is greater than arg2 |
-| `{{join list separator}}` | Joins a list of strings with the specified separator |
+| `{{eq arg1 arg2}}` | True when arg1 and arg2 are equal |
+| `{{ne arg1 arg2}}` | True when arg1 and arg2 are different |
+| `{{lt arg1 arg2}}` | True when arg1 is less than arg2 |
+| `{{gt arg1 arg2}}` | True when arg1 is more than arg2 |
 
-For a complete list of supported functions, please refer to the [Go template documentation](https://golang.org/pkg/text/template/).
+CAUTION: RWR registers no additional functions. A template that calls `default`,
+`join`, or another function from a different tool stops the run with
+`function "default" not defined`.
+
+For the full list of standard functions, read the
+[Go template documentation](https://golang.org/pkg/text/template/).
 
 ## Best Practices
 

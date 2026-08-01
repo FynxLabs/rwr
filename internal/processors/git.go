@@ -58,7 +58,7 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 		gitOpts := types.GitOptions{
 			URL:     repo.URL,
 			Private: repo.Private,
-			Target:  repo.Path,
+			Target:  system.ExpandPath(repo.Path),
 			Branch:  repo.Branch,
 		}
 

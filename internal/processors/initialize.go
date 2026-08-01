@@ -126,6 +126,15 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	// Set the blueprints location
 	setBlueprintsLocation(&initConfig, initFilePath)
 
+	// Apply the credential opt-in before anything reads variables or spawns a
+	// command, so the choice is in effect for the whole run.
+	types.SetExposedCredentials(initConfig.ExposeCredentials)
+	if len(initConfig.ExposeCredentials) > 0 {
+		log.Warnf("Blueprints in this tree can read these credentials: %v — "+
+			"they are readable by any script or template the blueprints run",
+			types.ExposedCredentials())
+	}
+
 	// Set user-defined variables and environment variables
 	if err := setUserDefinedAndEnvVariables(&initConfig); err != nil {
 		return nil, fmt.Errorf("error setting variables: %w", err)
@@ -226,8 +235,9 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 	// private key put both in reach of any script a blueprint chooses to run, and
 	// blueprints are cloned from git repositories.
 	for _, key := range viper.AllKeys() {
-		if types.IsSecretConfigKey(key) {
-			log.Debugf("Not exporting %s to the environment: it holds a credential", key)
+		if types.IsSecretConfigKey(key) && !types.IsCredentialExposed(key) {
+			log.Debugf("Not exporting %s to the environment: it holds a credential "+
+				"(add it to exposeCredentials in the init file if a script needs it)", key)
 			continue
 		}
 

@@ -93,12 +93,18 @@ Profiles allow you to organize and selectively install configurations based on d
 
 When working with RWR, keep the following security best practices in mind:
 
-1. Protect sensitive information, such as passwords or API keys, by using variables and storing them securely (e.g., using environment variables or a secure storage system).
+1. RWR withholds your GitHub token and SSH private key from blueprints. Give a
+   credential to a blueprint only when the blueprint needs it, with the
+   `exposeCredentials` key. Read [Credentials](credentials.md) before you use
+   that key.
 
-2. Regularly update your system packages and dependencies to address security vulnerabilities.
+2. RWR removes credential values from the logs. Use the `--show-secrets` flag
+   only when you must see a value, and do not keep that output.
 
-3. Limit access to your RWR configuration files and repositories to authorized users only.
+3. Regularly update your system packages and dependencies to address security vulnerabilities.
 
-4. Use secure communication channels (e.g., HTTPS, SSH) when accessing remote repositories or servers.
+4. Limit access to your RWR configuration files and repositories to authorized users only.
+
+5. Use secure communication channels (e.g., HTTPS, SSH) when accessing remote repositories or servers.
 
 By following these best practices, you can create well-organized, maintainable, and secure configurations with RWR, making it easier to manage your personal machine and test configurations safely before applying them to your local system.
