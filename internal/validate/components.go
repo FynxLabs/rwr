@@ -3,6 +3,7 @@ package validate
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -19,19 +20,22 @@ func ValidatePackages(packages []types.Package, file string, results *types.Vali
 			continue
 		}
 
-		validateRequired(pkg.Name, fmt.Sprintf("packages[%d].name", i), file, results, "Add name field to package")
+		// A package entry names one package with `name` or several with `names`.
+		// Requiring `name` and separately warning on an empty `names` reported two
+		// problems against every correct entry, whichever form it used.
+		if pkg.Name == "" && len(pkg.Names) == 0 {
+			AddIssue(results, types.ValidationError,
+				fmt.Sprintf("Missing required field 'packages[%d].name'", i), file, 0,
+				"Add a name field, or a names list, to the package")
+		}
 
 		validateEnum(pkg.Action, fmt.Sprintf("packages[%d].action", i),
 			[]string{types.ActionInstall, types.ActionRemove, types.ActionUpdate}, file, results)
 
-		if pkg.PackageManager == "" {
-			AddIssue(results, types.ValidationWarning, fmt.Sprintf("No package manager specified for package '%s'", pkg.Name), file, 0, "Add package_manager field to package")
-		} else {
-			validateProviderExists(pkg.PackageManager, "package", pkg.Name, file, results)
-		}
-
-		if len(pkg.Names) == 0 {
-			AddIssue(results, types.ValidationWarning, fmt.Sprintf("No package names specified for package '%s'", pkg.Name), file, 0, "Add names field to package")
+		// package_manager is optional: without one, the package is installed by the
+		// default manager detected for this machine, which is the common case.
+		if pkg.PackageManager != "" {
+			validateProviderExists(pkg.PackageManager, "package", packageLabel(pkg), file, results)
 		}
 	}
 }
@@ -76,10 +80,9 @@ func ValidateFiles(files []types.File, file string, results *types.ValidationRes
 
 		validateRequired(f.Target, fmt.Sprintf("files[%d].target", i), file, results, "Add target field to file")
 
-		validateEnum(f.Action, fmt.Sprintf("files[%d].action", i),
-			[]string{types.FileActionCreate, types.FileActionDelete, types.FileActionAppend, types.FileActionTemplate}, file, results)
+		validateEnum(f.Action, fmt.Sprintf("files[%d].action", i), types.FileActions, file, results)
 
-		if f.Action == types.FileActionCreate || f.Action == types.FileActionAppend || f.Action == types.FileActionTemplate {
+		if f.Action == types.FileActionCreate || f.Action == types.FileActionCopy || f.Action == types.FileActionMove {
 			if f.Content == "" && f.Source == "" {
 				AddIssue(results, types.ValidationWarning, fmt.Sprintf("No content or source specified for file '%s'", f.Target), file, 0, "Add content or source field to file")
 			}
@@ -120,8 +123,14 @@ func ValidateScripts(scripts []types.Script, file string, results *types.Validat
 
 		validateRequired(script.Name, fmt.Sprintf("scripts[%d].name", i), file, results, "Add name field to script")
 
-		if script.Exec == "" && script.Content == "" {
-			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'scripts[%d].exec' or 'scripts[%d].content'", i, i), file, 0, "Add exec or content field to script")
+		// A script comes from a file on disk (source), from inline content, or is a
+		// program named by exec. The processor accepts all three and defaults exec to
+		// the platform shell; validation used to accept only two, so every script
+		// declared with `source` was reported as missing a required field.
+		if script.Exec == "" && script.Content == "" && script.Source == "" {
+			AddIssue(results, types.ValidationError,
+				fmt.Sprintf("Missing required field 'scripts[%d].exec', 'scripts[%d].content' or 'scripts[%d].source'", i, i, i),
+				file, 0, "Add an exec, content, or source field to the script")
 		}
 	}
 }
@@ -187,4 +196,15 @@ func ValidateUsers(users []types.User, file string, results *types.ValidationRes
 		validateEnum(user.Action, fmt.Sprintf("users[%d].action", i),
 			[]string{types.UserActionCreate, types.UserActionModify, types.UserActionDelete}, file, results)
 	}
+}
+
+// packageLabel names a package entry for a message, whichever form it uses.
+func packageLabel(pkg types.Package) string {
+	if pkg.Name != "" {
+		return pkg.Name
+	}
+	if len(pkg.Names) > 0 {
+		return strings.Join(pkg.Names, ", ")
+	}
+	return "(unnamed)"
 }

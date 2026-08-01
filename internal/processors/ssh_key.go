@@ -84,14 +84,15 @@ func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, i
 	log.Debugf("Processing SSH keys from blueprint")
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &sshKeyData)
+	err = helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeSSHKeys,
+		helpers.TreeSchemaVersion(initConfig), &sshKeyData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling SSH key blueprint: %v", err)
 	}
 
 	// Process imports and merge imported SSH keys
 	blueprintDir := initConfig.Init.Location
-	allSSHKeys, err := processSSHKeyImports(sshKeyData.SSHKeys, blueprintDir, format)
+	allSSHKeys, err := processSSHKeyImports(sshKeyData.SSHKeys, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing SSH key imports: %w", err)
 	}
@@ -531,7 +532,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	}
 }
 
-func processSSHKeyImports(sshKeys []types.SSHKey, blueprintDir string, format string) ([]types.SSHKey, error) {
+func processSSHKeyImports(sshKeys []types.SSHKey, blueprintDir string, format string, treeVersion int) ([]types.SSHKey, error) {
 	allSSHKeys := make([]types.SSHKey, 0)
 	visited := make(map[string]bool)
 
@@ -563,7 +564,7 @@ func processSSHKeyImports(sshKeys []types.SSHKey, blueprintDir string, format st
 			}
 
 			var importedSSHKeyData types.SSHKeyData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedSSHKeyData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeSSHKeys, treeVersion, &importedSSHKeyData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 

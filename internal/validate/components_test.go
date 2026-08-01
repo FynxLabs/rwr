@@ -18,8 +18,16 @@ func TestValidatePackages(t *testing.T) {
 			0,
 		},
 		{
-			"missing name",
-			[]types.Package{{Action: "install", PackageManager: "apt", Names: []string{"vim"}}},
+			// `names` alone is a complete entry: it is how the examples declare
+			// several packages at once. This case used to expect an error, which is
+			// what made every multi-package entry in the shipped examples fail.
+			"names without name",
+			[]types.Package{{Action: "install", PackageManager: "apt", Names: []string{"vim", "curl"}}},
+			0,
+		},
+		{
+			"neither name nor names",
+			[]types.Package{{Action: "install", PackageManager: "apt"}},
 			1,
 		},
 		{

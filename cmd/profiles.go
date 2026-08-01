@@ -2,242 +2,56 @@ package cmd
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
-	"github.com/fynxlabs/rwr/internal/helpers"
-
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/processors"
 	"github.com/spf13/cobra"
 )
 
 var profilesCmd = &cobra.Command{
 	Use:   "profiles",
 	Short: "Discover and list available profiles in your configuration",
-	Long: `The profiles command analyzes your configuration files and lists all available profiles.
-This helps you understand what profiles are defined and can be activated using the --profile flag.
+	Long: `The profiles command reads your blueprints and lists every profile they declare.
+This tells you what you can pass to --profile.
 
-Profiles allow you to selectively install packages and configurations based on different contexts
-(work, personal, development, gaming, etc.). Items without profiles are considered "base" items
-and are always included.`,
-	Run: func(cmd *cobra.Command, args []string) {
+Profiles let you select what applies to a machine (work, personal, development,
+gaming, and so on). An entry that declares no profiles is a base item and always
+applies.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if initConfig == nil {
-			log.Error("Configuration not initialized. Please ensure you have a valid init file.")
-			return
+			return fmt.Errorf("configuration not initialized: check that you have a valid init file")
 		}
 
-		// Collect all profiles from all types
-		allProfiles := make(map[string]bool)
-
-		// Get profiles from packages
-		if initConfig.Packages != nil {
-			profiles := helpers.GetUniqueProfiles(initConfig.Packages)
-			for _, profile := range profiles {
-				allProfiles[profile] = true
-			}
+		summary, err := processors.CollectProfiles(initConfig)
+		if err != nil {
+			return fmt.Errorf("error reading profiles: %w", err)
 		}
 
-		// Get profiles from services
-		if initConfig.Services != nil {
-			profiles := helpers.GetUniqueProfiles(initConfig.Services)
-			for _, profile := range profiles {
-				allProfiles[profile] = true
-			}
+		log.Debugf("Inspected %d blueprint file(s) in %s", summary.Files, initConfig.Init.Location)
+
+		if len(summary.Names) == 0 {
+			fmt.Println("No profiles found in your blueprints.")
+			fmt.Printf("All %d item(s) are base items and always apply.\n", summary.BaseItems)
+			return nil
 		}
 
-		// Get profiles from files
-		if initConfig.Files != nil {
-			profiles := helpers.GetUniqueProfiles(initConfig.Files)
-			for _, profile := range profiles {
-				allProfiles[profile] = true
-			}
+		fmt.Printf("Available profiles (%d found):\n\n", len(summary.Names))
+		for _, profile := range summary.Names {
+			fmt.Printf("  • %s (%d items)\n", profile, summary.Counts[profile])
 		}
+		fmt.Printf("\n  base items (always applied): %d\n", summary.BaseItems)
 
-		// Get profiles from templates
-		if initConfig.Templates != nil {
-			profiles := helpers.GetUniqueProfiles(initConfig.Templates)
-			for _, profile := range profiles {
-				allProfiles[profile] = true
-			}
-		}
-
-		// Get profiles from directories
-		if initConfig.Directories != nil {
-			profiles := helpers.GetUniqueProfiles(initConfig.Directories)
-			for _, profile := range profiles {
-				allProfiles[profile] = true
-			}
-		}
-
-		// Get profiles from repositories
-		if initConfig.Repositories != nil {
-			profiles := helpers.GetUniqueProfiles(initConfig.Repositories)
-			for _, profile := range profiles {
-				allProfiles[profile] = true
-			}
-		}
-
-		// Convert map to sorted slice
-		var profilesList []string
-		for profile := range allProfiles {
-			profilesList = append(profilesList, profile)
-		}
-		sort.Strings(profilesList)
-
-		// Display results
-		if len(profilesList) == 0 {
-			fmt.Println("No profiles found in your configuration.")
-			fmt.Println("All items are base items and will always be included.")
-		} else {
-			fmt.Printf("Available profiles (%d found):\n\n", len(profilesList))
-			for _, profile := range profilesList {
-				fmt.Printf("  • %s\n", profile)
-			}
-			fmt.Println()
-			fmt.Println("Usage examples:")
-			fmt.Printf("  rwr run --profile %s\n", profilesList[0])
-			if len(profilesList) > 1 {
-				fmt.Printf("  rwr run --profile %s --profile %s\n", profilesList[0], profilesList[1])
-				fmt.Printf("  rwr run --profile %s\n", strings.Join(profilesList[:2], ","))
-			}
-			fmt.Println("  rwr run --profile all")
-		}
-
-		// Display profile statistics
 		fmt.Println()
-		fmt.Println("Profile Statistics:")
-		fmt.Printf("  Base items (no profiles): %d\n", countBaseItems())
-		for _, profile := range profilesList {
-			count := countProfileItems(profile)
-			fmt.Printf("  %s: %d items\n", profile, count)
+		fmt.Println("Usage examples:")
+		fmt.Printf("  rwr all --profile %s\n", summary.Names[0])
+		if len(summary.Names) > 1 {
+			fmt.Printf("  rwr all --profile %s --profile %s\n", summary.Names[0], summary.Names[1])
+			fmt.Printf("  rwr run packages --profile %s\n", strings.Join(summary.Names[:2], ","))
 		}
+		fmt.Println("  rwr all --profile all")
+		return nil
 	},
-}
-
-func countBaseItems() int {
-	count := 0
-
-	if initConfig.Packages != nil {
-		for _, pkg := range initConfig.Packages {
-			if len(pkg.GetProfiles()) == 0 {
-				count++
-			}
-		}
-	}
-
-	if initConfig.Services != nil {
-		for _, svc := range initConfig.Services {
-			if len(svc.GetProfiles()) == 0 {
-				count++
-			}
-		}
-	}
-
-	if initConfig.Files != nil {
-		for _, file := range initConfig.Files {
-			if len(file.GetProfiles()) == 0 {
-				count++
-			}
-		}
-	}
-
-	if initConfig.Templates != nil {
-		for _, tpl := range initConfig.Templates {
-			if len(tpl.GetProfiles()) == 0 {
-				count++
-			}
-		}
-	}
-
-	if initConfig.Directories != nil {
-		for _, dir := range initConfig.Directories {
-			if len(dir.GetProfiles()) == 0 {
-				count++
-			}
-		}
-	}
-
-	if initConfig.Repositories != nil {
-		for _, repo := range initConfig.Repositories {
-			if len(repo.GetProfiles()) == 0 {
-				count++
-			}
-		}
-	}
-
-	return count
-}
-
-func countProfileItems(targetProfile string) int {
-	count := 0
-
-	if initConfig.Packages != nil {
-		for _, pkg := range initConfig.Packages {
-			for _, profile := range pkg.GetProfiles() {
-				if profile == targetProfile {
-					count++
-					break
-				}
-			}
-		}
-	}
-
-	if initConfig.Services != nil {
-		for _, svc := range initConfig.Services {
-			for _, profile := range svc.GetProfiles() {
-				if profile == targetProfile {
-					count++
-					break
-				}
-			}
-		}
-	}
-
-	if initConfig.Files != nil {
-		for _, file := range initConfig.Files {
-			for _, profile := range file.GetProfiles() {
-				if profile == targetProfile {
-					count++
-					break
-				}
-			}
-		}
-	}
-
-	if initConfig.Templates != nil {
-		for _, tpl := range initConfig.Templates {
-			for _, profile := range tpl.GetProfiles() {
-				if profile == targetProfile {
-					count++
-					break
-				}
-			}
-		}
-	}
-
-	if initConfig.Directories != nil {
-		for _, dir := range initConfig.Directories {
-			for _, profile := range dir.GetProfiles() {
-				if profile == targetProfile {
-					count++
-					break
-				}
-			}
-		}
-	}
-
-	if initConfig.Repositories != nil {
-		for _, repo := range initConfig.Repositories {
-			for _, profile := range repo.GetProfiles() {
-				if profile == targetProfile {
-					count++
-					break
-				}
-			}
-		}
-	}
-
-	return count
 }
 
 func init() {

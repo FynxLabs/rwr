@@ -2,6 +2,7 @@ package validate
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,31 +38,46 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 		return nil
 	}
 
-	// Only validate files in the specified directory
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return fmt.Errorf("error reading directory: %w", err)
-	}
-
-	// Get the init file extension to match other blueprint files
+	// Walk the whole tree, not just the top directory.
+	//
+	// Blueprints are organised by type — packages/, files/, services/ — which is the
+	// layout the documentation recommends and every example uses. Reading only the
+	// top directory meant `rwr validate` on such a tree checked the init file and
+	// nothing else, and reported success. The command an operator runs to find out
+	// whether their configuration is sound was inspecting one file out of dozens.
 	initExt := filepath.Ext(initFile)
 
-	for _, entry := range entries {
+	err = filepath.WalkDir(path, func(filePath string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
 		if entry.IsDir() {
-			continue // Skip subdirectories
-		}
-
-		filePath := filepath.Join(path, entry.Name())
-		if filePath == initFile {
-			continue // Skip init file
-		}
-
-		// Only process files with the same extension as the init file
-		if filepath.Ext(filePath) == initExt {
-			if err := validateBlueprintFile(filePath, initConfig, results); err != nil {
-				AddIssue(results, types.ValidationError, fmt.Sprintf("Error validating blueprint file: %s", err), filePath, 0, "")
+			// Skip version-control and other dot directories: nothing under them is
+			// a blueprint, and .git in particular holds a great many files.
+			if filePath != path && strings.HasPrefix(entry.Name(), ".") {
+				return fs.SkipDir
 			}
+			return nil
 		}
+
+		if filePath == initFile || filepath.Ext(filePath) != initExt {
+			return nil
+		}
+
+		// A nested init file belongs to its own subtree; validating it as a
+		// blueprint reports every one of its keys as unknown.
+		if isInitFileName(entry.Name()) {
+			return nil
+		}
+
+		if err := validateBlueprintFile(filePath, initConfig, results); err != nil {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Error validating blueprint file: %s", err), filePath, 0, "")
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error walking blueprint directory: %w", err)
 	}
 
 	if verbose {
@@ -69,6 +85,12 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 	}
 
 	return nil
+}
+
+// isInitFileName reports whether a filename is an init file for some subtree.
+func isInitFileName(name string) bool {
+	base := strings.TrimSuffix(name, filepath.Ext(name))
+	return base == "init"
 }
 
 // findInitFile searches for an init file in the specified directory (non-recursive).
@@ -101,6 +123,20 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 	if err != nil {
 		AddIssue(results, types.ValidationError, fmt.Sprintf("Error unmarshaling init file: %s", err), initFile, 0, "Check file format and syntax")
 		return nil, nil
+	}
+
+	// Blueprints are rendered as templates before they are read, so validation has
+	// to render them against the same variables a run would.
+	if variables, err := helpers.DefaultVariables(); err != nil {
+		log.Warnf("Could not resolve template variables for validation: %v", err)
+	} else {
+		initConfig.Variables = variables
+	}
+
+	// A tree-wide schema version has to be readable for every blueprint type.
+	if err := types.ValidateTreeSchemaVersion(initConfig.Init.SchemaVersion); err != nil {
+		AddIssue(results, types.ValidationError, err.Error(), initFile, 0,
+			"Declare the version per blueprint file instead, or upgrade rwr")
 	}
 
 	// Validate the Init field
@@ -155,12 +191,16 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		return fmt.Errorf("error reading blueprint file: %w", err)
 	}
 
-	// Resolve template variables if it's a bootstrap file
-	if filepath.Base(blueprintFile) == "bootstrap.yaml" {
-		blueprintFileData, err = helpers.ResolveTemplate(blueprintFileData, initConfig.Variables)
-		if err != nil {
-			return fmt.Errorf("error resolving variables in bootstrap file: %w", err)
-		}
+	// Resolve template variables in every blueprint, as a real run does.
+	//
+	// This used to apply to bootstrap.yaml alone, which was survivable only because
+	// validation never looked past the top directory. A blueprint using
+	// {{ .User.home }} is not valid YAML until it is rendered — the braces read as a
+	// flow mapping — so validating the raw bytes reports a parse error against a
+	// blueprint that works.
+	blueprintFileData, err = helpers.ResolveTemplate(blueprintFileData, initConfig.Variables)
+	if err != nil {
+		return fmt.Errorf("error resolving variables in %s: %w", filepath.Base(blueprintFile), err)
 	}
 
 	// Determine blueprint type from filename or directory name
@@ -194,78 +234,106 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 // blueprintValidator unmarshals and validates a single blueprint type.
 type blueprintValidator func(data []byte, format string, file string, results *types.ValidationResults) error
 
-// blueprintValidators maps blueprint types to their unmarshal+validate functions.
+// blueprintValidators maps blueprint types to their decode+validate functions.
+//
+// Each one decodes into the same Data struct the matching processor uses. They
+// used to decode into a bare slice — []types.Repository for a file whose content
+// is `repositories:` followed by a list — which cannot succeed against any real
+// blueprint. Nothing caught it because validation never looked inside a
+// subdirectory, and blueprints live in subdirectories.
 var blueprintValidators = map[string]blueprintValidator{
 	types.BlueprintTypeBootstrap: func(data []byte, format string, file string, results *types.ValidationResults) error {
 		var d types.BootstrapData
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling bootstrap blueprint: %w", err)
+		if err := decode(data, format, types.BlueprintTypeBootstrap, &d); err != nil {
+			return err
 		}
 		ValidateBootstrap(d, file, results)
 		return nil
 	},
 	types.BlueprintTypePackages: func(data []byte, format string, file string, results *types.ValidationResults) error {
 		var d types.PackagesData
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling packages blueprint: %w", err)
+		if err := decode(data, format, types.BlueprintTypePackages, &d); err != nil {
+			return err
 		}
 		ValidatePackages(d.Packages, file, results)
 		return nil
 	},
 	types.BlueprintTypeRepositories: func(data []byte, format string, file string, results *types.ValidationResults) error {
-		var d []types.Repository
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling repositories blueprint: %w", err)
+		var d types.RepositoriesData
+		if err := decode(data, format, types.BlueprintTypeRepositories, &d); err != nil {
+			return err
 		}
-		ValidateRepositories(d, file, results)
+		ValidateRepositories(d.Repositories, file, results)
 		return nil
 	},
 	types.BlueprintTypeFiles: func(data []byte, format string, file string, results *types.ValidationResults) error {
-		var d []types.File
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling files blueprint: %w", err)
+		var d types.FileData
+		if err := decode(data, format, types.BlueprintTypeFiles, &d); err != nil {
+			return err
 		}
-		ValidateFiles(d, file, results)
+		// A files blueprint carries files, templates and directories together; the
+		// files processor reads all three, so validation has to as well.
+		ValidateFiles(append(append([]types.File{}, d.Files...), d.Templates...), file, results)
 		return nil
 	},
 	types.BlueprintTypeGit: func(data []byte, format string, file string, results *types.ValidationResults) error {
-		var d []types.Git
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling git repositories blueprint: %w", err)
+		var d types.GitData
+		if err := decode(data, format, types.BlueprintTypeGit, &d); err != nil {
+			return err
 		}
-		ValidateGitRepositories(d, file, results)
+		ValidateGitRepositories(d.Repos, file, results)
 		return nil
 	},
 	types.BlueprintTypeScripts: func(data []byte, format string, file string, results *types.ValidationResults) error {
-		var d []types.Script
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling scripts blueprint: %w", err)
+		var d types.ScriptData
+		if err := decode(data, format, types.BlueprintTypeScripts, &d); err != nil {
+			return err
 		}
-		ValidateScripts(d, file, results)
+		ValidateScripts(d.Scripts, file, results)
 		return nil
 	},
 	types.BlueprintTypeServices: func(data []byte, format string, file string, results *types.ValidationResults) error {
-		var d []types.Service
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling services blueprint: %w", err)
+		var d types.ServiceData
+		if err := decode(data, format, types.BlueprintTypeServices, &d); err != nil {
+			return err
 		}
-		ValidateServices(d, file, results)
+		ValidateServices(d.Services, file, results)
 		return nil
 	},
 	types.BlueprintTypeSSHKeys: func(data []byte, format string, file string, results *types.ValidationResults) error {
-		var d []types.SSHKey
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling ssh keys blueprint: %w", err)
+		var d types.SSHKeyData
+		if err := decode(data, format, types.BlueprintTypeSSHKeys, &d); err != nil {
+			return err
 		}
-		ValidateSSHKeys(d, file, results)
+		ValidateSSHKeys(d.SSHKeys, file, results)
 		return nil
 	},
 	types.BlueprintTypeUsers: func(data []byte, format string, file string, results *types.ValidationResults) error {
 		var d types.UsersData
-		if err := helpers.UnmarshalBlueprint(data, format, &d); err != nil {
-			return fmt.Errorf("error unmarshaling users blueprint: %w", err)
+		if err := decode(data, format, types.BlueprintTypeUsers, &d); err != nil {
+			return err
 		}
 		ValidateUsers(d.Users, file, results)
 		return nil
 	},
+	// fonts and configuration were absent, so every fonts and configuration
+	// blueprint was reported as an unsupported type. They decode like the rest;
+	// the schema check alone is worth running against them.
+	types.BlueprintTypeFonts: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d types.FontsData
+		return decode(data, format, types.BlueprintTypeFonts, &d)
+	},
+	types.BlueprintTypeConfiguration: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d types.ConfigData
+		return decode(data, format, types.BlueprintTypeConfiguration, &d)
+	},
+}
+
+// decode reads a blueprint the way a run does, so validation enforces the same
+// schema version the processors do.
+func decode[T any](data []byte, format, blueprintType string, out *T) error {
+	if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, out); err != nil {
+		return fmt.Errorf("error unmarshaling %s blueprint: %w", blueprintType, err)
+	}
+	return nil
 }

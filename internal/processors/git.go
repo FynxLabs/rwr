@@ -20,14 +20,15 @@ func ProcessGitRepositories(blueprintData []byte, format string, initConfig *typ
 	log.Debugf("Processing Git repositories from blueprint")
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &gitData)
+	err = helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeGit,
+		helpers.TreeSchemaVersion(initConfig), &gitData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling Git repository blueprint: %w", err)
 	}
 
 	// Process imports and merge imported git repos
 	blueprintDir := initConfig.Init.Location
-	allRepos, err := processGitImports(gitData.Repos, blueprintDir, format)
+	allRepos, err := processGitImports(gitData.Repos, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing git imports: %w", err)
 	}
@@ -126,7 +127,7 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 // 	return nil
 // }
 
-func processGitImports(repos []types.Git, blueprintDir string, format string) ([]types.Git, error) {
+func processGitImports(repos []types.Git, blueprintDir string, format string, treeVersion int) ([]types.Git, error) {
 	allRepos := make([]types.Git, 0)
 	visited := make(map[string]bool)
 
@@ -158,7 +159,7 @@ func processGitImports(repos []types.Git, blueprintDir string, format string) ([
 			}
 
 			var importedGitData types.GitData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedGitData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeGit, treeVersion, &importedGitData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 

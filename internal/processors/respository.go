@@ -21,14 +21,15 @@ func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSIn
 	log.Debugf("Processing repositories from blueprint")
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &repositoriesBlueprint)
+	err = helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeRepositories,
+		helpers.TreeSchemaVersion(initConfig), &repositoriesBlueprint)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling repository blueprint: %w", err)
 	}
 
 	// Process imports and merge imported repositories
 	blueprintDir := initConfig.Init.Location
-	allRepositories, err := processRepositoryImports(repositoriesBlueprint.Repositories, blueprintDir, format)
+	allRepositories, err := processRepositoryImports(repositoriesBlueprint.Repositories, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing repository imports: %w", err)
 	}
@@ -153,7 +154,7 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 	return nil
 }
 
-func processRepositoryImports(repositories []types.Repository, blueprintDir string, format string) ([]types.Repository, error) {
+func processRepositoryImports(repositories []types.Repository, blueprintDir string, format string, treeVersion int) ([]types.Repository, error) {
 	allRepositories := make([]types.Repository, 0)
 	visited := make(map[string]bool)
 
@@ -185,7 +186,7 @@ func processRepositoryImports(repositories []types.Repository, blueprintDir stri
 			}
 
 			var importedRepoData types.RepositoriesData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedRepoData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeRepositories, treeVersion, &importedRepoData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 

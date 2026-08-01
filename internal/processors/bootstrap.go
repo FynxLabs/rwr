@@ -47,7 +47,8 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Unmarshal the blueprint data
 	log.Debugf("Unmarshaling bootstrap data from %s", blueprintFile)
-	err = helpers.UnmarshalBlueprint(blueprintData, filepath.Ext(blueprintFile), &bootstrapData)
+	err = helpers.DecodeBlueprintInto(blueprintData, filepath.Ext(blueprintFile),
+		types.BlueprintTypeBootstrap, helpers.TreeSchemaVersion(initConfig), &bootstrapData)
 	if err != nil {
 		log.Errorf("Error unmarshaling bootstrap blueprint: %v", err)
 		return err

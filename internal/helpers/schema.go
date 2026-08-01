@@ -42,6 +42,41 @@ func DecodeBlueprint(data []byte, format, blueprintType string, treeVersion int)
 	return variant.Canonical(), version, nil
 }
 
+// DecodeBlueprintInto is DecodeBlueprint with the canonical result written into a
+// typed target, which is what the processors actually want.
+//
+// This is the function processors call. DecodeBlueprint returning interface{} is
+// why nothing called it: every processor decodes into a concrete struct, and
+// nobody was going to write a type assertion at each of twenty call sites. The
+// result was that the whole versioning path — resolution, validation, the variant
+// registry — sat behind a function with no callers, so a blueprint declaring an
+// unsupported schema_version was read as the current schema and applied to the
+// machine instead of being refused.
+func DecodeBlueprintInto[T any](data []byte, format, blueprintType string, treeVersion int, out *T) error {
+	canonical, _, err := DecodeBlueprint(data, format, blueprintType, treeVersion)
+	if err != nil {
+		return err
+	}
+
+	typed, ok := canonical.(*T)
+	if !ok {
+		return fmt.Errorf("internal: %s schema variant produced %T, expected %T",
+			blueprintType, canonical, out)
+	}
+
+	*out = *typed
+	return nil
+}
+
+// TreeSchemaVersion returns the tree-wide schema version an init file declares, or
+// 0 when there is no init config to ask.
+func TreeSchemaVersion(initConfig *types.InitConfig) int {
+	if initConfig == nil {
+		return 0
+	}
+	return initConfig.Init.SchemaVersion
+}
+
 // declaredSchemaVersion reads just the schema_version key, ignoring everything
 // else, so a file written in a version this build cannot read still reports which
 // version it wanted.

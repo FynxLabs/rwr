@@ -20,7 +20,8 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 	var err error
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &scriptData)
+	err = helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeScripts,
+		helpers.TreeSchemaVersion(initConfig), &scriptData)
 	if err != nil {
 		log.Errorf("Error unmarshaling scripts blueprint: %v", err)
 		return fmt.Errorf("error unmarshaling scripts blueprint: %w", err)
@@ -29,7 +30,7 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 	log.Debugf("Unmarshaled scripts: %+v", scriptData.Scripts)
 
 	// Process imports and merge imported scripts
-	allScripts, err := processScriptImports(scriptData.Scripts, blueprintDir, format)
+	allScripts, err := processScriptImports(scriptData.Scripts, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing script imports: %w", err)
 	}
@@ -194,7 +195,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	return nil
 }
 
-func processScriptImports(scripts []types.Script, blueprintDir string, format string) ([]types.Script, error) {
+func processScriptImports(scripts []types.Script, blueprintDir string, format string, treeVersion int) ([]types.Script, error) {
 	allScripts := make([]types.Script, 0)
 	visited := make(map[string]bool)
 
@@ -226,7 +227,7 @@ func processScriptImports(scripts []types.Script, blueprintDir string, format st
 			}
 
 			var importedScriptData types.ScriptData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedScriptData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeScripts, treeVersion, &importedScriptData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 
