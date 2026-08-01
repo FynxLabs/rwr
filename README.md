@@ -44,10 +44,6 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
   - [Prerequisites](#prerequisites)
   - [Setting Up Development Environment](#setting-up-development-environment)
   - [Development Commands](#development-commands)
-    - [Local Development (No Dagger)](#local-development-no-dagger)
-    - [Unit Testing Commands](#unit-testing-commands)
-    - [Pipeline Testing (Using Dagger)](#pipeline-testing-using-dagger)
-    - [Individual Dagger Functions](#individual-dagger-functions)
   - [CI/CD Pipeline](#cicd-pipeline)
     - [Environment Variables](#environment-variables)
 - [Contributing](#contributing)
@@ -81,56 +77,50 @@ These scripts will download and install the latest version of RWR appropriate fo
 
 ### Packages
 
-RWR packages are available for various platforms and architectures through goreleaser. You can find the pre-built packages on the [releases page](https://github.com/fynxlabs/rwr/releases) of the RWR repository.
+Get the packages from the
+[releases page](https://github.com/fynxlabs/rwr/releases). These formats are
+available:
 
-The following package types are available:
-
-- Binary archives (`.tar.gz`, `.zip`)
+- Archives (`.tar.gz` and `.zip`)
 - Debian packages (`.deb`)
 - RPM packages (`.rpm`)
 - Alpine packages (`.apk`)
 - Arch packages (`.pkg.tar.zst`)
-- Homebrew taps
+- A Homebrew tap
 
-Builds are published for Linux, macOS and Windows on `x86_64`, `arm64` and
-`armv7`, plus Linux on `riscv64`. Arch Linux packages are not built for
-`riscv64`, since Arch has no official port; use the `.tar.gz`, `.deb`, `.rpm` or
-`.apk` there.
+RWR builds for Linux, macOS and Windows on `x86_64` and `arm64`, for Linux on
+`armv7`, and for Linux on `riscv64`.
 
-### Master prereleases
+### Builds of the master branch
 
-Every merge to `master` publishes a prerelease under the
-[`nightly`](https://github.com/fynxlabs/rwr/releases/tag/nightly) tag, so there is
-always an installable build of current `master`.
+Each merge to `master` publishes a prerelease with the tag `nightly`.
 
-> [!WARNING]
-> These are not releases. They are whatever `master` happened to be when they were
-> built — CI has passed, but they are not vetted or version-tagged. Use the
-> [latest release](https://github.com/fynxlabs/rwr/releases/latest) for anything
-> you depend on.
-
-The tag and its artifacts are replaced on every merge, so the download URLs stay
-stable while their contents change. Artifacts are versioned
-`<next-patch>-master-<short-sha>` so a binary you already have can be traced back
-to the commit it came from:
-
-```bash
-rwr version
-```
+WARNING: A `nightly` build is not a release. It is the master branch at the time
+of the build. Use the
+[latest release](https://github.com/fynxlabs/rwr/releases/latest) for a machine
+that you depend on.
 
 ### From Releases
 
-To install RWR, follow these steps:
+To install RWR from a release:
 
-1. Download the latest release of RWR from the [releases page](https://github.com/fynxlabs/rwr/releases).
-2. Extract the downloaded archive to a directory of your choice.
-3. Add the directory to your system's `PATH` environment variable.
+1. Get the archive for your machine from the
+   [releases page](https://github.com/fynxlabs/rwr/releases).
+2. Compare the file against `checksums.txt` from the same release.
+3. Extract the archive.
+4. Add the directory to your `PATH`.
+
+Read [Install](docs/install.md) for the full description.
 
 ## Getting Started
 
-1. **Initialize configuration**: Run [`rwr config init`](docs/cli/configuration.md) to create your configuration file
-2. **Set up blueprints**: Provide a Git repository URL or local path for your blueprints during configuration
-3. **Initialize system**: Run [`rwr all`](docs/cli/command-and-flags.md) to apply your blueprints
+1. **Make the configuration file**: Run
+   [`rwr config --create`](docs/cli/configuration.md). RWR asks for the settings
+   and writes the file.
+2. **Give the blueprints**: Give a git repository URL or a local path when RWR
+   asks for it.
+3. **Set up the system**: Run [`rwr all`](docs/cli/command-and-flags.md). RWR
+   applies the blueprints.
 
 For detailed setup instructions, see the [Quick Start Guide](docs/quick-start.md).
 
@@ -164,10 +154,10 @@ RWR uses an additive profile system where:
 rwr all
 
 # Apply base + dev profile
-rwr all --profiles dev
+rwr all --profile dev
 
 # Apply base + multiple profiles
-rwr all --profiles dev,work
+rwr all --profile dev --profile work
 ```
 
 For detailed information, see the [Profile System documentation](docs/profiles.md).
@@ -188,10 +178,18 @@ packages:
 
 Import features:
 
-- **Relative Paths**: Import paths are resolved relative to the blueprint directory
-- **Circular Detection**: Automatically prevents infinite import loops
-- **All Blueprint Types**: Works with packages, files, services, git, scripts, and more
-- **Profile Support**: Imported items respect profile filtering
+- **All blueprint types**: packages, files, services, git, scripts, and the
+  others
+- **Profile support**: RWR applies the profile filter to the items that it
+  imports
+
+> [!NOTE]
+> An import brings in one file. RWR does not read the imports inside the file
+> that it imports. Put each import in the file that needs it.
+>
+> Most blueprint types resolve an import path against the `location` in the init
+> file. Files, templates, directories and scripts resolve the path against the
+> directory of the blueprint file. Use a path that is correct for the type.
 
 See the [examples/imports/](examples/imports/) directory for detailed examples.
 
@@ -199,17 +197,18 @@ See the [examples/imports/](examples/imports/) directory for detailed examples.
 
 RWR supports these blueprint types:
 
-- **packages** - Package installation/removal via various package managers
-- **repositories** - Package repository management
-- **files** - File operations (copy, move, delete, symlink, templates)
-- **directories** - Directory management with permissions
-- **services** - System service management
-- **configuration** - System configuration settings
-- **git** - Git repository cloning and management
-- **scripts** - Script execution with multiple interpreter support
-- **users** - User account and group management
-- **bootstrap** - Initial system setup tasks
-- **ssh_keys** - SSH key generation and management
+- **packages** — Install and remove packages with a package manager
+- **repositories** — Manage the package repositories
+- **files** — Copy, move, delete, and link files. The `directories` and
+  `templates` keys are part of this type
+- **services** — Manage the system services
+- **configuration** — Set the desktop and system settings
+- **git** — Clone and update git repositories
+- **scripts** — Run scripts with a program that you select
+- **users** — Manage the user accounts and the groups
+- **ssh_keys** — Make SSH keys and send them to GitHub
+- **fonts** — Install fonts
+- **bootstrap** — Prepare the system before the other types run
 
 For detailed blueprint documentation, see the [Blueprint Types](docs/index.md#blueprints) section.
 
@@ -220,6 +219,7 @@ For detailed documentation on how to use RWR, please refer to the `docs/` direct
 ### Documentation Index
 
 - [Documentation Index](docs/index.md)
+- [Install](docs/install.md)
 - [Quick Start Guide](docs/quick-start.md)
 - [What are Blueprints?](docs/blueprints-general.md)
 - [Init File - The Entrypoint](docs/init-file.md)
@@ -254,6 +254,8 @@ For detailed documentation on how to use RWR, please refer to the `docs/` direct
 - [Profile Best Practices](docs/profile-best-practices.md)
 - [Template Variables](docs/variables.md)
 - [Package Manager Providers](docs/providers.md)
+- [Credentials](docs/credentials.md)
+- [Schema versioning](docs/schema-versioning.md)
 
 For more detailed information on each topic, please refer to the corresponding documentation file.
 
@@ -272,142 +274,93 @@ RWR uses [mise](https://mise.jdx.dev/) to manage development tools. Install mise
     cd rwr
     ```
 
-2. Install required tools:
+2. Install the tools:
 
     ```bash
     mise install
     ```
 
-This installs:
-
-- Go (for building and testing)
-- Dagger (for CI/CD pipeline)
-- GoReleaser (for creating releases)
-- gotestsum (for beautiful test output formatting and CI integration)
+    This installs Go, GoReleaser, gotestsum, golangci-lint, and the other tools
+    that the tasks use.
 
 ### Development Commands
 
-RWR provides several commands for different development scenarios:
-
-#### Local Development (No Dagger)
-
-Fast commands that run directly on your machine:
+Build and run:
 
 ```bash
-# Build the binary
-mise run build
-
-# Run tests with beautiful formatting (uses gotestsum)
-mise run test
-
-# Run raw tests without formatting
-mise run test:raw
+mise run build          # Build the binary
+mise run start -- all   # Run rwr locally; put the arguments after --
+mise run install        # Build and copy to ~/.local/bin (Linux and macOS)
 ```
 
-#### Unit Testing Commands
-
-For targeted testing of specific components, all with beautiful gotestsum formatting:
+Test:
 
 ```bash
-# Run all internal package tests (package-level summary)
-mise run test:unit
-
-# Run tests for specific packages (detailed test names)
-mise run test:helpers     # Test helper functions
-mise run test:processors  # Test blueprint processors
-mise run test:system     # Test system utilities
-
-# Run tests with coverage report
-mise run test:coverage
-
-# Watch mode - automatically run tests when files change
-mise run test:watch
+mise run test           # All tests, with gotestsum formatting
+mise run test:unit      # The internal packages only
+mise run test:coverage  # Tests with a coverage report
+mise run test:watch     # Run the tests again at each file change
 ```
 
-For raw test output without formatting, use the `:raw` variants:
+To test one package:
 
 ```bash
-# Raw test commands (no gotestsum formatting)
-mise run test:unit:raw
-mise run test:helpers:raw
-mise run test:processors:raw
-mise run test:system:raw
+mise run test:helpers
+mise run test:processors
+mise run test:system
 ```
 
-> [!NOTE]
-> gotestsum provides superior test output formatting, watch mode for development, and saves test results to `/tmp/gotest.json` for CI integration and analysis.
+Each test task has a `:raw` form that uses `go test` without the gotestsum
+formatting. Examples are `mise run test:raw` and `mise run test:unit:raw`.
 
-#### Pipeline Testing (Using Dagger)
-
-Test the CI pipeline locally using Dagger:
+Check the code:
 
 ```bash
-# Just run tests through Dagger
-mise run dagger:test
-
-# Test full release pipeline without publishing
-# This will:
-# 1. Run tests
-# 2. Build binaries
-# 3. Create archives
-# 4. Skip actual publishing
-mise run dagger:local
-
-# Run full CI pipeline with publishing
-# Requires:
-# - GITHUB_TOKEN for creating releases
-# - HOMEBREW_TAP_DEPLOY_KEY for updating Homebrew tap
-mise run dagger:ci
+mise run lint       # golangci-lint
+mise run security   # govulncheck
+mise run format     # go fmt
 ```
 
-#### Individual Dagger Functions
-
-You can also run individual Dagger functions for specific tasks:
+Run the full check before you push:
 
 ```bash
-# Build binary through Dagger
-mise run dagger:build
+mise run ci         # test, lint, and security together
+```
 
-# Run linting through Dagger
-mise run dagger:lint
+Update the dependencies:
 
-# Test release process locally (without publishing)
-mise run dagger:release
-
-# Get version information
-mise run dagger:version
-
-# Clean Dagger generated files (useful for dependency issues)
-mise run dagger:clean
+```bash
+mise run update     # go get -u ./... and go mod tidy
 ```
 
 ### CI/CD Pipeline
 
-RWR uses Dagger to manage its CI/CD pipeline. The pipeline:
+GitHub Actions runs the pipeline. There are three workflows.
 
-1. On every push and PR:
-   - Runs tests through Dagger
-   - Reports test results
+`Go Build & Test` runs at each pull request:
 
-2. On version tags (v*):
-   - Runs tests
-   - Creates GitHub release with:
-     - Binary archives (.tar.gz, .zip)
-     - Debian packages (.deb)
-     - RPM packages (.rpm)
-   - Updates Homebrew tap
+- The `ci` job builds the code and runs the tests.
+- The `security` job runs gosec and govulncheck.
+- The `examples` job checks each file in `examples/`: the file parses in its
+  format, the template variables exist, the fields match the blueprint structs,
+  and the YAML, JSON and TOML copies give the same result. The job then runs
+  `rwr validate` over each example tree.
 
-The pipeline can be tested locally using the commands above, making it easy to verify changes before pushing.
+`RWR - Master Prerelease` runs at each merge to `master`. It builds the branch
+and publishes the files under the `nightly` tag. Read [Install](docs/install.md)
+for more information.
+
+`RWR - Release` runs at each version tag. It builds the binaries and the
+packages, creates the GitHub release, and updates the Homebrew tap.
 
 #### Environment Variables
 
-For publishing releases:
+The release workflow needs these secrets:
 
-- `GITHUB_TOKEN`: GitHub token with permissions to:
-  - Create releases
-  - Upload release assets
-  - Update repository contents
-- `HOMEBREW_TAP_DEPLOY_KEY`: SSH key with access to update the Homebrew tap repository
+- `GITHUB_TOKEN` — creates the release and sends the files to it.
+- `HOMEBREW_TAP_DEPLOY_KEY` — an SSH key that can write to the Homebrew tap
+  repository.
+- `NAUR_DISPATCH_TOKEN` — starts the update of the naur repository.
 
 ## Contributing
 
