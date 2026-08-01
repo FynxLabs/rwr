@@ -23,9 +23,13 @@ The validation process includes:
 |------|-------------|
 | `--blueprints` | Validate only blueprint files |
 | `--providers` | Validate only provider configurations |
-| `--all` | Validate everything (default) |
-| `--path string` | Path to validate (default current directory) |
 | `--verbose` | Show detailed validation information |
+
+Give the path as an argument, not as a flag:
+
+```bash
+rwr validate path/to/blueprints
+```
 
 ## Validation Process
 
@@ -101,7 +105,7 @@ rwr validate --providers
 To validate configurations in a specific directory:
 
 ```bash
-rwr validate --path /path/to/configs
+rwr validate /path/to/configs
 ```
 
 ### Verbose Output

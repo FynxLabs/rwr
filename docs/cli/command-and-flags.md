@@ -18,6 +18,10 @@ The following flags are available for all commands:
 | `--dry-run` | Simulate operations without making changes (no-op mode) |
 | `--no-op` | Alias for `--dry-run` |
 | `--interactive`, `-I` | Enable interactive mode (default: true). Use `--interactive=false` to disable |
+| `--gh-key` | Another name for `--gh-api-key` |
+| `--gh-auth` | Get a GitHub token with the OAuth device flow |
+| `--profile`, `-p` | Make a profile active. Use the flag one time for each profile |
+| `--force-bootstrap` | Run the bootstrap process again |
 
 ## Commands
 
@@ -33,21 +37,37 @@ Manage RWR configuration settings.
 
 ### `rwr all`
 
-Initialize the system by running all blueprints.
+Run all blueprints and set up the system.
 
-| Flag | Description |
-|------|-------------|
-| `--force-bootstrap` | Force the bootstrap process to run again |
+`--force-bootstrap` is a global flag. It also applies to this command.
 
 ### `rwr validate`
 
-Validate the RWR blueprints.
+Check the RWR blueprints and the provider configurations.
+
+Give the path as an argument, not as a flag:
+
+```bash
+rwr validate path/to/blueprints
+```
+
+| Flag | Description |
+|------|-------------|
+| `--blueprints` | Check the path as blueprint files |
+| `--providers` | Check the path as provider configurations |
+| `--verbose` | Show more information about each check |
+
+### `rwr profiles`
+
+Show the profiles that the blueprints use.
+
+This command has no flags.
 
 ### `rwr run`
 
 Run individual processors.
 
-#### `rwr run package`
+#### `rwr run packages`
 
 Run the package processor.
 
@@ -78,11 +98,20 @@ Run the scripts processor.
 
 #### `rwr run ssh_keys`
 
-Run the scripts processor.
+Run the SSH key processor. Use `--gh-auth` with this command to get a GitHub
+token first.
 
 #### `rwr run users`
 
 Run the users and groups processor.
+
+#### `rwr run fonts`
+
+Run the fonts processor.
+
+> [!NOTE]
+> There is no `rwr run directories` command. The `directories` key is part of a
+> files blueprint. Use `rwr run files` to process it.
 
 ## Examples
 
@@ -93,7 +122,7 @@ Here are a few examples of using the RWR CLI with different commands and flags:
 rwr all --debug
 
 # Run the package processor with a specific init file
-rwr run package --init-file path/to/init.yaml
+rwr run packages --init-file path/to/init.yaml
 
 # Create the configuration file
 rwr config --create

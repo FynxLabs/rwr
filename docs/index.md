@@ -6,8 +6,10 @@ Welcome to the Rinse, Wash, Repeat (RWR) documentation! This guide aims to provi
 
 RWR is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It simplifies the process of setting up and maintaining your system by using blueprint-based configurations with an advanced profile system for selective installation.
 
-## Quick Start Guide
+## Install and Quick Start
 
+- [Install](install.md): The supported platforms, the install scripts, and the
+  builds of the master branch.
 - [Quick Start Guide](quick-start.md): Get up and running with RWR quickly by following this concise guide.
 
 ## Profile System
@@ -44,7 +46,8 @@ RWR supports various blueprint types for managing different aspects of your syst
 - [Repositories Blueprint](blueprints/repositories.md)
 - [Configuration Blueprint](blueprints/configuration.md)
 - [Files Blueprint](blueprints/files.md)
-- [Directories Blueprint](blueprints/directories.md)
+- [Directories Blueprint](blueprints/directories.md) (a key in a files blueprint,
+  not a separate type)
 - [Services Blueprint](blueprints/services.md)
 - [Users and Groups Blueprint](blueprints/users-and-groups.md)
 - [Git Blueprint](blueprints/git.md)
@@ -55,6 +58,13 @@ RWR supports various blueprint types for managing different aspects of your syst
 ## Variables and Templating
 
 - [Variables and Templating](variables.md): Learn how to use variables and templating in blueprints to make them more dynamic and reusable.
+
+## Credentials and Schema Versions
+
+- [Credentials](credentials.md): How RWR holds your GitHub token and SSH key, and
+  how to give a blueprint access to one.
+- [Schema versioning](schema-versioning.md): How a blueprint gives the schema
+  version that it uses, and how one blueprint type moves to a new version.
 
 ## Best Practices
 

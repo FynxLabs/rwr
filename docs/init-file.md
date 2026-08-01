@@ -22,9 +22,29 @@ The `blueprints` section defines the configuration settings for your blueprints.
 |-------|-------------|----------|
 | `format` | The format of the blueprint files (yaml, json, toml) | Yes |
 | `location` | The directory where the blueprint files are located | No (default: current directory) |
-| `order` | The order of execution for the blueprints | No (default: alphabetical order) |
+| `order` | The order of the blueprint types | No. The default is a fixed order. See [Blueprints General](blueprints-general.md) |
 | `git` | Git repository settings for managing blueprints | No |
 | `runOnlyListed` | Whether to run only the blueprints listed in the `order` field | No (default: false) |
+| `templatesEnabled` | Whether to process template files | No (default: false) |
+| `schema_version` | The blueprint schema version for this tree. See [Schema versioning](schema-versioning.md) | No. The default is the latest version |
+
+> [!IMPORTANT]
+> Do not put `packageManagers` in the `order` field. RWR installs the package
+> managers from the `packageManagers` section before it reads the blueprint
+> types. A `packageManagers` entry in `order` gives an "Unknown processor"
+> warning and does nothing.
+
+### `exposeCredentials`
+
+The `exposeCredentials` section gives the credentials that the blueprints in this
+tree can read. RWR withholds all credentials by default.
+
+```yaml
+exposeCredentials:
+  - gh_api_token
+```
+
+See [Credentials](credentials.md) for the full description.
 
 ### `packageManagers`
 
@@ -149,21 +169,21 @@ For managing GNOME extensions.
 Example configurations for package manager installation:
 
 ```yaml
-package_managers:
+packageManagers:
   - name: brew
     action: install
   - name: nix
     action: install
   - name: cargo
     action: install
-    as_user: johndoe
+    asUser: johndoe
   - name: gnome-extensions
     action: install
 ```
 
 ```json
 {
-  "package_managers": [
+  "packageManagers": [
     {
       "name": "brew",
       "action": "install"
@@ -175,7 +195,7 @@ package_managers:
     {
       "name": "cargo",
       "action": "install",
-      "as_user": "johndoe"
+      "asUser": "johndoe"
     },
     {
       "name": "gnome-extensions",
@@ -186,20 +206,20 @@ package_managers:
 ```
 
 ```toml
-[[package_managers]]
+[[packageManagers]]
 name = "brew"
 action = "install"
 
-[[package_managers]]
+[[packageManagers]]
 name = "nix"
 action = "install"
 
-[[package_managers]]
+[[packageManagers]]
 name = "cargo"
 action = "install"
-as_user = "johndoe"
+asUser = "johndoe"
 
-[[package_managers]]
+[[packageManagers]]
 name = "gnome-extensions"
 action = "install"
 ```

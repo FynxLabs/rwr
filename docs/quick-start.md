@@ -81,7 +81,7 @@ To run your first blueprint, follow these steps:
     rwr all
     ```
 
-    This will install only the base packages (git and curl).
+    RWR installs only the base packages: git, curl, wget, and htop.
 
 3. To install packages for specific profiles, use the `--profile` flag:
 

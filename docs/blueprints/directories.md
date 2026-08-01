@@ -1,10 +1,19 @@
 # Directories Blueprint
 
-The Directories Blueprint in Rinse, Wash, Repeat (RWR) allows you to manage directories on your system. You can create, delete, copy, move, and set permissions and ownership for directories.
+The `directories` key manages the directories on your system. You can create,
+delete, copy, and move a directory. You can also set the permissions and the
+owner of a directory.
+
+> [!IMPORTANT]
+> `directories` is not a blueprint type. It is a key in a **files** blueprint,
+> with the `files` and `templates` keys. Put it in a file under your `files/`
+> directory. The files processor reads all three keys.
+>
+> There is no `rwr run directories` command. Use `rwr run files`.
 
 ## Blueprint Structure
 
-The Directories Blueprint has the following structure:
+The `directories` key has this structure:
 
 ```yaml
 directories:
@@ -13,10 +22,9 @@ directories:
     action: string
     source: string
     target: string
-    owner: int
-    group: int
+    owner: string
+    group: string
     mode: int
-    create: bool
     elevated: bool
 ```
 
@@ -31,10 +39,9 @@ The following settings are available for the Directories Blueprint:
 | `action` | string | The action to perform on the directory (create, delete, copy, move, chmod, chown, chgrp, symlink) |
 | `source` | string | The source directory path (for copy, move, and symlink actions) |
 | `target` | string | The target directory path |
-| `owner` | int | The user ID of the directory owner (for chown action) |
-| `group` | int | The group ID of the directory group (for chgrp action) |
-| `mode` | int | The permissions of the directory in octal notation (for chmod action) |
-| `create` | bool | Whether to create the parent directories if they don't exist (default: false) |
+| `owner` | string | The name of the owner of the directory (for the chown action) |
+| `group` | string | The name of the group of the directory (for the chgrp action) |
+| `mode` | int | The permissions of the directory, in octal. Write `0755`, not `755`. The value `755` is a decimal number and gives the wrong permissions |
 | `elevated` | bool | Whether to perform the action with elevated privileges (default: false) |
 | `interactive` | bool | Override global interactive mode for this directory (`true`/`false`). If omitted, uses the global `--interactive` flag. Controls whether diffs are shown before overwriting existing files during copy operations |
 
@@ -50,7 +57,6 @@ directories:
     action: create
     target: /path/to/mydir
     mode: 0755
-    create: true
     elevated: true
 
   - names:
@@ -59,8 +65,8 @@ directories:
     action: copy
     source: /path/to/source
     target: /path/to/destination
-    owner: 1000
-    group: 1000
+    owner: "levi"
+    group: "levi"
 ```
 
 ### JSON
@@ -73,7 +79,6 @@ directories:
       "action": "create",
       "target": "/path/to/mydir",
       "mode": 493,
-      "create": true,
       "elevated": true
     },
     {
@@ -84,8 +89,8 @@ directories:
       "action": "copy",
       "source": "/path/to/source",
       "target": "/path/to/destination",
-      "owner": 1000,
-      "group": 1000
+      "owner": "levi",
+      "group": "levi"
     }
   ]
 }
@@ -99,7 +104,6 @@ name = "mydir"
 action = "create"
 target = "/path/to/mydir"
 mode = 493
-create = true
 elevated = true
 
 [[directories]]
@@ -107,8 +111,8 @@ names = ["dir1", "dir2"]
 action = "copy"
 source = "/path/to/source"
 target = "/path/to/destination"
-owner = 1000
-group = 1000
+owner = "levi"
+group = "levi"
 ```
 
 These examples demonstrate how to create a directory with specific permissions, copy multiple directories while setting owner and group, and perform actions with elevated privileges.
