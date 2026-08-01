@@ -116,3 +116,52 @@ func TestTemplatesCannotRenderCredentials(t *testing.T) {
 		t.Errorf("template rendered the SSH key: %s", out)
 	}
 }
+
+// A script that legitimately needs a token can be given one, without the tree
+// handing out everything else.
+func TestSpawnedCommandsReceiveOptedInCredentials(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses /usr/bin/env")
+	}
+
+	viper.Reset()
+	defer viper.Reset()
+	defer types.SetExposedCredentials(nil)
+
+	viper.Set("repository.gh_api_token", fakeToken)
+	viper.Set("repository.ssh_private_key", fakeKey)
+
+	types.SetExposedCredentials([]string{"gh_api_token"})
+
+	initConfig := &types.InitConfig{}
+	initConfig.Variables.UserDefined = map[string]interface{}{}
+	if err := setUserDefinedAndEnvVariables(initConfig); err != nil {
+		t.Fatalf("setUserDefinedAndEnvVariables: %v", err)
+	}
+	defer func() {
+		_ = os.Unsetenv("RWR_VAR_REPOSITORY_GH_API_TOKEN")
+		_ = os.Unsetenv("RWR_VAR_REPOSITORY_SSH_PRIVATE_KEY")
+	}()
+
+	envPath := filepath.Join(t.TempDir(), "env.txt")
+	if err := system.RunCommand(types.Command{
+		Exec:    "/usr/bin/env",
+		LogName: envPath,
+	}, false); err != nil {
+		t.Fatalf("RunCommand: %v", err)
+	}
+
+	raw, err := os.ReadFile(envPath)
+	if err != nil {
+		t.Fatalf("reading captured environment: %v", err)
+	}
+	env := string(raw)
+
+	if !strings.Contains(env, fakeToken) {
+		t.Error("an opted-in token should reach the command that needs it")
+	}
+	// Opting into one credential must not hand over the other.
+	if strings.Contains(env, fakeKey) {
+		t.Error("the ssh key was exposed without being opted into")
+	}
+}

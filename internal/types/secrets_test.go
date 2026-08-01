@@ -147,3 +147,52 @@ func TestNestedStructsDoNotLeakCredentials(t *testing.T) {
 		}
 	}
 }
+
+// Credentials are withheld from templates by default, but a blueprint that
+// genuinely needs one — writing a .netrc, configuring gh — can opt in by name.
+func TestFlagsToMap_ExposesOnlyOptedInCredentials(t *testing.T) {
+	defer SetExposedCredentials(nil)
+
+	flags := Flags{GHAPIToken: "ghp_thisisatoken", SSHKey: "a-private-key"}
+
+	SetExposedCredentials(nil)
+	if _, present := flags.ToMap()["ghAPIToken"]; present {
+		t.Error("no opt-in, yet the token is in template scope")
+	}
+
+	// Opting into one credential must not expose the other.
+	SetExposedCredentials([]string{"gh_api_token"})
+	m := flags.ToMap()
+	if m["ghAPIToken"] != "ghp_thisisatoken" {
+		t.Errorf("opted-in token missing from template scope: %v", m["ghAPIToken"])
+	}
+	if _, present := m["sshKey"]; present {
+		t.Error("opting into the token also exposed the ssh key")
+	}
+
+	SetExposedCredentials([]string{"ssh_private_key"})
+	m = flags.ToMap()
+	if m["sshKey"] != "a-private-key" {
+		t.Errorf("opted-in ssh key missing from template scope: %v", m["sshKey"])
+	}
+	if _, present := m["ghAPIToken"]; present {
+		t.Error("opting into the ssh key also exposed the token")
+	}
+}
+
+// The opt-in accepts either the full viper key or the bare name, since the init
+// file and the config key spell it differently.
+func TestIsCredentialExposed_AcceptsEitherSpelling(t *testing.T) {
+	defer SetExposedCredentials(nil)
+
+	SetExposedCredentials([]string{"repository.gh_api_token"})
+	if !IsCredentialExposed("gh_api_token") {
+		t.Error("a full viper key should match the bare name")
+	}
+	if !IsCredentialExposed("repository.gh_api_token") {
+		t.Error("a full viper key should match itself")
+	}
+	if IsCredentialExposed("ssh_private_key") {
+		t.Error("an unrelated credential should stay withheld")
+	}
+}
