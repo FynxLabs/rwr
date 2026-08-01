@@ -1,0 +1,101 @@
+name: RWR - Master Prerelease
+
+# Publishes a build of master on every merge, so there is always something
+# installable that reflects current master. These are explicitly not vetted
+# releases — see the release notes the job writes.
+#
+# goreleaser's own nightly support is a Pro feature, so this assembles a snapshot
+# build and publishes it through gh. The `nightly` tag is moved to each new commit
+# and the release is replaced rather than accumulating one per merge, so the
+# download URLs stay stable.
+
+on:
+  push:
+    branches: ["master"]
+  # Allows re-cutting the prerelease without pushing anything.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # Merges can land faster than a build takes. Keep only the newest, so the
+  # published prerelease is always the newest commit rather than whichever job
+  # happened to finish last.
+  group: master-prerelease
+  cancel-in-progress: true
+
+jobs:
+  prerelease:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ">=1.26.5"
+
+      # --snapshot builds without publishing, so the version comes from
+      # .goreleaser.yaml's snapshot template and carries the commit sha.
+      # Homebrew is skipped: the tap should only ever carry real releases.
+      - name: Build artifacts
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean --skip=homebrew
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          short_sha="$(git rev-parse --short HEAD)"
+
+          # Replace the previous prerelease rather than accumulating one per merge.
+          # --cleanup-tag lets the recreated release point at the new commit.
+          gh release delete nightly --yes --cleanup-tag 2>/dev/null || true
+
+          cat > notes.md <<EOF
+          Build of \`master\` at [\`${short_sha}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}).
+
+          > [!WARNING]
+          > This is **not a release**. It is whatever master happened to be when it
+          > was built: it has passed CI, but it has not been vetted or version-tagged.
+          > For anything you rely on, use the
+          > [latest release](https://github.com/${GITHUB_REPOSITORY}/releases/latest).
+
+          Artifacts are versioned \`<next-patch>-master-${short_sha}\` so a downloaded
+          binary can be traced back to the commit it came from. This release and its
+          tag are replaced on every merge to master, so the download URLs are stable
+          but their contents change.
+          EOF
+
+          # Collect by find rather than globbing: an unmatched glob would be passed
+          # through literally and fail the upload under `set -e`.
+          mapfile -t artifacts < <(
+            find dist -maxdepth 1 -type f \
+              \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.deb' \
+                 -o -name '*.rpm' -o -name '*.apk' -o -name '*.pkg.tar.zst' \
+                 -o -name 'checksums.txt' \) | sort
+          )
+
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "No artifacts were produced; refusing to publish an empty prerelease." >&2
+            exit 1
+          fi
+          printf 'Publishing %d artifacts\n' "${#artifacts[@]}"
+
+          gh release create nightly \
+            --prerelease \
+            --target "${GITHUB_SHA}" \
+            --title "master (${short_sha})" \
+            --notes-file notes.md \
+            "${artifacts[@]}"

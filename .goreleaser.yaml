@@ -9,8 +9,15 @@ before:
   hooks:
     - go mod tidy
 
+# Snapshot builds are unreleased builds of whatever the tree currently is. The
+# master prerelease workflow uses these, so the version carries the commit it was
+# built from — an artifact on disk can be traced back to master without relying on
+# the release page it came from.
+#
+# goreleaser's own `nightly` support is a Pro feature, so the master prerelease is
+# assembled from a snapshot build and published by .github/workflows/nightly.yml.
 snapshot:
-  version_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-master-{{ .ShortCommit }}"
 
 gomod:
   proxy: true
@@ -35,11 +42,17 @@ builds:
       - amd64
       - arm
       - arm64
+      - riscv64
     goarm:
       - "7"
     ignore:
       - goos: windows
         goarch: arm
+      # Go only supports riscv64 on linux (and openbsd, which we do not target).
+      - goos: windows
+        goarch: riscv64
+      - goos: darwin
+        goarch: riscv64
     mod_timestamp: "{{ .CommitTimestamp }}"
     flags:
       - -trimpath
@@ -134,8 +147,14 @@ homebrew_casks:
     binary: rwr
     homepage: "https://github.com/fynxlabs/rwr"
     description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
+    # "auto" skips prereleases, which keeps the nightly master builds out of the
+    # tap — `brew install rwr` should only ever give you a real release.
+    skip_upload: "auto"
 
 release:
   name_template: "v{{ .Version }}"
+  # "auto" marks a release as a prerelease when its version carries a prerelease
+  # part, which the nightly version template always does.
+  prerelease: auto
   footer: |
     **Full Changelog**: https://github.com/fynxlabs/rwr/compare/{{ .PreviousTag }}...{{ if .IsNightly }}nightly{{ else }}{{ .Tag }}{{ end }}

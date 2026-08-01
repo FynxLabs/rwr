@@ -88,7 +88,35 @@ The following package types are available:
 - Binary archives (`.tar.gz`, `.zip`)
 - Debian packages (`.deb`)
 - RPM packages (`.rpm`)
+- Alpine packages (`.apk`)
+- Arch packages (`.pkg.tar.zst`)
 - Homebrew taps
+
+Builds are published for Linux, macOS and Windows on `x86_64`, `arm64` and
+`armv7`, plus Linux on `riscv64`. Arch Linux packages are not built for
+`riscv64`, since Arch has no official port; use the `.tar.gz`, `.deb`, `.rpm` or
+`.apk` there.
+
+### Master prereleases
+
+Every merge to `master` publishes a prerelease under the
+[`nightly`](https://github.com/fynxlabs/rwr/releases/tag/nightly) tag, so there is
+always an installable build of current `master`.
+
+> [!WARNING]
+> These are not releases. They are whatever `master` happened to be when they were
+> built — CI has passed, but they are not vetted or version-tagged. Use the
+> [latest release](https://github.com/fynxlabs/rwr/releases/latest) for anything
+> you depend on.
+
+The tag and its artifacts are replaced on every merge, so the download URLs stay
+stable while their contents change. Artifacts are versioned
+`<next-patch>-master-<short-sha>` so a binary you already have can be traced back
+to the commit it came from:
+
+```bash
+rwr version
+```
 
 ### From Releases
 
