@@ -486,3 +486,29 @@ func logDetectionSummary(currentOS, currentDistro string) {
 	}
 	log.Errorf("=== END DETECTION SUMMARY ===")
 }
+
+// SetProvidersForTest replaces the loaded provider set and returns a function
+// restoring the previous one.
+//
+// It exists because the processors resolve a package manager through the real
+// provider registry, which asks the host what it has installed. Tests written
+// against that answer pass on the machine they were written on and fail
+// everywhere else: the schema and import tests passed on an Arch workstation and
+// failed on CI's Ubuntu runner, because pacman is not there. A test asserting how
+// rwr builds a command should not depend on which package manager the runner
+// happens to have.
+//
+//	defer system.SetProvidersForTest(map[string]*types.Provider{...})()
+func SetProvidersForTest(provs map[string]*types.Provider) (restore func()) {
+	providersMu.Lock()
+	defer providersMu.Unlock()
+
+	previous, previousInit := providers, providersInit
+	providers, providersInit = provs, true
+
+	return func() {
+		providersMu.Lock()
+		defer providersMu.Unlock()
+		providers, providersInit = previous, previousInit
+	}
+}

@@ -3,9 +3,7 @@ package processors
 import (
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"charm.land/log/v2"
@@ -119,6 +117,13 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		return nil, fmt.Errorf("error unmarshaling %s: %w", processedInitFile, err)
 	}
 
+	// A tree-wide schema version applies to every blueprint type, so it has to be
+	// readable everywhere. Checked here rather than per file: an unreadable tree
+	// version is wrong before a single blueprint is opened.
+	if err := types.ValidateTreeSchemaVersion(initConfig.Init.SchemaVersion); err != nil {
+		return nil, fmt.Errorf("error in %s: %w", initFilePath, err)
+	}
+
 	// Set additional config values
 	initConfig.Variables = variables
 	initConfig.Variables.Flags = flags
@@ -145,43 +150,10 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	return &initConfig, nil
 }
 
+// setDefaultVariables is helpers.DefaultVariables, shared with `rwr validate` so
+// both render blueprints against the same variables.
 func setDefaultVariables() (types.Variables, error) {
-	currentUser, err := user.Current()
-	if err != nil {
-		return types.Variables{}, fmt.Errorf("error retrieving current user information: %w", err)
-	}
-
-	names := strings.Fields(currentUser.Name)
-	firstName, lastName := "", ""
-	if len(names) > 0 {
-		firstName = names[0]
-	}
-	if len(names) > 1 {
-		lastName = names[len(names)-1]
-	}
-
-	groupName := ""
-	if runtime.GOOS != "windows" {
-		group, err := user.LookupGroupId(currentUser.Gid)
-		if err != nil {
-			log.With("err", err).Warnf("Error retrieving primary group name for user %s", currentUser.Username)
-		} else {
-			groupName = group.Name
-		}
-	}
-
-	return types.Variables{
-		User: types.UserInfo{
-			Username:  currentUser.Username,
-			FirstName: firstName,
-			LastName:  lastName,
-			FullName:  currentUser.Name,
-			GroupName: groupName,
-			Home:      currentUser.HomeDir,
-			Shell:     os.Getenv("SHELL"),
-		},
-		UserDefined: make(map[string]interface{}),
-	}, nil
+	return helpers.DefaultVariables()
 }
 
 func convertTomlToYaml(data []byte) ([]byte, string, error) {

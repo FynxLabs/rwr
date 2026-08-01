@@ -28,7 +28,8 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 	// If data is provided, unmarshal it
 	if data != nil {
 		var pkgData types.PackagesData
-		if err := helpers.UnmarshalBlueprint(data, format, &pkgData); err != nil {
+		if err := helpers.DecodeBlueprintInto(data, format, types.BlueprintTypePackages,
+			helpers.TreeSchemaVersion(initConfig), &pkgData); err != nil {
 			return fmt.Errorf("error unmarshaling package blueprint: %w", err)
 		}
 		packages = &pkgData
@@ -77,7 +78,8 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 
 			// Unmarshal the imported package data
 			var importedPkgData types.PackagesData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedPkgData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypePackages,
+				helpers.TreeSchemaVersion(initConfig), &importedPkgData); err != nil {
 				return fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 

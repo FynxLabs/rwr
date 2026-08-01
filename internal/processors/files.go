@@ -44,21 +44,22 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 // directories, and templates, then filters each by active profiles.
 func resolveAndFilterFileData(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) ([]types.File, []types.Directory, []types.File, error) {
 	var fileData types.FileData
-	if err := helpers.UnmarshalBlueprint(blueprintData, format, &fileData); err != nil {
+	if err := helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeFiles,
+		helpers.TreeSchemaVersion(initConfig), &fileData); err != nil {
 		return nil, nil, nil, fmt.Errorf("error unmarshaling file blueprint data: %w", err)
 	}
 
-	allFiles, err := processFileImports(fileData.Files, blueprintDir, format)
+	allFiles, err := processFileImports(fileData.Files, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error processing file imports: %w", err)
 	}
 
-	allDirs, err := processDirectoryImports(fileData.Directories, blueprintDir, format)
+	allDirs, err := processDirectoryImports(fileData.Directories, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error processing directory imports: %w", err)
 	}
 
-	allTemplates, err := processFileImports(fileData.Templates, blueprintDir, format)
+	allTemplates, err := processFileImports(fileData.Templates, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error processing template imports: %w", err)
 	}
@@ -646,7 +647,7 @@ func determineSourceAndTargetPaths(file types.File, blueprintDir string) (string
 	return sourcePath, targetPath, nil
 }
 
-func processFileImports(files []types.File, blueprintDir string, format string) ([]types.File, error) {
+func processFileImports(files []types.File, blueprintDir string, format string, treeVersion int) ([]types.File, error) {
 	allFiles := make([]types.File, 0)
 	visited := make(map[string]bool)
 
@@ -678,7 +679,7 @@ func processFileImports(files []types.File, blueprintDir string, format string) 
 			}
 
 			var importedFileData types.FileData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedFileData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeFiles, treeVersion, &importedFileData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 
@@ -692,7 +693,7 @@ func processFileImports(files []types.File, blueprintDir string, format string) 
 	return allFiles, nil
 }
 
-func processDirectoryImports(directories []types.Directory, blueprintDir string, format string) ([]types.Directory, error) {
+func processDirectoryImports(directories []types.Directory, blueprintDir string, format string, treeVersion int) ([]types.Directory, error) {
 	allDirectories := make([]types.Directory, 0)
 	visited := make(map[string]bool)
 
@@ -724,7 +725,7 @@ func processDirectoryImports(directories []types.Directory, blueprintDir string,
 			}
 
 			var importedFileData types.FileData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedFileData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeFiles, treeVersion, &importedFileData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 

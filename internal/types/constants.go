@@ -53,12 +53,33 @@ const (
 )
 
 // File actions for file management operations.
+//
+// This is the set the files processor actually dispatches on. It previously
+// listed append and template, which no branch handles, and omitted copy, move,
+// chmod, chown, chgrp and symlink, which every one of them does — so validation
+// rejected the actions the examples use and accepted two that do nothing.
 const (
-	FileActionCreate   = "create"
-	FileActionDelete   = "delete"
-	FileActionAppend   = "append"
-	FileActionTemplate = "template"
+	FileActionCreate  = "create"
+	FileActionDelete  = "delete"
+	FileActionCopy    = "copy"
+	FileActionMove    = "move"
+	FileActionChmod   = "chmod"
+	FileActionChown   = "chown"
+	FileActionChgrp   = "chgrp"
+	FileActionSymlink = "symlink"
 )
+
+// FileActions is every action a file or template entry may declare.
+var FileActions = []string{
+	FileActionCreate,
+	FileActionDelete,
+	FileActionCopy,
+	FileActionMove,
+	FileActionChmod,
+	FileActionChown,
+	FileActionChgrp,
+	FileActionSymlink,
+}
 
 // Repository actions for repository management operations.
 const (

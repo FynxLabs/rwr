@@ -18,7 +18,8 @@ import (
 func ProcessConfiguration(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
 	var configData types.ConfigData
 
-	err := helpers.UnmarshalBlueprint(blueprintData, format, &configData)
+	err := helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeConfiguration,
+		helpers.TreeSchemaVersion(initConfig), &configData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling configuration blueprint: %w", err)
 	}

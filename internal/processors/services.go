@@ -20,14 +20,15 @@ func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, 
 	var err error
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &servicesData)
+	err = helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeServices,
+		helpers.TreeSchemaVersion(initConfig), &servicesData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling service blueprint: %w", err)
 	}
 
 	// Process imports and merge imported services
 	blueprintDir := initConfig.Init.Location
-	allServices, err := processServiceImports(servicesData.Services, blueprintDir, format)
+	allServices, err := processServiceImports(servicesData.Services, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing service imports: %w", err)
 	}
@@ -398,7 +399,7 @@ func processWindowsService(service types.Service, osInfo *types.OSInfo, initConf
 	return nil
 }
 
-func processServiceImports(services []types.Service, blueprintDir string, format string) ([]types.Service, error) {
+func processServiceImports(services []types.Service, blueprintDir string, format string, treeVersion int) ([]types.Service, error) {
 	allServices := make([]types.Service, 0)
 	visited := make(map[string]bool)
 
@@ -430,7 +431,7 @@ func processServiceImports(services []types.Service, blueprintDir string, format
 			}
 
 			var importedServiceData types.ServiceData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedServiceData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeServices, treeVersion, &importedServiceData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 

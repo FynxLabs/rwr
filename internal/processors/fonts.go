@@ -52,7 +52,8 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 
 	log.Debug("Processing fonts from blueprint")
 
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &fontsData)
+	err = helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeFonts,
+		helpers.TreeSchemaVersion(initConfig), &fontsData)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling fonts blueprint data: %w", err)
 	}

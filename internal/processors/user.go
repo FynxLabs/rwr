@@ -19,7 +19,8 @@ func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitCon
 	var err error
 
 	// Unmarshal the blueprint data
-	err = helpers.UnmarshalBlueprint(blueprintData, format, &usersData)
+	err = helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeUsers,
+		helpers.TreeSchemaVersion(initConfig), &usersData)
 	if err != nil {
 		log.Errorf("Error unmarshaling users blueprint: %v", err)
 		return fmt.Errorf("error unmarshaling users blueprint: %w", err)
@@ -27,13 +28,13 @@ func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitCon
 
 	// Process imports and merge imported users and groups
 	blueprintDir := initConfig.Init.Location
-	allGroups, err := processGroupImports(usersData.Groups, blueprintDir, format)
+	allGroups, err := processGroupImports(usersData.Groups, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing group imports: %w", err)
 	}
 	usersData.Groups = allGroups
 
-	allUsers, err := processUserImports(usersData.Users, blueprintDir, format)
+	allUsers, err := processUserImports(usersData.Users, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing user imports: %w", err)
 	}
@@ -344,7 +345,7 @@ func removeUser(user types.User, initConfig *types.InitConfig) error {
 	return nil
 }
 
-func processGroupImports(groups []types.Group, blueprintDir string, format string) ([]types.Group, error) {
+func processGroupImports(groups []types.Group, blueprintDir string, format string, treeVersion int) ([]types.Group, error) {
 	allGroups := make([]types.Group, 0)
 	visited := make(map[string]bool)
 
@@ -376,7 +377,7 @@ func processGroupImports(groups []types.Group, blueprintDir string, format strin
 			}
 
 			var importedUsersData types.UsersData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedUsersData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeUsers, treeVersion, &importedUsersData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 
@@ -390,7 +391,7 @@ func processGroupImports(groups []types.Group, blueprintDir string, format strin
 	return allGroups, nil
 }
 
-func processUserImports(users []types.User, blueprintDir string, format string) ([]types.User, error) {
+func processUserImports(users []types.User, blueprintDir string, format string, treeVersion int) ([]types.User, error) {
 	allUsers := make([]types.User, 0)
 	visited := make(map[string]bool)
 
@@ -422,7 +423,7 @@ func processUserImports(users []types.User, blueprintDir string, format string) 
 			}
 
 			var importedUsersData types.UsersData
-			if err := helpers.UnmarshalBlueprint(importData, fileFormat, &importedUsersData); err != nil {
+			if err := helpers.DecodeBlueprintInto(importData, fileFormat, types.BlueprintTypeUsers, treeVersion, &importedUsersData); err != nil {
 				return nil, fmt.Errorf("error unmarshaling import file %s: %w", importPath, err)
 			}
 

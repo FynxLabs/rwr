@@ -47,6 +47,7 @@ var schemaRegistry = map[string]map[int]variantFactory{
 	BlueprintTypeFonts:         {1: func() SchemaVariant { return &fontsV1{} }},
 	BlueprintTypeUsers:         {1: func() SchemaVariant { return &usersV1{} }},
 	BlueprintTypeConfiguration: {1: func() SchemaVariant { return &configurationV1{} }},
+	BlueprintTypeBootstrap:     {1: func() SchemaVariant { return &bootstrapV1{} }},
 }
 
 // NewSchemaVariant returns the struct that reads blueprintType at version.
@@ -125,6 +126,12 @@ type usersV1 struct{ UsersData }
 func (v *usersV1) Target() interface{}        { return &v.UsersData }
 func (v *usersV1) Canonical() interface{}     { return &v.UsersData }
 func (v *usersV1) DeclaredSchemaVersion() int { return v.DeclaredVersion() }
+
+type bootstrapV1 struct{ BootstrapData }
+
+func (v *bootstrapV1) Target() interface{}        { return &v.BootstrapData }
+func (v *bootstrapV1) Canonical() interface{}     { return &v.BootstrapData }
+func (v *bootstrapV1) DeclaredSchemaVersion() int { return v.DeclaredVersion() }
 
 type configurationV1 struct{ ConfigData }
 
