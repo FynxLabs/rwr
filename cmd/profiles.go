@@ -7,7 +7,7 @@ import (
 
 	"github.com/fynxlabs/rwr/internal/helpers"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 )
 

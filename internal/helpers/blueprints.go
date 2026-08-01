@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"charm.land/log/v2"
 	"github.com/BurntSushi/toml"
-	"github.com/charmbracelet/log"
 	"github.com/fynxlabs/rwr/internal/types"
 	"gopkg.in/yaml.v3"
 )

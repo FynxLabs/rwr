@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
