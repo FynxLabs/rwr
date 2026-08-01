@@ -1,25 +1,28 @@
 # Credentials in blueprints
 
 RWR holds two credentials: your GitHub API token and your SSH private key. By
-default, blueprints cannot read either.
+default, blueprints cannot read them.
 
-## Why they are withheld by default
+## Why RWR holds back the credentials
 
-Blueprints are usually cloned from a git repository, and everything a blueprint
-can reach, whoever wrote that blueprint can reach:
+Blueprints usually come from a git repository. Everything that a blueprint can
+read, the author of that blueprint can read:
 
-- a **template** renders from a blueprint file and is written to a path the same
-  blueprint chooses, so a token in template scope can be copied anywhere
-- a **script** inherits RWR's environment, so anything exported is readable by
-  every script the blueprint runs
+- A template reads from a blueprint file. RWR writes the result to a path that
+  the same blueprint selects. A token in template scope can go to any path.
+- A script gets the environment of RWR. Every script in the blueprint can read
+  each variable in that environment.
 
-That is fine when the blueprint is yours. It is not fine for a blueprint you
-cloned from someone else, and there is no way for RWR to tell the difference.
+This is safe when the blueprint is yours. This is not safe for a blueprint from a
+different author. RWR cannot tell the difference between the two.
 
-## Opting in
+## How to permit a credential
 
-Some blueprints legitimately need a credential — writing a `.netrc`, configuring
-`gh`, calling the GitHub API from a script. Name the ones you want available:
+Some blueprints need a credential. Examples are a blueprint that writes a
+`.netrc` file, a blueprint that configures `gh`, and a script that calls the
+GitHub API.
+
+Give the name of each credential that the blueprints can read:
 
 ```yaml
 blueprints:
@@ -30,21 +33,22 @@ exposeCredentials:
   - gh_api_token
 ```
 
-Only what you name is shared. Opting into `gh_api_token` does not expose the SSH
-key.
+RWR shares only the credentials that you give. The name `gh_api_token` does not
+give access to the SSH key.
 
-Accepted names:
+These names are correct:
 
-| Name | Also accepted as |
+| Name | RWR also accepts |
 |---|---|
 | `gh_api_token` | `repository.gh_api_token` |
 | `ssh_private_key` | `repository.ssh_private_key` |
 
-RWR warns at startup when anything is exposed, so it is never silent.
+RWR gives a warning at start when a credential is available. The change is
+always visible.
 
-## What opting in gives you
+## What a permitted credential gives you
 
-**In templates**, as before:
+In a template:
 
 ```yaml
 templates:
@@ -58,22 +62,25 @@ templates:
 machine github.com login {{ .User.username }} password {{ .Flags.ghAPIToken }}
 ```
 
-**In scripts**, through the environment:
+In a script, through the environment:
 
 ```bash
 #!/usr/bin/env bash
 gh auth login --with-token <<< "$RWR_VAR_REPOSITORY_GH_API_TOKEN"
 ```
 
-## Keeping the blast radius small
+## How to keep the risk small
 
-- Name only the credential a blueprint actually needs.
-- Set it in the init file of the tree that needs it, not in a shared one.
-- Prefer having RWR do the work itself where it can — `ssh_keys` blueprints
-  already upload to GitHub using the token without exposing it to anything.
+- Give only the credential that the blueprint needs.
+- Set `exposeCredentials` in the init file of the tree that needs it. Do not set
+  it in an init file that other trees use.
+- Let RWR do the work when it can. An `ssh_keys` blueprint sends the key to
+  GitHub with the token. The blueprint does not read the token.
 
 ## Logs
 
-Credential values are redacted in logs regardless of this setting. Use
-`--show-secrets` when you need to confirm RWR is reading the value you expect;
-it warns while enabled.
+RWR removes credential values from the logs. This applies to permitted
+credentials also.
+
+If you must see a value in the logs, use the `--show-secrets` flag. RWR gives a
+warning while this flag is active.

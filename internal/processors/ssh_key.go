@@ -184,7 +184,10 @@ func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error
 }
 
 func generateSSHKey(sshKey types.SSHKey, initConfig *types.InitConfig) (string, error) {
-	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
+	// Expand a leading ~ here. Commands are argv now, so no shell expands it on
+	// the way to ssh-keygen — an unexpanded "~/.ssh" would create a directory
+	// literally named "~" in the working directory.
+	sshPath := filepath.Join(system.ExpandPath(sshKey.Path), sshKey.Name)
 
 	// Check if the SSH key already exists
 	if _, err := os.Stat(sshPath); err == nil {

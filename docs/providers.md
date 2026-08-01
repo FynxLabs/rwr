@@ -33,6 +33,32 @@ search = "search"    # Search for packages
 clean = "clean"     # Clean package cache
 ```
 
+## How RWR finds a provider
+
+RWR makes the provider available when these two conditions are true:
+
+1. The `binary` is on the system.
+2. Each path in `files` is on the system.
+
+The `distributions` list is a hint. A match in that list is not necessary.
+
+This is intentional. There are many derivatives of Arch and Debian, and one list
+cannot contain all of them. Some derivatives give a new value in
+`/etc/os-release` and give no `ID_LIKE` value. A machine that has the `pacman`
+binary and the `/var/lib/pacman` database uses pacman. The name of the
+distribution does not change that fact.
+
+The opposite condition is also correct. A machine with the name "Arch" that uses
+apt has no `apt` binary and no `/etc/apt` directory. RWR does not make apt
+available on that machine. RWR tests each package manager, not the name of the
+distribution.
+
+Give a `files` list for each provider. Without that list, RWR can find the
+provider only from a match in `distributions`.
+
+RWR also finds the distribution family from the installed package manager. This
+gives the correct default package manager on a derivative that no list contains.
+
 ### Core Packages
 
 Define packages required by the provider:
@@ -93,38 +119,42 @@ dest = "/tmp/provider.tar.gz"
 
 ## Available Actions
 
-The following actions can be used in provider steps:
+RWR reads these actions in the installation steps of a provider:
 
-- `download` - Download a file from URL
+- `command` - Run a command
+- `download` - Get a file from a URL
 - `write` - Write content to a file
-- `append` - Append content to a file
-- `command` - Execute a command
-- `remove` - Remove a file/directory
-- `remove_line` - Remove matching line from file
-- `remove_section` - Remove config section
-- `mkdir` - Create directory
-- `chmod` - Change file permissions
-- `chown` - Change file ownership
-- `symlink` - Create symbolic link
-- `copy` - Copy file or directory
+
+RWR reads these actions in the repository steps of a provider:
+
+- `command` - Run a command
+- `write` - Write content to a file
+- `copy` - Copy a file
+
+CAUTION: Use only the actions in these two lists. RWR stops with an error when a
+step gives a different action. Some provider files in this repository contain
+other actions, and those steps do not operate.
 
 ## Template Variables
 
-Variables available in repository steps:
+These variables are in the repository steps of the provider files:
 
-- `{{ .Name }}` - Repository/package name
-- `{{ .URL }}` - Repository URL
-- `{{ .KeyURL }}` - GPG key URL
-- `{{ .KeyPath }}` - Key storage path
-- `{{ .SourcesPath }}` - Repository config path
-- `{{ .HasKey }}` - Whether key was provided
-- `{{ .IsCustom }}` - If custom/third-party repo
-- `{{ .UserMode }}` - If user-mode installation
-- `{{ .SystemMode }}` - If system-wide installation
-- `{{ .Version }}` - Package version
-- `{{ .Architecture }}` - System architecture
-- `{{ .Distribution }}` - Linux distribution
-- `{{ .Platform }}` - Operating system
+- `{{ .Name }}` - Name of the repository or package
+- `{{ .URL }}` - URL of the repository
+- `{{ .KeyURL }}` - URL of the GPG key
+- `{{ .KeyPath }}` - Path of the key on the machine
+- `{{ .SourcesPath }}` - Path of the repository configuration
+- `{{ .Arch }}` - Architecture of the system
+- `{{ .Channel }}` - Channel of the repository
+- `{{ .Component }}` - Component of the repository
+
+CAUTION: RWR replaces only `{{ .URL }}`, and only in the `args` of a step. RWR
+does not replace the other variables. RWR does not replace a variable in the
+`dest` or `content` of a step. A step that uses one of those variables writes the
+text of the variable to the file.
+
+This is a known fault. Do not write a new provider that depends on these
+variables until the fault is corrected.
 
 ## Supported Providers
 

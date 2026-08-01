@@ -138,6 +138,35 @@ The Scripts blueprint supports the following fields:
 > [!NOTE]
 > Either the `source`, `content`, or `import` field must be provided. If both `source` and `content` are present, `source` takes precedence.
 
+### How RWR runs the arguments
+
+RWR divides the `args` string at each space. It then sends each part to the
+script as one argument. The value `--verbose --out /tmp` becomes three
+arguments.
+
+RWR does not use a shell to run the script. The shell characters keep their
+literal value. These characters have no special function:
+
+| Character | Result |
+|---|---|
+| `$HOME`, `$(command)` | RWR sends the text without a change |
+| `~` | RWR sends the character without a change |
+| `*`, `?` | RWR does not expand the pattern to file names |
+| `&&`, `\|`, `;` | RWR sends the character as part of the argument |
+
+To use a shell function, run a shell as the script. Give the command in the
+script file, or run the shell directly:
+
+```yaml
+scripts:
+  - name: build.sh
+    action: run
+    exec: bash
+    source: ./scripts/
+```
+
+The script file can then use `$HOME`, pipes, and the other shell functions.
+
 ## Blueprint Imports
 
 Import script definitions from other files:
