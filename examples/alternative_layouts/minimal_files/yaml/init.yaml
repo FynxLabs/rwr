@@ -1,13 +1,13 @@
 blueprints:
   format: yaml
+  schema_version: 1
   location: .
   order:
-    - packages
-    - git
-    - files
-    - scripts
-
+  - packages
+  - git
+  - files
+  - scripts
 variables:
   userDefined:
-    project_name: "minimal-setup"
-    repo_url: "https://github.com/user/dotfiles.git"
+    project_name: minimal-setup
+    repo_url: https://github.com/user/dotfiles.git

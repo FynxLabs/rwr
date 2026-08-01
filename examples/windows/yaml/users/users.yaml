@@ -1,33 +1,8 @@
-# Basic user management for all Windows systems
+groups:
+- name: Developers
+  action: create
 users:
-  - username: Administrator
-    groups: [Administrators]
-    create_home: false
-
-  - username: Guest
-    groups: [Guests]
-    create_home: false
-    enabled: false
-
-  # Development users for dev profile
-  - username: developer
-    groups: [Administrators, "Remote Desktop Users"]
-    create_home: true
-    profiles: [dev]
-
-  # Work users for work profile
-  - username: remote_worker
-    groups: ["Remote Desktop Users", Users]
-    create_home: true
-    profiles: [work]
-
-  - username: service_account
-    groups: ["Log on as a service"]
-    create_home: false
-    profiles: [work]
-
-  # Gaming users for gaming profile
-  - username: gamer
-    groups: [Users, "Performance Log Users"]
-    create_home: true
-    profiles: [gaming]
+- name: builder
+  action: create
+  groups:
+  - Developers

@@ -19,5 +19,7 @@ type Configuration struct {
 }
 
 type ConfigData struct {
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion  `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
 	Configurations []Configuration `mapstructure:"configurations" yaml:"configurations" json:"configurations" toml:"configurations"`
 }

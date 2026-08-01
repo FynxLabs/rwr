@@ -9,5 +9,7 @@ type Font struct {
 }
 
 type FontsData struct {
-	Fonts []Font `yaml:"fonts" json:"fonts" toml:"fonts"`
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	Fonts         []Font `yaml:"fonts" json:"fonts" toml:"fonts"`
 }

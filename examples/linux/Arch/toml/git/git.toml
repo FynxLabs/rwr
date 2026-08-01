@@ -1,6 +1,127 @@
 [[git]]
+name = "dotfiles"
+action = "clone"
+url = "https://github.com/user/dotfiles.git"
+path = "{{ .User.home }}/.dotfiles"
+private = false
+
+[[git]]
+name = "configs"
+action = "clone"
+url = "https://github.com/user/configs.git"
+path = "{{ .User.home }}/configs"
+private = false
+
+[[git]]
+name = "work-configs"
+profiles = [
+    "work",
+]
+action = "clone"
+url = "https://github.com/company/work-configs.git"
+path = "{{ .User.home }}/work/configs"
+private = true
+
+[[git]]
+name = "company-tools"
+profiles = [
+    "work",
+]
+action = "clone"
+url = "https://github.com/company/internal-tools.git"
+path = "{{ .User.home }}/work/tools"
+private = true
+
+[[git]]
+name = "awesome-project"
+profiles = [
+    "dev",
+]
+action = "clone"
+url = "https://github.com/user/awesome-project.git"
+path = "{{ .User.home }}/projects/awesome-project"
+private = false
+
+[[git]]
+name = "learning-rust"
+profiles = [
+    "dev",
+]
+action = "clone"
+url = "https://github.com/rust-lang/book.git"
+path = "{{ .User.home }}/projects/rust-book"
+private = false
+
+[[git]]
 name = "rwr"
+profiles = [
+    "dev",
+    "work",
+]
 action = "clone"
 url = "https://github.com/FynxLabs/rwr.git"
-path = "{{ .User.home }}/git/rwr"
+path = "{{ .User.home }}/projects/rwr"
 private = false
+
+[[git]]
+name = "gaming-configs"
+profiles = [
+    "gaming",
+]
+action = "clone"
+url = "https://github.com/user/gaming-configs.git"
+path = "{{ .User.home }}/.config/gaming"
+private = false
+
+[[git]]
+name = "game-mods"
+profiles = [
+    "gaming",
+]
+action = "clone"
+url = "https://github.com/user/game-modifications.git"
+path = "{{ .User.home }}/Games/mods"
+private = false
+
+[[git]]
+name = "personal-scripts"
+profiles = [
+    "personal",
+]
+action = "clone"
+url = "https://github.com/user/personal-scripts.git"
+path = "{{ .User.home }}/scripts"
+private = true
+
+[[git]]
+name = "photo-organizer"
+profiles = [
+    "personal",
+]
+action = "clone"
+url = "https://github.com/user/photo-organizer.git"
+path = "{{ .User.home }}/tools/photo-organizer"
+private = false
+
+[[git]]
+name = "security-tools"
+profiles = [
+    "security",
+    "work",
+]
+action = "clone"
+url = "https://github.com/security/tools.git"
+path = "{{ .User.home }}/security/tools"
+private = true
+
+[[git]]
+name = "db-migrations"
+profiles = [
+    "database",
+    "work",
+    "dev",
+]
+action = "clone"
+url = "https://github.com/company/database-migrations.git"
+path = "{{ .User.home }}/database/migrations"
+private = true

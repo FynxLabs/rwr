@@ -1,0 +1,25 @@
+{
+  "fonts": [
+    {
+      "name": "FiraCode",
+      "action": "install",
+      "provider": "nerd",
+      "location": "user"
+    },
+    {
+      "name": "JetBrainsMono",
+      "action": "install",
+      "provider": "nerd",
+      "location": "user"
+    },
+    {
+      "names": [
+        "Hack",
+        "SourceCodePro"
+      ],
+      "action": "install",
+      "provider": "nerd",
+      "location": "system"
+    }
+  ]
+}

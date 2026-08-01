@@ -21,7 +21,9 @@ type Git struct {
 }
 
 type GitData struct {
-	Repos []Git `mapstructure:"git" yaml:"git,omitempty" json:"git,omitempty" toml:"git,omitempty"` // Slice of Git configurations
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	Repos         []Git `mapstructure:"git" yaml:"git,omitempty" json:"git,omitempty" toml:"git,omitempty"` // Slice of Git configurations
 }
 
 // GetProfiles returns the profiles for this git operation.

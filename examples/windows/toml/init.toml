@@ -1,22 +1,21 @@
+packageManagers = [
+    { name = "cargo", action = "install" },
+    { name = "chocolatey", action = "install" },
+]
+
 [blueprints]
 format = "toml"
+schema_version = 1
 location = "."
 order = [
-    "bootstrap",
     "repositories",
     "packages",
     "files",
+    "fonts",
     "services",
     "git",
     "scripts",
     "users",
-    "ssh_keys"
+    "ssh_keys",
+    "configuration",
 ]
-
-[[packageManagers]]
-name = "cargo"
-action = "install"
-
-[[packageManagers]]
-name = "chocolatey"
-action = "install"

@@ -33,9 +33,11 @@ type Directory struct {
 }
 
 type FileData struct {
-	Files       []File      `yaml:"files" json:"files" toml:"files"`
-	Templates   []File      `yaml:"templates" json:"templates" toml:"templates"`
-	Directories []Directory `yaml:"directories" json:"directories" toml:"directories"`
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	Files         []File      `yaml:"files" json:"files" toml:"files"`
+	Templates     []File      `yaml:"templates" json:"templates" toml:"templates"`
+	Directories   []Directory `yaml:"directories" json:"directories" toml:"directories"`
 }
 
 // GetProfiles returns the profiles for this file.

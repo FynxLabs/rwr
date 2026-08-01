@@ -1,36 +1,17 @@
 {
   "files": [
     {
-      "src": "C:\\Windows\\System32\\drivers\\etc\\hosts",
-      "dest": "C:\\Windows\\System32\\drivers\\etc\\hosts",
-      "content": "127.0.0.1       localhost\n::1             localhost\n",
+      "name": ".gitignore",
+      "action": "copy",
+      "source": "./src/.gitignore",
+      "target": "{{ .User.home }}",
       "mode": 420
     },
     {
-      "src": "C:\\ProgramData\\chocolatey\\config\\chocolatey.config",
-      "dest": "C:\\ProgramData\\chocolatey\\config\\chocolatey.config",
-      "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<chocolatey>\n  <config>\n    <add key=\"cacheLocation\" value=\"C:\\temp\\chocolatey\" />\n  </config>\n</chocolatey>\n",
-      "mode": 420
-    },
-    {
-      "src": "C:\\Users\\{{.User.username}}\\.gitconfig",
-      "dest": "C:\\Users\\{{.User.username}}\\.gitconfig",
-      "content": "[user]\n    name = Developer\n    email = dev@example.com\n[core]\n    autocrlf = true\n    editor = code\n",
-      "profiles": ["dev"],
-      "mode": 420
-    },
-    {
-      "src": "C:\\Users\\{{.User.username}}\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1",
-      "dest": "C:\\Users\\{{.User.username}}\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1",
-      "content": "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned\nSet-Alias -Name ll -Value Get-ChildItem\n",
-      "profiles": ["work"],
-      "mode": 420
-    },
-    {
-      "src": "C:\\Users\\{{.User.username}}\\AppData\\Local\\Steam\\config\\config.vdf",
-      "dest": "C:\\Users\\{{.User.username}}\\AppData\\Local\\Steam\\config\\config.vdf",
-      "content": "\"InstallConfigStore\"\n{\n    \"Software\"\n    {\n        \"valve\"\n        {\n            \"Steam\"\n            {\n                \"AutoLaunchGameListOnStart\"    \"0\"\n            }\n        }\n    }\n}\n",
-      "profiles": ["gaming"],
+      "name": "testFile.txt",
+      "action": "copy",
+      "source": "./src/.config",
+      "target": "{{ .User.home }}/.config",
       "mode": 420
     }
   ]

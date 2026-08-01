@@ -28,6 +28,44 @@ jobs:
       - name: Test
         run: go test -v ./...
 
+  # The examples are the closest thing to a compatibility contract with users:
+  # every blueprint field they use is a field somebody's real blueprint uses too.
+  # Breaking one silently is easy, because the decoders RWR uses ignore unknown
+  # keys — a renamed field turns every blueprint using it into a no-op rather
+  # than an error. These checks make that a failed build instead.
+  examples:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ">=1.26.5"
+
+      # Asserts every example parses in its declared format, resolves without
+      # referencing a template variable that does not exist, decodes strictly
+      # into its blueprint struct with no unknown keys, and that the yaml, json
+      # and toml copies describe the same thing.
+      - name: Validate example blueprints
+        run: go test -v ./internal/validate/ -run TestExamples_
+
+      # Runs the real binary over every example tree, the way a user would.
+      - name: Run rwr validate over every example tree
+        run: |
+          set -euo pipefail
+          go build -o rwr .
+          status=0
+          while IFS= read -r init; do
+            tree="$(dirname "$init")"
+            echo "::group::rwr validate $tree"
+            ./rwr validate --blueprints "$tree" || status=1
+            echo "::endgroup::"
+          done < <(find examples -name 'init.*' | sort)
+          exit "$status"
+
   security:
     runs-on: ubuntu-latest
     permissions:

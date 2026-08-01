@@ -1,17 +1,19 @@
 {
   "blueprints": {
     "format": "json",
+    "schema_version": 1,
     "location": ".",
     "order": [
-      "bootstrap",
       "repositories",
       "packages",
       "files",
+      "fonts",
       "services",
       "git",
       "scripts",
       "users",
-      "ssh_keys"
+      "ssh_keys",
+      "configuration"
     ]
   },
   "packageManagers": [
@@ -23,5 +25,13 @@
       "name": "brew",
       "action": "install"
     }
-  ]
+  ],
+  "variables": {
+    "userDefined": {
+      "company": "MyCompany",
+      "department": "Engineering",
+      "editor_theme": "dracula",
+      "editor_plugins": "basic"
+    }
+  }
 }

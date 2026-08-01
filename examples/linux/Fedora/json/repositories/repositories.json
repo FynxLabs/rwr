@@ -8,7 +8,9 @@
     },
     {
       "name": "vscode",
-      "profiles": ["dev"],
+      "profiles": [
+        "dev"
+      ],
       "package_manager": "dnf",
       "action": "add",
       "url": "https://packages.microsoft.com/yumrepos/vscode",
@@ -16,14 +18,18 @@
     },
     {
       "name": "docker-ce",
-      "profiles": ["docker"],
+      "profiles": [
+        "docker"
+      ],
       "package_manager": "dnf",
       "action": "add",
       "url": "https://download.docker.com/linux/fedora/docker-ce.repo"
     },
     {
       "name": "steam",
-      "profiles": ["gaming"],
+      "profiles": [
+        "gaming"
+      ],
       "package_manager": "dnf",
       "action": "add",
       "url": "https://negativo17.org/repos/fedora-steam.repo"

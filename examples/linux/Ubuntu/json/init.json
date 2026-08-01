@@ -1,17 +1,19 @@
 {
   "blueprints": {
     "format": "json",
+    "schema_version": 1,
     "location": ".",
     "order": [
-      "bootstrap",
       "repositories",
       "packages",
       "files",
+      "fonts",
       "services",
       "git",
       "scripts",
       "users",
-      "ssh_keys"
+      "ssh_keys",
+      "configuration"
     ]
   },
   "packageManagers": [

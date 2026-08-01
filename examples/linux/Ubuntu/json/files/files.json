@@ -1,34 +1,25 @@
 {
   "files": [
     {
-      "src": "/etc/apt/apt.conf.d/99custom",
-      "dest": "/etc/apt/apt.conf.d/99custom",
-      "content": "APT::Get::Assume-Yes \"true\";\nAPT::Install-Suggests \"false\";\n",
-      "mode": 420,
-      "owner": "root",
-      "group": "root"
-    },
-    {
-      "src": "~/.bashrc",
-      "dest": "{{.User.home}}/.bashrc",
-      "content": "export EDITOR=vim\nexport PATH=$PATH:~/.local/bin\nalias ll='ls -la'\nalias grep='grep --color=auto'\n",
+      "name": ".profile",
+      "action": "copy",
+      "source": "./src/.profile",
+      "target": "{{ .User.home }}",
       "mode": 420
     },
     {
-      "src": "~/.gitconfig",
-      "dest": "{{.User.home}}/.gitconfig",
-      "content": "[user]\n    name = Developer\n    email = dev@example.com\n[core]\n    editor = vim\n",
-      "profiles": ["dev"],
+      "name": ".gitignore",
+      "action": "copy",
+      "source": "./src/.gitignore",
+      "target": "{{ .User.home }}",
       "mode": 420
     },
     {
-      "src": "/etc/nginx/sites-available/default",
-      "dest": "/etc/nginx/sites-available/default",
-      "content": "server {\n    listen 80 default_server;\n    root /var/www/html;\n    index index.html;\n}\n",
-      "profiles": ["server"],
-      "mode": 420,
-      "owner": "root",
-      "group": "root"
+      "name": "testFile.txt",
+      "action": "copy",
+      "source": "./src/.config",
+      "target": "{{ .User.home }}/.config",
+      "mode": 420
     }
   ]
 }

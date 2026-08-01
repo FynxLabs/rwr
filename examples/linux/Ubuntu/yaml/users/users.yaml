@@ -1,33 +1,15 @@
-# Basic user management for all Ubuntu systems
+groups:
+- name: developers
+  action: create
 users:
-  - username: sysadmin
-    shell: /bin/bash
-    groups: [sudo, adm]
-    create_home: true
-
-  # Development users for dev profile
-  - username: developer
-    shell: /bin/bash
-    groups: [sudo, docker, www-data]
-    create_home: true
-    profiles: [dev]
-
-  # Server users for server profile
-  - username: webserver
-    shell: /bin/false
-    groups: [www-data]
-    create_home: false
-    profiles: [server]
-
-  - username: backup
-    shell: /bin/bash
-    groups: [backup]
-    create_home: true
-    profiles: [server]
-
-  # Desktop users for desktop profile
-  - username: guest
-    shell: /bin/bash
-    groups: [users, audio, video]
-    create_home: true
-    profiles: [desktop]
+- name: builder
+  action: create
+  shell: /bin/bash
+  home: /home/builder
+  groups:
+  - developers
+- name: deploy
+  action: create
+  shell: /usr/sbin/nologin
+  groups:
+  - developers

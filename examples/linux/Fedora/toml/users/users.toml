@@ -1,8 +1,10 @@
+groups = [
+    { name = "developers", action = "create" },
+]
+
 [[users]]
 name = "{{ .User.username }}"
 action = "modify"
-add_groups = ["docker"]
-
-[[groups]]
-name = "developers"
-action = "create"
+add_groups = [
+    "docker",
+]

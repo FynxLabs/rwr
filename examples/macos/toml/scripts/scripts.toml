@@ -1,41 +1,20 @@
-# Essential system scripts for all macOS systems
 [[scripts]]
-name = "update-system"
-content = """#!/bin/bash
-brew update && brew upgrade
-brew cleanup
-"""
+name = "update_homebrew"
+action = "run"
+content = "#!/bin/bash\nbrew update && brew upgrade\necho \"Homebrew updated successfully\"\n"
 
 [[scripts]]
-name = "setup-homebrew-permissions"
-content = """#!/bin/bash
-sudo chown -R $(whoami) /usr/local/var/homebrew
-sudo chmod u+w /usr/local/var/homebrew
-"""
-
-# Development setup for dev profile
-[[scripts]]
-name = "setup-developer-tools"
-content = """#!/bin/bash
-xcode-select --install
-sudo xcodebuild -license accept
-"""
-profiles = ["dev"]
+name = "setup_dev_environment"
+profiles = [
+    "dev",
+]
+action = "run"
+content = "#!/bin/bash\nmkdir -p \"{{ .User.home }}/Projects\"\necho 'alias ll=\"ls -alF\"' >> \"{{ .User.home }}/.zshrc\"\necho \"Development environment setup complete\"\n"
 
 [[scripts]]
-name = "configure-git"
-content = """#!/bin/bash
-git config --global init.defaultBranch main
-git config --global pull.rebase false
-"""
-profiles = ["dev"]
-
-# Desktop customization for desktop profile
-[[scripts]]
-name = "configure-dock"
-content = """#!/bin/bash
-defaults write com.apple.dock autohide -bool true
-defaults write com.apple.dock tilesize -int 48
-killall Dock
-"""
-profiles = ["desktop"]
+name = "docker_setup"
+profiles = [
+    "docker",
+]
+action = "run"
+content = "#!/bin/bash\nopen /Applications/Docker.app\necho \"Docker Desktop starting...\"\n"

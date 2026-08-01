@@ -1,8 +1,114 @@
 [[users]]
 name = "{{ .User.username }}"
 action = "modify"
-add_groups = ["docker"]
+add_groups = [
+    "wheel",
+    "users",
+]
+
+[[users]]
+name = "{{ .User.username }}"
+profiles = [
+    "dev",
+]
+action = "modify"
+add_groups = [
+    "docker",
+    "developers",
+    "git",
+]
+
+[[users]]
+name = "{{ .User.username }}"
+profiles = [
+    "work",
+]
+action = "modify"
+add_groups = [
+    "docker",
+    "sudo",
+    "developers",
+]
+
+[[users]]
+name = "{{ .User.username }}"
+profiles = [
+    "gaming",
+]
+action = "modify"
+add_groups = [
+    "games",
+    "audio",
+    "video",
+]
+
+[[users]]
+name = "developer"
+profiles = [
+    "dev",
+    "work",
+]
+action = "create"
+shell = "/bin/zsh"
+home = "/home/developer"
+groups = [
+    "developers",
+    "docker",
+]
+
+[[users]]
+name = "gamer"
+profiles = [
+    "gaming",
+]
+action = "create"
+shell = "/bin/bash"
+home = "/home/gamer"
+groups = [
+    "games",
+    "audio",
+    "video",
+]
+
+[[groups]]
+name = "users"
+action = "create"
 
 [[groups]]
 name = "developers"
+profiles = [
+    "dev",
+    "work",
+]
+action = "create"
+
+[[groups]]
+name = "docker"
+profiles = [
+    "dev",
+    "work",
+]
+action = "create"
+
+[[groups]]
+name = "games"
+profiles = [
+    "gaming",
+]
+action = "create"
+
+[[groups]]
+name = "security"
+profiles = [
+    "security",
+    "work",
+]
+action = "create"
+
+[[groups]]
+name = "database"
+profiles = [
+    "database",
+    "dev",
+]
 action = "create"

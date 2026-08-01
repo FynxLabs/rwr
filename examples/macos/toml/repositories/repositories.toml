@@ -1,0 +1,4 @@
+[[repositories]]
+name = "homebrew/cask-fonts"
+action = "add"
+package_manager = "brew"
