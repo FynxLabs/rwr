@@ -35,8 +35,10 @@ type User struct {
 }
 
 type UsersData struct {
-	Groups []Group `mapstructure:"groups,omitempty" yaml:"groups,omitempty" json:"groups,omitempty" toml:"groups,omitempty"` // Groups data
-	Users  []User  `mapstructure:"users,omitempty" yaml:"users,omitempty" json:"users,omitempty" toml:"users,omitempty"`     // Users data
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	Groups        []Group `mapstructure:"groups,omitempty" yaml:"groups,omitempty" json:"groups,omitempty" toml:"groups,omitempty"` // Groups data
+	Users         []User  `mapstructure:"users,omitempty" yaml:"users,omitempty" json:"users,omitempty" toml:"users,omitempty"`     // Users data
 }
 
 // GetProfiles returns the profiles for this group.

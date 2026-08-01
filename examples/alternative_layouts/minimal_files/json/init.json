@@ -1,6 +1,7 @@
 {
   "blueprints": {
     "format": "json",
+    "schema_version": 1,
     "location": ".",
     "order": [
       "packages",

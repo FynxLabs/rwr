@@ -15,7 +15,9 @@ type Script struct {
 }
 
 type ScriptData struct {
-	Scripts []Script `mapstructure:"scripts,omitempty" yaml:"scripts,omitempty" json:"scripts,omitempty" toml:"scripts,omitempty"`
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	Scripts       []Script `mapstructure:"scripts,omitempty" yaml:"scripts,omitempty" json:"scripts,omitempty" toml:"scripts,omitempty"`
 }
 
 // GetProfiles returns the profiles for this script.

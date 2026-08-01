@@ -1,7 +1,13 @@
 [blueprints]
 format = "toml"
+schema_version = 1
 location = "."
-order = ["packages", "git", "files", "scripts"]
+order = [
+    "packages",
+    "git",
+    "files",
+    "scripts",
+]
 
 [variables.userDefined]
 project_name = "flattened-setup"

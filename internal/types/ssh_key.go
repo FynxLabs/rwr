@@ -15,7 +15,9 @@ type SSHKey struct {
 }
 
 type SSHKeyData struct {
-	SSHKeys []SSHKey `mapstructure:"ssh_keys" yaml:"ssh_keys" json:"ssh_keys" toml:"ssh_keys"`
+	// SchemaVersion, when set, overrides the tree-wide version from the init file.
+	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	SSHKeys       []SSHKey `mapstructure:"ssh_keys" yaml:"ssh_keys" json:"ssh_keys" toml:"ssh_keys"`
 }
 
 // GetProfiles returns the profiles for this SSH key.
