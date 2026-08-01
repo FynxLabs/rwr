@@ -15,8 +15,8 @@ scripts:
     action: run
     content: |
       #!/bin/bash
-      mkdir -p "{{ .User.Home }}/Projects"
-      echo 'alias ll="ls -alF"' >> "{{ .User.Home }}/.bashrc"
+      mkdir -p "{{ .User.home }}/Projects"
+      echo 'alias ll="ls -alF"' >> "{{ .User.home }}/.bashrc"
       echo "Development environment setup complete"
 
   # Docker setup
@@ -27,7 +27,7 @@ scripts:
     elevated: true
     content: |
       #!/bin/bash
-      usermod -a -G docker "{{ .User.Username }}"
+      usermod -a -G docker "{{ .User.username }}"
       systemctl enable docker
       systemctl start docker
       echo "Docker setup complete"

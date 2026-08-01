@@ -5,14 +5,12 @@ content = """@echo off
 choco upgrade all -y
 winget upgrade --all
 """
-mode = "755"
 
 [[scripts]]
 name = "setup-chocolatey"
 content = """@echo off
 powershell -Command "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"
 """
-mode = "755"
 
 # Development setup for dev profile
 [[scripts]]
@@ -23,7 +21,6 @@ dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /nores
 wsl --set-default-version 2
 """
 profiles = ["dev"]
-mode = "755"
 
 # Work setup for work profile
 [[scripts]]
@@ -33,7 +30,6 @@ reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server" /v fDenyTSCo
 netsh advfirewall firewall set rule group="remote desktop" new enable=Yes
 """
 profiles = ["work"]
-mode = "755"
 
 # Gaming setup for gaming profile
 [[scripts]]
@@ -44,7 +40,6 @@ bcdedit /set useplatformclock true
 bcdedit /set disabledynamictick yes
 """
 profiles = ["gaming"]
-mode = "755"
 
 # Minimal system cleanup for minimal profile
 [[scripts]]
@@ -54,4 +49,3 @@ cleanmgr /sagerun:1
 dism /online /cleanup-image /startcomponentcleanup
 """
 profiles = ["minimal"]
-mode = "755"

@@ -5,7 +5,6 @@ scripts:
       #!/bin/bash
       apt update && apt upgrade -y
       apt autoremove -y
-    mode: "755"
 
   - name: setup-firewall
     content: |
@@ -15,7 +14,6 @@ scripts:
       ufw default allow outgoing
       ufw allow ssh
       ufw --force enable
-    mode: "755"
 
   # Development setup for dev profile
   - name: setup-dev-env
@@ -23,10 +21,9 @@ scripts:
       #!/bin/bash
       curl -fsSL https://get.docker.com -o get-docker.sh
       sh get-docker.sh
-      usermod -aG docker {{.User.Username}}
+      usermod -aG docker {{.User.username}}
       systemctl enable docker
     profiles: [dev]
-    mode: "755"
 
   # Server setup for server profile
   - name: configure-server
@@ -37,7 +34,6 @@ scripts:
       a2enmod rewrite
       systemctl restart apache2
     profiles: [server]
-    mode: "755"
 
   # Desktop customization for desktop profile
   - name: setup-desktop
@@ -46,4 +42,3 @@ scripts:
       gsettings set org.gnome.desktop.interface gtk-theme 'Adwaita-dark'
       gsettings set org.gnome.shell.extensions.dash-to-dock dock-position BOTTOM
     profiles: [desktop]
-    mode: "755"

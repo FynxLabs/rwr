@@ -79,7 +79,7 @@ repositories:
       - custom
     package_manager: pacman
     action: add
-    url: "file:///home/{{ .User.Username }}/local-repo"
+    url: "file:///home/{{ .User.username }}/local-repo"
 
   # Alternative architecture repository
   - name: archlinux32

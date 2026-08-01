@@ -10,7 +10,7 @@ echo "User: $USER"
 echo "Distribution: $(lsb_release -d | cut -f2)"
 echo "Kernel: $(uname -r)"
 """
-log = "{{ .User.Home }}/.config/rwr/logs/system_info.log"
+log = "{{ .User.home }}/.config/rwr/logs/system_info.log"
 
 [[scripts]]
 name = "update_system"
@@ -22,7 +22,7 @@ echo "Updating package database..."
 pacman -Sy --noconfirm
 echo "System updated successfully"
 """
-log = "{{ .User.Home }}/.config/rwr/logs/system_update.log"
+log = "{{ .User.home }}/.config/rwr/logs/system_update.log"
 
 # Development environment setup
 [[scripts]]
@@ -32,19 +32,19 @@ action = "run"
 content = """
 #!/bin/bash
 # Create development directories
-mkdir -p "{{ .User.Home }}/Projects"
-mkdir -p "{{ .User.Home }}/Projects/personal"
-mkdir -p "{{ .User.Home }}/Projects/work"
-mkdir -p "{{ .User.Home }}/.local/bin"
+mkdir -p "{{ .User.home }}/Projects"
+mkdir -p "{{ .User.home }}/Projects/personal"
+mkdir -p "{{ .User.home }}/Projects/work"
+mkdir -p "{{ .User.home }}/.local/bin"
 
 # Set up development aliases
-echo 'alias ll="ls -alF"' >> "{{ .User.Home }}/.bashrc"
-echo 'alias la="ls -A"' >> "{{ .User.Home }}/.bashrc"
-echo 'alias l="ls -CF"' >> "{{ .User.Home }}/.bashrc"
+echo 'alias ll="ls -alF"' >> "{{ .User.home }}/.bashrc"
+echo 'alias la="ls -A"' >> "{{ .User.home }}/.bashrc"
+echo 'alias l="ls -CF"' >> "{{ .User.home }}/.bashrc"
 
 echo "Development environment setup complete"
 """
-log = "{{ .User.Home }}/.config/rwr/logs/dev_setup.log"
+log = "{{ .User.home }}/.config/rwr/logs/dev_setup.log"
 
 # Install development tools from source
 [[scripts]]
@@ -60,7 +60,7 @@ nvm install --lts
 nvm use --lts
 echo "NVM and latest LTS Node.js installed"
 """
-log = "{{ .User.Home }}/.config/rwr/logs/nvm_install.log"
+log = "{{ .User.home }}/.config/rwr/logs/nvm_install.log"
 
 # Gaming optimizations
 [[scripts]]
@@ -78,11 +78,11 @@ pacman -Sy --noconfirm
 
 # Set up gaming group
 groupadd -f gaming
-usermod -a -G gaming "{{ .User.Username }}"
+usermod -a -G gaming "{{ .User.username }}"
 
 echo "Gaming optimizations applied"
 """
-log = "{{ .User.Home }}/.config/rwr/logs/gaming_setup.log"
+log = "{{ .User.home }}/.config/rwr/logs/gaming_setup.log"
 
 # Security hardening
 [[scripts]]
@@ -105,7 +105,7 @@ systemctl start fail2ban
 
 echo "Basic security setup complete"
 """
-log = "{{ .User.Home }}/.config/rwr/logs/security_setup.log"
+log = "{{ .User.home }}/.config/rwr/logs/security_setup.log"
 
 # Database setup
 [[scripts]]
@@ -116,21 +116,21 @@ elevated = true
 content = """
 #!/bin/bash
 # Create PostgreSQL user
-sudo -u postgres createuser -s "{{ .User.Username }}"
-sudo -u postgres createdb "{{ .User.Username }}"
+sudo -u postgres createuser -s "{{ .User.username }}"
+sudo -u postgres createdb "{{ .User.username }}"
 
 echo "PostgreSQL user setup complete"
 """
-log = "{{ .User.Home }}/.config/rwr/logs/postgresql_setup.log"
+log = "{{ .User.home }}/.config/rwr/logs/postgresql_setup.log"
 
 # External script execution
 [[scripts]]
 name = "run_custom_setup"
 profiles = ["personal"]
 action = "run"
-source = "{{ .User.Home }}/Scripts/personal_setup.sh"
-args = "--user {{ .User.Username }} --home {{ .User.Home }}"
-log = "{{ .User.Home }}/.config/rwr/logs/custom_setup.log"
+source = "{{ .User.home }}/Scripts/personal_setup.sh"
+args = "--user {{ .User.username }} --home {{ .User.home }}"
+log = "{{ .User.home }}/.config/rwr/logs/custom_setup.log"
 
 # Docker setup for development
 [[scripts]]
@@ -141,7 +141,7 @@ elevated = true
 content = """
 #!/bin/bash
 # Add user to docker group
-usermod -a -G docker "{{ .User.Username }}"
+usermod -a -G docker "{{ .User.username }}"
 
 # Enable and start Docker service
 systemctl enable docker
@@ -149,7 +149,7 @@ systemctl start docker
 
 echo "Docker user setup complete. Please log out and back in for group changes to take effect."
 """
-log = "{{ .User.Home }}/.config/rwr/logs/docker_setup.log"
+log = "{{ .User.home }}/.config/rwr/logs/docker_setup.log"
 
 # Cleanup script
 [[scripts]]
@@ -170,4 +170,4 @@ journalctl --vacuum-time=30d
 
 echo "System cleanup complete"
 """
-log = "{{ .User.Home }}/.config/rwr/logs/system_cleanup.log"
+log = "{{ .User.home }}/.config/rwr/logs/system_cleanup.log"

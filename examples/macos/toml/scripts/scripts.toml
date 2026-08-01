@@ -5,7 +5,6 @@ content = """#!/bin/bash
 brew update && brew upgrade
 brew cleanup
 """
-mode = "755"
 
 [[scripts]]
 name = "setup-homebrew-permissions"
@@ -13,7 +12,6 @@ content = """#!/bin/bash
 sudo chown -R $(whoami) /usr/local/var/homebrew
 sudo chmod u+w /usr/local/var/homebrew
 """
-mode = "755"
 
 # Development setup for dev profile
 [[scripts]]
@@ -23,7 +21,6 @@ xcode-select --install
 sudo xcodebuild -license accept
 """
 profiles = ["dev"]
-mode = "755"
 
 [[scripts]]
 name = "configure-git"
@@ -32,7 +29,6 @@ git config --global init.defaultBranch main
 git config --global pull.rebase false
 """
 profiles = ["dev"]
-mode = "755"
 
 # Desktop customization for desktop profile
 [[scripts]]
@@ -43,4 +39,3 @@ defaults write com.apple.dock tilesize -int 48
 killall Dock
 """
 profiles = ["desktop"]
-mode = "755"

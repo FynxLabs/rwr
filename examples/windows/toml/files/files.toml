@@ -5,7 +5,7 @@ dest = "C:\\Windows\\System32\\drivers\\etc\\hosts"
 content = """127.0.0.1       localhost
 ::1             localhost
 """
-mode = "644"
+mode = 0o644
 
 [[files]]
 src = "C:\\ProgramData\\chocolatey\\config\\chocolatey.config"
@@ -17,12 +17,12 @@ content = """<?xml version="1.0" encoding="utf-8"?>
   </config>
 </chocolatey>
 """
-mode = "644"
+mode = 0o644
 
 # Development configuration for dev profile
 [[files]]
-src = "C:\\Users\\{{.User.Username}}\\.gitconfig"
-dest = "C:\\Users\\{{.User.Username}}\\.gitconfig"
+src = "C:\\Users\\{{.User.username}}\\.gitconfig"
+dest = "C:\\Users\\{{.User.username}}\\.gitconfig"
 content = """[user]
     name = Developer
     email = dev@example.com
@@ -31,22 +31,22 @@ content = """[user]
     editor = code
 """
 profiles = ["dev"]
-mode = "644"
+mode = 0o644
 
 # Work configuration for work profile
 [[files]]
-src = "C:\\Users\\{{.User.Username}}\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
-dest = "C:\\Users\\{{.User.Username}}\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+src = "C:\\Users\\{{.User.username}}\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
+dest = "C:\\Users\\{{.User.username}}\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1"
 content = """Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 Set-Alias -Name ll -Value Get-ChildItem
 """
 profiles = ["work"]
-mode = "644"
+mode = 0o644
 
 # Gaming configuration for gaming profile
 [[files]]
-src = "C:\\Users\\{{.User.Username}}\\AppData\\Local\\Steam\\config\\config.vdf"
-dest = "C:\\Users\\{{.User.Username}}\\AppData\\Local\\Steam\\config\\config.vdf"
+src = "C:\\Users\\{{.User.username}}\\AppData\\Local\\Steam\\config\\config.vdf"
+dest = "C:\\Users\\{{.User.username}}\\AppData\\Local\\Steam\\config\\config.vdf"
 content = """"InstallConfigStore"
 {
     "Software"
@@ -62,4 +62,4 @@ content = """"InstallConfigStore"
 }
 """
 profiles = ["gaming"]
-mode = "644"
+mode = 0o644
