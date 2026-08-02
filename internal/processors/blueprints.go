@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/go-git/go-git/v5"
 )
@@ -21,16 +23,19 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 	if initConfig.Init.Git != nil {
 		gitOpts := initConfig.Init.Git
 
-		// Clean up any existing non-git directory
+		// Dry-run has to bail out before any of the git handling below: cloning and
+		// pulling touch disk and network directly instead of going through
+		// system.RunCommand, which is where dry-run is otherwise enforced.
+		if system.IsDryRun() {
+			log.Infof("[DRY-RUN] Would sync blueprint repository %s into %s", gitOpts.URL, gitOpts.Target)
+			return gitOpts.Target, nil
+		}
+
 		if _, err := os.Stat(gitOpts.Target); err == nil {
-			// Try to open as git repo to verify it's actually a git repository
-			_, err := git.PlainOpen(gitOpts.Target)
-			if err != nil {
-				// Directory exists but is not a git repo - remove it and clone fresh
-				log.Debugf("Directory exists but is not a git repository, removing: %s", gitOpts.Target)
-				if err := os.RemoveAll(gitOpts.Target); err != nil {
-					return "", fmt.Errorf("error removing existing directory: %v", err)
-				}
+			// Refuse rather than reclaim the path: rwr runs unattended, and a
+			// mistyped target (~/dotfiles) used to be silently deleted here.
+			if _, err := git.PlainOpen(gitOpts.Target); err != nil {
+				return "", fmt.Errorf("blueprint target %q exists but is not a git repository; move or remove it yourself, or point blueprints.git.target at a different path", gitOpts.Target)
 			}
 		}
 
@@ -118,9 +123,20 @@ func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 			if str, ok := item.(string); ok {
 				runOrder = append(runOrder, str)
 			} else if subOrder, ok := item.(map[string]interface{}); ok {
+				// Go randomizes map iteration, so a nested order entry produced a
+				// different sequence on each run — the one thing an explicit order
+				// is written to control. Sort so the result is at least stable;
+				// a map cannot preserve authored order, which is why the sorted
+				// keys are logged loudly enough to notice.
+				processors := make([]string, 0, len(subOrder))
 				for processor := range subOrder {
-					runOrder = append(runOrder, processor)
+					processors = append(processors, processor)
 				}
+				sort.Strings(processors)
+				if len(processors) > 1 {
+					log.Warnf("Nested order entry lists %d processors as a mapping; running them in sorted order %v. Use a flat list to control the sequence.", len(processors), processors)
+				}
+				runOrder = append(runOrder, processors...)
 			}
 		}
 	} else {

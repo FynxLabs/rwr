@@ -12,18 +12,23 @@ import (
 func CleanPackageManagers(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Clean each available package manager
 	for name, pm := range osInfo.PackageManager.Managers {
-		if pm.Clean == "" {
+		// GetPackageManagerInfo builds Clean as "<bin> <clean args>", so a provider
+		// that defines no clean command still yields "<bin> " — never "". This guard
+		// therefore never fired, and the bare provider binary was executed at the end
+		// of every run. For an AUR helper, a bare invocation can mean a full system
+		// upgrade. Compare the arguments, not the concatenation.
+		cleanArgs := strings.Fields(strings.TrimPrefix(pm.Clean, pm.Bin))
+		if len(cleanArgs) == 0 {
+			log.Debugf("Package manager %s defines no clean command, skipping", name)
 			continue
 		}
 
 		log.Debugf("Running clean command for package manager: %s", name)
 		log.Debugf(" Running clean command: %s", pm.Clean)
 
-		// pm.Clean is "<bin> <clean args>"; split it back into argv rather than
-		// handing the whole string to a shell.
 		cleanCmd := types.Command{
 			Exec:     pm.Bin,
-			Args:     strings.Fields(strings.TrimPrefix(pm.Clean, pm.Bin)),
+			Args:     cleanArgs,
 			Elevated: pm.Elevated,
 		}
 
