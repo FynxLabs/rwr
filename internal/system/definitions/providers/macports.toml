@@ -21,21 +21,25 @@ build-essentials = ["make", "cmake", "pkgconfig", "freetype", "fontconfig"]
 
 [provider.install]
 steps = [
-  # Download installer
-  { action = "command", exec = "curl", args = [
-    "-O",
-    "https://github.com/macports/macports-base/releases/download/v2.8.1/MacPorts-2.8.1-13-Ventura.pkg",
-  ] },
+  # Stage the installer in the per-run private directory ({{ .TempDir }} is
+  # 0700). `curl -O` downloaded it into the operator's CWD — a shared or
+  # world-writable directory lets any local user swap the package between the
+  # download and the elevated installer run, which is root code execution.
+  #
+  # The sha256 pins the exact package; it was computed from the GitHub release
+  # asset and cross-checked against the GPG-signed .asc published next to it
+  # (signed by Joshua Root <jmr@macports.org>, key C4037936...B4AAE6CD).
+  { action = "download", source = "https://github.com/macports/macports-base/releases/download/v2.8.1/MacPorts-2.8.1-13-Ventura.pkg", dest = "{{ .TempDir }}/MacPorts-2.8.1-13-Ventura.pkg", sha256 = "577512628a4b9237b3eccd0e18af28e06855f5d55bd71957c37a9c7c362de5f3" },
   # Install package
   { action = "command", exec = "installer", args = [
     "-pkg",
-    "MacPorts-2.8.1-13-Ventura.pkg",
+    "{{ .TempDir }}/MacPorts-2.8.1-13-Ventura.pkg",
     "-target",
     "/",
   ], elevated = true },
   # Clean up
   { action = "command", exec = "rm", args = [
-    "MacPorts-2.8.1-13-Ventura.pkg",
+    "{{ .TempDir }}/MacPorts-2.8.1-13-Ventura.pkg",
   ] },
   # Update ports tree
   { action = "command", exec = "port", args = [
