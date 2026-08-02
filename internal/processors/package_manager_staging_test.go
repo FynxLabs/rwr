@@ -73,12 +73,33 @@ func TestProcessPackageManagers_InstallStepsStageInPrivateTempDir(t *testing.T) 
 	}
 }
 
-// No shipped install or remove step may name a fixed path under /tmp: a
-// world-known name in a shared directory is pre-creatable by any local user.
-func TestEmbeddedProviders_NoFixedTmpPathsInInstallSteps(t *testing.T) {
+// No shipped install or remove step may stage anywhere another local user can
+// reach or predict: not a fixed path under /tmp (pre-creatable by anyone), not
+// the operator's CWD (`curl -O`, a bare relative filename), because the staged
+// file is usually executed or installed by a later elevated step.
+func TestEmbeddedProviders_NoSharedOrCWDStagingInInstallSteps(t *testing.T) {
 	embedded, err := system.LoadEmbeddedProviders()
 	if err != nil {
 		t.Fatalf("LoadEmbeddedProviders: %v", err)
+	}
+
+	// A path argument is contained when it is inside the per-run private
+	// directory or explicitly absolute; a URL is not a path.
+	contained := func(p string) bool {
+		return strings.HasPrefix(p, "{{ .TempDir }}") ||
+			strings.HasPrefix(p, "/") ||
+			strings.HasPrefix(p, "~") ||
+			strings.Contains(p, "://")
+	}
+
+	// File-looking arguments: what a download stages and a later step consumes.
+	stagedFile := func(arg string) bool {
+		for _, ext := range []string{".pkg", ".sh", ".tar.gz", ".tar.xz", ".zip", ".dmg"} {
+			if strings.HasSuffix(arg, ext) {
+				return true
+			}
+		}
+		return false
 	}
 
 	for name, provider := range embedded {
@@ -88,6 +109,22 @@ func TestEmbeddedProviders_NoFixedTmpPathsInInstallSteps(t *testing.T) {
 				for _, field := range fields {
 					if strings.Contains(field, "/tmp/") {
 						t.Errorf("provider %s stages at a fixed /tmp path: %q — use {{ .TempDir }}", name, field)
+					}
+				}
+
+				if step.Action == "download" && !contained(step.Dest) {
+					t.Errorf("provider %s downloads to a relative dest: %q — use {{ .TempDir }}", name, step.Dest)
+				}
+
+				for i, arg := range step.Args {
+					// curl -O / --remote-name writes into the CWD by construction.
+					if step.Exec == "curl" && (arg == "-O" || arg == "--remote-name") {
+						t.Errorf("provider %s uses `curl %s`, which stages in the CWD — use a download step with a {{ .TempDir }} dest", name, arg)
+					}
+					// A bare relative file name consumed or produced by a step
+					// resolves against whatever directory rwr happens to run in.
+					if stagedFile(arg) && !contained(arg) {
+						t.Errorf("provider %s references a relative staged file: args[%d] = %q — use {{ .TempDir }}", name, i, arg)
 					}
 				}
 			}
