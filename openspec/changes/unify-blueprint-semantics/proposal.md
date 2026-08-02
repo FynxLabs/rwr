@@ -50,10 +50,8 @@ blueprint that behaves differently depending on which processor reads it.
   the `UserDefined` namespace; `User`/`System`/`Flags` references that do not
   exist are validate errors.
 
-**Riders:** tautological tests deleted as encountered (roadmap item); bare
-`rwr run` now runs the whole tree (the landing command, mise-run style — the
-READMEs always said `rwr run`; the code printed help and errored), with
-`rwr all` delegating to the same path.
+**Riders:** tautological tests deleted as encountered (roadmap item);
+`alternative_layouts` READMEs corrected (`rwr run` is not a command).
 
 ## Breakage
 
