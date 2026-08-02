@@ -208,7 +208,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 						if err != nil {
 							return err
 						}
-						if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format && !isReservedFile(path) {
+						if !info.IsDir() && helpers.IsBlueprintFile(path) && !isReservedFile(path) {
 							relPath, err := filepath.Rel(blueprintDir, path)
 							if err != nil {
 								return err
@@ -243,7 +243,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 			if err != nil {
 				return err
 			}
-			if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format && !isReservedFile(path) {
+			if !info.IsDir() && helpers.IsBlueprintFile(path) && !isReservedFile(path) {
 				relPath, err := filepath.Rel(blueprintDir, path)
 				if err != nil {
 					return err

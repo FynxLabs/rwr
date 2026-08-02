@@ -79,8 +79,9 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	if err != nil {
 		return nil, fmt.Errorf("error processing init file as a template: %w", err)
 	}
-	// Convert TOML to YAML if necessary
-	if fileExt == ".toml" {
+	// Convert TOML to YAML if necessary (the registry decides what counts as
+	// TOML rather than a literal extension compare).
+	if format, formatErr := helpers.FormatForPath(tempInitFile); formatErr == nil && format == types.FormatTOML {
 		processedInit, fileExt, err = convertTomlToYaml(processedInit)
 		if err != nil {
 			return nil, err

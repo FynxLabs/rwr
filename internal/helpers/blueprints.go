@@ -47,8 +47,15 @@ func UnmarshalBlueprintStrict(data []byte, format string, v interface{}) error {
 }
 
 func unmarshalBlueprint(data []byte, format string, v interface{}, strict bool) error {
-	switch format {
-	case types.FormatExtYAML, types.FormatExtYAMLAlt, types.FormatYAML, types.FormatYAMLAlt:
+	// The registry canonicalizes every accepted spelling (name, alias, dotted
+	// extension), so this switch is over canonical names only and unsupported
+	// formats fail with one message instead of falling through per spelling.
+	canonical, err := CanonicalFormat(format)
+	if err != nil {
+		return err
+	}
+	switch canonical {
+	case types.FormatYAML:
 		log.Debug("Unmarshaling YAML")
 		if !strict {
 			if err := yaml.Unmarshal(data, v); err != nil {
@@ -65,7 +72,7 @@ func unmarshalBlueprint(data []byte, format string, v interface{}, strict bool) 
 			}
 			return fmt.Errorf("error unmarshaling YAML: %w", err)
 		}
-	case types.FormatExtJSON, types.FormatJSON:
+	case types.FormatJSON:
 		log.Debug("Unmarshaling JSON")
 		if !strict {
 			if err := json.Unmarshal(data, v); err != nil {
@@ -81,7 +88,7 @@ func unmarshalBlueprint(data []byte, format string, v interface{}, strict bool) 
 			}
 			return fmt.Errorf("error unmarshaling JSON: %w", err)
 		}
-	case types.FormatExtTOML, types.FormatTOML:
+	case types.FormatTOML:
 		log.Debug("Unmarshaling TOML")
 		meta, err := toml.Decode(string(data), v)
 		if err != nil {

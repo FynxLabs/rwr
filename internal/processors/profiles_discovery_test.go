@@ -136,3 +136,32 @@ func TestCollectProfiles_EmptyTreeReportsNothing(t *testing.T) {
 		t.Fatalf("empty tree reported %v / %d base items", summary.Names, summary.BaseItems)
 	}
 }
+
+// Format is derived per file: a tree mixing formats used to be visible only to
+// the half of the code that derived per file, while profile discovery and the
+// run-order walk filtered on the tree-wide Init.Format and skipped the rest.
+func TestCollectProfiles_MixedFormatTree(t *testing.T) {
+	root := writeBlueprintTree(t, map[string]string{
+		"packages/base.yaml": "packages:\n  - name: git\n    action: install\n    profiles: [dev]\n",
+		"files/conf.toml":    "[[files]]\nname = \"conf\"\naction = \"create\"\ntarget = \"/tmp/conf\"\ncontent = \"x\"\nprofiles = [\"work\"]\n",
+	})
+
+	summary, err := CollectProfiles(treeConfig(root))
+	if err != nil {
+		t.Fatalf("CollectProfiles: %v", err)
+	}
+	if summary.Files != 2 {
+		t.Errorf("Files = %d, want 2 (both formats seen)", summary.Files)
+	}
+	for _, want := range []string{"dev", "work"} {
+		found := false
+		for _, name := range summary.Names {
+			if name == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("profile %q not discovered; got %v", want, summary.Names)
+		}
+	}
+}

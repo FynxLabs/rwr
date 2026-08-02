@@ -42,3 +42,36 @@ func TestGetBlueprintFileOrder_SkipsInitAndBootstrap(t *testing.T) {
 		}
 	}
 }
+
+// The run-order walk sees every registered format, not only files matching the
+// tree-wide Init.Format.
+func TestGetBlueprintFileOrder_MixedFormatTree(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{"packages/base.yaml", "files/conf.toml", "services/svc.json"} {
+		path := filepath.Join(dir, f)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	initConfig := &types.InitConfig{}
+	initConfig.Init.Format = "yaml"
+
+	fileOrder, err := GetBlueprintFileOrder(dir, nil, false, initConfig)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder: %v", err)
+	}
+	for bucket, wantFile := range map[string]string{
+		types.BlueprintTypePackages: filepath.Join("packages", "base.yaml"),
+		types.BlueprintTypeFiles:    filepath.Join("files", "conf.toml"),
+		types.BlueprintTypeServices: filepath.Join("services", "svc.json"),
+	} {
+		got := fileOrder[bucket]
+		if len(got) != 1 || got[0] != wantFile {
+			t.Errorf("bucket %s = %v, want [%s]", bucket, got, wantFile)
+		}
+	}
+}

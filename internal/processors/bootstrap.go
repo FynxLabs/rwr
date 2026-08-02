@@ -41,14 +41,20 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	blueprintDir := filepath.Dir(blueprintFile)
 
+	// Per-file via the registry; Init.Format is only the fallback for the
+	// no-file case (inline bootstrap data).
 	format := initConfig.Init.Format
 	if blueprintFile != "" {
-		format = filepath.Ext(blueprintFile)
+		derived, err := helpers.FormatForPath(blueprintFile)
+		if err != nil {
+			return err
+		}
+		format = derived
 	}
 
 	// Unmarshal the blueprint data
 	log.Debugf("Unmarshaling bootstrap data from %s", blueprintFile)
-	err = helpers.DecodeBlueprintInto(blueprintData, filepath.Ext(blueprintFile),
+	err = helpers.DecodeBlueprintInto(blueprintData, format,
 		types.BlueprintTypeBootstrap, helpers.TreeSchemaVersion(initConfig), &bootstrapData)
 	if err != nil {
 		log.Errorf("Error unmarshaling bootstrap blueprint: %v", err)

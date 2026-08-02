@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -114,9 +115,8 @@ func TestUnmarshalBlueprint_InvalidFormat(t *testing.T) {
 		t.Fatal("Expected error for unsupported format, got nil")
 	}
 
-	expectedErrorMsg := "unsupported blueprint format: xml"
-	if err.Error() != expectedErrorMsg {
-		t.Errorf("Expected error message '%s', got '%s'", expectedErrorMsg, err.Error())
+	if !strings.Contains(err.Error(), "unsupported blueprint format \"xml\"") {
+		t.Errorf("Expected an unsupported-format error naming xml, got '%s'", err.Error())
 	}
 }
 

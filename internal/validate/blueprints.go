@@ -45,7 +45,6 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 	// top directory meant `rwr validate` on such a tree checked the init file and
 	// nothing else, and reported success. The command an operator runs to find out
 	// whether their configuration is sound was inspecting one file out of dozens.
-	initExt := filepath.Ext(initFile)
 
 	err = filepath.WalkDir(path, func(filePath string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -61,7 +60,10 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 			return nil
 		}
 
-		if filePath == initFile || filepath.Ext(filePath) != initExt {
+		// Per-file via the registry: filtering on the init file's extension
+		// silently skipped every blueprint written in another format, so a
+		// mixed tree validated only the files that happened to match init.
+		if filePath == initFile || !helpers.IsBlueprintFile(filePath) {
 			return nil
 		}
 
@@ -93,6 +95,13 @@ func isInitFileName(name string) bool {
 	return base == "init"
 }
 
+// isBootstrapFileName reports whether a filename is a bootstrap file, in any
+// registered format.
+func isBootstrapFileName(name string) bool {
+	base := strings.TrimSuffix(name, filepath.Ext(name))
+	return base == "bootstrap" && helpers.IsBlueprintFile(name)
+}
+
 // findInitFile searches for an init file in the specified directory (non-recursive).
 func findInitFile(dir string) string {
 	// Check for init files with common extensions
@@ -119,7 +128,12 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 	}
 
 	// Unmarshal the init file data
-	err = helpers.UnmarshalBlueprint(initData, filepath.Ext(initFile)[1:], &initConfig)
+	initFormat, formatErr := helpers.FormatForPath(initFile)
+	if formatErr != nil {
+		AddIssue(results, types.ValidationError, formatErr.Error(), initFile, 0, "Use a file with a supported blueprint extension")
+		return nil, nil
+	}
+	err = helpers.UnmarshalBlueprint(initData, initFormat, &initConfig)
 	if err != nil {
 		AddIssue(results, types.ValidationError, fmt.Sprintf("Error unmarshaling init file: %s", err), initFile, 0, "Check file format and syntax")
 		return nil, nil
@@ -208,10 +222,9 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	dir := filepath.Base(filepath.Dir(blueprintFile))
 
 	var blueprintType string
-	switch filename {
-	case "bootstrap.yaml", "bootstrap.yml", "bootstrap.json", "bootstrap.toml":
+	if isBootstrapFileName(filename) {
 		blueprintType = types.BlueprintTypeBootstrap
-	default:
+	} else {
 		blueprintType = strings.ToLower(dir)
 	}
 
@@ -228,7 +241,12 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		return nil
 	}
 
-	return validator(blueprintFileData, filepath.Ext(blueprintFile)[1:], blueprintFile, results)
+	format, formatErr := helpers.FormatForPath(blueprintFile)
+	if formatErr != nil {
+		AddIssue(results, types.ValidationError, formatErr.Error(), blueprintFile, 0, "Use a file with a supported blueprint extension")
+		return nil
+	}
+	return validator(blueprintFileData, format, blueprintFile, results)
 }
 
 // blueprintValidator unmarshals and validates a single blueprint type.
