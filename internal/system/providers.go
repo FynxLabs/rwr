@@ -406,6 +406,30 @@ func isProviderFileTrustedOn(goos, path string) bool {
 			"provider files run commands as root, so tighten it with chmod go-w", path, mode.Perm())
 		return false
 	}
+	if !ownedByRootOrEUID(info) {
+		log.Warnf("LoadProviders: Skipping provider %s: it is owned by another user; "+
+			"provider files run commands as root, so only root- or self-owned definitions are loaded", path)
+		return false
+	}
+
+	// A tight file in a loose directory is still rewritable: anyone who can
+	// write the directory can replace the file, and the directory's owner can
+	// always chmod it open. The same trust rules apply to the parent.
+	parent := filepath.Dir(path)
+	parentInfo, err := os.Stat(parent)
+	if err != nil {
+		log.Warnf("LoadProviders: Skipping provider %s: cannot inspect its directory: %v", path, err)
+		return false
+	}
+	if mode := parentInfo.Mode(); mode&0o022 != 0 {
+		log.Warnf("LoadProviders: Skipping provider %s: its directory %s is group- or world-writable (mode %04o); "+
+			"tighten it with chmod go-w", path, parent, mode.Perm())
+		return false
+	}
+	if !ownedByRootOrEUID(parentInfo) {
+		log.Warnf("LoadProviders: Skipping provider %s: its directory %s is owned by another user", path, parent)
+		return false
+	}
 	return true
 }
 

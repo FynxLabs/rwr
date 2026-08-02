@@ -127,6 +127,17 @@ func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 	// Set the new token
 	viper.Set("repository.gh_api_token", token)
 
+	// The file holds the token, and viper writes at 0644 with no way to ask
+	// for less. Pre-creating it at 0600 means the token is never on disk
+	// world-readable, not even briefly. ConfigFileUsed is empty when no config
+	// was loaded — then SafeWriteConfig below creates the file and the tighten
+	// after it is the only guard (a first-run-only window).
+	if path := viper.ConfigFileUsed(); path != "" {
+		if err := helpers.PrecreateSecureConfigFile(path); err != nil {
+			return err
+		}
+	}
+
 	// Try to write config
 	if err := viper.WriteConfig(); err != nil {
 		// If config doesn't exist, create it
@@ -135,7 +146,7 @@ func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 		}
 	}
 
-	// viper writes at 0644, and this file holds the token.
+	// Belt and braces: verify nothing widened it.
 	return helpers.SecureConfigFile(viper.ConfigFileUsed())
 }
 

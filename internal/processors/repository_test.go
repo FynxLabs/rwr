@@ -130,7 +130,11 @@ func TestProcessRepositories_AptAddRendersProviderTemplates(t *testing.T) {
 	// The staging path is inside the run's private 0700 directory, not a
 	// world-known name under /tmp any local user could pre-create or swap
 	// between the download and the dearmor that imports it as root.
-	tempKeyPath := filepath.Join(repositoryTempDir(), "docker.gpg")
+	stagingDir, err := repositoryTempDir()
+	if err != nil {
+		t.Fatalf("repositoryTempDir: %v", err)
+	}
+	tempKeyPath := filepath.Join(stagingDir, "docker.gpg")
 
 	// The key is downloaded to the temporary path the dearmor step reads from.
 	if _, err := os.Stat(tempKeyPath); err != nil {
@@ -908,7 +912,13 @@ func TestProcessRepositories_DnfAddAndRemove(t *testing.T) {
 	if len(rpmCalls) != 1 {
 		t.Fatalf("recorded %d rpm calls, want 1: %v", len(rpmCalls), rec.Calls)
 	}
-	if got, want := rpmCalls[0].Argv(), []string{"rpm", "--import", keyPath}; !equalStrings(got, want) {
+	// The import reads from the run's private staging directory, mirroring
+	// apt: the key reaches its final /etc path only through the copy step.
+	dnfStagingDir, err := repositoryTempDir()
+	if err != nil {
+		t.Fatalf("repositoryTempDir: %v", err)
+	}
+	if got, want := rpmCalls[0].Argv(), []string{"rpm", "--import", filepath.Join(dnfStagingDir, "docker-ce.gpg")}; !equalStrings(got, want) {
 		t.Errorf("rpm argv = %#v, want %#v", got, want)
 	}
 

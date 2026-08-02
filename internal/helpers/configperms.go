@@ -35,6 +35,23 @@ func SecureConfigFile(path string) error {
 	return tighten(path, ConfigFilePerm)
 }
 
+// PrecreateSecureConfigFile makes sure path exists at owner-only permissions
+// BEFORE viper writes credentials into it. Writing first and tightening after
+// leaves a window in which the token is world-readable; viper truncates an
+// existing file in place, so a file pre-created at 0600 keeps its mode.
+func PrecreateSecureConfigFile(path string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, ConfigFilePerm) // #nosec G304 -- rwr's own config path
+	if err != nil {
+		return fmt.Errorf("error creating %s: %w", path, err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("error closing %s: %w", path, err)
+	}
+	// An already-existing file keeps whatever mode it had; narrow it now
+	// rather than after the credentials have landed in it.
+	return tighten(path, ConfigFilePerm)
+}
+
 // tighten clears any permission bits beyond want. It never widens: a caller who
 // has deliberately restricted something further keeps their setting.
 func tighten(path string, want os.FileMode) error {

@@ -85,7 +85,7 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 	}
 	defer sourceFile.Close() //nolint:errcheck
 
-	targetFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	targetFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|noFollow, mode) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error creating target file: %v", err)
 	}
@@ -235,9 +235,11 @@ func downloadFileContent(url, filePath string) error {
 }
 
 func moveFileWithElevatedPrivileges(source, target string) error {
+	// "--" so a path starting with "-" can never be read as an mv option:
+	// these paths come from blueprint values, and the command runs as root.
 	cmd := types.Command{
 		Exec:     "mv",
-		Args:     []string{source, target},
+		Args:     []string{"--", source, target},
 		Elevated: true,
 	}
 	err := RunCommand(cmd, false)
@@ -504,7 +506,9 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 	}
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
+	// 0755, not os.ModePerm: 0777 through a permissive umask is a directory
+	// every local user can write, on a path that may hold installed content.
+	if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G301 -- parent of a blueprint-named target; 0755 so installed content stays world-readable, never world-writable
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
@@ -558,9 +562,11 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 }
 
 func setFilePermissionsElevated(path string, mode os.FileMode) error {
+	// "--" so a path starting with "-" can never be read as a chmod option:
+	// the path comes from blueprint values, and the command runs as root.
 	cmd := types.Command{
 		Exec:     "chmod",
-		Args:     []string{fmt.Sprintf("%o", mode), path},
+		Args:     []string{fmt.Sprintf("%o", mode), "--", path},
 		Elevated: true,
 	}
 	return RunCommand(cmd, false)

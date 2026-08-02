@@ -37,7 +37,9 @@ func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 	}
 
 	targetDir := filepath.Dir(opts.Target)
-	err := os.MkdirAll(targetDir, os.ModePerm) // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
+	// 0755, not os.ModePerm: 0777 through a permissive umask is a directory
+	// every local user can write, on a path about to hold a cloned repository.
+	err := os.MkdirAll(targetDir, 0o755) // #nosec G301 -- parent of a blueprint-named clone target; 0755 so the checkout stays world-readable, never world-writable
 	if err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}

@@ -115,7 +115,10 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 	}
 
 	// Execute each step
-	data := repositoryStepData(repo, repoConfig.Paths, provider)
+	data, err := repositoryStepData(repo, repoConfig.Paths, provider)
+	if err != nil {
+		return err
+	}
 	for _, rawStep := range steps {
 		// The condition is evaluated before the rest of the step is
 		// rendered: a skipped step is allowed to reference data this
@@ -274,13 +277,18 @@ func runRepositoryUpdates(initConfig *types.InitConfig) error {
 // "deb [arch={{ .Arch }} signed-by={{ .KeyPath }}] {{ .URL }} ..." — so every
 // placeholder they may use has to have a key here, and anything else is a
 // blueprint or provider defect rather than a value to silently drop.
-func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, provider *types.Provider) map[string]any {
+func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, provider *types.Provider) (map[string]any, error) {
 	// Providers reference a key file, but RepositoryPaths.Keys names the
 	// directory a distribution keeps keyrings in, so the per-repository file
 	// name is derived from the repository name rather than configured twice.
 	keyPath := ""
 	if paths.Keys != "" {
 		keyPath = filepath.Join(paths.Keys, repo.Name+".gpg")
+	}
+
+	tempDir, err := repositoryTempDir()
+	if err != nil {
+		return nil, err
 	}
 
 	data := map[string]any{
@@ -297,7 +305,7 @@ func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, prov
 		"KeysPath":       paths.Keys,
 		"ConfigPath":     paths.Config,
 		"KeyPath":        keyPath,
-		"TempKeyPath":    filepath.Join(repositoryTempDir(), repo.Name+".gpg"),
+		"TempKeyPath":    filepath.Join(tempDir, repo.Name+".gpg"),
 		"KeyID":          repo.KeyID,
 		// The local file a snap or a GNOME extension is installed from. Only
 		// the steps gated on IsLocalFile/IsLocalSnap use it, and those are the
@@ -329,7 +337,7 @@ func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, prov
 		data[name] = value
 	}
 
-	return data
+	return data, nil
 }
 
 // repositoryPredicates are the boolean-ish values provider steps gate
@@ -533,21 +541,23 @@ func removeRepositoryPath(path string, paths types.RepositoryPaths, elevated, de
 var (
 	repoTempDirOnce sync.Once
 	repoTempDirPath string
+	repoTempDirErr  error
 )
 
-func repositoryTempDir() string {
+// repositoryTempDir returns the run's private staging directory, or the error
+// that prevented creating it. A failure used to fall back to the predictable
+// <tmp>/rwr-repo-unavailable — a fixed, world-known name any local user can
+// pre-create, which is exactly the class {{ .TempDir }} exists to eliminate.
+func repositoryTempDir() (string, error) {
 	repoTempDirOnce.Do(func() {
 		dir, err := os.MkdirTemp("", "rwr-repo-")
 		if err != nil {
-			// Surfaced at use: the write into the unusable directory fails
-			// with a real error naming the path.
-			log.Errorf("could not create the repository staging directory: %v", err)
-			repoTempDirPath = filepath.Join(os.TempDir(), "rwr-repo-unavailable")
+			repoTempDirErr = fmt.Errorf("could not create the repository staging directory: %w", err)
 			return
 		}
 		repoTempDirPath = dir
 	})
-	return repoTempDirPath
+	return repoTempDirPath, repoTempDirErr
 }
 
 // repositoryWritePath resolves the destination a download/write/copy step
@@ -568,8 +578,12 @@ func repositoryWritePath(dest string, paths types.RepositoryPaths) (string, erro
 		return "", fmt.Errorf("refusing to write %q: path is not absolute", dest)
 	}
 
-	boundaries := append(repositoryBoundaries(paths), repositoryTempDir())
-	if resolved == repositoryTempDir() {
+	tempDir, err := repositoryTempDir()
+	if err != nil {
+		return "", err
+	}
+	boundaries := append(repositoryBoundaries(paths), tempDir)
+	if resolved == tempDir {
 		return "", fmt.Errorf("refusing to write %q: it is the staging directory itself", dest)
 	}
 	for _, boundary := range boundaries {

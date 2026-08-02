@@ -20,6 +20,11 @@ import (
 // A var so a test can point the release lookup at a server it controls.
 var nerdFontRepoAPI = "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest"
 
+// maxFontFileBytes caps what a single archive entry may decompress to. The
+// largest Nerd Font faces are a few MB; 64MB is comfortably past any real font
+// and comfortably short of filling a tmpfs.
+const maxFontFileBytes int64 = 64 << 20
+
 type GithubRelease struct {
 	TagName string `json:"tag_name"`
 	Assets  []struct {
@@ -319,11 +324,22 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(tempFile, tr); err != nil { // #nosec G110 -- archive comes from operator-configured font source; size limit added in PR8
+			// The cap turns a decompression bomb into an error instead of a
+			// filled tmpfs: the archive arrives xz-compressed from the network,
+			// and a small download can expand to arbitrary size. Real font
+			// faces are single-digit MB.
+			n, err := io.Copy(tempFile, io.LimitReader(tr, maxFontFileBytes+1))
+			if err != nil {
 				if closeErr := tempFile.Close(); closeErr != nil {
 					return fmt.Errorf("error copying font data: %w (also failed to close: %v)", err, closeErr)
 				}
 				return err
+			}
+			if n > maxFontFileBytes {
+				if closeErr := tempFile.Close(); closeErr != nil {
+					log.Debugf("closing oversized font temp file: %v", closeErr)
+				}
+				return fmt.Errorf("font file %s decompresses past %d MB; refusing what looks like a decompression bomb", header.Name, maxFontFileBytes>>20)
 			}
 			if err := tempFile.Close(); err != nil {
 				return fmt.Errorf("error closing temp file after copy: %w", err)
