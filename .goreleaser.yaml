@@ -81,17 +81,20 @@ sboms:
 # identity (no key to store or leak), verifiable with:
 #
 #   cosign verify-blob checksums.txt \
-#     --signature checksums.txt.sig --certificate checksums.txt.pem \
-#     --certificate-identity-regexp 'github.com/FynxLabs/rwr' \
+#     --bundle checksums.txt.sigstore.json \
+#     --certificate-identity-regexp '^https://github\.com/FynxLabs/rwr/' \
 #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+#
+# cosign 3.x signs in the sigstore bundle format (signature + certificate in one
+# .sigstore.json file). Its sign-blob ignores --output-signature/--output-certificate
+# and requires --bundle — the old two-file form made every signing step die with
+# "create bundle file: open : no such file or directory".
 signs:
   - cmd: cosign
-    certificate: "${artifact}.pem"
-    signature: "${artifact}.sig"
+    signature: "${artifact}.sigstore.json"
     args:
       - sign-blob
-      - --output-certificate=${certificate}
-      - --output-signature=${signature}
+      - --bundle=${signature}
       - ${artifact}
       - --yes
     artifacts: checksum

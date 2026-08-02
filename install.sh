@@ -166,12 +166,57 @@ fi
 
 # Releases carry a keyless cosign signature over checksums.txt, bound to this
 # repository's GitHub Actions identity. Verifying it upgrades the checksum
-# comparison from integrity to authenticity. Opportunistic: cosign is not a
-# requirement to install, but when it is present and the release publishes a
-# signature, a bad signature is a hard stop.
+# comparison from integrity to authenticity.
+#
+# Current releases publish a sigstore bundle (checksums.txt.sigstore.json,
+# signature + certificate in one file); releases up to v0.5.1 published the
+# older two-file form (checksums.txt.sig + checksums.txt.pem) — both verify.
+#
+# The identity match is anchored: "github.com/$REPO" as a bare substring also
+# matched evil.github.com/FynxLabs/rwr.anything hosted by an attacker's issuer
+# subdomain. Keyless GitHub Actions identities are always
+# https://github.com/<owner>/<repo>/<workflow path>@<ref>.
+COSIGN_IDENTITY_RE='^https://github\.com/FynxLabs/rwr/'
+COSIGN_ISSUER="https://token.actions.githubusercontent.com"
+
+# By default a missing signature or missing cosign only warns: an attacker with
+# write access to release assets could delete the signature and let the install
+# proceed on their own checksums.txt, so the warning is loud. Set
+# RWR_REQUIRE_SIGNATURE=1 to make either condition a hard stop.
+REQUIRE_SIG="${RWR_REQUIRE_SIGNATURE:-0}"
+
+warn_or_fail_unverified() {
+    if [ "$REQUIRE_SIG" = "1" ]; then
+        fail "RWR_REQUIRE_SIGNATURE=1: $1 Refusing to install."
+    fi
+    echo "" >&2
+    echo "WARNING: $1" >&2
+    echo "WARNING: proceeding on checksum integrity only — the checksums file itself is unauthenticated." >&2
+    echo "WARNING: set RWR_REQUIRE_SIGNATURE=1 to refuse unverified installs." >&2
+    echo "" >&2
+}
+
+bundle_url=$(url_for_asset "$CHECKSUMS.sigstore.json")
 sig_url=$(url_for_asset "$CHECKSUMS.sig")
 cert_url=$(url_for_asset "$CHECKSUMS.pem")
-if command -v cosign >/dev/null 2>&1 && [ -n "$sig_url" ] && [ -n "$cert_url" ]; then
+
+if [ -z "$bundle_url" ] && { [ -z "$sig_url" ] || [ -z "$cert_url" ]; }; then
+    warn_or_fail_unverified "this release publishes no signature for $CHECKSUMS, so its authenticity cannot be verified."
+elif ! command -v cosign >/dev/null 2>&1; then
+    warn_or_fail_unverified "this release is signed, but cosign is not installed so the signature cannot be verified."
+elif [ -n "$bundle_url" ]; then
+    if ! curl -fsSL -H "User-Agent: $USER_AGENT" -o "$TMP_DIR/$CHECKSUMS.sigstore.json" "$bundle_url"; then
+        fail "The release publishes a signature bundle for $CHECKSUMS but it could not be downloaded. Refusing to install."
+    fi
+    if ! cosign verify-blob "$TMP_DIR/$CHECKSUMS" \
+        --bundle "$TMP_DIR/$CHECKSUMS.sigstore.json" \
+        --certificate-identity-regexp "$COSIGN_IDENTITY_RE" \
+        --certificate-oidc-issuer "$COSIGN_ISSUER" >/dev/null 2>&1; then
+        fail "cosign signature verification FAILED for $CHECKSUMS. The release may have been tampered with. Refusing to install."
+    fi
+    echo "Signature verified (cosign)"
+elif [ -n "$sig_url" ] && [ -n "$cert_url" ]; then
+    # Pre-bundle release (v0.5.1 and earlier).
     if ! curl -fsSL -H "User-Agent: $USER_AGENT" -o "$TMP_DIR/$CHECKSUMS.sig" "$sig_url" ||
        ! curl -fsSL -H "User-Agent: $USER_AGENT" -o "$TMP_DIR/$CHECKSUMS.pem" "$cert_url"; then
         fail "The release publishes a signature for $CHECKSUMS but it could not be downloaded. Refusing to install."
@@ -179,13 +224,11 @@ if command -v cosign >/dev/null 2>&1 && [ -n "$sig_url" ] && [ -n "$cert_url" ];
     if ! cosign verify-blob "$TMP_DIR/$CHECKSUMS" \
         --signature "$TMP_DIR/$CHECKSUMS.sig" \
         --certificate "$TMP_DIR/$CHECKSUMS.pem" \
-        --certificate-identity-regexp "github.com/$REPO" \
-        --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null 2>&1; then
+        --certificate-identity-regexp "$COSIGN_IDENTITY_RE" \
+        --certificate-oidc-issuer "$COSIGN_ISSUER" >/dev/null 2>&1; then
         fail "cosign signature verification FAILED for $CHECKSUMS. The release may have been tampered with. Refusing to install."
     fi
     echo "Signature verified (cosign)"
-elif [ -n "$sig_url" ]; then
-    echo "Note: this release is signed; install cosign to verify signatures."
 fi
 
 # goreleaser writes "<sha256>  <file name>" lines. Compare $2 exactly so a

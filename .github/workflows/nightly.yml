@@ -47,6 +47,11 @@ jobs:
       # same treatment as a release: people install it.
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          # Pin the binary, not just the action: an unpinned install tracks
+          # cosign's latest, whose sign-blob CLI has broken the signs: block
+          # before (the 3.x bundle-format switch). Renovate keeps this current.
+          cosign-release: "v3.1.2"
       - name: Install syft
         uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
 
@@ -95,8 +100,8 @@ jobs:
             find dist -maxdepth 1 -type f \
               \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.deb' \
                  -o -name '*.rpm' -o -name '*.apk' -o -name '*.pkg.tar.zst' \
-                 -o -name 'checksums.txt' -o -name 'checksums.txt.sig' \
-                 -o -name 'checksums.txt.pem' -o -name '*.sbom.json' \) | sort
+                 -o -name 'checksums.txt' -o -name 'checksums.txt.sigstore.json' \
+                 -o -name '*.sbom.json' \) | sort
           )
 
           if [ "${#artifacts[@]}" -eq 0 ]; then
