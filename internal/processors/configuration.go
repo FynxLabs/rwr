@@ -88,13 +88,21 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 		}
 	}
 
+	// dconf load reads the keyfile from stdin; there is no file argument. A
+	// literal "<" in argv is not a redirection — commands run without a shell.
+	keyfile, err := os.ReadFile(file) // #nosec G304 -- blueprint-relative path, resolved above
+	if err != nil {
+		return fmt.Errorf("error reading dconf keyfile: %w", err)
+	}
+
 	cmd := types.Command{
 		Exec:     "dconf",
-		Args:     []string{"load", "/", "<", file},
+		Args:     []string{"load", "/"},
+		Stdin:    string(keyfile),
 		Elevated: config.Elevated,
 	}
 
-	err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
+	err = system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
 
 	if err != nil {
 		return fmt.Errorf("error applying dconf configuration: %w", err)
