@@ -244,16 +244,22 @@ func GetProvider(name string) (*types.Provider, bool) {
 		return nil, false
 	}
 
-	// Check if the provider exists in the loaded providers
+	// Under providersMu like every other reader: this was the one lookup that
+	// read the map unlocked, a data race against SetProvidersForTest and any
+	// future reload. The lock is not held across FindTool below — only the map
+	// access needs it.
+	providersMu.Lock()
 	provider, exists := providers[name]
 	if !exists {
 		names := make([]string, 0, len(providers))
 		for name := range providers {
 			names = append(names, name)
 		}
+		providersMu.Unlock()
 		log.Errorf("GetProvider: Provider %s not found in loaded providers. Available providers: %v", name, names)
 		return nil, false
 	}
+	providersMu.Unlock()
 	log.Debugf("GetProvider: Found provider %s in loaded providers", name)
 
 	// Check if binary exists using FindTool
