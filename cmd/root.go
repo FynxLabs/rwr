@@ -35,6 +35,10 @@ git checkouts, scripts, and desktop configuration.`,
 	// own line as well produced every failure twice.
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	// Cobra's default arg validation rejects anything that is not a declared
+	// subcommand before RunE ever sees it; the task-runner shorthand
+	// (`rwr packages`) needs the args to reach RunE.
+	Args: cobra.ArbitraryArgs,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip initialization for these commands
 		skipInit := map[string]bool{
@@ -65,13 +69,23 @@ git checkouts, scripts, and desktop configuration.`,
 
 		return initializeSystemInfo()
 	},
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Processor names work straight off the root, task-runner style:
+		// `rwr packages` is `rwr run packages`. They are not part of the
+		// prime command namespace, so there is nothing to collide with.
+		if len(args) > 0 {
+			if p, ok := processorShorthand(args[0]); ok {
+				return runOneProcessor(p)
+			}
+			if err := cmd.Help(); err != nil {
+				return err
+			}
+			return fmt.Errorf("unknown command or processor %q", args[0])
+		}
+
 		fmt.Println("Welcome to rwr - The Distrohopper's Friend!")
 		log.Debugf("Variables: %+v", initConfig.Variables)
-		err := cmd.Help()
-		if err != nil {
-			return
-		}
+		return cmd.Help()
 	},
 }
 
