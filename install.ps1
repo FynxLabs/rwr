@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 # By default the latest stable release is installed. GitHub's /releases/latest
 # endpoint never returns prereleases, so the rolling `nightly` build (and any
-# pinned tag) is reached through /releases/tags/<tag> instead — same response
+# pinned tag) is reached through /releases/tags/<tag> instead -- same response
 # shape, same assets, same checksums.txt.
 param(
     [switch]$Nightly,
@@ -36,9 +36,9 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 $OS = "Windows"
 
 # Match the architecture names goreleaser publishes. Is64BitOperatingSystem only
-# answers 64-bit yes/no, so it reported x86_64 on ARM64 machines — which
+# answers 64-bit yes/no, so it reported x86_64 on ARM64 machines -- which
 # installed the amd64 build to run under emulation while the native arm64 build
-# we ship went unused — and i386 on 32-bit, which has never been published at all.
+# we ship went unused -- and i386 on 32-bit, which has never been published at all.
 switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
     'X64'   { $ARCH = "x86_64" }
     'Arm64' { $ARCH = "arm64" }
@@ -146,7 +146,7 @@ try {
     }
 
     # Read the machine PATH from the registry rather than $env:Path, which is the
-    # expanded per-process copy — writing that back would flatten other entries.
+    # expanded per-process copy -- writing that back would flatten other entries.
     $current_path = [Environment]::GetEnvironmentVariable("Path", "Machine")
     if ([string]::IsNullOrEmpty($current_path)) {
         [Environment]::SetEnvironmentVariable("Path", $BINARY_PATH, "Machine")
