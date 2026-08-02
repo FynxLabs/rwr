@@ -162,6 +162,16 @@ func registerRootFlags(rootCmd *cobra.Command, app *AppConfig) {
 	mustBindFlag(rootCmd, "rwr.skipVersionCheck", "skip-version-check")
 	viper.SetDefault("rwr.skipVersionCheck", false)
 
+	// Display flags. The TUI activates only on a real, capable, non-CI
+	// terminal; everything else keeps the byte-identical streaming output.
+	flags.BoolVar(&app.NoTUI, "no-tui", false, "Disable the interactive dashboard; stream logs")
+	flags.StringVar(&app.Theme, "theme", "", "Dashboard theme (rwr, mocha, nord, gruvbox, ...)")
+	flags.BoolVar(&app.ASCII, "ascii", false, "Force ASCII glyphs in the dashboard")
+	flags.BoolVar(&app.Unicode, "unicode", false, "Force unicode glyphs in the dashboard")
+	flags.BoolVar(&app.NoNotify, "no-notify", false, "Disable the completion notification")
+	flags.IntVar(&app.TUIBuffer, "tui-buffer", 50000, "Dashboard log buffer size in lines")
+	flags.StringVar(&app.LogFile, "log-file", "", "Write the run log to this path (default: a temp file)")
+
 	// Secrets are redacted in logs by default. This exists because "is rwr even
 	// reading my token?" has no other answer, but it has to be asked for.
 	flags.BoolVar(&app.ShowSecrets, "show-secrets", false, "Show credential values in logs instead of redacting them")

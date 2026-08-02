@@ -3,9 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"charm.land/log/v2"
-
 	"github.com/fynxlabs/rwr/internal/processors"
+	"github.com/fynxlabs/rwr/internal/tui"
 
 	"github.com/spf13/cobra"
 )
@@ -45,16 +44,13 @@ to run just that piece: "rwr run packages", "rwr run files".`,
 }
 
 // runEverything is the whole-tree run both `rwr run` and `rwr all` dispatch.
+// On a real terminal it runs under the dashboard; everywhere else the output
+// is byte-identical to the pre-TUI stream.
 func runEverything(app *AppConfig) error {
-	if err := githubAuthIfRequested(app); err != nil {
-		return err
+	if tui.Active(app.NoTUI) {
+		return runWithTUI(app, nil)
 	}
-
-	log.Debugf("ForceBootstrap: %v", app.InitConfig.Variables.Flags.ForceBootstrap)
-	if err := processors.All(app.InitConfig, app.OSInfo, nil); err != nil {
-		return fmt.Errorf("error running all processors: %w", err)
-	}
-	return nil
+	return runEverythingHeadless(app, nil)
 }
 
 // githubAuthIfRequested runs the --gh-auth device flow and records the token.
@@ -103,6 +99,10 @@ func runOneProcessor(app *AppConfig, p runProcessorSpec) error {
 		if err := githubAuthIfRequested(app); err != nil {
 			return err
 		}
+	}
+	// Same TUI, one strip block: the panel takes the freed vertical space.
+	if tui.Active(app.NoTUI) {
+		return runWithTUI(app, []string{p.blueprint})
 	}
 	return processors.All(app.InitConfig, app.OSInfo, []string{p.blueprint})
 }
