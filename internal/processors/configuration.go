@@ -1,10 +1,13 @@
 package processors
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"charm.land/log/v2"
@@ -24,11 +27,21 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 		return fmt.Errorf("error unmarshaling configuration blueprint: %w", err)
 	}
 
-	for _, config := range configData.Configurations {
+	configurations := helpers.FilterByProfiles(configData.Configurations, initConfig.Variables.Flags.Profiles)
+
+	for _, config := range configurations {
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would apply %s configuration: %s", config.Tool, config.Name)
 			continue
 		}
+		// `set` is the only action any of these tools implement. The field was
+		// decoded and never read, so `action: banana` applied the setting anyway.
+		if config.Action != "" && config.Action != types.ConfigurationActionSet {
+			recordFailure("configuration", config.Name,
+				fmt.Errorf("unsupported action %q: the only supported action is %q", config.Action, types.ConfigurationActionSet))
+			continue
+		}
+
 		var err error
 		switch config.Tool {
 		case "dconf":
@@ -104,12 +117,13 @@ func processGSettings(config types.Configuration) error {
 		checkCmd := exec.Command("gsettings", "writable", config.Schema, key) // #nosec G204 -- argv, not a shell string: schema/key/value are passed as discrete arguments
 		output, err := checkCmd.CombinedOutput()
 		if err != nil {
-			log.Warnf("Error checking if key is writable - Schema: %s, Key: %s, Error: %v, Output: %s", config.Schema, key, err, string(output))
+			recordFailure("configuration", config.Schema+"."+key,
+				fmt.Errorf("checking whether the key is writable: %v (%s)", err, strings.TrimSpace(string(output))))
 			continue
 		}
 
 		if strings.TrimSpace(string(output)) != "true" {
-			log.Warnf("GSetting is not writable - Schema: %s, Key: %s, Value: %v", config.Schema, key, value)
+			recordFailure("configuration", config.Schema+"."+key, errors.New("gsetting is not writable"))
 			continue
 		}
 
@@ -123,7 +137,11 @@ func processGSettings(config types.Configuration) error {
 		cmd := exec.Command("gsettings", args...) // #nosec G204 -- argv, not a shell string: schema/key/value are passed as discrete arguments
 		output, err = cmd.CombinedOutput()
 		if err != nil {
-			log.Errorf("Error applying gsettings configuration - Schema: %s, Key: %s, Value: %s, Error: %v, Output: %s", config.Schema, key, strValue, err, string(output))
+			// Every failure here used to be logged and then discarded: this
+			// function returned nil unconditionally, so a run in which no setting
+			// applied still reported success.
+			recordFailure("configuration", config.Schema+"."+key,
+				fmt.Errorf("applying value %s: %v (%s)", strValue, err, strings.TrimSpace(string(output))))
 		} else {
 			log.Debugf("Successfully applied gsettings - Schema: %s, Key: %s, Value: %s", config.Schema, key, strValue)
 		}
@@ -186,45 +204,155 @@ func processMacOSDefaults(config types.Configuration, initConfig *types.InitConf
 	return nil
 }
 
+// Environment variables carrying the registry path, name and value into the
+// PowerShell script body. See processWindowsRegistry for why they exist.
+const (
+	registryPathEnv  = "RWR_REGISTRY_PATH"
+	registryNameEnv  = "RWR_REGISTRY_NAME"
+	registryValueEnv = "RWR_REGISTRY_VALUE"
+)
+
+// registryScripts maps a blueprint registry type to the PowerShell body used to
+// write it. Each body is a compile-time constant that only ever reads its inputs
+// from $env:, so nothing a blueprint supplies is ever parsed as PowerShell.
+var registryScripts = map[string]string{
+	"string":       `Set-ItemProperty -LiteralPath $env:` + registryPathEnv + ` -Name $env:` + registryNameEnv + ` -Value $env:` + registryValueEnv + ` -Type String`,
+	"expandstring": `Set-ItemProperty -LiteralPath $env:` + registryPathEnv + ` -Name $env:` + registryNameEnv + ` -Value $env:` + registryValueEnv + ` -Type ExpandString`,
+	"binary":       `Set-ItemProperty -LiteralPath $env:` + registryPathEnv + ` -Name $env:` + registryNameEnv + ` -Value ([byte[]]($env:` + registryValueEnv + ` -split ',' | ForEach-Object { [byte]$_ })) -Type Binary`,
+	"dword":        `Set-ItemProperty -LiteralPath $env:` + registryPathEnv + ` -Name $env:` + registryNameEnv + ` -Value ([int32]$env:` + registryValueEnv + `) -Type DWord`,
+	"qword":        `Set-ItemProperty -LiteralPath $env:` + registryPathEnv + ` -Name $env:` + registryNameEnv + ` -Value ([int64]$env:` + registryValueEnv + `) -Type QWord`,
+}
+
+// processWindowsRegistry writes a single registry value through PowerShell.
+//
+// The path, name and value are blueprint-supplied and are passed as environment
+// variables rather than interpolated into the -Command string. PowerShell tokenizes
+// whatever follows -Command, so a value such as `a'; Remove-Item C:\ -Recurse; #`
+// used to close the surrounding quote and run as a second statement; $env: lookups
+// are values, never re-parsed as code. For the same reason there is no
+// `Start-Process -Verb RunAs -ArgumentList "-Command ..."` branch any more — that
+// re-tokenized the already-built string a second time. Windows elevation follows
+// the same rule as every other command in rwr: the process must already be
+// elevated (see system.buildCommand).
 func processWindowsRegistry(config types.Configuration, initConfig *types.InitConfig) error {
-	var psCommand string
-	switch strings.ToLower(config.Type) {
-	case "string":
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value '%s' -Type String", config.Path, config.Key, config.Value)
-	case "expandstring":
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value '%s' -Type ExpandString", config.Path, config.Key, config.Value)
-	case "binary":
-		// For binary, we'll need to convert the []byte to a comma-separated string
-		byteSlice, ok := config.Value.([]byte)
-		if !ok {
-			return fmt.Errorf("invalid binary value for registry key")
-		}
-		byteString := strings.Trim(strings.Join(strings.Fields(fmt.Sprintf("%d", byteSlice)), ","), "[]")
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value ([byte[]]@(%s)) -Type Binary", config.Path, config.Key, byteString)
-	case "dword":
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value %d -Type DWord", config.Path, config.Key, config.Value)
-	case "qword":
-		psCommand = fmt.Sprintf("Set-ItemProperty -Path 'HKLM:\\%s' -Name '%s' -Value %d -Type QWord", config.Path, config.Key, config.Value)
-	default:
+	regType := strings.ToLower(config.Type)
+	script, ok := registryScripts[regType]
+	if !ok {
 		return fmt.Errorf("unsupported registry value type: %s", config.Type)
+	}
+
+	value, err := registryValueString(regType, config.Value)
+	if err != nil {
+		return err
 	}
 
 	cmd := types.Command{
 		Exec:     "powershell",
-		Args:     []string{"-Command", psCommand},
+		Args:     []string{"-NoProfile", "-NonInteractive", "-Command", script},
 		Elevated: config.Elevated,
+		Variables: map[string]string{
+			registryPathEnv:  `HKLM:\` + config.Path,
+			registryNameEnv:  config.Key,
+			registryValueEnv: value,
+		},
 	}
 
-	if config.Elevated {
-		// For elevated privileges, we need to run PowerShell as administrator
-		cmd.Args = []string{"-Command", "Start-Process", "powershell", "-Verb", "RunAs", "-ArgumentList", fmt.Sprintf("-Command %s", psCommand)}
-	}
-
-	err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
-
-	if err != nil {
+	if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
 		return fmt.Errorf("error applying Windows registry configuration: %w", err)
 	}
 
 	return nil
+}
+
+// registryValueString renders a blueprint value for the environment variable the
+// PowerShell body reads. Numeric types are validated here so a YAML string lands as
+// a named error instead of reaching the registry as the literal text
+// "%!d(string=...)", which is what fmt produced when %d was handed a string.
+func registryValueString(regType string, value interface{}) (string, error) {
+	switch regType {
+	case "dword", "qword":
+		n, err := registryInt(value)
+		if err != nil {
+			return "", fmt.Errorf("invalid %s registry value %v: %w", regType, value, err)
+		}
+		return strconv.FormatInt(n, 10), nil
+	case "binary":
+		bytes, err := registryBytes(value)
+		if err != nil {
+			return "", fmt.Errorf("invalid binary registry value: %w", err)
+		}
+		parts := make([]string, len(bytes))
+		for i, b := range bytes {
+			parts[i] = strconv.FormatUint(uint64(b), 10)
+		}
+		return strings.Join(parts, ","), nil
+	default:
+		if value == nil {
+			return "", nil
+		}
+		s, ok := value.(string)
+		if !ok {
+			return "", fmt.Errorf("invalid %s registry value: expected a string, got %T", regType, value)
+		}
+		return s, nil
+	}
+}
+
+func registryInt(value interface{}) (int64, error) {
+	switch v := value.(type) {
+	case int:
+		return int64(v), nil
+	case int32:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	case uint:
+		if v > math.MaxInt64 {
+			return 0, fmt.Errorf("value %d is too large for a registry integer", v)
+		}
+		return int64(v), nil
+	case uint32:
+		return int64(v), nil
+	case uint64:
+		if v > math.MaxInt64 {
+			return 0, fmt.Errorf("value %d is too large for a registry integer", v)
+		}
+		return int64(v), nil
+	case float64:
+		// JSON and some YAML decoders hand back every number as a float64.
+		if v != float64(int64(v)) {
+			return 0, fmt.Errorf("not a whole number")
+		}
+		return int64(v), nil
+	case string:
+		n, err := strconv.ParseInt(strings.TrimSpace(v), 0, 64)
+		if err != nil {
+			return 0, fmt.Errorf("not an integer")
+		}
+		return n, nil
+	default:
+		return 0, fmt.Errorf("expected an integer, got %T", value)
+	}
+}
+
+func registryBytes(value interface{}) ([]byte, error) {
+	switch v := value.(type) {
+	case []byte:
+		return v, nil
+	case []interface{}:
+		out := make([]byte, 0, len(v))
+		for _, elem := range v {
+			n, err := registryInt(elem)
+			if err != nil {
+				return nil, err
+			}
+			if n < 0 || n > 255 {
+				return nil, fmt.Errorf("byte value %d out of range", n)
+			}
+			out = append(out, byte(n))
+		}
+		return out, nil
+	default:
+		return nil, fmt.Errorf("expected a byte sequence, got %T", value)
+	}
 }

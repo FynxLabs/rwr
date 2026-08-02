@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
 )
 
@@ -35,8 +36,12 @@ func CreateDefaultConfig() error {
 	configFilePath := filepath.Join(configDir, "config.yaml")
 	viper.SetConfigFile(configFilePath)
 
-	// Prompt for GitHub API Token
-	fmt.Printf("Enter GitHub API Token (press enter to keep default) [%s]: ", viper.GetString("repository.gh_api_token"))
+	// Prompt for GitHub API Token.
+	//
+	// The stored value is redacted rather than shown as the default: this prompt
+	// used to print the live PAT and the Base64 private key to the terminal, where
+	// they stayed in scrollback and in any recorded session.
+	fmt.Printf("Enter GitHub API Token (press enter to keep current) [%s]: ", types.Redact(viper.GetString("repository.gh_api_token")))
 	ghApiTokenInput, _ := reader.ReadString('\n') //nolint:errcheck
 	ghApiTokenInput = strings.TrimSpace(ghApiTokenInput)
 	if ghApiTokenInput != "" {
@@ -44,7 +49,7 @@ func CreateDefaultConfig() error {
 	}
 
 	// Prompt for SSH Private Key
-	fmt.Printf("Enter SSH Private Key (file path or Base64 encoded) (press enter to keep default) [%s]: ", viper.GetString("repository.ssh_private_key"))
+	fmt.Printf("Enter SSH Private Key (file path or Base64 encoded) (press enter to keep current) [%s]: ", types.Redact(viper.GetString("repository.ssh_private_key")))
 	sshPrivateKeyInput, _ := reader.ReadString('\n') //nolint:errcheck
 	sshPrivateKeyInput = strings.TrimSpace(sshPrivateKeyInput)
 	if sshPrivateKeyInput != "" {
@@ -71,30 +76,6 @@ func CreateDefaultConfig() error {
 		viper.Set("log.level", logLevelInput)
 	} else {
 		viper.Set("log.level", defaultLogLevel) // Set to default if no input is provided
-	}
-
-	// Prompt for Default Package Manager on Linux
-	fmt.Printf("Set the default package manager for Linux (press enter to keep default) [%s]: ", viper.GetString("packageManager.linux.default"))
-	linuxDefaultPMInput, _ := reader.ReadString('\n') //nolint:errcheck
-	linuxDefaultPMInput = strings.TrimSpace(linuxDefaultPMInput)
-	if linuxDefaultPMInput != "" {
-		viper.Set("packageManager.linux.default", linuxDefaultPMInput)
-	}
-
-	// Prompt for Default Package Manager on macOS
-	fmt.Printf("Set the default package manager for macOS (press enter to keep default) [%s]: ", viper.GetString("packageManager.macos.default"))
-	macOSDefaultPMInput, _ := reader.ReadString('\n') //nolint:errcheck
-	macOSDefaultPMInput = strings.TrimSpace(macOSDefaultPMInput)
-	if macOSDefaultPMInput != "" {
-		viper.Set("packageManager.macos.default", macOSDefaultPMInput)
-	}
-
-	// Prompt for Default Package Manager on Windows
-	fmt.Printf("Set the default package manager for Windows (press enter to keep default) [%s]: ", viper.GetString("packageManager.windows.default"))
-	windowsDefaultPMInput, _ := reader.ReadString('\n') //nolint:errcheck
-	windowsDefaultPMInput = strings.TrimSpace(windowsDefaultPMInput)
-	if windowsDefaultPMInput != "" {
-		viper.Set("packageManager.windows.default", windowsDefaultPMInput)
 	}
 
 	// Prompt for Repository Configuration

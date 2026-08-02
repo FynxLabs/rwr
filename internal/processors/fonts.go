@@ -58,15 +58,12 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 		return fmt.Errorf("error unmarshaling fonts blueprint data: %w", err)
 	}
 
+	fontsData.Fonts = helpers.FilterByProfiles(fontsData.Fonts, initConfig.Variables.Flags.Profiles)
+
 	log.Debugf("Found %d font entries to process", len(fontsData.Fonts))
 
-	releaseURL, err := getLatestReleaseURL()
-	if err != nil {
-		return fmt.Errorf("error getting latest release URL: %w", err)
-	}
-
-	for _, font := range fontsData.Fonts {
-		if system.IsDryRun() {
+	if system.IsDryRun() {
+		for _, font := range fontsData.Fonts {
 			if len(font.Names) > 0 {
 				for _, name := range font.Names {
 					log.Infof("[DRY-RUN] Would install font: %s", name)
@@ -74,8 +71,22 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 			} else if font.Name != "" {
 				log.Infof("[DRY-RUN] Would install font: %s", font.Name)
 			}
-			continue
 		}
+		return nil
+	}
+
+	if len(fontsData.Fonts) == 0 {
+		return nil
+	}
+
+	// Resolved after the dry-run and empty-blueprint exits: this is a network call,
+	// and `--dry-run` is expected to work offline.
+	releaseURL, err := getLatestReleaseURL()
+	if err != nil {
+		return fmt.Errorf("error getting latest release URL: %w", err)
+	}
+
+	for _, font := range fontsData.Fonts {
 		if len(font.Names) > 0 {
 			for _, name := range font.Names {
 				fontWithName := font
@@ -117,6 +128,10 @@ func processFont(font types.Font, osInfo *types.OSInfo, releaseURL string) error
 func installFont(font types.Font, osInfo *types.OSInfo, releaseURL string) error {
 	log.Infof("Installing font: %s", font.Name)
 
+	if err := validateFontName(font.Name); err != nil {
+		return err
+	}
+
 	fontURL := getFontURL(font, releaseURL)
 	log.Debugf("Font URL: %s", fontURL)
 
@@ -133,7 +148,7 @@ func installFont(font types.Font, osInfo *types.OSInfo, releaseURL string) error
 	}
 
 	fontDir := getFontDirectory(font.Location, osInfo)
-	err = extractFontTarball(tarballPath, fontDir, osInfo)
+	err = extractFontTarball(tarballPath, fontDir, font.Location == "system", osInfo)
 	if err != nil {
 		return fmt.Errorf("error extracting font tarball: %v", err)
 	}
@@ -148,6 +163,10 @@ func installFont(font types.Font, osInfo *types.OSInfo, releaseURL string) error
 
 func removeFont(font types.Font, osInfo *types.OSInfo) error {
 	log.Infof("Removing font: %s", font.Name)
+
+	if err := validateFontName(font.Name); err != nil {
+		return err
+	}
 
 	fontDir := getFontDirectory(font.Location, osInfo)
 	fontPattern := filepath.Join(fontDir, font.Name+"*.ttf")
@@ -171,6 +190,21 @@ func removeFont(font types.Font, osInfo *types.OSInfo) error {
 	return nil
 }
 
+// validateFontName rejects names that would escape the release they are meant to
+// name. font.Name is blueprint-supplied and is concatenated straight into the
+// nerd-fonts download URL and into the local font path, so "../../owner/repo/x"
+// would both redirect the download to an attacker-chosen release and, on removal,
+// glob outside the font directory.
+func validateFontName(name string) error {
+	if name == "" {
+		return fmt.Errorf("font name is empty")
+	}
+	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
+		return fmt.Errorf("invalid font name %q: must not contain path separators or %q", name, "..")
+	}
+	return nil
+}
+
 func getFontURL(font types.Font, releaseURL string) string {
 	return fmt.Sprintf("%s%s.tar.xz", releaseURL, font.Name)
 }
@@ -182,6 +216,12 @@ func downloadFontTarball(url, filepath string) error {
 	}
 	defer resp.Body.Close() //nolint:errcheck
 
+	// Without this the error page body is written out as a .tar.xz and the failure
+	// only surfaces later as an unintelligible decompression error.
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("downloading %s: unexpected status %s", url, resp.Status)
+	}
+
 	out, err := os.Create(filepath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return err
@@ -192,7 +232,35 @@ func downloadFontTarball(url, filepath string) error {
 	return err
 }
 
-func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error {
+// resolveTarEntryPath joins a tar entry name onto destDir and refuses anything that
+// would land outside it. Archive entry names are attacker-controlled data: a member
+// named "../../../etc/cron.d/x" otherwise resolves through filepath.Join to a real
+// path outside the font directory, which rwr then writes — as root, for a
+// system-scoped install.
+func resolveTarEntryPath(destDir, name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("tar entry has an empty name")
+	}
+	// Tar always uses forward slashes; check both so a Windows-style name is not
+	// waved through on a platform where filepath.Join treats "\" as a separator.
+	cleaned := filepath.Clean(filepath.FromSlash(name))
+	if filepath.IsAbs(cleaned) || strings.HasPrefix(name, "/") {
+		return "", fmt.Errorf("tar entry %q is an absolute path", name)
+	}
+
+	targetPath := filepath.Join(destDir, cleaned)
+	rel, err := filepath.Rel(destDir, targetPath)
+	if err != nil {
+		return "", fmt.Errorf("tar entry %q is outside the destination directory: %w", name, err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("tar entry %q escapes the destination directory", name)
+	}
+
+	return targetPath, nil
+}
+
+func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *types.OSInfo) error {
 	file, err := os.Open(tarballPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return err
@@ -216,8 +284,18 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 			return err
 		}
 
+		// Links are never needed to install a font and are the cheapest way to make a
+		// later write land outside destDir, so they are dropped rather than resolved.
+		if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
+			log.Warnf("Skipping link entry in font archive: %s", header.Name)
+			continue
+		}
+
 		if header.Typeflag == tar.TypeReg && strings.HasSuffix(header.Name, ".ttf") {
-			targetPath := filepath.Join(destDir, header.Name) // #nosec G305 -- TODO(PR8): bound tar entry paths to destination dir
+			targetPath, err := resolveTarEntryPath(destDir, header.Name)
+			if err != nil {
+				return fmt.Errorf("error extracting font archive: %w", err)
+			}
 
 			// Create a temporary file for the extracted font
 			tempFile, err := os.CreateTemp("", "font-")
@@ -246,7 +324,9 @@ func extractFontTarball(tarballPath, destDir string, osInfo *types.OSInfo) error
 			if tempFile == nil || targetPath == "" {
 				return fmt.Errorf("invalid arguments: tempFile or targetPath is nil/empty")
 			}
-			err = system.CopyFile(tempFile.Name(), targetPath, true, osInfo)
+			// Elevated only for a system-scoped install; a user font goes under $HOME
+			// and needs no privilege.
+			err = system.CopyFile(tempFile.Name(), targetPath, elevated, osInfo)
 			if err != nil {
 				return fmt.Errorf("error copying font file to destination: %v", err)
 			}

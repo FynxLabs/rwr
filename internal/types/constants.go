@@ -45,6 +45,9 @@ const (
 
 // Service actions for service management operations.
 const (
+	// ConfigurationActionSet is the only action the configuration tools implement.
+	ConfigurationActionSet = "set"
+
 	ServiceActionEnable  = "enable"
 	ServiceActionDisable = "disable"
 	ServiceActionStart   = "start"
