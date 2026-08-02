@@ -38,14 +38,13 @@ var buildInfo = BuildInfo{Version: "dev"}
 // check. It is a variable so tests can point it at a local server.
 var latestReleaseURL = "https://api.github.com/repos/fynxlabs/rwr/releases/latest"
 
-// SetVersionInfo records the build metadata injected at link time and wires it
-// into cobra so that `rwr --version` works alongside `rwr version`.
-// Empty fields fall back to Go's embedded build info, which is what `go install`
-// builds have instead of ldflags.
+// SetVersionInfo records the build metadata injected at link time. Empty
+// fields fall back to Go's embedded build info, which is what `go install`
+// builds have instead of ldflags. NewRootCmd wires it into cobra so that
+// `rwr --version` works alongside `rwr version` — buildInfo is link-time
+// constant data, set once from main before any tree is built.
 func SetVersionInfo(info BuildInfo) {
 	buildInfo = fillFromBuildInfo(info)
-	rootCmd.Version = buildInfo.Version
-	rootCmd.SetVersionTemplate("rwr {{.Version}}\n")
 }
 
 // fillFromBuildInfo backfills missing build metadata from the module and VCS
@@ -102,48 +101,50 @@ func isDevBuild() bool {
 		pseudoVersion.MatchString(v)
 }
 
-var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Print the version, commit, and build metadata of this binary",
-	Long: `Print build information for this rwr binary.
+func newVersionCmd(app *AppConfig) *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print the version, commit, and build metadata of this binary",
+		Long: `Print build information for this rwr binary.
 
 Release and nightly binaries carry the commit they were built from, so a binary
 on disk can be traced back to the source that produced it.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		out := cmd.OutOrStdout()
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := cmd.OutOrStdout()
 
-		var b strings.Builder
-		fmt.Fprintf(&b, "rwr %s\n", buildInfo.Version)
-		if buildInfo.Commit != "" {
-			fmt.Fprintf(&b, "commit:     %s\n", buildInfo.Commit)
-		}
-		if buildInfo.Date != "" {
-			fmt.Fprintf(&b, "built:      %s\n", buildInfo.Date)
-		}
-		if buildInfo.BuiltBy != "" {
-			fmt.Fprintf(&b, "built by:   %s\n", buildInfo.BuiltBy)
-		}
-		if buildInfo.TreeState != "" {
-			fmt.Fprintf(&b, "tree state: %s\n", buildInfo.TreeState)
-		}
-		fmt.Fprintf(&b, "go:         %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+			var b strings.Builder
+			fmt.Fprintf(&b, "rwr %s\n", buildInfo.Version)
+			if buildInfo.Commit != "" {
+				fmt.Fprintf(&b, "commit:     %s\n", buildInfo.Commit)
+			}
+			if buildInfo.Date != "" {
+				fmt.Fprintf(&b, "built:      %s\n", buildInfo.Date)
+			}
+			if buildInfo.BuiltBy != "" {
+				fmt.Fprintf(&b, "built by:   %s\n", buildInfo.BuiltBy)
+			}
+			if buildInfo.TreeState != "" {
+				fmt.Fprintf(&b, "tree state: %s\n", buildInfo.TreeState)
+			}
+			fmt.Fprintf(&b, "go:         %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 
-		_, err := io.WriteString(out, b.String())
-		return err
-	},
+			_, err := io.WriteString(out, b.String())
+			return err
+		},
+	}
 }
 
 // checkForNewVersion asks GitHub for the latest release and prints a one-line
 // notice to stderr when a newer version exists. It is strictly advisory: every
 // failure path is a debug log and a silent return, so a missing network, a rate
 // limit, or a malformed response can never affect the run.
-func checkForNewVersion() {
+func checkForNewVersion(app *AppConfig) {
 	// Read through viper, not the flag variable: the flag is bound to
 	// rwr.skipVersionCheck, but that binding is one-way. Checking the variable
 	// alone meant the config key `rwr config --create` writes, and its env form,
 	// were both inert — only the command-line flag did anything.
-	if skipVersionCheck || viper.GetBool("rwr.skipVersionCheck") {
+	if app.SkipVersionCheck || viper.GetBool("rwr.skipVersionCheck") {
 		log.Debugf("Version check skipped (rwr.skipVersionCheck)")
 		return
 	}
@@ -261,8 +262,4 @@ func splitVersion(v string) ([]int, string) {
 		nums = append(nums, n)
 	}
 	return nums, pre
-}
-
-func init() {
-	rootCmd.AddCommand(versionCmd)
 }

@@ -7,30 +7,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var initFlag bool
+func newConfigCmd() *cobra.Command {
+	var initFlag bool
 
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Create or modify rwr configuration",
-	Long: `Create the rwr configuration file. With --create, prompts for each
+	configCmd := &cobra.Command{
+		Use:   "config",
+		Short: "Create or modify rwr configuration",
+		Long: `Create the rwr configuration file. With --create, prompts for each
 setting and writes the config; without it, this help is shown — there is no
 config view or edit mode yet.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if initFlag {
-			if err := helpers.CreateDefaultConfig(); err != nil {
-				return fmt.Errorf("error initializing configuration: %w", err)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if initFlag {
+				if err := helpers.CreateDefaultConfig(); err != nil {
+					return fmt.Errorf("error initializing configuration: %w", err)
+				}
+				fmt.Println("Configuration initialized successfully.")
+			} else {
+				if err := cmd.Help(); err != nil {
+					return fmt.Errorf("error displaying help: %w", err)
+				}
 			}
-			fmt.Println("Configuration initialized successfully.")
-		} else {
-			if err := cmd.Help(); err != nil {
-				return fmt.Errorf("error displaying help: %w", err)
-			}
-		}
-		return nil
-	},
-}
+			return nil
+		},
+	}
 
-func init() {
 	configCmd.Flags().BoolVarP(&initFlag, "create", "c", false, "Create the configuration file")
-	rootCmd.AddCommand(configCmd)
+	return configCmd
 }
