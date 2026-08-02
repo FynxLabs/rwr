@@ -195,3 +195,17 @@ func TestResolveSchemaVersion_UndeclaredFollowsANewVersion(t *testing.T) {
 		t.Errorf("packages under a v1 tree resolved to %d, want 1", got)
 	}
 }
+
+// Every type-and-version pair the supported map advertises must resolve to a
+// registered variant. packageManagers was listed as supported with no variant
+// registered, so NewSchemaVariant could only ever error on it — the two tables
+// are one contract and must not drift.
+func TestSupportedSchemaVersions_AllHaveRegisteredVariants(t *testing.T) {
+	for blueprintType, versions := range supportedSchemaVersions {
+		for _, version := range versions {
+			if _, err := NewSchemaVariant(blueprintType, version); err != nil {
+				t.Errorf("NewSchemaVariant(%q, %d): %v — supported but not registered", blueprintType, version, err)
+			}
+		}
+	}
+}

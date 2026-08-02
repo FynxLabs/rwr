@@ -19,18 +19,22 @@ const DefaultSchemaVersion = 1
 // To introduce a v2 for a type: add 2 here, teach that type's processor to branch
 // on the resolved version, and document the difference. Nothing else moves.
 var supportedSchemaVersions = map[string][]int{
-	BlueprintTypePackages:        {1},
-	BlueprintTypeRepositories:    {1},
-	BlueprintTypeFiles:           {1},
-	BlueprintTypeServices:        {1},
-	BlueprintTypeGit:             {1},
-	BlueprintTypeScripts:         {1},
-	BlueprintTypeSSHKeys:         {1},
-	BlueprintTypeFonts:           {1},
-	BlueprintTypeUsers:           {1},
-	BlueprintTypeConfiguration:   {1},
-	BlueprintTypePackageManagers: {1},
-	BlueprintTypeBootstrap:       {1},
+	BlueprintTypePackages:      {1},
+	BlueprintTypeRepositories:  {1},
+	BlueprintTypeFiles:         {1},
+	BlueprintTypeServices:      {1},
+	BlueprintTypeGit:           {1},
+	BlueprintTypeScripts:       {1},
+	BlueprintTypeSSHKeys:       {1},
+	BlueprintTypeFonts:         {1},
+	BlueprintTypeUsers:         {1},
+	BlueprintTypeConfiguration: {1},
+	BlueprintTypeBootstrap:     {1},
+	// BlueprintTypePackageManagers is deliberately absent: package managers are
+	// declared in the init file's packageManagers section, not in a blueprint
+	// file — there is no decoder, no processor dispatch, and no schema variant
+	// for one. Listing it here claimed a file type that NewSchemaVariant could
+	// only ever error on.
 }
 
 // SchemaVersion is embedded in every blueprint data struct so an individual file
