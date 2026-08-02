@@ -88,7 +88,65 @@ func ValidateFiles(files []types.File, file string, results *types.ValidationRes
 			}
 		}
 
+		validateFileMode(f.Mode, f.Action, fmt.Sprintf("files[%d]", i), file, results)
+
 		validatePath(f.Target, fmt.Sprintf("file '%s'", f.Target), file, results)
+	}
+}
+
+// modeCarryingActions are the actions that apply a declared mode. Every other
+// action ignores it: a symlink has no mode of its own, and delete, move, chown
+// and chgrp do not touch it.
+var modeCarryingActions = map[string]bool{
+	types.FileActionCreate: true,
+	types.FileActionChmod:  true,
+	types.FileActionCopy:   true,
+}
+
+// validateFileMode reports the mode problems that survive decoding.
+//
+// A mode written ambiguously — `mode: 644`, which as a number is 0o1204 — is
+// already refused by types.FileMode while the blueprint is being read, so it
+// arrives here as a parse error naming the file. What is left is a mode that
+// parses but cannot do what the entry asks: a chmod with nothing to chmod to,
+// which would otherwise strip every permission off the target at run time, and
+// modes that are applied but hand out more access than a blueprint usually
+// means to.
+func validateFileMode(mode types.FileMode, action, field, file string, results *types.ValidationResults) {
+	if action == types.FileActionChmod && !mode.IsSet() {
+		AddIssue(results, types.ValidationError,
+			fmt.Sprintf("Missing required field '%s.mode' for the chmod action", field), file, 0,
+			`Add a mode, written as a quoted octal string such as mode: "0644"`)
+		return
+	}
+
+	if !mode.IsSet() {
+		return
+	}
+
+	if mode > types.MaxFileMode {
+		AddIssue(results, types.ValidationError,
+			fmt.Sprintf("Mode %s in '%s.mode' is not a permission mode", mode, field), file, 0,
+			`Use at most four octal digits, such as mode: "0644"`)
+		return
+	}
+
+	if !modeCarryingActions[action] && action != "" {
+		AddIssue(results, types.ValidationWarning,
+			fmt.Sprintf("Mode %s in '%s.mode' is ignored by the '%s' action", mode, field, action), file, 0,
+			"Drop the mode, or use a create or chmod action to apply it")
+	}
+
+	if mode&0o002 != 0 {
+		AddIssue(results, types.ValidationWarning,
+			fmt.Sprintf("Mode %s in '%s.mode' is world-writable", mode, field), file, 0,
+			`Drop the world-write bit, for example mode: "0644"`)
+	}
+
+	if mode&0o6000 != 0 {
+		AddIssue(results, types.ValidationWarning,
+			fmt.Sprintf("Mode %s in '%s.mode' sets setuid or setgid", mode, field), file, 0,
+			`Confirm this is intended; a plain permission mode is four digits starting with 0, such as mode: "0644"`)
 	}
 }
 
@@ -142,7 +200,9 @@ func ValidateScripts(scripts []types.Script, file string, results *types.Validat
 
 // ValidateServices validates service definitions.
 // It checks that each service has required fields (name, action) and validates
-// that the action is one of the supported types (enable, disable, start, stop, restart).
+// that the action is one of the types the services processor implements. It used
+// to accept only five of the nine, so a valid `reload` or `status` blueprint was
+// reported as an error by `rwr validate` and then ran correctly.
 // Validation issues are added to the results parameter.
 func ValidateServices(services []types.Service, file string, results *types.ValidationResults) {
 	blueprintDir := filepath.Dir(file)
@@ -154,7 +214,12 @@ func ValidateServices(services []types.Service, file string, results *types.Vali
 		validateRequired(service.Name, fmt.Sprintf("services[%d].name", i), file, results, "Add name field to service")
 
 		validateEnum(service.Action, fmt.Sprintf("services[%d].action", i),
-			[]string{types.ServiceActionEnable, types.ServiceActionDisable, types.ServiceActionStart, types.ServiceActionStop, types.ServiceActionRestart}, file, results)
+			[]string{
+				types.ServiceActionEnable, types.ServiceActionDisable,
+				types.ServiceActionStart, types.ServiceActionStop, types.ServiceActionRestart,
+				types.ServiceActionReload, types.ServiceActionStatus,
+				types.ServiceActionCreate, types.ServiceActionDelete,
+			}, file, results)
 	}
 }
 
