@@ -264,6 +264,12 @@ func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, prov
 		"ProxyURL":    repo.ProxyURL,
 		"UUID":        repo.UUID,
 		"ExtensionID": repo.ExtensionID,
+		"Interface":   repo.Interface,
+		"Slot":        repo.Slot,
+
+		// Not a derived predicate: whether removing a GNOME extension also
+		// resets its settings is operator intent, straight from the blueprint.
+		"ResetSettings": repo.ResetSettings,
 
 		// Credentials reach the provider's argv because that is the only way
 		// chocolatey and cargo can be told about a private source. They are kept out
@@ -295,6 +301,8 @@ func repositoryPredicates(repo types.Repository, provider *types.Provider) map[s
 
 	return map[string]any{
 		"HasKey":            repo.KeyURL != "" || repo.KeyID != "",
+		"HasInterfaces":     repo.Interface != "",
+		"HasSlot":           repo.Slot != "",
 		"HasProxy":          repo.ProxyURL != "",
 		"HasToken":          repo.Token != "",
 		"HasAuthentication": repo.Username != "" || repo.Password != "",

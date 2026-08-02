@@ -47,7 +47,13 @@ condition = "{{ .IsLocalSnap }}"  # For sideloading local snap files
 action = "command"
 exec = "snap"
 args = ["connect", "{{ .Name }}:{{ .Interface }}", "{{ .Slot }}"]
-condition = "{{ .HasInterfaces }}"  # For connecting interfaces if specified
+condition = "{{ and .HasInterfaces .HasSlot }}"  # Connect to a named slot
+
+[[provider.repository.add.steps]]
+action = "command"
+exec = "snap"
+args = ["connect", "{{ .Name }}:{{ .Interface }}"]
+condition = "{{ and .HasInterfaces (not .HasSlot) }}"  # No slot named: snapd picks the system one
 
 [[provider.repository.remove.steps]]
 action = "command"

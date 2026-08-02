@@ -19,8 +19,11 @@ type Repository struct {
 	ProxyURL       string   `mapstructure:"proxy_url,omitempty" yaml:"proxy_url,omitempty" json:"proxy_url,omitempty" toml:"proxy_url,omitempty"` // Proxy snapd should route through
 	UUID           string   `mapstructure:"uuid,omitempty" yaml:"uuid,omitempty" json:"uuid,omitempty" toml:"uuid,omitempty"`                     // GNOME extension UUID
 	ExtensionID    string   `mapstructure:"extension_id,omitempty" yaml:"extension_id,omitempty" json:"extension_id,omitempty" toml:"extension_id,omitempty"`
-	Interactive    *bool    `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"` // Override global interactive mode
-	Import         string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`                     // Import path for external repository definitions
+	Interface      string   `mapstructure:"interface,omitempty" yaml:"interface,omitempty" json:"interface,omitempty" toml:"interface,omitempty"`                     // Snap interface to connect after install (snap connect <name>:<interface> <slot>)
+	Slot           string   `mapstructure:"slot,omitempty" yaml:"slot,omitempty" json:"slot,omitempty" toml:"slot,omitempty"`                                         // Slot the snap interface plugs into
+	ResetSettings  bool     `mapstructure:"reset_settings,omitempty" yaml:"reset_settings,omitempty" json:"reset_settings,omitempty" toml:"reset_settings,omitempty"` // Reset a GNOME extension's settings when removing it
+	Interactive    *bool    `mapstructure:"interactive,omitempty" yaml:"interactive,omitempty" json:"interactive,omitempty" toml:"interactive,omitempty"`             // Override global interactive mode
+	Import         string   `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`                                 // Import path for external repository definitions
 
 	// Credentials a provider needs to authenticate against a private repository:
 	// chocolatey signs a source in with Username/Password, cargo with Token.
