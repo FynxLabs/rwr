@@ -101,3 +101,37 @@ scripts:
 		t.Errorf("Args = %#v, want exactly [%q]", got, scriptPath)
 	}
 }
+
+// Inline `content:` scripts used to stage as *.sh unconditionally, but the
+// Windows default executor is `powershell -File`, which refuses any file not
+// ending in .ps1 — every inline script on Windows failed before its first line.
+func TestProcessScripts_InlineContentExtensionMatchesExecutor(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	osInfo := &types.OSInfo{}
+	osInfo.System.OS = "windows"
+	osInfo.Tools.PowerShell = types.ToolInfo{Exists: true, Bin: "powershell"}
+
+	blueprint := []byte(`
+scripts:
+  - name: "hello"
+    action: "run"
+    content: "Write-Host hi"
+`)
+
+	if err := ProcessScripts(blueprint, t.TempDir(), "yaml", osInfo, &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+
+	calls := rec.Find("powershell")
+	if len(calls) != 1 {
+		t.Fatalf("recorded %d powershell calls, want 1: %v", len(calls), rec.Calls)
+	}
+	if len(calls[0].Args) != 2 || calls[0].Args[0] != "-File" {
+		t.Fatalf("powershell args = %v, want [-File <path>]", calls[0].Args)
+	}
+	if got := calls[0].Args[1]; filepath.Ext(got) != ".ps1" {
+		t.Errorf("staged script = %q, want a .ps1 extension — powershell -File refuses anything else", got)
+	}
+}
