@@ -16,12 +16,26 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+// findBootstrapFile returns the bootstrap blueprint in dir, in whichever format it
+// is written, or "" when the tree has none.
+func findBootstrapFile(dir string) string {
+	for _, ext := range []string{types.FormatExtYAML, types.FormatExtYAMLAlt, types.FormatExtJSON, types.FormatExtTOML} {
+		candidate := filepath.Join(dir, "bootstrap"+ext)
+		if system.FileExists(candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
 // All orchestrates the execution of all blueprint processors in the defined run order.
 // It handles bootstrap, package installation, file management, services, and other
 // operations sequentially, cleaning up package manager caches on completion.
 func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
 	var err error
 	var blueprintRunOrder []string
+
+	resetFailures()
 
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
@@ -94,15 +108,23 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		}
 	}
 
+	if err := checkRequestedProfiles(initConfig); err != nil {
+		return err
+	}
+
 	// Get the blueprint file order
 	fileOrder, err := GetBlueprintFileOrder(initConfig.Init.Location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
 	if err != nil {
 		return fmt.Errorf("error getting blueprint file order: %w", err)
 	}
 
-	// Run the bootstrap processor first if it exists
-	bootstrapFile := filepath.Join(initConfig.Init.Location, "bootstrap.yaml")
-	if system.FileExists(bootstrapFile) {
+	// Run the bootstrap processor first if it exists.
+	//
+	// Every extension is checked, not just .yaml: a tree written in TOML or JSON
+	// declares its format in the init file, and `rwr validate` already accepts all
+	// four. Looking only for bootstrap.yaml meant those trees silently never
+	// bootstrapped, with no message saying so.
+	if bootstrapFile := findBootstrapFile(initConfig.Init.Location); bootstrapFile != "" {
 		err = ProcessBootstrap(bootstrapFile, initConfig, osInfo)
 		if err != nil {
 			return fmt.Errorf("error processing bootstrap: %w", err)
@@ -200,6 +222,49 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		log.Infof("No changes were made to the system.")
 	}
 
+	// Processors that skip a failed item and continue record it rather than
+	// aborting. Reporting completion without consulting that ledger is how a run
+	// where every package failed still exited 0.
+	if err := failureError(); err != nil {
+		log.Errorf("RWR run finished with %d failure(s)", failureCount())
+		return err
+	}
+
 	log.Info("RWR Run Complete!")
 	return nil
+}
+
+// checkRequestedProfiles refuses a --profile the tree does not declare.
+//
+// A misspelled profile name was silent: FilterByProfiles matched nothing, every
+// profile-scoped entry was skipped, and the run reported success having installed
+// only the base items. A mistyped profile looked exactly like a working run.
+func checkRequestedProfiles(initConfig *types.InitConfig) error {
+	requested := initConfig.Variables.Flags.Profiles
+	if len(requested) == 0 {
+		return nil
+	}
+
+	summary, err := CollectProfiles(initConfig)
+	if err != nil {
+		// Discovery is a convenience, not a gate: if the tree cannot be walked the
+		// processors below will report why, with better context than this can.
+		log.Debugf("Could not collect profiles to validate --profile: %v", err)
+		return nil
+	}
+
+	invalid := helpers.ValidateProfiles(requested, summary.Names)
+	if len(invalid) == 0 {
+		return nil
+	}
+
+	// Only a tree that declares profiles gives a trustworthy set to check against.
+	// When it declares none, the discovery walk is as likely to be the thing at
+	// fault as the operator, so say so rather than refusing to run.
+	if len(summary.Names) == 0 {
+		log.Warnf("--profile %v was given, but no blueprint in this tree declares any profiles; every profile-scoped entry will be skipped", invalid)
+		return nil
+	}
+
+	return fmt.Errorf("no profile named %v exists in this blueprint tree; available profiles: %v", invalid, summary.Names)
 }
