@@ -85,3 +85,55 @@ func TestAll_HeadlessOutputUnchanged(t *testing.T) {
 		last = idx
 	}
 }
+
+// A headless (non-interactive) run pushes through a failing processor,
+// still runs the rest, and exits nonzero. Before task 5 the first error
+// aborted the loop — this test fails on that behavior.
+func TestAll_NonInteractiveCollectsErrorsAndContinues(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("init.yaml", "blueprints:\n  format: yaml\n  location: "+dir+"\n")
+	// The scripts processor RETURNS errors (it does not use the failure
+	// ledger), so an unsupported action exercises the push-through path
+	// itself, not the ledger's existing continue-and-fail behavior.
+	write("scripts/bad.yaml", "scripts:\n  - name: bad\n    action: explode\n    content: x\n")
+	write("files/rc.yaml", "files:\n  - name: rc.txt\n    action: create\n    target: "+filepath.Join(dir, "out", "rc.txt")+"\n    content: hello\n")
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+	defer system.SetProvidersForTest(map[string]*types.Provider{})()
+
+	initConfig := &types.InitConfig{}
+	initConfig.Init.Location = dir
+	initConfig.Init.Format = "yaml"
+	initConfig.Variables.Flags.Interactive = false
+	initConfig.Variables.UserDefined = map[string]interface{}{}
+	osInfo := &types.OSInfo{}
+	osInfo.System.OS = runtime.GOOS
+	osInfo.Tools.Bash = types.ToolInfo{Exists: true, Bin: "/bin/bash"}
+
+	err := All(initConfig, osInfo, []string{"scripts", "files"})
+	if err == nil {
+		t.Fatal("All returned nil despite a failing processor")
+	}
+
+	// The later processor still ran: the file landed on disk.
+	if _, statErr := os.Stat(filepath.Join(dir, "out", "rc.txt")); statErr != nil {
+		t.Fatalf("files processor did not run after the scripts failure: %v", statErr)
+	}
+
+	// Interactive mode keeps halt-on-first-error.
+	initConfig.Variables.Flags.Interactive = true
+	if err := All(initConfig, osInfo, []string{"scripts"}); err == nil {
+		t.Fatal("interactive run did not halt on the failing processor")
+	}
+}
