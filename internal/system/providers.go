@@ -291,10 +291,18 @@ func GetProvidersPath() (string, error) {
 
 	// Check common locations for the providers directory
 	locations := []string{
-		filepath.Join(execDir, "providers"),                       // Next to executable
-		"/usr/local/share/rwr/providers",                          // System-wide installation
-		"/usr/share/rwr/providers",                                // System-wide installation
-		filepath.Join(os.Getenv("HOME"), ".config/rwr/providers"), // RWR Config Path
+		filepath.Join(execDir, "providers"), // Next to executable
+		"/usr/local/share/rwr/providers",    // System-wide installation
+		"/usr/share/rwr/providers",          // System-wide installation
+	}
+
+	// $HOME via Getenv would be empty under systemd/cron/sudo env -i (and always
+	// on Windows), and joining "" yields a relative path that os.Stat resolves
+	// against the CWD — exactly the directory this search must never honour.
+	if home, err := os.UserHomeDir(); err == nil {
+		locations = append(locations, filepath.Join(home, ".config/rwr/providers")) // RWR Config Path
+	} else {
+		log.Debugf("Skipping user provider path: no home directory: %v", err)
 	}
 
 	// Add macOS-specific paths
@@ -307,6 +315,10 @@ func GetProvidersPath() (string, error) {
 	}
 
 	for _, loc := range locations {
+		// A relative candidate would resolve against the CWD; never probe one.
+		if !filepath.IsAbs(loc) {
+			continue
+		}
 		if _, err := os.Stat(loc); err == nil { // #nosec G703 -- TODO(PR8): path derived from operator blueprint input; containment added in PR8
 			log.Debugf("Found providers directory at: %s", loc)
 			return loc, nil
