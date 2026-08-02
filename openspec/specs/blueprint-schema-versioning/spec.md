@@ -132,3 +132,11 @@ it wanted rather than failing as malformed.
 - **WHEN** a blueprint is written in a wire format this build does not understand
 - **AND** it declares `schema_version: 3`
 - **THEN** the error reports version 3 as unsupported, rather than a parse failure
+
+## Known Gaps
+
+- **`packageManagers` has a supported-version entry but no wire struct.** It is
+  listed in the per-type version table — so a tree-wide declaration is checked
+  against it — but has no entry in the variant registry, because package managers
+  are read from the init file rather than decoded as a blueprint. Nothing decodes
+  that type today, so the mismatch is latent rather than reachable.

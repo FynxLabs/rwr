@@ -7,15 +7,24 @@ on:
   # branches (a PR based on another PR's branch) otherwise merge with no CI at all.
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  ci:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  # RWR provisions Linux, macOS and Windows, so it is built on all three. Building
+  # only on ubuntu meant internal/system/windows.go and the darwin paths were never
+  # compiled by CI: a change that broke them shipped, and the first person to find
+  # out was a user on that platform.
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should still tell you about the other two.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v7
@@ -25,8 +34,90 @@ jobs:
       - name: Build
         run: go build -v ./...
 
+      # vet type-checks the test files too, so this is also the guarantee that the
+      # whole tree — tests included — compiles for this platform.
+      - name: Vet
+        run: go vet ./...
+
+      # -race, matching the pre-push hook (hk.pkl). CI ran the tests without it,
+      # which made CI weaker than the hook contributors run locally.
       - name: Test
-        run: go test -v ./...
+        if: matrix.os == 'ubuntu-latest'
+        run: go test -race -v ./...
+
+      # The same run on macOS and Windows, reporting only.
+      #
+      # The suite has never executed on either platform, and a good deal of it
+      # assumes POSIX behaviour — unix file modes, /bin/bash, path separators.
+      # Gating on it immediately would paint master red for reasons unrelated to
+      # whatever change is being reviewed. This surfaces the failures so they can
+      # be triaged and skipped or fixed at their source; delete continue-on-error
+      # once that is done, so the platforms rwr provisions are really tested.
+      - name: Test (macOS/Windows, not yet gating)
+        if: matrix.os != 'ubuntu-latest'
+        continue-on-error: true
+        run: go test -race -v ./...
+
+  # golangci-lint gates every commit locally, through mise (`mise run lint`) and
+  # the hk pre-commit hook — but only for contributors who ran `mise install`.
+  # Anyone else got no lint at all, and neither did any pull request.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ">=1.26.5"
+
+      # Reads .golangci.yml from the repo root, so this runs the same rules as
+      # `golangci-lint run` locally — there is no second copy of the config to drift.
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+
+  # install.sh and install.ps1 are how most people get rwr, and nothing checked
+  # them. Both were rewritten recently with no CI coverage at all.
+  #
+  # The installers are analysed, never executed: running them would download and
+  # install release artifacts, which tests the release rather than the script.
+  installers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # shellcheck is preinstalled on the ubuntu runners.
+      - name: shellcheck install.sh
+        run: shellcheck install.sh
+
+      # Parses install.ps1 without running any of it. This needs no extra modules,
+      # so it is a hard gate: a syntax error in the Windows installer breaks the
+      # only supported way to install on Windows.
+      - name: Parse install.ps1
+        shell: pwsh
+        run: |
+          $errors = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path ./install.ps1).Path, [ref]$null, [ref]$errors)
+          if ($errors) {
+            $errors | ForEach-Object {
+              Write-Host "::error file=install.ps1,line=$($_.Extent.StartLineNumber)::$($_.Message)"
+            }
+            exit 1
+          }
+          Write-Host "install.ps1 parses cleanly"
+
+      # Reporting only for now: the script has never been linted, so the first run
+      # is a findings list rather than a gate. Drop continue-on-error once it is clean.
+      - name: PSScriptAnalyzer install.ps1
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop
+          $findings = Invoke-ScriptAnalyzer -Path ./install.ps1 -Severity Error,Warning
+          $findings | Format-Table -AutoSize
+          if ($findings) { exit 1 }
 
   # The examples are the closest thing to a compatibility contract with users:
   # every blueprint field they use is a field somebody's real blueprint uses too.
@@ -35,8 +126,6 @@ jobs:
   # than an error. These checks make that a failed build instead.
   examples:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v7
 
@@ -58,18 +147,62 @@ jobs:
           set -euo pipefail
           go build -o rwr .
           status=0
+          found=0
           while IFS= read -r init; do
+            found=$((found + 1))
             tree="$(dirname "$init")"
             echo "::group::rwr validate $tree"
             ./rwr validate --blueprints "$tree" || status=1
             echo "::endgroup::"
           done < <(find examples -name 'init.*' | sort)
+          if [ "$found" -eq 0 ]; then
+            echo "No init files found under examples/ — this loop validated nothing." >&2
+            exit 1
+          fi
+          echo "Validated $found example trees."
           exit "$status"
+
+      # The loop above only reaches a directory that has an init file at or above
+      # it, so a blueprint tree without one is never validated and nothing says so.
+      # That is true of examples/imports/ today: it ships blueprint files but no
+      # init file, and `rwr validate` requires one (validate.findInitFile), so the
+      # command cannot be pointed at that tree at all. Closing it means adding
+      # examples/imports/Arch/init.yaml, which belongs in a change to examples/.
+      #
+      # This step pins the gap at its current size: a newly uncovered tree fails,
+      # and so does a listed one that becomes covered.
+      - name: Every example tree is reachable by rwr validate
+        run: |
+          set -euo pipefail
+          known_gaps="examples/imports/Arch/packages
+          examples/imports/Common/packages/arch"
+
+          uncovered=""
+          while IFS= read -r dir; do
+            d="$dir"
+            covered=no
+            while [ "$d" != "examples" ] && [ "$d" != "." ] && [ "$d" != "/" ]; do
+              if ls "$d"/init.* >/dev/null 2>&1; then covered=yes; break; fi
+              d="$(dirname "$d")"
+            done
+            [ "$covered" = yes ] || uncovered="${uncovered}${dir}"$'\n'
+          done < <(
+            find examples -type f \
+              \( -name '*.yaml' -o -name '*.yml' -o -name '*.json' -o -name '*.toml' \) \
+              -printf '%h\n' | sort -u
+          )
+
+          if diff <(printf '%s\n' "$known_gaps" | sed 's/^ *//' | sort) \
+                  <(printf '%s' "$uncovered" | sed '/^$/d' | sort); then
+            exit 0
+          fi
+          echo "::error::The set of example directories 'rwr validate' cannot reach changed."
+          echo "'>' lines are newly unreachable: give that tree an init file."
+          echo "'<' lines are now reachable: drop them from known_gaps in this workflow."
+          exit 1
 
   security:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v7
 

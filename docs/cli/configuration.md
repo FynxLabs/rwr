@@ -9,7 +9,22 @@ The `config.yaml` file is located in the RWR configuration directory. By default
 - Linux and macOS: `$HOME/.config/rwr`
 - Windows: `%USERPROFILE%\.config\rwr`
 
-You can also specify a custom location for the configuration file using the `--config` flag when running RWR commands.
+`--config` is a global flag that changes where RWR looks. It accepts either:
+
+- **a file** — RWR reads that file as the configuration, whatever it is named.
+  The directory holding it becomes the configuration directory, so `run_once`
+  is created next to it.
+- **a directory** — RWR reads `config.yaml` from that directory and uses the
+  directory as the configuration directory.
+
+```bash
+rwr all --config ~/rwr-work/config.yaml
+rwr all --config ~/rwr-work
+```
+
+A leading `~` is expanded. RWR creates the configuration directory and its
+`run_once` subdirectory if they do not exist. A missing configuration file is not
+an error: RWR logs it at debug level and continues with the defaults.
 
 ## File Format
 
@@ -25,8 +40,12 @@ The `rwr` section contains general settings for the RWR tool.
 
 | Option | Description |
 |--------|-------------|
-| `configdir` | Specifies the directory where the configuration file is located |
-| `skipVersionCheck` | Skips checking for the latest version of RWR when set to `true` |
+| `configdir` | The directory that `rwr config --create` writes `config.yaml` to, and the directory that holds the `bootstrap` marker file. The default is `$HOME/.config/rwr`. It does **not** change where RWR reads `config.yaml` from — use `--config` for that |
+
+> [!NOTE]
+> There is no working `rwr.skipVersionCheck` option. The key is written by
+> `rwr config --create`, but nothing reads it back: only the
+> `--skip-version-check` flag turns the version check off.
 
 ### `repository` Section
 
@@ -35,18 +54,8 @@ The `repository` section contains settings related to Git repositories.
 | Option | Description |
 |--------|-------------|
 | `gh_api_token` | Specifies the GitHub API token for accessing private repositories |
-| `ssh_private_key` | Specifies the SSH private key (base64 encoded) for accessing private repositories |
-| `init-file` | Specifies the location of the init file (local or URL) |
-
-### `packageManager` Section
-
-The `packageManager` section allows you to set the default package manager for each supported operating system.
-
-| Option | Description |
-|--------|-------------|
-| `linux.default` | Specifies the default package manager for Linux |
-| `macos.default` | Specifies the default package manager for macOS |
-| `windows.default` | Specifies the default package manager for Windows |
+| `ssh_private_key` | Specifies the SSH private key (file path or base64 encoded) for accessing private repositories |
+| `init-file` | Specifies the location of the init file (local path or `https://` URL) |
 
 ### `log` Section
 
@@ -63,24 +72,18 @@ Here's an example `config.yaml` file:
 ```yaml
 rwr:
   configdir: /path/to/custom/config
-  skipVersionCheck: false
 
 repository:
   gh_api_token: your_github_api_token
   ssh_private_key: your_ssh_private_key_base64
   init-file: https://example.com/init.yaml
 
-packageManager:
-  linux:
-    default: apt
-  macos:
-    default: brew
-  windows:
-    default: chocolatey
-
 log:
   level: info
 ```
+
+RWR reads only the keys listed above. `rwr config --create` also writes
+`rwr.skipVersionCheck`, which nothing reads.
 
 ## Modifying the Configuration File
 
@@ -98,12 +101,36 @@ The settings in the `config.yaml` file have precedence over the default values u
 
 ## Environment Variables
 
-RWR also supports setting configuration options through environment variables. Environment variables take precedence over the `config.yaml` file but are overridden by command-line flags. To set an option using an environment variable, use the prefix `RWR_` followed by the uppercase version of the option name, with dots replaced by underscores.
+RWR reads the same options from the environment. An environment variable takes
+precedence over `config.yaml` but is overridden by a command-line flag.
 
-For example:
+The name is `RWR_` followed by the option's full key in upper case, with each dot
+replaced by an underscore. **A hyphen in the key is kept as a hyphen** — it is
+not turned into an underscore.
 
-- `RWR_LOG_LEVEL=debug` sets the log level to debug
-- `RWR_REPOSITORY_GH_API_TOKEN=your_token` sets the GitHub API token
+| Config key | Environment variable |
+|---|---|
+| `log.level` | `RWR_LOG_LEVEL` |
+| `repository.gh_api_token` | `RWR_REPOSITORY_GH_API_TOKEN` |
+| `repository.ssh_private_key` | `RWR_REPOSITORY_SSH_PRIVATE_KEY` |
+| `repository.init-file` | `RWR_REPOSITORY_INIT-FILE` |
+| `rwr.configdir` | `RWR_RWR_CONFIGDIR` |
+
+```bash
+RWR_LOG_LEVEL=debug rwr all
+RWR_REPOSITORY_GH_API_TOKEN=your_token rwr all
+```
+
+> [!NOTE]
+> `RWR_REPOSITORY_INIT-FILE` contains a hyphen, so most shells will not accept it
+> in the `NAME=value command` form. Use `env` instead, or pass `--init-file`:
+>
+> ```bash
+> env "RWR_REPOSITORY_INIT-FILE=/path/to/init.yaml" rwr all
+> ```
+>
+> `RWR_REPOSITORY_INIT_FILE`, with an underscore, is a different name and is
+> ignored.
 
 ## Notes
 

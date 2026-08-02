@@ -2,6 +2,9 @@
 
 The Packages Blueprint allows you to manage packages on your system using RWR. You can specify packages to be installed or removed using various package managers, and now you can also provide additional arguments for package installation.
 
+See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
+`import`, `interactive`, and the rule that an unknown key is an error.
+
 ## Blueprint Structure
 
 The Packages Blueprint has the following structure:
@@ -12,7 +15,6 @@ packages:
   - name: package1
     action: install
     package_manager: apt
-    elevated: true
     args:
       - "--no-install-recommends"
 
@@ -29,7 +31,6 @@ packages:
     package_manager: chocolatey
     profiles:
       - work
-    elevated: false
     args:
       - "--params"
       - "'/NoDesktopShortcut'"
@@ -41,17 +42,35 @@ The Packages Blueprint supports the following settings:
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes, if `names` or `import` is not provided | The name of the package to manage |
-| `names` | Yes, if `name` or `import` is not provided | A list of package names to manage |
+| `name` | Yes, if `names` or `import` is not provided | The name of the package to manage. It may **not** begin with `-` |
+| `names` | Yes, if `name` or `import` is not provided | A list of package names to manage. The same restriction applies to each |
 | `import` | Yes, if `name` or `names` is not provided | Path to import package definitions from another file (relative to blueprint directory) |
-| `action` | Yes | The action to perform on the package(s) (`install` or `remove`) |
+| `action` | Yes | `install` or `remove`. See [Actions](#actions) |
 | `package_manager` | No | The package manager to use (e.g., `apt`, `brew`, `chocolatey`) |
-| `elevated` | No | Whether to run the package manager with elevated privileges (default: `false`) |
-| `args` | No | Additional arguments to pass to the package manager (as a list of strings) |
+| `elevated` | No | Accepted by the schema but **not read**. Whether the package manager is run with elevation comes from the provider definition, not from the entry |
+| `args` | No | Additional arguments to pass to the package manager (as a list of strings), appended after the package name |
 | `profiles` | No | List of profiles this package belongs to. If empty, package is always installed (base item) |
 | `interactive` | No | Override global interactive mode for this package (`true`/`false`). If omitted, uses the global `--interactive` flag |
 
-Note that you must provide either `name`, `names`, or `import` for each package entry. If both are provided, `names` will take precedence.
+Note that you must provide either `name`, `names`, or `import` for each package entry. If both `name` and `names` are given, `name` wins and `names` is ignored.
+
+### Package names may not begin with `-`
+
+A name starting with `-` would be read as an **option** by every package
+manager — `--allow-downgrades`, `-U <url>` — rather than as a package. RWR
+refuses such a name and records it as a failure for that entry; the rest of the
+run continues. Commands are executed as argv rather than through a shell, so
+this is not shell injection, but it would still let a blueprint change what the
+elevated package manager does.
+
+### Actions
+
+`install` and `remove` are implemented.
+
+`update` is accepted by `rwr validate` but **not implemented by the packages
+processor**: an entry declaring it is recorded as a failure with "unknown
+action" at run time. To refresh package lists, run a repositories blueprint —
+RWR runs each available provider's update command after processing it.
 
 ## Blueprint Imports
 
@@ -85,21 +104,21 @@ For complete import examples, see [`examples/imports/`](../../examples/imports/)
 
 ## Supported Package Managers
 
-RWR supports the following package managers out of the box:
+RWR ships provider definitions for:
 
-- `apt` (Linux)
-- `brew` (macOS, Linux)
-- `chocolatey` (Windows)
-- `dnf` (Linux)
-- `yum` (Linux)
-- `pacman` (Linux)
-- `zypper` (Linux)
-- `emerge` (Linux)
-- `nix` (Linux, macOS)
-- `scoop` (Windows)
-- `winget` (Windows)
+- Linux: `apt`, `dnf`, `zypper`, `pacman`, `apk`, `xbps`, `eopkg`, `emerge`, `slackpkg`, the AUR helpers `yay`, `paru`, `aura`, `pamac` and `trizen`, plus `flatpak`, `snap` and `gnome-extensions`
+- macOS: `brew`, `macports`, `mas`
+- Windows: `chocolatey`, `scoop`, `winget`
+- Cross-platform: `nix`, `cargo`
 
-If a package manager is not specified, RWR will attempt to use the default package manager for the current operating system.
+There is no `yum` provider; use `dnf`.
+
+If `package_manager` is omitted, RWR uses the default detected for this machine
+(which honours `/etc/os-release` and, on Arch, the AUR helper preference order).
+If that one is unavailable it falls back to the alphabetically first available
+provider, so that an unqualified package does not get a different manager on
+each run. A named package manager that is not available on the machine logs a
+warning and skips the entry.
 
 ## Examples
 
@@ -116,7 +135,6 @@ packages:
       - vim
     action: install
     package_manager: apt
-    elevated: true
     args:
       - "--no-install-recommends"
 
@@ -156,7 +174,6 @@ packages:
       ],
       "action": "install",
       "package_manager": "apt",
-      "elevated": true,
       "args": [
         "--no-install-recommends"
       ]
@@ -193,7 +210,6 @@ packages:
 names = ["git", "curl", "vim"]
 action = "install"
 package_manager = "apt"
-elevated = true
 args = ["--no-install-recommends"]
 
 # Development profile packages
@@ -216,9 +232,9 @@ These examples demonstrate how to specify packages to be installed using differe
 
 ## Additional Notes
 
-- If a package is already installed, RWR will skip the installation process for that package.
-- When removing packages, RWR will ignore any packages that are not currently installed.
-- If a package manager is not available on the system, RWR will skip the package management process and log a warning.
+- RWR does not check whether a package is already installed; it runs the provider's install command and lets the package manager decide. Every shipped provider's install command is idempotent for an already-installed package.
+- A package that fails to install or remove does not stop the run. Failures are collected and reported at the end.
+- If a package manager is not available on the system, RWR will skip that entry and log a warning.
 - The `args` field allows you to pass additional arguments to the package manager. This is particularly useful for package managers like Homebrew (with `--cask`), Chocolatey (with installation parameters), or apt (with `--no-install-recommends`).
 
 For more information on using the Packages Blueprint in your RWR configuration, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Commands and Flags](../cli/command-and-flags.md) pages.

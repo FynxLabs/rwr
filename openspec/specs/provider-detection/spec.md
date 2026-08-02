@@ -33,6 +33,35 @@ RWR SHALL fail only when it has no providers at all.
 - **WHEN** a `providers/` directory contains a definition named `pacman`
 - **THEN** that definition replaces the embedded `pacman`
 
+### Requirement: A provider is only loaded from a directory only its owner can write
+
+RWR SHALL search for a filesystem provider directory in the executable's own
+directory, `/usr/local/share/rwr/providers`, `/usr/share/rwr/providers`, and
+`~/.config/rwr/providers` — plus the Homebrew and app-bundle paths on macOS.
+
+RWR SHALL NOT search the current working directory.
+
+RWR SHALL skip a provider file that is group- or world-writable, warning which file
+and which mode, and SHALL continue loading the rest of the directory.
+
+A provider file declares `exec`, `args` and `elevated = true`, and those are run
+verbatim. Honouring `./providers` handed root-level execution to any directory RWR
+happened to be run from — a cloned blueprint repo, `/tmp`, a shared downloads
+folder — and a definition anyone on the box can edit is a root shell for anyone on
+the box. One bad file is skipped rather than failing the load, so it does not cost
+the operator every other provider in the directory.
+
+#### Scenario: Running from a directory containing providers
+
+- **WHEN** RWR is run from a directory that contains a `providers/` subdirectory
+- **THEN** those definitions are not loaded
+
+#### Scenario: A world-writable provider file
+
+- **WHEN** `~/.config/rwr/providers/paru.toml` is mode `0666`
+- **THEN** RWR warns and skips that file
+- **AND** the other definitions in the directory still load
+
 ### Requirement: Provider availability is decided by evidence on the machine
 
 RWR SHALL treat a provider as available when all of these hold:
@@ -111,6 +140,28 @@ wildcard providers.
 - **WHEN** provider detection runs on a machine with `pacman` and `paru` available
 - **THEN** both appear in the package-manager map with usable binary paths
 - **AND** cache cleaning issues a `pacman` clean command
+
+### Requirement: A provider that declares no clean command is not invoked
+
+At the end of a run RWR SHALL issue a clean command only for providers that declare
+one, deciding by the clean arguments rather than by the assembled command string.
+
+A package manager's `Clean` is built as `"<bin> <clean args>"`, so a provider with
+no clean command still yields `"<bin> "` and never the empty string. Testing the
+concatenation therefore never skipped anything, and the bare provider binary was
+executed at the end of every run. For an AUR helper, a bare invocation can mean a
+full system upgrade.
+
+#### Scenario: A provider with no clean command
+
+- **WHEN** an available provider's definition declares no clean command
+- **THEN** nothing is spawned for it during cleanup
+- **AND** its bare binary is not invoked
+
+#### Scenario: A provider with a clean command
+
+- **WHEN** a provider declares a clean command
+- **THEN** it is spawned with the provider's binary and the declared arguments
 
 ### Requirement: The default package manager is deterministic
 

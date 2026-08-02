@@ -14,8 +14,16 @@ On Windows, in a PowerShell that you started with "Run as administrator":
 Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.ps1'))
 ```
 
-Each script finds the correct build for your machine, compares the download
-against the published checksum, and stops if the two do not agree.
+Each script finds the correct build for your machine, downloads `checksums.txt`
+from the same release, compares the SHA-256 of the archive against the entry for
+that file, and refuses to install if the two do not agree — or if the release
+publishes no checksum for the archive at all.
+
+`install.sh` installs to `/usr/local/bin`, with `LICENSE` and the README under
+`/usr/local/share/doc/rwr`. It uses `sudo` only if those directories are not
+already writable, and reports a missing `sudo` before it downloads anything.
+`install.ps1` installs to `%ProgramFiles%\rwr` and adds that directory to the
+machine `PATH`, so it needs an elevated PowerShell.
 
 WARNING: Read a script before you run it with root or administrator permissions.
 Both scripts are in the RWR repository.
@@ -67,11 +75,20 @@ RWR replaces the `nightly` tag and its files at each merge. The download
 addresses stay the same, and the content changes.
 
 The version of a nightly build contains the commit, in the form
-`<next-patch>-master-<short-sha>`. To find the commit that made a binary:
+`<next-patch>-master-<short-sha>`. To find the commit that made a binary, run
+`rwr version`:
 
-```bash
-rwr version
+```console
+$ rwr version
+rwr 0.5.3-master-24872aa
+commit:     24872aab978e459254544b1fb58afbb080100cb1
+built:      2026-08-01T21:20:55Z
+built by:   goreleaser
+tree state: false
+go:         go1.26.5 linux/amd64
 ```
+
+`rwr --version` prints the first line on its own.
 
 ## Next steps
 

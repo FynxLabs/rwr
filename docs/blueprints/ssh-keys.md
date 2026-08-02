@@ -2,6 +2,9 @@
 
 The SSH Keys blueprint in Rinse, Wash, Repeat (RWR) allows you to generate and manage SSH keys as part of your system configuration. You can create SSH keys, specify their properties, optionally copy the public keys to your GitHub account, and set a key as the default RWR SSH key.
 
+See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
+`import`, `interactive`, and the rule that an unknown key is an error.
+
 ## Blueprint Structure
 
 The SSH Keys blueprint has the following structure:
@@ -26,8 +29,8 @@ The following settings are available for each SSH key in the SSH Keys blueprint:
 | -------------------- | -------- | ---------------------------------------------------------------------------------- |
 | `name`               | Yes, if `import` is not provided      | The name of the SSH key file (e.g., `id_rsa`)                                      |
 | `import`             | Yes, if `name` is not provided | Path to import SSH key definitions from another file (relative to blueprint directory) |
-| `type`               | No       | The type of the SSH key (e.g., `rsa`, `dsa`, `ecdsa`, `ed25519`). Default is `rsa` |
-| `path`               | No       | The directory where the SSH key will be stored. Default is `~/.ssh`                |
+| `type`               | Yes      | The key type, passed straight to `ssh-keygen -t`. There is **no default** — omitting it makes `ssh-keygen` fail. `rwr validate` warns for anything other than `rsa`, `ed25519` or `ecdsa` |
+| `path`               | Yes      | The directory where the SSH key will be stored. There is **no default**; write it explicitly, e.g. `~/.ssh`. A leading `~` is expanded |
 | `comment`            | No       | A comment to include in the SSH key (e.g., email address)                          |
 | `no_passphrase`      | No       | Set to `true` to generate the SSH key without a passphrase. Default is `false`     |
 | `copy_to_github`     | No       | Set to `true` to copy the public key to your GitHub account. Default is `false`    |
@@ -63,6 +66,10 @@ This allows you to share SSH key configurations across multiple machines.
 When the SSH Keys blueprint is processed, RWR will generate the specified SSH keys using the provided settings. The keys will be stored in the specified `path` directory.
 
 If `no_passphrase` is set to `true`, the SSH key will be generated without a passphrase. Otherwise, RWR will prompt you to enter a passphrase for the key.
+
+A key file that already exists is left alone: RWR logs a warning, skips
+generation, and goes on to the `copy_to_github` and `set_as_rwr_ssh_key` steps
+with the existing key.
 
 ## Copying Public Keys to GitHub
 

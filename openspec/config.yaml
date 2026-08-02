@@ -1,20 +1,49 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  rwr ("rinse wash repeat") is a cross-platform system provisioning CLI. It reads
+  user-authored "blueprint" files (YAML, JSON, or TOML) and applies them to a
+  machine: packages, repositories, files and templates, services, users and
+  groups, SSH keys, fonts, git checkouts, scripts, and desktop configuration.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Tech stack: Go, cobra for the CLI, viper for configuration, go-git, charm.land/log.
+  Tooling: mise for tasks (`mise run ci` = test + lint + security), hk for git hooks,
+  golangci-lint, gosec, goreleaser for releases.
+
+  Conventions that matter when writing specs and code:
+  - Commands are executed as argv arrays via types.Command, never as shell strings.
+    A provider that genuinely needs a shell says so explicitly (exec = "sh", args =
+    ["-c", ...]). Anything that concatenates a command string is a bug.
+  - Blueprints are untrusted input. They are cloned from git and may be authored by
+    someone other than the operator, so blueprint-supplied values must never be able
+    to change what an elevated command does, escape a destination directory, or
+    redirect a credential to a host the operator did not name.
+  - Secrets (the GitHub token, SSH private keys) are withheld from template scope,
+    redacted in logs, and not exported to child processes unless the operator opts
+    in via exposeCredentials. Secrets are passed on stdin, never in argv, because
+    argv is readable by every local user via `ps`.
+  - Dry-run is enforced centrally in system.RunCommand. Any processor that touches
+    the filesystem or network directly must check system.IsDryRun() itself.
+  - Provisioning must converge, not just succeed once: running `rwr all` twice is
+    the normal case, so processors handle the already-in-desired-state case rather
+    than failing.
+  - Blueprints decode strictly. An unknown key is an error, because a silently
+    ignored key is a blueprint that looks applied and is not.
+  - A processor that skips a failed item and continues records the failure so the
+    run's exit code reflects it. Logging a failure and exiting 0 is a bug.
+  - examples/ is the compatibility contract. Every blueprint type is covered per
+    platform in all three formats and validated in CI; a change that breaks an
+    example is a breaking change to users.
+  - Conventional commits.
+
+rules:
+  proposal:
+    - State what breaks for existing blueprints, or say explicitly that nothing does.
+  spec:
+    - Write requirements as SHALL statements with concrete scenarios.
+    - Record why a requirement exists when the reason is not self-evident — the
+      failure it prevents is usually more useful than the rule itself.
+    - If a requirement is not yet implemented, say so under a "Known Gaps" heading
+      rather than describing intent as if it shipped.
+  tasks:
+    - Every behavior change needs a test that fails without it.

@@ -47,6 +47,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
   - [CI/CD Pipeline](#cicd-pipeline)
     - [Environment Variables](#environment-variables)
 - [Contributing](#contributing)
+  - [Specs](#specs)
 - [License](#license)
 - [Contact](#contact)
 
@@ -68,7 +69,10 @@ Open PowerShell as an administrator and run:
 Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.ps1'))
 ```
 
-These scripts will download and install the latest version of RWR appropriate for your system. They will also set up the necessary paths and permissions.
+Each script picks the build for your machine from the latest release, verifies it
+against the release's `checksums.txt` and refuses to install on a mismatch.
+`install.sh` installs to `/usr/local/bin`; `install.ps1` installs to
+`%ProgramFiles%\rwr` and adds it to the machine `PATH`.
 
 > [!NOTE]
 > Always review scripts before running them with elevated privileges. The install scripts are available for inspection in the RWR repository.
@@ -126,18 +130,25 @@ For detailed setup instructions, see the [Quick Start Guide](docs/quick-start.md
 
 ## Configuration
 
-RWR uses a configuration file to manage settings like blueprint repositories, SSH keys, and GitHub API tokens. The configuration file supports both Git repositories and local filesystem paths for blueprints.
-
-Basic configuration structure:
+RWR's configuration file (`~/.config/rwr/config.yaml` by default) holds where to
+find the init file and the credentials used to reach a private one:
 
 ```yaml
 repository:
-  type: git
-  url: "https://github.com/your-org/your-blueprints.git"
-  # OR for local:
-  # type: local
-  # path: "/path/to/blueprints"
+  init-file: https://github.com/your-org/your-blueprints/blob/main/init.yaml
+  gh_api_token: your_github_api_token
+  ssh_private_key: your_ssh_private_key_base64
+
+log:
+  level: info
 ```
+
+`init-file` may be a local path, a directory to look in, or an `https://` URL.
+Where the blueprints themselves come from — a git remote or a local directory —
+is decided by the init file, under `blueprints.location` and `blueprints.git`.
+
+Point RWR at a different configuration with `--config`, which takes either a file
+or a directory holding `config.yaml`.
 
 See the [Configuration documentation](docs/cli/configuration.md) for complete setup details.
 
@@ -150,7 +161,7 @@ RWR uses an additive profile system where:
 - Multiple profiles can be activated simultaneously
 
 ```bash
-# Apply base configuration only
+# Apply everything: with no profile named, nothing is filtered out
 rwr all
 
 # Apply base + dev profile
@@ -159,6 +170,10 @@ rwr all --profile dev
 # Apply base + multiple profiles
 rwr all --profile dev --profile work
 ```
+
+> [!NOTE]
+> The profile filter runs only when you name at least one profile. `rwr all` on
+> its own applies profile items too.
 
 For detailed information, see the [Profile System documentation](docs/profiles.md).
 
@@ -280,8 +295,15 @@ RWR uses [mise](https://mise.jdx.dev/) to manage development tools. Install mise
     mise install
     ```
 
-    This installs Go, GoReleaser, gotestsum, golangci-lint, and the other tools
-    that the tasks use.
+    This installs Go, GoReleaser, gotestsum, golangci-lint, Node, pkl, hk and
+    the OpenSpec CLI.
+
+    `mise install` also runs a postinstall hook that does the rest of the setup:
+    it installs the git hooks defined in `hk.pkl` (`hk install --mise`, which
+    gives you the pre-commit and pre-push checks), initializes or updates the
+    OpenSpec scaffold under `openspec/`, runs `go mod download`, and installs
+    `govulncheck` if it is missing. Run it once after cloning and the tree is
+    ready to build.
 
 ### Development Commands
 
@@ -327,6 +349,13 @@ Run the full check before you push:
 mise run ci         # test, lint, and security together
 ```
 
+`mise run ci` is not the same set of checks as the CI workflow: it runs the tests
+without `-race`, on this machine only, and it does not run gosec, the installer
+checks, or the example validation. Read the [CI/CD Pipeline](#cicd-pipeline)
+section for what the workflow actually does. The git hooks installed by
+`mise install` cover part of the gap: `pre-commit` runs golangci-lint with
+`--fix`, and `pre-push` runs `go test -race ./...` and `govulncheck`.
+
 Update the dependencies:
 
 ```bash
@@ -337,21 +366,35 @@ mise run update     # go get -u ./... and go mod tidy
 
 GitHub Actions runs the pipeline. There are three workflows.
 
-`Go Build & Test` runs at each pull request:
+`Go Build & Test` runs at each push to `master` and at each pull request —
+every pull request, not only those targeting `master`, so a branch stacked on
+another branch is still checked. It has five jobs:
 
-- The `ci` job builds the code and runs the tests.
-- The `security` job runs gosec and govulncheck.
-- The `examples` job checks each file in `examples/`: the file parses in its
-  format, the template variables exist, the fields match the blueprint structs,
-  and the YAML, JSON and TOML copies give the same result. The job then runs
-  `rwr validate` over each example tree.
+- `build` runs on `ubuntu-latest`, `macos-latest` and `windows-latest`. Each
+  runs `go build ./...` and `go vet ./...`; vet type-checks the test files, so
+  this is also the guarantee that the whole tree compiles on that platform.
+  `go test -race -v ./...` gates on Linux. It also runs on macOS and Windows,
+  but with `continue-on-error`, because much of the suite still assumes POSIX
+  behaviour.
+- `lint` runs golangci-lint against the repository's own `.golangci.yml`, so it
+  is the same set of rules as `mise run lint`.
+- `installers` runs shellcheck over `install.sh` and parses `install.ps1` with
+  the PowerShell parser. Both gate. PSScriptAnalyzer also runs, reporting only
+  for now. The scripts are analysed, never executed.
+- `examples` checks each file in `examples/`: the file parses in its format, the
+  template variables exist, the fields decode strictly into the blueprint structs
+  with no unknown keys, and the YAML, JSON and TOML copies describe the same
+  thing. It then builds the binary and runs `rwr validate` over every example
+  tree, and asserts that the set of example directories `rwr validate` cannot
+  reach has not grown.
+- `security` runs gosec and govulncheck.
 
-`RWR - Master Prerelease` runs at each merge to `master`. It builds the branch
-and publishes the files under the `nightly` tag. Read [Install](docs/install.md)
-for more information.
+`RWR - Master Prerelease` runs at each merge to `master`, and can be started by
+hand. It builds the branch and publishes the files under the `nightly` tag. Read
+[Install](docs/install.md) for more information.
 
-`RWR - Release` runs at each version tag. It builds the binaries and the
-packages, creates the GitHub release, and updates the Homebrew tap.
+`RWR - Release` runs at each pushed tag. It builds the binaries and the packages,
+creates the GitHub release, and updates the Homebrew tap.
 
 #### Environment Variables
 
@@ -373,6 +416,22 @@ Contributions to RWR are welcome! If you'd like to contribute, please follow the
 5. Submit a pull request to the main repository.
 
 Please ensure that your code follows the project's coding style and includes appropriate tests.
+
+### Specs
+
+RWR keeps living specifications under `openspec/specs/`, one directory per
+capability: `blueprint-processing`, `blueprint-schema-versioning`,
+`blueprint-validation`, `cli`, `command-execution`, `credential-handling`,
+`distribution`, `initialization` and `provider-detection`. Project-wide context
+and the rules specs are written against live in `openspec/config.yaml`.
+
+**If a change alters behavior that a spec covers, update that spec in the same
+pull request.** A spec that describes behavior the code no longer has is worse
+than no spec. If a requirement is not implemented yet, record it under a "Known
+Gaps" heading rather than writing intent as if it shipped.
+
+`mise install` sets up the OpenSpec tooling; `openspec --help` lists what it can
+do.
 
 ## License
 

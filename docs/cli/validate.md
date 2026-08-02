@@ -14,22 +14,43 @@ The validation process includes:
 
 * Checking blueprint structure and content
 * Validating provider configurations
-* Verifying cross-references between blueprints and providers
-* Ensuring system compatibility
+* Resolving blueprint imports and detecting circular ones
+* Checking that a referenced package manager has a provider
+
+> [!NOTE]
+> `validate` reads files. It never installs anything and never runs a blueprint's
+> commands, so it cannot tell you that a package exists in a repository or that a
+> script succeeds.
+>
+> `--profile` is accepted, because it is a global flag, but `validate` ignores
+> it: every blueprint file in the tree is checked regardless of profiles.
 
 ## Command Flags
 
 | Flag | Description |
 |------|-------------|
-| `--blueprints` | Validate only blueprint files |
-| `--providers` | Validate only provider configurations |
-| `--verbose` | Show detailed validation information |
+| `--blueprints` | Force validation as blueprint files |
+| `--providers` | Force validation as provider configurations |
+| `--verbose` | Log a "validation completed" line when the walk finishes |
 
-Give the path as an argument, not as a flag:
+Give the path as an argument, not as a flag. The default is the current
+directory:
 
 ```bash
 rwr validate path/to/blueprints
 ```
+
+With neither `--blueprints` nor `--providers`, RWR chooses one from the path: a
+directory named `providers` or a `.toml` file is validated as providers, and
+anything else as blueprints. Each run validates one of the two, never both.
+
+Validating as blueprints needs an init file (`init.json`, `init.yaml`,
+`init.yml` or `init.toml`) at or above the files being checked; a tree with no
+init file cannot be validated.
+
+> [!NOTE]
+> `--verbose` does not change what is checked or add per-file output. Use
+> `--debug` for a detailed trace.
 
 ## Validation Process
 
@@ -39,9 +60,16 @@ Blueprint validation checks your blueprint files for structural and content issu
 
 The blueprint validation process includes:
 
-* **Structure Validation**: Ensures all required fields are present and field types match specifications
-* **Content Validation**: Checks that file paths exist or can be created, permissions are valid, and commands are executable
-* **Cross-Reference Validation**: Verifies that referenced package managers, files, and services exist
+* **Structure Validation**: Each file decodes strictly into its blueprint type. An
+  unknown key is an error, not something silently ignored
+* **Required Fields**: Required fields such as a repository `url`, an SSH key
+  `name`, `type` and `path`, or a file's `content` or `source`, must be present
+* **Enumerations**: `action` values are checked against the actions the processor
+  accepts, and file modes against what RWR will accept
+* **Imports**: Each `import` path must exist and must parse as the expected
+  blueprint type; a circular import is an error
+* **Package Managers**: A `package_manager` named by a blueprint must have a
+  provider available on this system
 
 ### Provider Validation
 
@@ -49,102 +77,92 @@ Provider validation checks your provider configuration files for structural and 
 
 The provider validation process includes:
 
-* **Structure Validation**: Ensures all required sections exist and field types match specifications
-* **Command Validation**: Checks command syntax and template variable usage
-* **System Compatibility**: Verifies that the provider supports the current OS/distribution and required binaries exist
-
-### Cross-Reference Validation
-
-Cross-reference validation ensures that all references between blueprints and providers are valid.
-
-The cross-reference validation process includes:
-
-* **Package Manager References**: Verifies that each referenced package manager has a valid provider
-* **Dependency Validation**: Checks for circular dependencies and ensures all dependencies exist
-* **Path Validation**: Verifies that file paths exist or can be created and have appropriate permissions
+* **File Type**: A provider configuration must be a `.toml` file
+* **Required Fields**: `provider.name`, the detection `binary` and
+  `distributions`, and the `install`, `update` and `remove` commands must all be
+  present
+* **Steps**: Each install step must name an action
+* **Paths**: A declared repository sources path must exist
 
 ## Error Reporting
 
-The validate command provides detailed error reports to help you identify and fix issues in your configurations.
+Each issue is logged as it is found, with the file it came from and a suggested
+fix:
 
-Error reports include:
+```text
+ERRO ERROR: No URL specified for repository 'core' [/path/to/repositories/main.yaml] - Suggestion: Add URL field to repository
+WARN WARNING: Location does not exist: blueprints [/path/to/init.yaml] - Suggestion: Create the directory or update the location
+```
 
-* **Error Messages**: Detailed descriptions of validation errors
-* **Warning Messages**: Potential issues that might not cause failures but could be improved
-* **Suggestions**: Recommended fixes for identified issues
-* **File and Line References**: Exact locations of issues in your configuration files
+The command ends with a summary, and exits non-zero if there was at least one
+error:
+
+```text
+validation failed with 2 errors and 1 warnings
+```
+
+With no errors it prints `Validation completed with N warnings`, or
+`Validation completed successfully`.
+
+> [!NOTE]
+> Issues carry the file, not a line number. Where the underlying decoder reports
+> a line — a strict-decoding failure, for example — it appears inside the message
+> text.
 
 ## Examples
 
-### Validating All Configurations
-
-To validate all blueprints and provider configurations in the current directory:
+### Validating the Current Directory
 
 ```bash
 rwr validate
 ```
 
-### Validating Only Blueprints
-
-To validate only blueprint files:
-
-```bash
-rwr validate --blueprints
-```
-
-### Validating Only Providers
-
-To validate only provider configurations:
-
-```bash
-rwr validate --providers
-```
-
 ### Validating a Specific Path
 
-To validate configurations in a specific directory:
-
 ```bash
-rwr validate /path/to/configs
+rwr validate /path/to/blueprints
+rwr validate providers/paru.toml
 ```
 
-### Verbose Output
-
-To get detailed validation information:
+### Forcing a Mode
 
 ```bash
-rwr validate --verbose
+rwr validate path/to/dir --blueprints
+rwr validate path/to/file --providers
 ```
 
 ## Common Validation Errors
 
 ### Blueprint Errors
 
-| Error | Description |
-|-------|-------------|
-| Missing required field | A required field is missing in a blueprint |
-| Invalid field type | A field has an incorrect type |
-| Invalid package manager reference | A referenced package manager does not exist |
-| Invalid file path | A file path does not exist or cannot be created |
-| Invalid permission | A permission value is invalid |
+| Message | Meaning |
+|---------|---------|
+| `field <name> not found in type types.<T>` | The blueprint uses a key that type does not have. Blueprints decode strictly, so this is an error rather than a silently ignored key |
+| `No URL specified for repository '<name>'` | A repository entry has no `url` |
+| `No content or source specified for file '<name>'` | A file entry gives neither |
+| `No type specified for SSH key '<name>'` | An SSH key entry has no `type` |
+| `Circular import detected: '<path>'` | An import chain returns to a file it already read |
+| `Import file not found '<path>'` | An `import` path does not resolve |
+| `Location does not exist: <path>` | The init file's `blueprints.location` is not there (a warning) |
+| `Failed to find init file` | There is no `init.*` at or above the path being validated |
 
 ### Provider Errors
 
-| Error | Description |
-|-------|-------------|
-| Missing required section | A required section is missing in a provider configuration |
-| Invalid command syntax | A command has invalid syntax |
-| Invalid template variable | A template variable is used incorrectly |
-| Unsupported distribution | The provider does not support the current distribution |
-| Missing binary | A required binary is not available |
+| Message | Meaning |
+|---------|---------|
+| `Not a TOML file` | Provider configurations must be `.toml` |
+| `Missing required field 'provider.name'` | The `[provider]` section has no `name` |
+| `Missing binary in detection section` | The provider does not say which binary to look for |
+| `No distributions specified in detection section` | The provider does not say which distributions it supports |
+| `Missing install command` / `Missing update command` / `Missing remove command` | A required command is absent from `[commands]` |
+| `No providers available for the current system` | Nothing was detected on this machine |
 
 ## Best Practices
 
 * Run validation before attempting to run your configurations
-* Use the `--verbose` flag to get detailed information about validation issues
 * Fix all errors and warnings before proceeding with deployment
-* Validate both blueprints and providers to ensure complete compatibility
-* Use the validation output to improve your configuration files
+* Validate both blueprints and providers, in two runs, to cover both
+* Use `--debug` when a message is not enough to locate the problem
 
 ## See Also
 

