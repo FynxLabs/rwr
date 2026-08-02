@@ -40,10 +40,18 @@ jobs:
         run: go vet ./...
 
       # -race, matching the pre-push hook (hk.pkl). CI ran the tests without it,
-      # which made CI weaker than the hook contributors run locally.
+      # which made CI weaker than the hook contributors run locally. The same
+      # run writes the coverage profile the gate below reads.
       - name: Test
         if: matrix.os == 'ubuntu-latest'
-        run: go test -race -v ./...
+        run: go test -race -coverprofile=coverage.out -v ./...
+
+      # Coverage gate: total must stay at or above the ratcheting threshold
+      # (set from the measured baseline; see
+      # openspec/changes/add-coverage-reporting/baseline.md).
+      - name: Coverage gate
+        if: matrix.os == 'ubuntu-latest'
+        run: ./scripts/coverage-gate.sh coverage.out
 
       # The same run on macOS and Windows, reporting only.
       #
