@@ -150,7 +150,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 				continue
 			}
 
-			log.Infof("Successfully %sed package %s via %s", pkg.Action, name, provider.Name)
+			log.Infof("Successfully %s package %s via %s", pastTense(pkg.Action), name, provider.Name)
 		}
 	}
 
@@ -166,6 +166,15 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 // sorted because Go randomizes map iteration: selecting "whatever the map yields
 // first" meant an unqualified package could be installed by a different package
 // manager on every run.
+// pastTense renders a package action for the success message. The old
+// "%sed" format produced "removeed": actions ending in "e" only take a "d".
+func pastTense(action string) string {
+	if strings.HasSuffix(action, "e") {
+		return action + "d"
+	}
+	return action + "ed"
+}
+
 func defaultProviderFor(osInfo *types.OSInfo, available map[string]*types.Provider) (*types.Provider, bool) {
 	if osInfo != nil {
 		if name := osInfo.PackageManager.Default.Name; name != "" {

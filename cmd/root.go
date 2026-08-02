@@ -25,7 +25,9 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "rwr",
 	Short: "Rinse, Wash, and Repeat - Distrohopper's Friend",
-	Long:  `rwr is a cli to manage your Linux system's package manager and repositories.`,
+	Long: `rwr provisions Linux, macOS and Windows machines from blueprint files:
+packages, repositories, files and templates, services, users, SSH keys, fonts,
+git checkouts, scripts, and desktop configuration.`,
 	// A run that fails partway through is not a usage mistake. Printing the full
 	// flag listing after "validation failed with 3 errors" buries the errors the
 	// operator actually needs to read under a screen of help text. Errors are
