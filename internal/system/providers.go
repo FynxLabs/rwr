@@ -365,11 +365,26 @@ func LoadProviders(definitionsPath string) error {
 // world-writable files are skipped rather than rejected outright: one bad file in
 // a directory should not cost the user every other provider in it.
 func isProviderFileTrusted(path string) bool {
+	return isProviderFileTrustedOn(runtime.GOOS, path)
+}
+
+// isProviderFileTrustedOn is isProviderFileTrusted with the platform as data,
+// so both branches are testable from any platform.
+func isProviderFileTrustedOn(goos, path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
 		log.Warnf("LoadProviders: Skipping provider %s: %v", path, err)
 		return false
 	}
+
+	// Windows has no unix permission bits: Go synthesizes 0666 for any file
+	// that is not read-only, so the writability check below would reject every
+	// normal provider file — and its chmod advice is not runnable there. File
+	// security on Windows is ACLs, which os.FileMode cannot express.
+	if goos == "windows" {
+		return true
+	}
+
 	if mode := info.Mode(); mode&0o022 != 0 {
 		log.Warnf("LoadProviders: Skipping provider %s: it is group- or world-writable (mode %04o); "+
 			"provider files run commands as root, so tighten it with chmod go-w", path, mode.Perm())
