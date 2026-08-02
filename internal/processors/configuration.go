@@ -427,7 +427,7 @@ func registryInt(value interface{}) (int64, error) {
 	case int64:
 		return v, nil
 	case uint:
-		if v > math.MaxInt64 {
+		if uint64(v) > math.MaxInt64 {
 			return 0, fmt.Errorf("value %d is too large for a registry integer", v)
 		}
 		return int64(v), nil
