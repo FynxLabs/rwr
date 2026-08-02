@@ -337,11 +337,22 @@ func TestExamples_FormatsAgreeWithEachOther(t *testing.T) {
 			return nil
 		}
 
+		// The CUE column is optional per tree (the dead alternative_layouts
+		// trees have none) but must agree when present.
+		var fromCUE map[string]interface{}
+		hasCUE := false
+		if cuePath := counterpart("cue"); func() bool { _, statErr := os.Stat(cuePath); return statErr == nil }() {
+			hasCUE = decodeInto(t, cuePath, "cue", &fromCUE)
+		}
+
 		// An init file names the format its tree is written in, so that one key is
 		// required to differ between the copies.
 		dropDeclaredFormat(fromYAML)
 		dropDeclaredFormat(fromJSON)
 		dropDeclaredFormat(fromTOML)
+		if hasCUE {
+			dropDeclaredFormat(fromCUE)
+		}
 
 		key := filepath.ToSlash(rel)
 		compare := func(other map[string]interface{}, format string) {
@@ -362,6 +373,9 @@ func TestExamples_FormatsAgreeWithEachOther(t *testing.T) {
 		}
 		compare(fromJSON, "json")
 		compare(fromTOML, "toml")
+		if hasCUE {
+			compare(fromCUE, "cue")
+		}
 		return nil
 	})
 	if err != nil {

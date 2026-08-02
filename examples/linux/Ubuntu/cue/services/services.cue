@@ -1,0 +1,19 @@
+{
+  "services": [
+    {
+      "name": "ssh",
+      "action": "enable",
+      "elevated": true
+    },
+    {
+      "name": "docker",
+      "action": "enable",
+      "elevated": true
+    },
+    {
+      "name": "ufw",
+      "action": "start",
+      "elevated": true
+    }
+  ]
+}

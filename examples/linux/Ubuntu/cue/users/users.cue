@@ -1,0 +1,27 @@
+{
+  "groups": [
+    {
+      "name": "developers",
+      "action": "create"
+    }
+  ],
+  "users": [
+    {
+      "name": "builder",
+      "action": "create",
+      "shell": "/bin/bash",
+      "home": "/home/builder",
+      "groups": [
+        "developers"
+      ]
+    },
+    {
+      "name": "deploy",
+      "action": "create",
+      "shell": "/usr/sbin/nologin",
+      "groups": [
+        "developers"
+      ]
+    }
+  ]
+}

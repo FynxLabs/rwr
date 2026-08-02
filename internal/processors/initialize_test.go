@@ -374,3 +374,31 @@ variables:
 		t.Error("User.Username was not populated")
 	}
 }
+
+// A .cue init file is evaluated to concrete JSON and fed to viper — same
+// treatment TOML gets via its YAML pre-conversion.
+func TestInitialize_CueInitFile(t *testing.T) {
+	dir := t.TempDir()
+	initFile := filepath.Join(dir, "init.cue")
+	content := `
+init: {
+	format:   "yaml"
+	location: "` + dir + `"
+}
+packageManagers: [{name: "brew", action: "install"}]
+`
+	if err := os.WriteFile(initFile, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	initConfig, err := Initialize(initFile, types.Flags{})
+	if err != nil {
+		t.Fatalf("Initialize(cue): %v", err)
+	}
+	if initConfig.Init.Location != dir {
+		t.Errorf("Init.Location = %q, want %q", initConfig.Init.Location, dir)
+	}
+	if len(initConfig.PackageManagers) != 1 || initConfig.PackageManagers[0].Name != "brew" {
+		t.Errorf("PackageManagers = %+v, want the declared brew entry", initConfig.PackageManagers)
+	}
+}

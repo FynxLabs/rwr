@@ -88,6 +88,15 @@ func unmarshalBlueprint(data []byte, format string, v interface{}, strict bool) 
 			}
 			return fmt.Errorf("error unmarshaling JSON: %w", err)
 		}
+	case types.FormatCUE:
+		log.Debug("Evaluating CUE")
+		// CUE evaluates to concrete JSON, then rides the JSON decode path so
+		// strictness and unknown-key handling are identical across formats.
+		jsonData, err := EvalCUEToJSON(data, "")
+		if err != nil {
+			return err
+		}
+		return unmarshalBlueprint(jsonData, types.FormatJSON, v, strict)
 	case types.FormatTOML:
 		log.Debug("Unmarshaling TOML")
 		meta, err := toml.Decode(string(data), v)

@@ -22,11 +22,13 @@ const (
 	FormatYAMLAlt = "yml"
 	FormatJSON    = "json"
 	FormatTOML    = "toml"
+	FormatCUE     = "cue"
 
 	FormatExtYAML    = ".yaml"
 	FormatExtYAMLAlt = ".yml"
 	FormatExtJSON    = ".json"
 	FormatExtTOML    = ".toml"
+	FormatExtCUE     = ".cue"
 )
 
 // OS identifiers matching runtime.GOOS values.

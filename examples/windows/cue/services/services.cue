@@ -1,0 +1,14 @@
+{
+  "services": [
+    {
+      "name": "sshd",
+      "action": "enable",
+      "elevated": true
+    },
+    {
+      "name": "W32Time",
+      "action": "start",
+      "elevated": true
+    }
+  ]
+}

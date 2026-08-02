@@ -33,7 +33,7 @@ func walkExamples(t *testing.T, fn func(path, ext string, data []byte)) {
 		}
 		ext := strings.TrimPrefix(filepath.Ext(path), ".")
 		switch ext {
-		case "yaml", "yml", "json", "toml":
+		case "yaml", "yml", "json", "toml", "cue":
 		default:
 			return nil
 		}
@@ -117,5 +117,44 @@ func exampleVariables() types.Variables {
 			"editor_theme":   "dracula",
 			"editor_plugins": "basic",
 		},
+	}
+}
+
+// A CUE blueprint that violates its own constraints is a validate diagnostic
+// with the file attached, on the same surface as schema errors — and the tree
+// still gets its init file discovered in .cue.
+func TestValidate_CueConstraintViolationIsDiagnostic(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "packages"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile("init.cue", `init: {format: "cue", location: "`+dir+`"}`)
+	writeFile("packages/bad.cue", `
+#Package: {name: string, action: "install" | "remove"}
+packages: [...#Package]
+packages: [{name: "git", action: "explode"}]
+`)
+
+	results := &types.ValidationResults{}
+	if err := ValidateBlueprints(dir, false, results, &types.OSInfo{}); err != nil {
+		t.Fatalf("ValidateBlueprints: %v", err)
+	}
+	found := false
+	for _, issue := range results.Issues {
+		if issue.Severity == types.ValidationError && strings.Contains(issue.Message, "action") {
+			found = true
+			if issue.File == "" {
+				t.Error("diagnostic carries no file")
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no diagnostic names the failed constraint; issues: %+v", results.Issues)
 	}
 }

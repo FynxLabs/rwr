@@ -22,6 +22,7 @@ var formatByExtension = map[string]string{
 	types.FormatExtYAMLAlt: types.FormatYAML,
 	types.FormatExtJSON:    types.FormatJSON,
 	types.FormatExtTOML:    types.FormatTOML,
+	types.FormatExtCUE:     types.FormatCUE,
 }
 
 // extensionOrder is the preference order for discovery and error messages:
@@ -32,6 +33,7 @@ var extensionOrder = []string{
 	types.FormatExtYAMLAlt,
 	types.FormatExtJSON,
 	types.FormatExtTOML,
+	types.FormatExtCUE,
 }
 
 // KnownExtensions returns every recognized blueprint extension (with the

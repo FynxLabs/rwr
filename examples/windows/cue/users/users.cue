@@ -1,0 +1,17 @@
+{
+  "groups": [
+    {
+      "name": "Developers",
+      "action": "create"
+    }
+  ],
+  "users": [
+    {
+      "name": "builder",
+      "action": "create",
+      "groups": [
+        "Developers"
+      ]
+    }
+  ]
+}

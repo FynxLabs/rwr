@@ -1,0 +1,24 @@
+{
+  "repositories": [
+    {
+      "name": "docker",
+      "action": "add",
+      "package_manager": "apt",
+      "url": "https://download.docker.com/linux/ubuntu",
+      "key_url": "https://download.docker.com/linux/ubuntu/gpg",
+      "channel": "stable",
+      "component": "stable",
+      "arch": "amd64"
+    },
+    {
+      "name": "hashicorp",
+      "action": "add",
+      "package_manager": "apt",
+      "url": "https://apt.releases.hashicorp.com",
+      "key_url": "https://apt.releases.hashicorp.com/gpg",
+      "channel": "stable",
+      "component": "main",
+      "arch": "amd64"
+    }
+  ]
+}

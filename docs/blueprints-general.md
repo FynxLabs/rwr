@@ -1,6 +1,6 @@
 # What are Blueprints?
 
-Blueprints are the core of Rinse, Wash, Repeat (RWR) and define how your system should be configured. They are written in YAML, JSON, or TOML format and are processed by RWR to manage various aspects of your system, such as packages, repositories, files, services, and more.
+Blueprints are the core of Rinse, Wash, Repeat (RWR) and define how your system should be configured. They are written in YAML, JSON, TOML, or CUE format and are processed by RWR to manage various aspects of your system, such as packages, repositories, files, services, and more.
 
 ## Blueprint Structure
 
@@ -38,7 +38,7 @@ packages:
 
 - **Relative Paths**: Import paths are resolved relative to the blueprint directory specified in your init file
 - **Circular Detection**: RWR automatically detects and prevents circular import loops
-- **Format Agnostic**: Import files can be in any supported format (YAML, JSON, TOML)
+- **Format Agnostic**: Import files can be in any supported format (YAML, JSON, TOML, CUE); each file's format comes from its own extension
 - **Profile Support**: Imported items respect profile filtering just like regular entries
 - **All Blueprint Types**: Works with packages, files, services, git repositories, scripts, SSH keys, users, and all other blueprint types
 
@@ -136,6 +136,40 @@ blueprints:
 ```
 
 ## Blueprint Variables
+
+## Writing Blueprints in CUE
+
+Blueprints can be written in [CUE](https://cuelang.org), which adds types,
+constraints, and composition on top of what YAML/JSON/TOML offer. A `.cue`
+blueprint is evaluated in-process — no `cue` binary is needed on the target
+machine — exported to concrete values, and decoded exactly like its YAML
+equivalent.
+
+JSON is valid CUE, so any JSON blueprint is already a CUE blueprint. What CUE
+adds is checking at authoring time:
+
+```cue
+// packages/base.cue — constraints hold before anything touches the machine
+#Package: {
+	name:    string
+	action:  "install" | "remove"
+	version?: string
+}
+
+packages: [...#Package]
+packages: [
+	{name: "git", action: "install"},
+	{name: "neovim", action: "install"},
+]
+```
+
+A violated constraint (say `action: "instal"`) or an unresolved field
+(`version: string` with no concrete value) fails evaluation with the file,
+line, and failing field — at `rwr validate` time, not halfway through a run.
+
+Evaluation is sandboxed: a `.cue` blueprint can import only CUE's built-in
+standard library (`strings`, `list`, …). Imports that would resolve through
+the filesystem or network are refused, because blueprints are untrusted input.
 
 RWR supports the use of variables in blueprints to make them more dynamic and reusable. Variables can be defined in the `init.yaml` file or passed as command-line flags. For more information on using variables in blueprints, refer to the [Variables and Templating](variables.md) page.
 
