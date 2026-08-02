@@ -45,6 +45,9 @@ const (
 
 // Service actions for service management operations.
 const (
+	// ConfigurationActionSet is the only action the configuration tools implement.
+	ConfigurationActionSet = "set"
+
 	ServiceActionEnable  = "enable"
 	ServiceActionDisable = "disable"
 	ServiceActionStart   = "start"
@@ -91,5 +94,10 @@ const (
 const (
 	UserActionCreate = "create"
 	UserActionModify = "modify"
+	UserActionRemove = "remove"
+	// UserActionDelete is an accepted alias for UserActionRemove. `rwr validate`
+	// advertised "delete" as the valid action while the processor only ever
+	// implemented "remove", so each name failed at the opposite end of the run:
+	// "delete" validated and then aborted, "remove" ran and failed validation.
 	UserActionDelete = "delete"
 )

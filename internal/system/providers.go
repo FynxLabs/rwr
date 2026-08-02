@@ -259,7 +259,11 @@ func GetProvider(name string) (*types.Provider, bool) {
 	// Check if binary exists using FindTool
 	tool := FindTool(provider.Detection.Binary)
 	if !tool.Exists {
-		log.Errorf("GetProvider: Binary %s not found for provider %s", provider.Detection.Binary, name)
+		// Not an error: every caller asks about providers the machine may not have,
+		// and "is brew installed?" is answered by the false return. Logging it at
+		// error level filled `rwr validate` output with red lines about package
+		// managers the operator never asked for.
+		log.Debugf("GetProvider: Binary %s not found for provider %s", provider.Detection.Binary, name)
 		return nil, false
 	}
 	binPath := tool.Bin
@@ -272,21 +276,17 @@ func GetProvider(name string) (*types.Provider, bool) {
 
 // GetProvidersPath returns the absolute path to the provider definitions directory,
 // searching the executable's directory and common installation paths.
+//
+// The current working directory is deliberately not searched. A provider file
+// declares exec, args and elevated=true and those are run verbatim, so honouring
+// ./providers would hand root-level execution to any directory rwr happens to be
+// run from — a cloned blueprint repo, /tmp, a shared downloads folder. Provider
+// overrides belong in the user's config directory, which only the user can write.
 func GetProvidersPath() (string, error) {
 	// Get the executable's directory
 	execDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
 		return "", err
-	}
-
-	// First check current working directory
-	cwd, err := os.Getwd()
-	if err == nil {
-		providerPath := filepath.Join(cwd, "providers")
-		if _, err := os.Stat(providerPath); err == nil {
-			log.Debugf("Found providers directory in current working directory: %s", providerPath)
-			return providerPath, nil
-		}
 	}
 
 	// Check common locations for the providers directory
@@ -328,6 +328,9 @@ func LoadProviders(definitionsPath string) error {
 	for _, entry := range entries {
 		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".toml" {
 			path := filepath.Join(definitionsPath, entry.Name())
+			if !isProviderFileTrusted(path) {
+				continue
+			}
 			log.Debugf("LoadProviders: Loading provider from %s", path)
 			provider, err := LoadProviderDefinition(path)
 			if err != nil {
@@ -341,6 +344,26 @@ func LoadProviders(definitionsPath string) error {
 	count := len(providers)
 	log.Debugf("LoadProviders: Loaded %d providers: %v", count, getProviderNames())
 	return nil
+}
+
+// isProviderFileTrusted reports whether a provider definition may be loaded.
+//
+// A provider's exec, args and elevated flag are run as written, so a definition
+// anyone on the box can edit is a root shell for anyone on the box. Group- and
+// world-writable files are skipped rather than rejected outright: one bad file in
+// a directory should not cost the user every other provider in it.
+func isProviderFileTrusted(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		log.Warnf("LoadProviders: Skipping provider %s: %v", path, err)
+		return false
+	}
+	if mode := info.Mode(); mode&0o022 != 0 {
+		log.Warnf("LoadProviders: Skipping provider %s: it is group- or world-writable (mode %04o); "+
+			"provider files run commands as root, so tighten it with chmod go-w", path, mode.Perm())
+		return false
+	}
+	return true
 }
 
 // LoadProviderDefinition parses a single TOML provider definition file
@@ -372,26 +395,6 @@ func LoadProviderDefinition(path string) (*types.Provider, error) {
 	return &provider, nil
 }
 
-// GetProviderForDistro returns the first available provider whose detection
-// distributions list includes the given distro name.
-func GetProviderForDistro(distro string) (*types.Provider, bool) {
-	if err := InitProviders(); err != nil {
-		log.Errorf("GetProviderForDistro: Error initializing providers: %v", err)
-		return nil, false
-	}
-
-	currentOS := runtime.GOOS
-	for _, provider := range providers {
-		if supportsSystem(provider, currentOS, distro) {
-			if tool := FindTool(provider.Detection.Binary); tool.Exists {
-				provider.BinPath = tool.Bin
-				return provider, true
-			}
-		}
-	}
-	return nil, false
-}
-
 // GetProviderWithAlternatives returns a provider by name with distro-specific
 // alternative package names resolved for the current system.
 func GetProviderWithAlternatives(name string) (*types.Provider, bool) {
@@ -413,26 +416,6 @@ func GetProviderWithAlternatives(name string) (*types.Provider, bool) {
 	if currentDistro != "" && provider.HasAlternativesForDistro(currentDistro) {
 		providerCopy.CorePackages = provider.GetCorePackagesForDistro(currentDistro)
 		log.Debugf("Applied alternatives for distribution %s to provider %s", currentDistro, name)
-	}
-
-	return &providerCopy, true
-}
-
-// GetProviderForDistroWithAlternatives returns a provider matching the given
-// distro with distro-specific alternative package names resolved.
-func GetProviderForDistroWithAlternatives(distro string) (*types.Provider, bool) {
-	provider, exists := GetProviderForDistro(distro)
-	if !exists {
-		return nil, false
-	}
-
-	// Create a copy of the provider to avoid modifying the original
-	providerCopy := *provider
-
-	// If we have alternatives for this distribution, apply them
-	if provider.HasAlternativesForDistro(distro) {
-		providerCopy.CorePackages = provider.GetCorePackagesForDistro(distro)
-		log.Debugf("Applied alternatives for distribution %s to provider %s", distro, provider.Name)
 	}
 
 	return &providerCopy, true

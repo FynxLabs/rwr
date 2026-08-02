@@ -1,73 +1,175 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
+REPO="FynxLabs/rwr"
 BINARY_PATH="/usr/local/bin"
 LICENSE_PATH="/usr/local/share/doc/rwr"
 README_PATH="/usr/local/share/doc/rwr"
 
-REPO="FynxLabs/rwr"
+USER_AGENT="rwr-installer"
+
+fail() {
+    echo "$@" >&2
+    exit 1
+}
 
 OS=$(uname -s)
 case "$OS" in
     Linux*)     OS="Linux";;
     Darwin*)    OS="Darwin";;
-    *)          echo "Unsupported operating system: $OS"; exit 1;;
+    *)          fail "Unsupported operating system: $OS. RWR publishes Linux and Darwin builds; use install.ps1 on Windows.";;
 esac
 
+# These names have to match what goreleaser publishes (see .goreleaser.yaml):
+# amd64 -> x86_64, arm+goarm=7 -> armv7, arm64 and riscv64 keep their names.
+# There is deliberately no i386 entry: no 386 target is built, so accepting it
+# only produced a misleading "could not find a download URL" later on.
 ARCH=$(uname -m)
 case "$ARCH" in
-    x86_64*)    ARCH="x86_64";;
-    i386*)      ARCH="i386";;
-    arm64*)     ARCH="arm64";;
-    armv7*)     ARCH="armv7";;
-    aarch64*)   ARCH="arm64";;
-    riscv64*)   ARCH="riscv64";;
-    *)          echo "Unsupported architecture: $ARCH"; exit 1;;
+    x86_64|amd64)       ARCH="x86_64";;
+    arm64|aarch64)      ARCH="arm64";;
+    armv7*|armv8l)      ARCH="armv7";;
+    riscv64)            ARCH="riscv64";;
+    *)                  fail "Unsupported architecture: $ARCH. RWR publishes x86_64, arm64, armv7 (Linux only) and riscv64 (Linux only) builds.";;
 esac
 
-latest_release=$(curl --silent "https://api.github.com/repos/$REPO/releases/latest")
+# riscv64 and armv7 are only built for Linux.
+if [ "$OS" = "Darwin" ] && { [ "$ARCH" = "riscv64" ] || [ "$ARCH" = "armv7" ]; }; then
+    fail "Unsupported platform: $OS $ARCH. RWR publishes Darwin builds for x86_64 and arm64 only."
+fi
 
-download_url=$(echo "$latest_release" | sed -n 's/.*"browser_download_url": "\([^"]*rwr_'"${OS}"'_'"${ARCH}"'\.tar\.gz\)".*/\1/p' | head -1)
+ASSET="rwr_${OS}_${ARCH}.tar.gz"
+CHECKSUMS="checksums.txt"
 
+# Work out how to write to the install locations before downloading anything, so
+# a missing sudo is reported up front rather than half way through an install.
+first_existing_dir() {
+    local dir="$1"
+    while [ ! -d "$dir" ] && [ "$dir" != "/" ]; do
+        dir=$(dirname "$dir")
+    done
+    printf '%s' "$dir"
+}
+
+SUDO=""
+as_root() {
+    if [ -n "$SUDO" ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
+if [ "$(id -u)" -ne 0 ]; then
+    for target in "$BINARY_PATH" "$LICENSE_PATH" "$README_PATH"; do
+        if [ ! -w "$(first_existing_dir "$target")" ]; then
+            SUDO="sudo"
+            break
+        fi
+    done
+    if [ -n "$SUDO" ] && ! command -v sudo >/dev/null 2>&1; then
+        fail "Installing to $BINARY_PATH needs root, but sudo is not available. Re-run this script as root, or set a writable install prefix."
+    fi
+fi
+
+# A private per-run directory: fixed /tmp paths can be pre-created by any local
+# user as a symlink, and everything below either downloads into this directory
+# or copies out of it with root privileges.
+TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/rwr-install.XXXXXXXXXX")
+cleanup() {
+    rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+echo "Installing RWR for $OS $ARCH"
+
+if ! latest_release=$(curl -fsSL -H "User-Agent: $USER_AGENT" "https://api.github.com/repos/$REPO/releases/latest"); then
+    fail "Failed to query the latest release from the GitHub API. The API may be unreachable or rate limiting this host (unauthenticated requests are limited per IP). Try again later."
+fi
+
+asset_urls=$(printf '%s' "$latest_release" |
+    grep -o '"browser_download_url"[[:space:]]*:[[:space:]]*"[^"]*"' |
+    sed 's/.*"\(https[^"]*\)"$/\1/' || true)
+
+if [ -z "$asset_urls" ]; then
+    fail "The GitHub API response contained no release assets. The release may still be publishing, or the response was not what was expected."
+fi
+
+# Match the whole file name, not a substring, so rwr_Linux_arm64.tar.gz can
+# never satisfy a request for rwr_Linux_arm.tar.gz.
+url_for_asset() {
+    printf '%s\n' "$asset_urls" |
+        awk -v n="$1" 'substr($0, length($0) - length(n)) == "/" n { print; exit }'
+}
+
+download_url=$(url_for_asset "$ASSET")
 if [ -z "$download_url" ]; then
-    echo "Could not find a download URL for $OS $ARCH. Exiting."
-    exit 1
+    fail "The latest release does not contain $ASSET, so there is no build for $OS $ARCH. Exiting."
 fi
 
-echo "Downloading RWR from $download_url"
-if ! curl -L -o /tmp/rwr.tar.gz "$download_url"; then
-    echo "Failed to download RWR. Exiting."
-    exit 1
+checksums_url=$(url_for_asset "$CHECKSUMS")
+if [ -z "$checksums_url" ]; then
+    fail "The latest release does not publish $CHECKSUMS, so the download cannot be verified. Exiting."
 fi
 
-mkdir -p /tmp/rwr_extracted
-if ! tar -xzf /tmp/rwr.tar.gz -C /tmp/rwr_extracted; then
-    echo "Failed to extract RWR archive. Exiting."
-    rm -f /tmp/rwr.tar.gz
-    exit 1
+echo "Downloading $ASSET"
+if ! curl -fsSL -H "User-Agent: $USER_AGENT" -o "$TMP_DIR/$ASSET" "$download_url"; then
+    fail "Failed to download $ASSET from $download_url. Exiting."
 fi
 
-if [ ! -f /tmp/rwr_extracted/rwr ]; then
-    echo "Binary 'rwr' not found in downloaded archive. Exiting."
-    rm -rf /tmp/rwr.tar.gz /tmp/rwr_extracted
-    exit 1
+if ! curl -fsSL -H "User-Agent: $USER_AGENT" -o "$TMP_DIR/$CHECKSUMS" "$checksums_url"; then
+    fail "Failed to download $CHECKSUMS from $checksums_url. Exiting."
 fi
 
-sudo mv /tmp/rwr_extracted/rwr "$BINARY_PATH"
-
-# Ensure the binary is executable
-sudo chmod +x "$BINARY_PATH/rwr"
-
-sudo mkdir -p "$LICENSE_PATH"
-sudo mkdir -p "$README_PATH"
-if [ -f /tmp/rwr_extracted/LICENSE ]; then
-    sudo mv /tmp/rwr_extracted/LICENSE "$LICENSE_PATH"
-fi
-if [ -f /tmp/rwr_extracted/README.adoc ]; then
-    sudo mv /tmp/rwr_extracted/README.adoc "$README_PATH"
-elif [ -f /tmp/rwr_extracted/README ]; then
-    sudo mv /tmp/rwr_extracted/README "$README_PATH"
+# goreleaser writes "<sha256>  <file name>" lines. Compare $2 exactly so a
+# prefix of another asset name cannot be picked up by mistake.
+expected=$(awk -v n="$ASSET" '{ name = $2; sub(/^\*/, "", name); if (name == n) { print $1; exit } }' "$TMP_DIR/$CHECKSUMS")
+if [ -z "$expected" ]; then
+    fail "$CHECKSUMS has no entry for $ASSET, so the download cannot be verified. Refusing to install."
 fi
 
-rm -rf /tmp/rwr.tar.gz /tmp/rwr_extracted
+if command -v sha256sum >/dev/null 2>&1; then
+    SHA_CHECK=(sha256sum -c -)
+elif command -v shasum >/dev/null 2>&1; then
+    SHA_CHECK=(shasum -a 256 -c -)
+else
+    fail "Neither sha256sum nor shasum is available, so the download cannot be verified. Refusing to install."
+fi
 
-echo "rwr has been installed successfully for $OS $ARCH."
+if ! (cd "$TMP_DIR" && printf '%s  %s\n' "$expected" "$ASSET" | "${SHA_CHECK[@]}" >/dev/null 2>&1); then
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual=$(sha256sum "$TMP_DIR/$ASSET" | awk '{print $1}')
+    else
+        actual=$(shasum -a 256 "$TMP_DIR/$ASSET" | awk '{print $1}')
+    fi
+    echo "Checksum mismatch for $ASSET:" >&2
+    echo "  expected $expected" >&2
+    echo "  actual   $actual" >&2
+    fail "Refusing to install."
+fi
+echo "Checksum verified"
+
+EXTRACT_DIR="$TMP_DIR/extracted"
+mkdir -p "$EXTRACT_DIR"
+if ! tar -xzf "$TMP_DIR/$ASSET" -C "$EXTRACT_DIR"; then
+    fail "Failed to extract $ASSET. Exiting."
+fi
+
+if [ ! -f "$EXTRACT_DIR/rwr" ]; then
+    fail "Binary 'rwr' not found in the downloaded archive. Exiting."
+fi
+
+as_root mkdir -p "$BINARY_PATH" "$LICENSE_PATH" "$README_PATH"
+as_root install -m 0755 "$EXTRACT_DIR/rwr" "$BINARY_PATH/rwr"
+
+if [ -f "$EXTRACT_DIR/LICENSE" ]; then
+    as_root install -m 0644 "$EXTRACT_DIR/LICENSE" "$LICENSE_PATH/LICENSE"
+fi
+for doc in README.adoc README.md README; do
+    if [ -f "$EXTRACT_DIR/$doc" ]; then
+        as_root install -m 0644 "$EXTRACT_DIR/$doc" "$README_PATH/$doc"
+        break
+    fi
+done
+
+echo "rwr has been installed to $BINARY_PATH for $OS $ARCH."

@@ -3,6 +3,7 @@ package types
 type Configuration struct {
 	Name     string                 `mapstructure:"name,omitempty" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`
 	Names    []string               `mapstructure:"names,omitempty" yaml:"names,omitempty" json:"names,omitempty" toml:"names,omitempty"`
+	Profiles []string               `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`
 	Action   string                 `mapstructure:"action" yaml:"action" json:"action" toml:"action"`
 	Elevated bool                   `mapstructure:"elevated,omitempty" yaml:"elevated,omitempty" json:"elevated,omitempty" toml:"elevated,omitempty"`
 	Tool     string                 `mapstructure:"tool" yaml:"tool" json:"tool" toml:"tool"`
@@ -22,4 +23,9 @@ type ConfigData struct {
 	// SchemaVersion, when set, overrides the tree-wide version from the init file.
 	SchemaVersion  `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
 	Configurations []Configuration `mapstructure:"configurations" yaml:"configurations" json:"configurations" toml:"configurations"`
+}
+
+// GetProfiles returns the profiles for this configuration entry.
+func (c Configuration) GetProfiles() []string {
+	return c.Profiles
 }

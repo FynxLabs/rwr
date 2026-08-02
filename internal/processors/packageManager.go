@@ -69,11 +69,19 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 					AsUser:   pm.AsUser,
 				}
 			case "download":
+				if system.IsDryRun() {
+					log.Infof("[DRY-RUN] Would download file: %s -> %s", step.Source, step.Dest)
+					continue
+				}
 				if err := system.DownloadFile(step.Source, step.Dest, provider.Elevated); err != nil {
 					return fmt.Errorf("error downloading file: %w", err)
 				}
 				continue
 			case "write":
+				if system.IsDryRun() {
+					log.Infof("[DRY-RUN] Would write file: %s", step.Dest)
+					continue
+				}
 				if err := system.WriteToFile(step.Dest, step.Content, provider.Elevated); err != nil {
 					return fmt.Errorf("error writing file: %w", err)
 				}

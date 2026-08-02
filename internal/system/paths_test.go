@@ -294,3 +294,55 @@ func BenchmarkSetPaths(b *testing.B) {
 		SetPaths()
 	}
 }
+
+// Windows entries used to be literal "%USERPROFILE%\..." strings that Go never
+// expands, so every one of them failed EvalSymlinks and was dropped — scoop
+// included. The expansion is tested through the injected lookup so it runs on
+// any platform.
+func TestWindowsCommonPaths_ExpandsVariables(t *testing.T) {
+	env := map[string]string{
+		"USERPROFILE":  `C:\Users\test`,
+		"ProgramFiles": `C:\Program Files`,
+	}
+	paths := windowsCommonPaths(func(k string) string { return env[k] })
+
+	if len(paths) == 0 {
+		t.Fatal("windowsCommonPaths() returned no paths")
+	}
+	for _, p := range paths {
+		if strings.Contains(p, "%") {
+			t.Errorf("path %q still contains an unexpanded variable", p)
+		}
+		if !strings.HasPrefix(p, `C:\`) {
+			t.Errorf("path %q was not expanded against the environment", p)
+		}
+	}
+
+	joined := strings.Join(paths, "|")
+	for _, want := range []string{`scoop`, `Git`, `Go`, `nodejs`, `.cargo`, `WindowsApps`} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("expected an entry containing %q, got %v", want, paths)
+		}
+	}
+}
+
+func TestWindowsCommonPaths_SkipsUnsetVariables(t *testing.T) {
+	// Only USERPROFILE is set: entries under %ProgramFiles% must be dropped
+	// rather than turned into a path rooted at the bare remainder.
+	paths := windowsCommonPaths(func(k string) string {
+		if k == "USERPROFILE" {
+			return `C:\Users\test`
+		}
+		return ""
+	})
+
+	for _, p := range paths {
+		if !strings.HasPrefix(p, `C:\Users\test`) {
+			t.Errorf("path %q built from an unset variable", p)
+		}
+	}
+
+	if got := windowsCommonPaths(func(string) string { return "" }); len(got) != 0 {
+		t.Errorf("with no variables set, want no paths, got %v", got)
+	}
+}

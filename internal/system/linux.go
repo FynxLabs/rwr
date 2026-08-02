@@ -180,10 +180,11 @@ func getLinuxVersion() string {
 }
 
 // fileExists checks if a file exists and is not a directory.
+//
+// os.Stat returns a nil FileInfo for every error, not just ENOENT, so the error
+// has to be checked before info is touched: a permission-denied or ENOTDIR
+// result used to panic here.
 func fileExists(filename string) bool {
 	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
+	return err == nil && !info.IsDir()
 }
