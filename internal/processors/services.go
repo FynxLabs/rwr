@@ -48,23 +48,23 @@ func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, 
 	return nil
 }
 
+// One service failing does not stop the rest: the failure goes to the ledger,
+// which puts it in the run's exit code, and processing continues.
 func processServices(services []types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	for _, service := range services {
+		var err error
 		switch runtime.GOOS {
 		case "linux":
-			if err := processLinuxService(service, osInfo, initConfig); err != nil {
-				return err
-			}
+			err = processLinuxService(service, osInfo, initConfig)
 		case "darwin":
-			if err := processMacOSService(service, osInfo, initConfig); err != nil {
-				return err
-			}
+			err = processMacOSService(service, osInfo, initConfig)
 		case "windows":
-			if err := processWindowsService(service, osInfo, initConfig); err != nil {
-				return err
-			}
+			err = processWindowsService(service, osInfo, initConfig)
 		default:
 			return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+		}
+		if err != nil {
+			recordFailure("services", service.Name, err)
 		}
 	}
 	return nil

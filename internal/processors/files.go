@@ -92,6 +92,8 @@ func resolveAndFilterFileData(blueprintData []byte, blueprintDir string, format 
 	return filteredFiles, filteredDirs, filteredTemplates, nil
 }
 
+// One file failing does not stop the rest: the failure goes to the ledger,
+// which puts it in the run's exit code, and processing continues.
 func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo) error {
 	for _, file := range files {
 		if len(file.Names) > 0 {
@@ -99,12 +101,12 @@ func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo)
 				fileWithName := file
 				fileWithName.Name = name
 				if err := processFile(fileWithName, blueprintDir, osInfo); err != nil {
-					return fmt.Errorf("error processing file %s: %w", name, err)
+					recordFailure("files", name, err)
 				}
 			}
 		} else {
 			if err := processFile(file, blueprintDir, osInfo); err != nil {
-				return fmt.Errorf("error processing file %s: %w", file.Name, err)
+				recordFailure("files", file.Name, err)
 			}
 		}
 	}
@@ -222,16 +224,14 @@ func processTemplates(templates []types.File, blueprintDir string, osInfo *types
 				fileWithName.Name = name
 				err := processTemplate(fileWithName, blueprintDir, osInfo, initConfig)
 				if err != nil {
-					log.Errorf("Error processing template to file %s: %v", fileWithName.Name, err)
-					return fmt.Errorf("error processing template to file %s: %w", fileWithName.Name, err)
+					recordFailure("templates", fileWithName.Name, err)
 				}
 			}
 		} else {
 			log.Infof("Processing single template: %s", tmpl.Name)
 			err := processTemplate(tmpl, blueprintDir, osInfo, initConfig)
 			if err != nil {
-				log.Errorf("Error processing template to file %s: %v", tmpl.Name, err)
-				return fmt.Errorf("error processing template to file %s: %w", tmpl.Name, err)
+				recordFailure("templates", tmpl.Name, err)
 			}
 		}
 	}
@@ -303,42 +303,49 @@ func processDirectories(directories []types.Directory, blueprintDir string, init
 			log.Infof("[DRY-RUN] Would %s directory: %s (target: %s)", dir.Action, dir.Name, dir.Target)
 			continue
 		}
-		switch dir.Action {
-		case "copy":
-			if err := copyDirectory(dir, blueprintDir, initConfig); err != nil {
-				return fmt.Errorf("error copying directory: %w", err)
-			}
-		case "move":
-			if err := moveDirectory(dir, blueprintDir); err != nil {
-				return fmt.Errorf("error moving directory: %w", err)
-			}
-		case "delete":
-			if err := deleteDirectory(dir); err != nil {
-				return fmt.Errorf("error deleting directory: %w", err)
-			}
-		case "create":
-			if err := createDirectory(dir); err != nil {
-				return fmt.Errorf("error creating directory: %w", err)
-			}
-		case "chmod":
-			if err := chmodDirectory(dir); err != nil {
-				return fmt.Errorf("error changing directory permissions: %w", err)
-			}
-		case "chown":
-			if err := chownDirectory(dir); err != nil {
-				return fmt.Errorf("error changing directory owner: %w", err)
-			}
-		case "chgrp":
-			if err := chgrpDirectory(dir); err != nil {
-				return fmt.Errorf("error changing directory group: %w", err)
-			}
-		case "symlink":
-			if err := symlinkDirectory(dir, blueprintDir); err != nil {
-				return fmt.Errorf("error creating symlink: %w", err)
-			}
-		default:
-			return fmt.Errorf("unsupported action for directory: %s", dir.Action)
+		if err := processDirectory(dir, blueprintDir, initConfig); err != nil {
+			recordFailure("directories", dir.Name, err)
 		}
+	}
+	return nil
+}
+
+func processDirectory(dir types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
+	switch dir.Action {
+	case "copy":
+		if err := copyDirectory(dir, blueprintDir, initConfig); err != nil {
+			return fmt.Errorf("error copying directory: %w", err)
+		}
+	case "move":
+		if err := moveDirectory(dir, blueprintDir); err != nil {
+			return fmt.Errorf("error moving directory: %w", err)
+		}
+	case "delete":
+		if err := deleteDirectory(dir); err != nil {
+			return fmt.Errorf("error deleting directory: %w", err)
+		}
+	case "create":
+		if err := createDirectory(dir); err != nil {
+			return fmt.Errorf("error creating directory: %w", err)
+		}
+	case "chmod":
+		if err := chmodDirectory(dir); err != nil {
+			return fmt.Errorf("error changing directory permissions: %w", err)
+		}
+	case "chown":
+		if err := chownDirectory(dir); err != nil {
+			return fmt.Errorf("error changing directory owner: %w", err)
+		}
+	case "chgrp":
+		if err := chgrpDirectory(dir); err != nil {
+			return fmt.Errorf("error changing directory group: %w", err)
+		}
+	case "symlink":
+		if err := symlinkDirectory(dir, blueprintDir); err != nil {
+			return fmt.Errorf("error creating symlink: %w", err)
+		}
+	default:
+		return fmt.Errorf("unsupported action for directory: %s", dir.Action)
 	}
 	return nil
 }

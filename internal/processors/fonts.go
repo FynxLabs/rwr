@@ -17,9 +17,8 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-const (
-	nerdFontRepoAPI = "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest"
-)
+// A var so a test can point the release lookup at a server it controls.
+var nerdFontRepoAPI = "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest"
 
 type GithubRelease struct {
 	TagName string `json:"tag_name"`
@@ -30,7 +29,7 @@ type GithubRelease struct {
 }
 
 func getLatestReleaseURL() (string, error) {
-	resp, err := http.Get(nerdFontRepoAPI)
+	resp, err := http.Get(nerdFontRepoAPI) // #nosec G107 -- package-level constant URL, a var only so tests can point it at their own server
 	if err != nil {
 		return "", err
 	}
@@ -81,23 +80,29 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 
 	// Resolved after the dry-run and empty-blueprint exits: this is a network call,
 	// and `--dry-run` is expected to work offline.
+	//
+	// GitHub being unreachable fails every font, but not the run: fonts are
+	// cosmetic, and the failures reach the exit code through the ledger.
 	releaseURL, err := getLatestReleaseURL()
 	if err != nil {
-		return fmt.Errorf("error getting latest release URL: %w", err)
+		recordFailure("fonts", "nerd-fonts release lookup", err)
+		return nil
 	}
 
+	// One font failing does not stop the rest: the failure goes to the ledger,
+	// which puts it in the run's exit code, and processing continues.
 	for _, font := range fontsData.Fonts {
 		if len(font.Names) > 0 {
 			for _, name := range font.Names {
 				fontWithName := font
 				fontWithName.Name = name
 				if err := processFont(fontWithName, osInfo, releaseURL); err != nil {
-					return fmt.Errorf("error processing font %s: %w", name, err)
+					recordFailure("fonts", name, err)
 				}
 			}
 		} else if font.Name != "" {
 			if err := processFont(font, osInfo, releaseURL); err != nil {
-				return fmt.Errorf("error processing font %s: %w", font.Name, err)
+				recordFailure("fonts", font.Name, err)
 			}
 		}
 	}

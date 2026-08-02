@@ -425,14 +425,22 @@ files:
     target: "` + tempDir + `"
 `
 
+	// An invalid item is a ledger failure, not an abort: the processor returns
+	// nil so the items after it still run, and All() reads the ledger into the
+	// exit code.
+	resetFailures()
+	defer resetFailures()
+
 	err := ProcessFiles([]byte(blueprintData), blueprintDir, "yaml", osInfo, config)
 
-	if err == nil {
-		t.Error("Expected error for missing content and source")
+	if err != nil {
+		t.Errorf("ProcessFiles = %v, want nil: item failures belong in the ledger", err)
 	}
 
-	if !containsString(err.Error(), "Content or Source must be provided") {
-		t.Errorf("Expected 'Content or Source must be provided' error, got: %v", err)
+	if err := failureError(); err == nil {
+		t.Error("Expected a recorded failure for missing content and source")
+	} else if !containsString(err.Error(), "Content or Source must be provided") {
+		t.Errorf("Expected 'Content or Source must be provided' failure, got: %v", err)
 	}
 }
 
