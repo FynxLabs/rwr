@@ -47,7 +47,7 @@ func ValidateProviders(path string, verbose bool, results *types.ValidationResul
 		}
 
 		for _, entry := range entries {
-			if !entry.IsDir() && filepath.Ext(entry.Name()) == ".toml" {
+			if !entry.IsDir() && (filepath.Ext(entry.Name()) == ".toml" || filepath.Ext(entry.Name()) == ".json") {
 				providerPath := filepath.Join(path, entry.Name())
 				if err := validateProviderFile(providerPath, results, osInfo); err != nil {
 					AddIssue(results, types.ValidationError, fmt.Sprintf("Error validating provider file: %s", err), providerPath, 0, "")
@@ -56,8 +56,8 @@ func ValidateProviders(path string, verbose bool, results *types.ValidationResul
 		}
 	} else {
 		// Validate single provider file
-		if filepath.Ext(path) != ".toml" {
-			AddIssue(results, types.ValidationError, "Not a TOML file", path, 0, "Provider files must be TOML format")
+		if ext := filepath.Ext(path); ext != ".toml" && ext != ".json" {
+			AddIssue(results, types.ValidationError, "Not a provider file", path, 0, "Provider files are TOML or JSON")
 			return nil
 		}
 		if err := validateProviderFile(path, results, osInfo); err != nil {

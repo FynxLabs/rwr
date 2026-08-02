@@ -214,19 +214,9 @@ func TestLoadEmbeddedProviders_AllProvidersValid(t *testing.T) {
 					if step.Action == "" {
 						t.Errorf("Repository add step %d missing action", i)
 					}
-					// Validate action types according to docs
-					validActions := []string{"download", "write", "append", "command", "remove",
-						"remove_line", "remove_section", "mkdir", "chmod", "chown", "symlink", "copy"}
-					isValidAction := false
-					for _, validAction := range validActions {
-						if step.Action == validAction {
-							isValidAction = true
-							break
-						}
-					}
-					if !isValidAction {
-						t.Errorf("Repository add step %d has invalid action: %s", i, step.Action)
-					}
+					// Action enum is enforced by the CUE schema at export time;
+					// the old hand-kept list here had drifted (it allowed mkdir,
+					// chmod, chown and symlink, which no processor implements).
 				}
 			}
 

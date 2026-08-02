@@ -1,6 +1,8 @@
 package system
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -360,7 +362,7 @@ func LoadProviders(definitionsPath string) error {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".toml" {
+		if !entry.IsDir() && (filepath.Ext(entry.Name()) == ".toml" || filepath.Ext(entry.Name()) == ".json") {
 			path := filepath.Join(definitionsPath, entry.Name())
 			if !isProviderFileTrusted(path) {
 				continue
@@ -447,16 +449,27 @@ func LoadProviderDefinition(path string) (*types.Provider, error) {
 		return nil, err
 	}
 
-	// The TOML has a [provider] section
-	var config struct {
-		Provider types.Provider `toml:"provider"`
+	// Overrides come in two shapes: the historical TOML with a [provider]
+	// section, and bare-provider JSON — the same document the embedded
+	// definitions use, so an exported provider can be dropped in verbatim.
+	var provider types.Provider
+	if filepath.Ext(path) == ".json" {
+		dec := json.NewDecoder(bytes.NewReader(data))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&provider); err != nil {
+			log.Errorf("LoadProviderDefinition: Failed to decode JSON %s: %v", path, err)
+			return nil, fmt.Errorf("failed to decode JSON: %w", err)
+		}
+	} else {
+		var config struct {
+			Provider types.Provider `toml:"provider"`
+		}
+		if _, err := toml.Decode(string(data), &config); err != nil {
+			log.Errorf("LoadProviderDefinition: Failed to decode TOML %s: %v", path, err)
+			return nil, fmt.Errorf("failed to decode TOML: %w", err)
+		}
+		provider = config.Provider
 	}
-	if _, err := toml.Decode(string(data), &config); err != nil {
-		log.Errorf("LoadProviderDefinition: Failed to decode TOML %s: %v", path, err)
-		return nil, fmt.Errorf("failed to decode TOML: %w", err)
-	}
-
-	provider := config.Provider
 
 	// Ensure provider name is set from the TOML
 	if provider.Name == "" {
