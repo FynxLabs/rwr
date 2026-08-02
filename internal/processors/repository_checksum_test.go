@@ -28,6 +28,9 @@ func TestProcessRepository_DownloadStepVerifiesSha256(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// The dest's directory is declared as the provider's keys path: download
+	// destinations are contained inside [provider.repository.paths], the same
+	// shape as a real provider writing a keyring.
 	newProvider := func(dest string) *types.Provider {
 		return &types.Provider{
 			Name: "fake",
@@ -36,6 +39,7 @@ func TestProcessRepository_DownloadStepVerifiesSha256(t *testing.T) {
 				Distributions: []string{runtime.GOOS},
 			},
 			Repository: types.RepositoryConfig{
+				Paths: types.RepositoryPaths{Keys: filepath.Dir(dest)},
 				Add: types.RepositoryAction{
 					Steps: []types.ActionStep{{
 						Action: "download",
