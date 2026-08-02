@@ -9,7 +9,7 @@ distributions = ["darwin"]
 
 [provider.commands]
 install = "install"
-update = "selfupdate && port upgrade outdated"
+update = "selfupdate"
 remove = "uninstall"
 list = "installed"
 search = "search"

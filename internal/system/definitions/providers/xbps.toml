@@ -16,7 +16,10 @@ search = "xbps-query -Rs"
 clean = "xbps-remove -O"  # Remove orphaned packages
 
 [provider.repository.paths]
-repos = "/etc/xbps.d"
+# Named "sources" because the steps below render it as {{ .SourcesPath }};
+# RepositoryPaths only carries sources/keys/config, so any other key decodes to
+# nothing and the write lands at the filesystem root.
+sources = "/etc/xbps.d"
 keys = "/var/db/xbps/keys"
 
 [[provider.repository.add.steps]]
