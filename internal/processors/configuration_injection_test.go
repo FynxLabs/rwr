@@ -1,8 +1,10 @@
 package processors
 
 import (
+	"encoding/base64"
 	"strings"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/fynxlabs/rwr/internal/exectest"
 	"github.com/fynxlabs/rwr/internal/system"
@@ -133,28 +135,74 @@ func TestProcessWindowsRegistry_ValuesNeverReachTheCommandString(t *testing.T) {
 // The elevated path used to wrap the whole command in
 // `Start-Process -Verb RunAs -ArgumentList "-Command <string>"`, which handed the
 // interpolated string to a second parser.
-func TestProcessWindowsRegistry_ElevatedDoesNotRebuildACommandString(t *testing.T) {
+// Windows has no sudo, so elevated: true must still raise a UAC prompt. The
+// injection fix removed the old Start-Process branch because it re-tokenized an
+// already-built command string; this asserts elevation is back without that.
+func TestProcessWindowsRegistry_ElevatedUsesRunAsWithoutReparsing(t *testing.T) {
 	rec := exectest.New()
 	defer system.SetExecutor(rec)()
 
+	const attack = `a'; calc; #`
 	config := types.Configuration{
 		Type:     "string",
 		Path:     `SOFTWARE\rwr`,
 		Key:      "Setting",
-		Value:    `a'; calc; #`,
+		Value:    attack,
 		Elevated: true,
 	}
 	if err := processWindowsRegistry(config, &types.InitConfig{}); err != nil {
 		t.Fatalf("processWindowsRegistry: %v", err)
 	}
 
-	call := rec.Calls[0]
-	if !call.Elevated {
-		t.Error("Elevated = false, want true")
+	if len(rec.Calls) != 1 {
+		t.Fatalf("expected one command, got %v", rec.Calls)
 	}
+	call := rec.Calls[0]
 	joined := strings.Join(call.Argv(), " ")
-	if strings.Contains(joined, "Start-Process") || strings.Contains(joined, "calc") {
-		t.Errorf("elevated argv leaks blueprint input or re-parses a command string: %v", call.Argv())
+
+	if !strings.Contains(joined, "Start-Process") || !strings.Contains(joined, "RunAs") {
+		t.Errorf("elevated write does not raise a UAC prompt: %v", call.Argv())
+	}
+
+	// Nothing the blueprint supplied may appear in the command at any layer.
+	for _, secret := range []string{attack, "calc", config.Key, config.Path} {
+		if strings.Contains(joined, secret) {
+			t.Errorf("blueprint input %q reached the command string: %v", secret, call.Argv())
+		}
+	}
+
+	// The inner script is a constant plus rwr's own payload path; decoding it must
+	// not reveal blueprint input either.
+	encoded := ""
+	for _, arg := range call.Args {
+		if strings.HasPrefix(arg, "$p = Start-Process") {
+			fields := strings.Split(arg, "'")
+			for _, f := range fields {
+				if len(f) > 40 && !strings.Contains(f, " ") {
+					encoded = f
+				}
+			}
+		}
+	}
+	if encoded == "" {
+		t.Fatal("could not find the encoded inner script in the argv")
+	}
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("inner script is not valid base64: %v", err)
+	}
+	units := make([]uint16, 0, len(raw)/2)
+	for i := 0; i+1 < len(raw); i += 2 {
+		units = append(units, uint16(raw[i])|uint16(raw[i+1])<<8)
+	}
+	inner := string(utf16.Decode(units))
+	for _, secret := range []string{attack, "calc", config.Key, config.Path} {
+		if strings.Contains(inner, secret) {
+			t.Errorf("blueprint input %q reached the elevated script: %s", secret, inner)
+		}
+	}
+	if !strings.Contains(inner, "ConvertFrom-Json") {
+		t.Errorf("elevated script does not read its input as data: %s", inner)
 	}
 }
 
