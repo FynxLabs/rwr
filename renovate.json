@@ -3,5 +3,37 @@
   "extends": [
     "config:recommended",
     "helpers:pinGitHubActionDigests"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "go install <module>@<version> pins inside workflow run: blocks",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "go install (?<depName>[^@\\s]+?)/cmd/[^@\\s]+@(?<currentValue>v[\\d.]+)"
+      ],
+      "datasourceTemplate": "go"
+    },
+    {
+      "customType": "regex",
+      "description": "PSScriptAnalyzer RequiredVersion pin",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "Install-Module -Name (?<depName>PSScriptAnalyzer) -RequiredVersion (?<currentValue>[\\d.]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "packageNameTemplate": "PowerShell/PSScriptAnalyzer",
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "cosign binary pin passed to cosign-installer",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "cosign-release: \"(?<currentValue>v[\\d.]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "sigstore/cosign"
+    }
   ]
 }
