@@ -55,8 +55,13 @@ On a non-Windows host:
 The `--` separator SHALL be present so a program whose name begins with a dash
 cannot be absorbed as a `sudo` option.
 
-On Windows, `Elevated` SHALL be a no-op: there is no `sudo` equivalent, and the
-process must already be elevated.
+On Windows, `Elevated` SHALL be a no-op at this layer: there is no `sudo`
+equivalent. A processor that genuinely needs elevation on Windows SHALL raise it
+itself through `Start-Process -Verb RunAs`, and SHALL pass the elevated process
+its inputs as data rather than as command text — the elevated shell tokenizes its
+argument list a second time, so any value interpolated into it becomes code
+running as administrator. The Windows registry processor does this by writing a
+JSON payload and invoking a constant script via `-EncodedCommand`.
 
 #### Scenario: An elevated command on Linux
 

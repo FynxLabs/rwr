@@ -137,11 +137,8 @@ string. A value of the wrong shape is a named error rather than garbage in the
 registry.
 
 > [!IMPORTANT]
-> **An elevated registry write requires rwr itself to be running elevated.**
-> `elevated: true` no longer re-launches PowerShell through
-> `Start-Process -Verb RunAs`; that branch was removed because it re-tokenized
-> the command string. Run rwr from an elevated shell for registry keys that need
-> it.
+> `elevated: true` raises a UAC prompt, so the run is not unattended: someone has
+> to approve it. Run rwr from an already-elevated shell to avoid the prompt.
 
 The path, name and value are passed to PowerShell as environment variables, not
 interpolated into the command, so nothing a blueprint supplies is parsed as
