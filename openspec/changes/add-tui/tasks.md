@@ -2,7 +2,7 @@
 
 Steps 1–5 are prerequisites and carry the risk; 6+ are additive.
 
-- [ ] 1. `Plan` struct + stage 1 resolve; wire `rwr validate` to it. Parity test
+- [x] 1. `Plan` struct + stage 1 resolve; wire `rwr validate` to it. Parity test
       against current validate output (fails if outputs diverge).
 - [ ] 2. `Reporter` interface + `LogReporter` wired into `All()` and
       `commands.go`. Byte-identical-output test vs master (the safety net).
