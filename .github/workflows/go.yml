@@ -130,6 +130,32 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # The embedded provider JSON is exported from providers/cue/ and committed,
+  # so `go build` needs no CUE toolchain. This job is what keeps the committed
+  # export honest: the sources must vet against their schema, and re-exporting
+  # them must change nothing.
+  cue-providers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ">=1.26.5"
+
+      # Same version the module depends on; `go run` needs no extra installer.
+      - name: cue vet
+        run: go run cuelang.org/go/cmd/cue@v0.17.1 vet ./providers/cue/
+
+      - name: Export freshness
+        run: |
+          CUE_BIN="go run cuelang.org/go/cmd/cue@v0.17.1" ./scripts/providers-export.sh
+          git diff --exit-code internal/system/definitions/providers || {
+            echo "::error::Committed provider JSON is stale — run 'mise run providers:export' and commit the result." >&2
+            exit 1
+          }
+
   # golangci-lint gates every commit locally, through mise (`mise run lint`) and
   # the hk pre-commit hook — but only for contributors who ran `mise install`.
   # Anyone else got no lint at all, and neither did any pull request.

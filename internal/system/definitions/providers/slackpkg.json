@@ -1,0 +1,91 @@
+{
+  "commands": {
+    "clean": "clean-system",
+    "install": "install",
+    "list": "search installed",
+    "remove": "remove",
+    "search": "search",
+    "update": "update"
+  },
+  "detection": {
+    "binary": "slackpkg",
+    "distributions": [
+      "slackware"
+    ],
+    "files": [
+      "/usr/sbin/slackpkg",
+      "/etc/slackpkg",
+      "/var/lib/slackpkg"
+    ]
+  },
+  "elevated": true,
+  "name": "slackpkg",
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "-i",
+            "s/^[^#].*//",
+            "{{ .SourcesPath }}"
+          ],
+          "exec": "sed"
+        },
+        {
+          "action": "append",
+          "content": "{{ .URL }}",
+          "path": "{{ .SourcesPath }}"
+        },
+        {
+          "action": "download",
+          "condition": "{{ .HasKey }}",
+          "dest": "{{ .KeyPath }}",
+          "source": "{{ .KeyURL }}"
+        },
+        {
+          "action": "command",
+          "args": [
+            "update",
+            "gpg"
+          ],
+          "condition": "{{ .HasKey }}",
+          "exec": "slackpkg"
+        },
+        {
+          "action": "command",
+          "args": [
+            "update"
+          ],
+          "exec": "slackpkg"
+        }
+      ]
+    },
+    "paths": {
+      "config": "/etc/slackpkg/blacklist",
+      "keys": "/etc/slackpkg/gpg",
+      "sources": "/etc/slackpkg/mirrors"
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "remove_line",
+          "match": "{{ .URL }}",
+          "path": "{{ .SourcesPath }}"
+        },
+        {
+          "action": "remove",
+          "condition": "{{ .HasKey }}",
+          "path": "{{ .KeyPath }}"
+        },
+        {
+          "action": "command",
+          "args": [
+            "update"
+          ],
+          "exec": "slackpkg"
+        }
+      ]
+    }
+  }
+}

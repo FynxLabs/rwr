@@ -1,0 +1,108 @@
+{
+  "alternatives": {
+    "openmandriva": {
+      "corePackages": {
+        "build-essentials": [
+          "make",
+          "cmake",
+          "lib64freetype6-devel",
+          "lib64fontconfig-devel",
+          "lib64xcb-devel",
+          "lib64xkbcommon-devel",
+          "gcc-c++"
+        ],
+        "openssl": [
+          "openssl",
+          "lib64openssl-devel"
+        ]
+      }
+    }
+  },
+  "commands": {
+    "clean": "clean all",
+    "install": "install -y",
+    "list": "list installed",
+    "remove": "remove -y",
+    "search": "search",
+    "update": "update -y"
+  },
+  "corePackages": {
+    "build-essentials": [
+      "make",
+      "cmake",
+      "freetype-devel",
+      "fontconfig-devel",
+      "libxcb-devel",
+      "libxkbcommon-devel",
+      "g++"
+    ],
+    "openssl": [
+      "openssl",
+      "openssl-devel"
+    ]
+  },
+  "detection": {
+    "binary": "dnf",
+    "distributions": [
+      "fedora",
+      "rhel",
+      "openmandriva"
+    ],
+    "files": [
+      "/etc/dnf/dnf.conf",
+      "/var/lib/dnf"
+    ]
+  },
+  "elevated": true,
+  "name": "dnf",
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "download",
+          "dest": "{{ .TempKeyPath }}",
+          "sha256": "{{ .KeySha256 }}",
+          "source": "{{ .KeyURL }}"
+        },
+        {
+          "action": "command",
+          "args": [
+            "--import",
+            "{{ .TempKeyPath }}"
+          ],
+          "exec": "rpm"
+        },
+        {
+          "action": "copy",
+          "dest": "{{ .KeyPath }}",
+          "source": "{{ .TempKeyPath }}"
+        },
+        {
+          "action": "write",
+          "content": "[{{ .Name }}]\nname={{ .Description }}\nbaseurl={{ .URL }}\nenabled=1\ngpgcheck=1\ngpgkey={{ .KeyPath }}\n",
+          "dest": "{{ .SourcesPath }}/{{ .Name }}.repo"
+        }
+      ]
+    },
+    "paths": {
+      "keys": "/etc/pki/rpm-gpg",
+      "sources": "/etc/yum.repos.d"
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "remove",
+          "path": "{{ .SourcesPath }}/{{ .Name }}.repo"
+        },
+        {
+          "action": "command",
+          "args": [
+            "--erase",
+            "gpg-pubkey-{{ .KeyID }}"
+          ],
+          "exec": "rpm"
+        }
+      ]
+    }
+  }
+}
