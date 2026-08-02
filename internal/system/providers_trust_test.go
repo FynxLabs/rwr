@@ -26,6 +26,20 @@ func TestIsProviderFileTrustedOn(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// A tight file inside a group/world-writable directory: anyone who can
+	// write the directory can replace the file, so it must be skipped too.
+	looseDir := filepath.Join(dir, "loosedir")
+	if err := os.Mkdir(looseDir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(looseDir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	tightInLooseDir := filepath.Join(looseDir, "tight.toml")
+	if err := os.WriteFile(tightInLooseDir, []byte("[provider]\nname='x'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	for _, tt := range []struct {
 		name string
 		goos string
@@ -34,6 +48,7 @@ func TestIsProviderFileTrustedOn(t *testing.T) {
 	}{
 		{name: "linux private file loads", goos: "linux", path: private, want: true},
 		{name: "linux world-writable file skipped", goos: "linux", path: loose, want: false},
+		{name: "linux tight file in loose directory skipped", goos: "linux", path: tightInLooseDir, want: false},
 		// The same 0666 mode Windows reports for every normal file.
 		{name: "windows 0666 file loads", goos: "windows", path: loose, want: true},
 		{name: "windows missing file skipped", goos: "windows", path: filepath.Join(dir, "nope.toml"), want: false},

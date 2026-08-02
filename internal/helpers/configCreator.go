@@ -89,12 +89,19 @@ func CreateDefaultConfig() error {
 		viper.Set("repository.init-file", initFileLocationInput)
 	}
 
+	// The file holds a GitHub token and an SSH private key, and viper writes
+	// at 0644 with no way to ask for less. Pre-creating it at 0600 means the
+	// credentials are never on disk world-readable, not even briefly.
+	if err := PrecreateSecureConfigFile(configFilePath); err != nil {
+		return err
+	}
+
 	// Write the configuration to the specified file
 	if err := viper.WriteConfig(); err != nil {
 		return err
 	}
 
-	// viper writes at 0644; this file holds a GitHub token and an SSH private key.
+	// Belt and braces: verify nothing widened it.
 	if err := SecureConfigFile(configFilePath); err != nil {
 		return err
 	}

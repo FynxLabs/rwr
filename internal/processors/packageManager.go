@@ -3,7 +3,6 @@ package processors
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"charm.land/log/v2"
@@ -16,21 +15,24 @@ import (
 var (
 	pmTempDirOnce sync.Once
 	pmTempDirPath string
+	pmTempDirErr  error
 )
 
-func packageManagerTempDir() string {
+// packageManagerTempDir returns the run's private staging directory, or the
+// error that prevented creating it. A failure used to fall back to the
+// predictable <tmp>/rwr-pm-unavailable — a fixed, world-known name any local
+// user can pre-create, which is exactly the class {{ .TempDir }} exists to
+// eliminate.
+func packageManagerTempDir() (string, error) {
 	pmTempDirOnce.Do(func() {
 		dir, err := os.MkdirTemp("", "rwr-pm-")
 		if err != nil {
-			// Surfaced at use: the write into the unusable directory fails
-			// with a real error naming the path.
-			log.Errorf("could not create the package manager staging directory: %v", err)
-			pmTempDirPath = filepath.Join(os.TempDir(), "rwr-pm-unavailable")
+			pmTempDirErr = fmt.Errorf("could not create the package manager staging directory: %w", err)
 			return
 		}
 		pmTempDirPath = dir
 	})
-	return pmTempDirPath
+	return pmTempDirPath, pmTempDirErr
 }
 
 // ProcessPackageManagers installs package managers and their common dependencies
@@ -93,7 +95,11 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 			// the download and the elevated step that executes it — which is
 			// root code execution. {{ .TempDir }} renders to a per-run 0700
 			// directory other users cannot reach.
-			step, err := renderActionStep(rawStep, map[string]any{"TempDir": packageManagerTempDir()})
+			tempDir, err := packageManagerTempDir()
+			if err != nil {
+				return err
+			}
+			step, err := renderActionStep(rawStep, map[string]any{"TempDir": tempDir})
 			if err != nil {
 				return fmt.Errorf("error rendering %s step for %s: %w", pm.Action, pm.Name, err)
 			}

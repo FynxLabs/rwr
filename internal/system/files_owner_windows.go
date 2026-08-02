@@ -10,3 +10,9 @@ import "os"
 func fileOwnedByEUID(os.FileInfo) bool {
 	return true
 }
+
+// ownedByRootOrEUID: see fileOwnedByEUID — Windows security is ACLs, which
+// os.FileInfo cannot express, so the unix ownership check always passes.
+func ownedByRootOrEUID(os.FileInfo) bool {
+	return true
+}

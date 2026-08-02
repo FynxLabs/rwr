@@ -49,13 +49,17 @@ func TestProcessPackageManagers_InstallStepsStageInPrivateTempDir(t *testing.T) 
 		t.Fatalf("ProcessPackageManagers: %v", err)
 	}
 
-	staged := filepath.Join(packageManagerTempDir(), "fakepm-install.sh")
+	tempDir, tempErr := packageManagerTempDir()
+	if tempErr != nil {
+		t.Fatalf("packageManagerTempDir: %v", tempErr)
+	}
+	staged := filepath.Join(tempDir, "fakepm-install.sh")
 	if got, readErr := os.ReadFile(staged); readErr != nil || !strings.Contains(string(got), "echo hi") {
 		t.Fatalf("staged installer = %q (%v), want the downloaded script in the private dir", got, readErr)
 	}
 
 	// The private directory is not reachable by other users.
-	if info, statErr := os.Stat(packageManagerTempDir()); statErr != nil || info.Mode().Perm() != 0o700 {
+	if info, statErr := os.Stat(tempDir); statErr != nil || info.Mode().Perm() != 0o700 {
 		t.Errorf("staging dir mode = %v (%v), want 0700", info.Mode().Perm(), statErr)
 	}
 

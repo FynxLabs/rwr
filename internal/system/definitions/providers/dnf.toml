@@ -31,15 +31,23 @@ build-essentials = [
 sources = "/etc/yum.repos.d"
 keys = "/etc/pki/rpm-gpg"
 
+# The key is staged in the run's private directory and only then placed at its
+# final path, like apt: downloading straight into /etc/pki/rpm-gpg wrote to the
+# trusted-key directory before anything had looked at the content.
 [[provider.repository.add.steps]]
 action = "download"
 source = "{{ .KeyURL }}"
-dest = "{{ .KeyPath }}"
+dest = "{{ .TempKeyPath }}"
 
 [[provider.repository.add.steps]]
 action = "command"
 exec = "rpm"
-args = ["--import", "{{ .KeyPath }}"]
+args = ["--import", "{{ .TempKeyPath }}"]
+
+[[provider.repository.add.steps]]
+action = "copy"
+source = "{{ .TempKeyPath }}"
+dest = "{{ .KeyPath }}"
 
 [[provider.repository.add.steps]]
 action = "write"
