@@ -46,12 +46,6 @@ func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
 		return finish(summary), nil
 	}
 
-	format := initConfig.Init.Format
-	if format == "" {
-		format = types.FormatYAML
-	}
-	wantExt := "." + format
-
 	err := filepath.WalkDir(location, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -62,7 +56,9 @@ func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
 			}
 			return nil
 		}
-		if filepath.Ext(path) != wantExt {
+		// Per-file via the registry: filtering on the tree-wide Init.Format
+		// made profile discovery blind to every blueprint in another format.
+		if !helpers.IsBlueprintFile(path) {
 			return nil
 		}
 		base := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
@@ -87,6 +83,11 @@ func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
 			return nil
 		}
 
+		format, formatErr := helpers.FormatForPath(path)
+		if formatErr != nil {
+			log.Warnf("Could not determine format of %s: %v", path, formatErr)
+			return nil
+		}
 		if err := collectFromFile(summary, resolved, format, blueprintType); err != nil {
 			log.Warnf("Could not read profiles from %s: %v", path, err)
 			return nil

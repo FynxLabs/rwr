@@ -19,8 +19,8 @@ import (
 // findBootstrapFile returns the bootstrap blueprint in dir, in whichever format it
 // is written, or "" when the tree has none.
 func findBootstrapFile(dir string) string {
-	for _, ext := range []string{types.FormatExtYAML, types.FormatExtYAMLAlt, types.FormatExtJSON, types.FormatExtTOML} {
-		candidate := filepath.Join(dir, "bootstrap"+ext)
+	for _, name := range helpers.CandidateFilenames("bootstrap") {
+		candidate := filepath.Join(dir, name)
 		if system.FileExists(candidate) {
 			return candidate
 		}
@@ -145,7 +145,12 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				}
 
 				blueprintDir := filepath.Dir(blueprintFile)
-				format := filepath.Ext(blueprintFile)[1:] // Remove the leading dot
+				// Per-file, via the registry: `filepath.Ext(file)[1:]` panicked
+				// outright on an extensionless file.
+				format, err := helpers.FormatForPath(blueprintFile)
+				if err != nil {
+					return err
+				}
 
 				blueprintData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 				if err != nil {

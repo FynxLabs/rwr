@@ -110,11 +110,11 @@ func validateImportWithVisited(importPath string, fieldPath string, blueprintDir
 		return true
 	}
 
-	fileFormat := strings.TrimPrefix(filepath.Ext(absPath), ".")
-	if fileFormat == "" {
+	fileFormat, formatErr := helpers.FormatForPath(absPath)
+	if formatErr != nil {
 		AddIssue(results, types.ValidationWarning,
-			fmt.Sprintf("Import file '%s' has no extension, cannot determine format", importPath),
-			file, 0, "Use a file with .yaml, .json, or .toml extension")
+			fmt.Sprintf("Cannot determine format of import file '%s': %v", importPath, formatErr),
+			file, 0, "Use a file with a supported blueprint extension")
 		return true
 	}
 

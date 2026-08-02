@@ -65,9 +65,14 @@ func resolveImports[T any](
 			return nil, fmt.Errorf("error reading import file %s: %w", fullPath, err)
 		}
 
-		fileFormat := format
-		if fileFormat == "" {
-			fileFormat = filepath.Ext(fullPath)
+		// The imported file's own extension decides its format; the importing
+		// file's format is only the fallback for a file with no recognized
+		// extension. It used to be the other way around: the parent's format
+		// was forced onto every import, so a .toml file imported from a .yaml
+		// blueprint was fed to the YAML decoder.
+		fileFormat, formatErr := FormatForPath(fullPath)
+		if formatErr != nil {
+			fileFormat = format
 		}
 
 		imported, err := decode(data, fileFormat)

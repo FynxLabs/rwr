@@ -13,8 +13,9 @@ import (
 )
 
 // initFileNames are the file names probed, in order, when the init source is a
-// directory (local or a repository root).
-var initFileNames = []string{"init.yaml", "init.yml", "init.json", "init.toml"}
+// directory (local or a repository root). Derived from the format registry so
+// a new format is discoverable without touching this file.
+var initFileNames = CandidateFilenames("init")
 
 // shorthandPattern matches GitHub repository shorthands: owner/repo, with an
 // optional /path/to/file and an optional @ref suffix. Owner and repo are a

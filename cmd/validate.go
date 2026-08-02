@@ -70,8 +70,8 @@ Examples:
 					validateBlueprints = true
 				}
 			} else {
-				// For files, check extension
-				if filepath.Ext(absPath) == ".toml" {
+				// For files, check extension (provider definitions are TOML-only)
+				if filepath.Ext(absPath) == types.FormatExtTOML {
 					validateProviders = true
 				} else {
 					validateBlueprints = true
