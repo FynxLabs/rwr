@@ -12,7 +12,9 @@ var initFlag bool
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Create or modify rwr configuration",
-	Long:  `Create or modify rwr configuration for JumpCloud and rwr settings`,
+	Long: `Create the rwr configuration file. With --create, prompts for each
+setting and writes the config; without it, this help is shown — there is no
+config view or edit mode yet.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if initFlag {
 			if err := helpers.CreateDefaultConfig(); err != nil {

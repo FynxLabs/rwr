@@ -25,7 +25,9 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "rwr",
 	Short: "Rinse, Wash, and Repeat - Distrohopper's Friend",
-	Long:  `rwr is a cli to manage your Linux system's package manager and repositories.`,
+	Long: `rwr provisions Linux, macOS and Windows machines from blueprint files:
+packages, repositories, files and templates, services, users, SSH keys, fonts,
+git checkouts, scripts, and desktop configuration.`,
 	// A run that fails partway through is not a usage mistake. Printing the full
 	// flag listing after "validation failed with 3 errors" buries the errors the
 	// operator actually needs to read under a screen of help text. Errors are
@@ -101,9 +103,7 @@ func initializeSystemInfo() error {
 	var err error
 
 	// If no init file is specified via flag, check config
-	if initFilePath == "" {
-		initFilePath = viper.GetString("repository.init-file")
-	}
+	initFilePath = configuredInitFile(initFilePath)
 
 	// One resolver for every accepted form — local path, directory, https URL,
 	// GitHub blob URL, owner/repo[/path][@ref] shorthand. See its doc comment
@@ -179,9 +179,13 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&interactive, "interactive", "I", true, "Enable interactive mode (use --interactive=false to disable)")
 
-	// Flag for the init file path
+	// Flag for the init file path. Bound to repository.init-file — the key the
+	// config file and docs have always used. It was bound to rwr.init-file,
+	// which nothing read: a two-key split where the flag wrote one key and the
+	// config lookup read the other. rwr.init-file still works via a deprecation
+	// shim in configuredInitFile.
 	rootCmd.PersistentFlags().StringVarP(&initFilePath, "init-file", "i", "", "Path to the init file")
-	mustBindFlag("rwr.init-file", "init-file")
+	mustBindFlag("repository.init-file", "init-file")
 	mustBindFlag("log.level", "log-level")
 
 	viper.SetDefault("log.level", "info") // Default log level
@@ -227,6 +231,51 @@ func init() {
 	viper.AutomaticEnv()
 }
 
+// configuredInitFile resolves where the init file comes from: the --init-file
+// flag, then the repository.init-file config key (which the flag is also bound
+// to), then the deprecated rwr.init-file key — honored with a warning so
+// configs written against the old two-key split keep working.
+func configuredInitFile(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	if v := viper.GetString("repository.init-file"); v != "" {
+		return v
+	}
+	if legacy := viper.GetString("rwr.init-file"); legacy != "" {
+		log.Warnf("rwr.init-file is deprecated; use repository.init-file (honoring the value this run)")
+		return legacy
+	}
+	return ""
+}
+
+// resolveConfigLocation decides the config directory and, when --config named
+// a file, the config file path. Precedence: the --config flag, then the
+// rwr.configdir key (env: RWR_RWR_CONFIGDIR — it has to come from the
+// environment, since the config file cannot name its own directory), then
+// ~/.config/rwr. rwr.configdir used to be read and then unconditionally
+// overwritten, so documenting it was a lie.
+func resolveConfigLocation(homeDir, configFlag, configuredDir string) (location, file string) {
+	location = filepath.Join(homeDir, ".config", "rwr")
+	if configuredDir != "" {
+		location = system.ExpandPath(configuredDir)
+	}
+
+	// --config either names a config file directly or names the directory to
+	// look for config.yaml in. A file keeps its directory as the config
+	// location, so run_once stays next to the config it belongs to.
+	if configFlag != "" {
+		expanded := system.ExpandPath(configFlag)
+		if info, statErr := os.Stat(expanded); statErr == nil && info.IsDir() {
+			location = expanded
+		} else {
+			file = expanded
+			location = filepath.Dir(expanded)
+		}
+	}
+	return location, file
+}
+
 // mustBindFlag binds a viper config key to a persistent flag, panicking on failure.
 // Flag binding errors indicate a programming error (e.g., referencing a non-existent flag).
 func mustBindFlag(viperKey, flagName string) {
@@ -252,21 +301,11 @@ func config() error {
 	if err != nil {
 		return fmt.Errorf("error finding home directory: %w", err)
 	}
-	configLocation = filepath.Join(homeDir, ".config", "rwr")
 
-	// --config either names a config file directly or names the directory to
-	// look for config.yaml in. A file keeps its directory as the config
-	// location, so run_once stays next to the config it belongs to.
-	configFile := ""
-	if configPath != "" {
-		expanded := system.ExpandPath(configPath)
-		if info, statErr := os.Stat(expanded); statErr == nil && info.IsDir() {
-			configLocation = expanded
-		} else {
-			configFile = expanded
-			configLocation = filepath.Dir(expanded)
-		}
-	}
+	// rwr.configdir is read before the config file is (it decides where that
+	// file lives, so only the environment can supply it); --config wins.
+	var configFile string
+	configLocation, configFile = resolveConfigLocation(homeDir, configPath, viper.GetString("rwr.configdir"))
 
 	runOnceLocation = filepath.Join(configLocation, "run_once")
 

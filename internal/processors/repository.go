@@ -61,16 +61,18 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 
 	// One repository failing does not stop the rest: the failure goes to the
 	// ledger, which puts it in the run's exit code, and processing continues.
+	declared := make(map[string]bool, len(repositories))
 	for _, repo := range repositories {
 		log.Infof("Processing repository %s", repo.Name)
 		log.Debugf("Repository definition: %s", repo.LogString())
+		declared[repo.PackageManager] = true
 
 		if err := processRepository(repo, osInfo, initConfig); err != nil {
 			recordFailure("repositories", repo.Name, err)
 		}
 	}
 
-	return runRepositoryUpdates(initConfig)
+	return runRepositoryUpdates(initConfig, declared)
 }
 
 // validateRepositoryName refuses names that would escape the paths derived
@@ -248,11 +250,19 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 	return nil
 }
 
-// runRepositoryUpdates refreshes package lists for every available provider.
-func runRepositoryUpdates(initConfig *types.InitConfig) error {
+// runRepositoryUpdates refreshes package lists for the providers this
+// blueprint file declared repositories for. It used to update every available
+// provider after every repositories file — a tree with three such files ran
+// `apt update`, `dnf makecache` etc. three times each, for managers whose
+// repositories never changed.
+//
+// A failed update is recorded in the ledger, not just logged: the operator's
+// new repository is not actually usable until its package list refresh
+// succeeds, so the run's exit code has to reflect the failure.
+func runRepositoryUpdates(initConfig *types.InitConfig, declared map[string]bool) error {
 	available := system.GetAvailableProviders()
 	for name, provider := range available {
-		if provider.Commands.Update == "" {
+		if !declared[name] || provider.Commands.Update == "" {
 			continue
 		}
 
@@ -264,7 +274,7 @@ func runRepositoryUpdates(initConfig *types.InitConfig) error {
 		}
 
 		if err := system.RunCommand(updateCmd, initConfig.Variables.Flags.Debug); err != nil {
-			log.Warnf("Error updating %s package lists: %v", name, err)
+			recordFailure("repositories", name+" update", err)
 			continue
 		}
 	}

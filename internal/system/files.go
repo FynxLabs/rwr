@@ -659,7 +659,10 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 					if err != nil {
 						log.Errorf("Failed to show diff: %v", err)
 					}
-					overwrite := promptOverwrite()
+					overwrite, promptErr := promptOverwrite()
+					if promptErr != nil {
+						return promptErr
+					}
 					if !overwrite {
 						log.Infof("Skipping file: %s", targetPath)
 						return nil
@@ -728,12 +731,15 @@ func LookupGID(group string) (int, error) {
 	return gid, nil
 }
 
-func promptOverwrite() bool {
+// promptOverwrite returns an error instead of dying on a failed read:
+// log.Fatalf here bypassed the failure ledger and every deferred cleanup, and
+// interactive defaults to true, so a piped stdin hitting EOF killed the whole
+// run mid-flight.
+func promptOverwrite() (bool, error) {
 	var input string
 	fmt.Print("Do you want to overwrite the file? (y/n): ")
-	_, err := fmt.Scanln(&input)
-	if err != nil {
-		log.Fatalf("error reading input: %v", err)
+	if _, err := fmt.Scanln(&input); err != nil {
+		return false, fmt.Errorf("reading overwrite confirmation (run with --interactive=false to skip prompts): %w", err)
 	}
-	return strings.EqualFold(input, "y") || strings.EqualFold(input, "yes")
+	return strings.EqualFold(input, "y") || strings.EqualFold(input, "yes"), nil
 }

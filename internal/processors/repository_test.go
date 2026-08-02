@@ -174,7 +174,32 @@ func TestProcessRepositories_AptAddRendersProviderTemplates(t *testing.T) {
 
 // The trailing repository refresh execs argv, so the update command may not
 // contain shell operators: apt would take "&&" and "upgrade" as package names.
-func TestProcessRepositories_UpdateCommandIsPlainArgv(t *testing.T) {
+func TestRunRepositoryUpdates_CommandIsPlainArgv(t *testing.T) {
+	sourcesDir := t.TempDir()
+	keysDir := t.TempDir()
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	provider := aptProviderForTest(t, sourcesDir, keysDir)
+	defer system.SetProvidersForTest(map[string]*types.Provider{"apt": provider})()
+
+	if err := runRepositoryUpdates(&types.InitConfig{}, map[string]bool{"apt": true}); err != nil {
+		t.Fatalf("runRepositoryUpdates: %v", err)
+	}
+
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls, want 1: %v", len(rec.Calls), rec.Calls)
+	}
+	if got := rec.Calls[0].Args; !equalStrings(got, []string{"update"}) {
+		t.Errorf("update args = %#v, want [update]", got)
+	}
+}
+
+// The refresh only runs for providers this file declared repositories for: a
+// repositories file for apt must not also run every other manager's update,
+// and a file with no repositories runs none at all.
+func TestProcessRepositories_UpdatesOnlyDeclaredProviders(t *testing.T) {
 	sourcesDir := t.TempDir()
 	keysDir := t.TempDir()
 
@@ -187,12 +212,8 @@ func TestProcessRepositories_UpdateCommandIsPlainArgv(t *testing.T) {
 	if err := processRepositories(nil, &types.OSInfo{}, &types.InitConfig{}); err != nil {
 		t.Fatalf("processRepositories: %v", err)
 	}
-
-	if len(rec.Calls) != 1 {
-		t.Fatalf("recorded %d calls, want 1: %v", len(rec.Calls), rec.Calls)
-	}
-	if got := rec.Calls[0].Args; !equalStrings(got, []string{"update"}) {
-		t.Errorf("update args = %#v, want [update]", got)
+	if len(rec.Calls) != 0 {
+		t.Fatalf("no repositories declared, but %d commands ran: %v", len(rec.Calls), rec.Calls)
 	}
 }
 
