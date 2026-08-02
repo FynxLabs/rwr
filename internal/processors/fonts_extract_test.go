@@ -103,7 +103,7 @@ func TestExtractFontTarball_RejectsEntriesEscapingDestDir(t *testing.T) {
 			tarballPath := filepath.Join(root, "font.tar.xz")
 			writeFontTarball(t, tarballPath, []tarEntry{{name: tt.entry, body: "ttf-bytes"}})
 
-			err := extractFontTarball(tarballPath, destDir, false, fontOSInfo())
+			_, err := extractFontTarball(tarballPath, destDir, false, fontOSInfo())
 			if err == nil {
 				t.Fatal("expected extraction to fail, got nil")
 			}
@@ -135,7 +135,7 @@ func TestExtractFontTarball_SkipsLinkEntries(t *testing.T) {
 		{name: "hard.ttf", typeflag: tar.TypeLink, linkname: "../../outside.ttf"},
 	})
 
-	if err := extractFontTarball(tarballPath, destDir, false, fontOSInfo()); err != nil {
+	if _, err := extractFontTarball(tarballPath, destDir, false, fontOSInfo()); err != nil {
 		t.Fatalf("extractFontTarball: %v", err)
 	}
 
@@ -172,7 +172,7 @@ func TestExtractFontTarball_ElevatesOnlyWhenAsked(t *testing.T) {
 			tarballPath := filepath.Join(root, "font.tar.xz")
 			writeFontTarball(t, tarballPath, []tarEntry{{name: "Good.ttf", body: "ttf-bytes"}})
 
-			if err := extractFontTarball(tarballPath, destDir, tt.elevated, fontOSInfo()); err != nil {
+			if _, err := extractFontTarball(tarballPath, destDir, tt.elevated, fontOSInfo()); err != nil {
 				t.Fatalf("extractFontTarball: %v", err)
 			}
 
@@ -293,5 +293,71 @@ func assertNoFileOutside(t *testing.T, root, destDir, base string) {
 	})
 	if err != nil {
 		t.Fatalf("walking %s: %v", root, err)
+	}
+}
+
+// The face filter used to be ".ttf" alone: an OTF-only archive — several Nerd
+// Fonts ship only .otf — "installed successfully" with zero files written.
+func TestExtractFontTarball_InstallsEveryFontFace(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	root := t.TempDir()
+	destDir := filepath.Join(root, "fonts")
+	if err := os.MkdirAll(destDir, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	tarballPath := filepath.Join(root, "font.tar.xz")
+	writeFontTarball(t, tarballPath, []tarEntry{
+		{name: "Mono-Regular.otf", body: "otf-bytes"},
+		{name: "Mono-Bold.TTF", body: "ttf-bytes"},
+		{name: "README.md", body: "not a font"},
+	})
+
+	extracted, err := extractFontTarball(tarballPath, destDir, false, fontOSInfo())
+	if err != nil {
+		t.Fatalf("extractFontTarball: %v", err)
+	}
+	if extracted != 2 {
+		t.Errorf("extracted = %d, want 2 (both faces, not the README)", extracted)
+	}
+	for _, name := range []string{"Mono-Regular.otf", "Mono-Bold.TTF"} {
+		if _, err := os.Stat(filepath.Join(destDir, name)); err != nil {
+			t.Errorf("expected %s to be installed: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(destDir, "README.md")); err == nil {
+		t.Error("README.md installed into the font directory")
+	}
+}
+
+// Removal has to see the same faces the install writes, or an installed OTF
+// face survives its own removal.
+func TestRemoveFont_RemovesEveryFontFace(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	fontDir := getFontDirectory("user", fontOSInfo())
+	if err := os.MkdirAll(fontDir, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	for _, name := range []string{"Mono-Regular.otf", "Mono-Bold.ttf"} {
+		if err := os.WriteFile(filepath.Join(fontDir, name), []byte("face"), 0o644); err != nil {
+			t.Fatalf("writing %s: %v", name, err)
+		}
+	}
+
+	if err := removeFont(types.Font{Name: "Mono", Action: "remove", Location: "user"}, fontOSInfo()); err != nil {
+		t.Fatalf("removeFont: %v", err)
+	}
+
+	entries, err := os.ReadDir(fontDir)
+	if err != nil {
+		t.Fatalf("reading font dir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("font dir not empty after removal: %v", entries)
 	}
 }
