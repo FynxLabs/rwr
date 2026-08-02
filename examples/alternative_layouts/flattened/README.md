@@ -54,15 +54,15 @@ Choose your preferred format:
 ```bash
 # YAML format
 cd flattened/yaml
-rwr all
+rwr run
 
 # JSON format
 cd flattened/json
-rwr all
+rwr run
 
 # TOML format
 cd flattened/toml
-rwr all
+rwr run
 ```
 
 RWR will automatically discover and process all files with the specified format extension in the directory, regardless of their names.

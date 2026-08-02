@@ -3,51 +3,29 @@ package cmd
 import (
 	"fmt"
 
-	"charm.land/log/v2"
-
 	"github.com/fynxlabs/rwr/internal/processors"
 
 	"github.com/spf13/cobra"
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run [processor]",
-	Short: "Run the blueprints — everything, or a single processor",
-	Long: `Run the blueprint tree.
+	Use:   "run <processor>",
+	Short: "Run a single processor",
+	Long: `Run a single processor.
 
-"rwr run" on its own runs everything, the same as "rwr all". Name a processor
-to run just that piece: "rwr run packages", "rwr run files".`,
-	// Bare `rwr run` is the landing command: it runs the whole tree. It used
-	// to print help and error, while the docs told people to run it.
+"rwr run" on its own lists the processors, like a task runner. Name one to
+run it — "rwr run packages" — or use the shorthand straight off the root:
+"rwr packages". To run everything: "rwr run all", or "rwr all" from the root.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Bare `rwr run` lists the processors, like a bare `mise run`.
+		if err := cmd.Help(); err != nil {
+			return err
+		}
 		if len(args) > 0 {
-			if err := cmd.Help(); err != nil {
-				return err
-			}
 			return fmt.Errorf("unknown processor %q (see the list above)", args[0])
 		}
-		return runEverything()
+		return nil
 	},
-}
-
-// runEverything is the whole-tree run both `rwr run` and `rwr all` dispatch.
-func runEverything() error {
-	// Handle GitHub OAuth authentication if --gh-auth flag is set
-	if ghAuth {
-		token, err := processors.AuthenticateWithGitHub(initConfig)
-		if err != nil {
-			return fmt.Errorf("GitHub authentication failed: %w", err)
-		}
-		// Update the token in both global var and initConfig
-		ghApiToken = token
-		initConfig.Variables.Flags.GHAPIToken = token
-	}
-
-	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
-	if err := processors.All(initConfig, osInfo, nil); err != nil {
-		return fmt.Errorf("error running all processors: %w", err)
-	}
-	return nil
 }
 
 // runProcessors maps each subcommand to the blueprint type it dispatches. One
@@ -104,6 +82,13 @@ func processorShorthand(name string) (runProcessorSpec, bool) {
 
 func init() {
 	rootCmd.AddCommand(runCmd)
+
+	// `rwr run all` runs everything — the same task `rwr all` names at the root.
+	runCmd.AddCommand(&cobra.Command{
+		Use:   "all",
+		Short: "Run all processors",
+		RunE:  allCmd.RunE,
+	})
 
 	for _, p := range runProcessors {
 		runCmd.AddCommand(&cobra.Command{
