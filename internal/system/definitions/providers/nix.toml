@@ -44,20 +44,20 @@ steps = [
     "-L",
     "https://nixos.org/nix/install",
     "--output",
-    "/tmp/nix-install",
+    "{{ .TempDir }}/nix-install",
   ] },
   # Make executable
   { action = "command", exec = "chmod", args = [
     "+x",
-    "/tmp/nix-install",
+    "{{ .TempDir }}/nix-install",
   ] },
   # Run installer
   { action = "command", exec = "sh", args = [
-    "/tmp/nix-install",
+    "{{ .TempDir }}/nix-install",
   ] },
   # Clean up
   { action = "command", exec = "rm", args = [
-    "/tmp/nix-install",
+    "{{ .TempDir }}/nix-install",
   ] },
   # Add unstable channel
   { action = "command", exec = "nix-channel", args = [
@@ -78,20 +78,20 @@ steps = [
     "-L",
     "https://nixos.org/nix/uninstall",
     "--output",
-    "/tmp/nix-uninstall",
+    "{{ .TempDir }}/nix-uninstall",
   ] },
   # Make executable
   { action = "command", exec = "chmod", args = [
     "+x",
-    "/tmp/nix-uninstall",
+    "{{ .TempDir }}/nix-uninstall",
   ] },
   # Run uninstaller
   { action = "command", exec = "sh", args = [
-    "/tmp/nix-uninstall",
+    "{{ .TempDir }}/nix-uninstall",
   ] },
   # Clean up
   { action = "command", exec = "rm", args = [
-    "/tmp/nix-uninstall",
+    "{{ .TempDir }}/nix-uninstall",
   ] },
 ]
 

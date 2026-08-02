@@ -106,8 +106,17 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 
 // targetMode returns the mode a write to filePath should end up with: the
 // existing file's mode when there is one, so a rewrite cannot widen it.
+//
+// Only a file the invoking user owns donates its mode. In a shared directory
+// like /tmp anyone can plant the target ahead of time, and inheriting a
+// planted 0666 turns the freshly written file — root-owned, about to be
+// executed by an install step — into one every local user can rewrite.
 func targetMode(filePath string) os.FileMode {
 	if info, err := os.Stat(filePath); err == nil {
+		if !fileOwnedByEUID(info) {
+			log.Warnf("Not inheriting permissions from %s: it is owned by another user; using %04o", filePath, defaultFileMode)
+			return defaultFileMode
+		}
 		return info.Mode().Perm()
 	}
 	return defaultFileMode

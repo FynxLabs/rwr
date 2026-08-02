@@ -2,11 +2,36 @@ package processors
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
+
+// packageManagerTempDir is the per-run private directory install/remove steps
+// stage into via {{ .TempDir }}.
+var (
+	pmTempDirOnce sync.Once
+	pmTempDirPath string
+)
+
+func packageManagerTempDir() string {
+	pmTempDirOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "rwr-pm-")
+		if err != nil {
+			// Surfaced at use: the write into the unusable directory fails
+			// with a real error naming the path.
+			log.Errorf("could not create the package manager staging directory: %v", err)
+			pmTempDirPath = filepath.Join(os.TempDir(), "rwr-pm-unavailable")
+			return
+		}
+		pmTempDirPath = dir
+	})
+	return pmTempDirPath
+}
 
 // ProcessPackageManagers installs package managers and their common dependencies
 // (OpenSSL, build essentials) before installing each requested package manager.
@@ -33,10 +58,14 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 	// Process each package manager
 	for _, pm := range packageManagers {
 		log.Debugf("Processing package manager: %s (action: %s)", pm.Name, pm.Action)
-		provider, exists := system.GetProvider(pm.Name)
+		// The definition-level lookup, not GetProvider: GetProvider reports a
+		// provider whose binary is missing as unavailable, and a missing
+		// binary is exactly the state an install starts from. With GetProvider
+		// here, install steps could never run at all — absent binary errored,
+		// present binary skipped as already installed.
+		provider, exists := system.GetProviderDefinition(pm.Name)
 		if !exists {
-			// GetProvider will have already logged detailed error info
-			return fmt.Errorf("package manager %s is not available - check debug logs for details", pm.Name)
+			return fmt.Errorf("no provider definition for package manager %s", pm.Name)
 		}
 
 		// Check if already installed
@@ -57,7 +86,18 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 		}
 
 		// Execute each step
-		for _, step := range steps {
+		for _, rawStep := range steps {
+			// Install steps historically staged at fixed, world-known /tmp
+			// names (/tmp/brew-install.sh, a git clone into /tmp/yay). Any
+			// local user can pre-create such a path — or rewrite it between
+			// the download and the elevated step that executes it — which is
+			// root code execution. {{ .TempDir }} renders to a per-run 0700
+			// directory other users cannot reach.
+			step, err := renderActionStep(rawStep, map[string]any{"TempDir": packageManagerTempDir()})
+			if err != nil {
+				return fmt.Errorf("error rendering %s step for %s: %w", pm.Action, pm.Name, err)
+			}
+
 			var cmd types.Command
 
 			switch step.Action {

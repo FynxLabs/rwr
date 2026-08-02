@@ -44,12 +44,12 @@ args = ["-S", "--needed", "--noconfirm", "base-devel", "git"]
 [[provider.install.steps]]
 action = "command"
 exec = "git"
-args = ["clone", "https://aur.archlinux.org/aura-bin.git", "/tmp/aura"]
+args = ["clone", "https://aur.archlinux.org/aura-bin.git", "{{ .TempDir }}/aura"]
 
 [[provider.install.steps]]
 action = "command"
 exec = "sh"
-args = ["-c", "cd /tmp/aura && makepkg -si --noconfirm"]
+args = ["-c", "cd {{ .TempDir }}/aura && makepkg -si --noconfirm"]
 
 [[provider.remove.steps]]
 action = "command"

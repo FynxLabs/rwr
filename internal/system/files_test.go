@@ -517,3 +517,35 @@ func TestMoveIntoPlace_CrossFilesystem(t *testing.T) {
 		t.Errorf("mode = %o, want 0640", perm)
 	}
 }
+
+// A pre-existing target donates its mode only when the invoking user owns it:
+// in a shared directory anyone can plant the target ahead of time, and
+// inheriting a planted 0666 leaves the freshly written file world-writable.
+func TestTargetMode_InheritsOnlyFromOwnFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	owned := filepath.Join(dir, "owned")
+	if err := os.WriteFile(owned, []byte("x"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(owned, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if got := targetMode(owned); got != 0o640 {
+		t.Errorf("targetMode(own file) = %04o, want 0640 inherited", got)
+	}
+
+	if got := targetMode(filepath.Join(dir, "absent")); got != defaultFileMode {
+		t.Errorf("targetMode(absent) = %04o, want the default %04o", got, defaultFileMode)
+	}
+
+	// A file owned by another user cannot be created without privileges, so
+	// the refusal branch is exercised at the helper level.
+	info, err := os.Stat(owned)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fileOwnedByEUID(info) {
+		t.Error("fileOwnedByEUID(own file) = false, want true")
+	}
+}

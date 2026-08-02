@@ -34,13 +34,13 @@ args = [
   "-sSf",
   "https://sh.rustup.rs",
   "-o",
-  "/tmp/rustup-init.sh",
+  "{{ .TempDir }}/rustup-init.sh",
 ]
 
 [[provider.install.steps]]
 action = "command"
 exec = "sh"
-args = ["/tmp/rustup-init.sh", "-y"]
+args = ["{{ .TempDir }}/rustup-init.sh", "-y"]
 
 # Install cargo-update
 [[provider.install.steps]]
