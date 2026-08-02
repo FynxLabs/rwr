@@ -10,17 +10,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	validateBlueprints bool
-	validateProviders  bool
-	validateVerbose    bool
-)
+// newValidateCmd validates the RWR Blueprints and Provider configurations.
+func newValidateCmd(app *AppConfig) *cobra.Command {
+	var (
+		validateBlueprints bool
+		validateProviders  bool
+		validateVerbose    bool
+	)
 
-// validateCmd validates the RWR Blueprints and Provider configurations.
-var validateCmd = &cobra.Command{
-	Use:   "validate [path]",
-	Short: "Validate RWR Blueprints and Provider configurations",
-	Long: `Validate RWR Blueprints and Provider configurations to ensure they are correctly structured
+	validateCmd := &cobra.Command{
+		Use:   "validate [path]",
+		Short: "Validate RWR Blueprints and Provider configurations",
+		Long: `Validate RWR Blueprints and Provider configurations to ensure they are correctly structured
 and will work as expected when deployed. This command helps identify issues before running
 your configurations, saving time and preventing errors.
 
@@ -36,80 +37,78 @@ Examples:
 
   # Force validation as providers
   rwr validate path/to/file --providers`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Get path from args or use current directory
-		path := "."
-		if len(args) > 0 {
-			path = args[0]
-		}
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Get path from args or use current directory
+			path := "."
+			if len(args) > 0 {
+				path = args[0]
+			}
 
-		// Resolve absolute path
-		absPath, err := filepath.Abs(path)
-		if err != nil {
-			return fmt.Errorf("error resolving path %s: %w", path, err)
-		}
-
-		// Check if path exists
-		if _, err := os.Stat(absPath); os.IsNotExist(err) {
-			return fmt.Errorf("path does not exist: %s", absPath)
-		}
-
-		// If no flags specified, determine type from path
-		if !validateBlueprints && !validateProviders {
-			fileInfo, err := os.Stat(absPath)
+			// Resolve absolute path
+			absPath, err := filepath.Abs(path)
 			if err != nil {
-				return fmt.Errorf("error accessing path %s: %w", absPath, err)
+				return fmt.Errorf("error resolving path %s: %w", path, err)
 			}
 
-			if fileInfo.IsDir() {
-				// For directories, check if it's the providers directory
-				if filepath.Base(absPath) == "providers" {
-					validateProviders = true
-				} else {
-					validateBlueprints = true
+			// Check if path exists
+			if _, err := os.Stat(absPath); os.IsNotExist(err) {
+				return fmt.Errorf("path does not exist: %s", absPath)
+			}
+
+			// If no flags specified, determine type from path
+			if !validateBlueprints && !validateProviders {
+				fileInfo, err := os.Stat(absPath)
+				if err != nil {
+					return fmt.Errorf("error accessing path %s: %w", absPath, err)
 				}
+
+				if fileInfo.IsDir() {
+					// For directories, check if it's the providers directory
+					if filepath.Base(absPath) == "providers" {
+						validateProviders = true
+					} else {
+						validateBlueprints = true
+					}
+				} else {
+					// For files, check extension (provider definitions are TOML-only)
+					if filepath.Ext(absPath) == types.FormatExtTOML {
+						validateProviders = true
+					} else {
+						validateBlueprints = true
+					}
+				}
+			}
+
+			// Set up validation options
+			options := types.ValidationOptions{
+				Path:               absPath,
+				ValidateBlueprints: validateBlueprints,
+				ValidateProviders:  validateProviders,
+				Verbose:            validateVerbose,
+			}
+
+			// Run validation
+			results, err := validate.Validate(options, app.OSInfo)
+			if err != nil {
+				return fmt.Errorf("error during validation: %w", err)
+			}
+
+			// Display results
+			if results.ErrorCount > 0 {
+				return fmt.Errorf("validation failed with %d errors and %d warnings", results.ErrorCount, results.WarningCount)
+			} else if results.WarningCount > 0 {
+				fmt.Printf("Validation completed with %d warnings\n", results.WarningCount)
 			} else {
-				// For files, check extension (provider definitions are TOML-only)
-				if filepath.Ext(absPath) == types.FormatExtTOML {
-					validateProviders = true
-				} else {
-					validateBlueprints = true
-				}
+				fmt.Println("Validation completed successfully")
 			}
-		}
+			return nil
+		},
+	}
 
-		// Set up validation options
-		options := types.ValidationOptions{
-			Path:               absPath,
-			ValidateBlueprints: validateBlueprints,
-			ValidateProviders:  validateProviders,
-			Verbose:            validateVerbose,
-		}
-
-		// Run validation
-		results, err := validate.Validate(options, osInfo)
-		if err != nil {
-			return fmt.Errorf("error during validation: %w", err)
-		}
-
-		// Display results
-		if results.ErrorCount > 0 {
-			return fmt.Errorf("validation failed with %d errors and %d warnings", results.ErrorCount, results.WarningCount)
-		} else if results.WarningCount > 0 {
-			fmt.Printf("Validation completed with %d warnings\n", results.WarningCount)
-		} else {
-			fmt.Println("Validation completed successfully")
-		}
-		return nil
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(validateCmd)
-
-	// Add flags
 	validateCmd.Flags().BoolVar(&validateBlueprints, "blueprints", false, "Force validation as blueprint files")
 	validateCmd.Flags().BoolVar(&validateProviders, "providers", false, "Force validation as provider configurations")
 	validateCmd.Flags().BoolVar(&validateVerbose, "verbose", false, "Show detailed validation information")
+
+	return validateCmd
 }
