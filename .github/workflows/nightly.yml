@@ -17,6 +17,9 @@ on:
 
 permissions:
   contents: write
+  # Keyless cosign signing exchanges the job's OIDC token for a short-lived
+  # certificate; no signing key is stored anywhere.
+  id-token: write
 
 concurrency:
   # Merges can land faster than a build takes. Keep only the newest, so the
@@ -38,6 +41,14 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: ">=1.26.5"
+
+      # cosign signs checksums.txt, syft writes the SBOMs — both invoked by
+      # goreleaser (signs: / sboms: in .goreleaser.yaml). The nightly gets the
+      # same treatment as a release: people install it.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0
 
       # --snapshot builds without publishing, so the version comes from
       # .goreleaser.yaml's snapshot template and carries the commit sha.
@@ -84,7 +95,8 @@ jobs:
             find dist -maxdepth 1 -type f \
               \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.deb' \
                  -o -name '*.rpm' -o -name '*.apk' -o -name '*.pkg.tar.zst' \
-                 -o -name 'checksums.txt' \) | sort
+                 -o -name 'checksums.txt' -o -name 'checksums.txt.sig' \
+                 -o -name 'checksums.txt.pem' -o -name '*.sbom.json' \) | sort
           )
 
           if [ "${#artifacts[@]}" -eq 0 ]; then
