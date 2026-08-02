@@ -34,7 +34,7 @@ func DecodeBlueprint(data []byte, format, blueprintType string, treeVersion int)
 		return nil, version, err
 	}
 
-	if err := UnmarshalBlueprint(data, format, variant.Target()); err != nil {
+	if err := UnmarshalBlueprintStrict(data, format, variant.Target()); err != nil {
 		return nil, version, fmt.Errorf("reading %s blueprint as schema v%d: %w",
 			blueprintType, version, err)
 	}

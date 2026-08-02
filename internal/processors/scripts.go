@@ -181,6 +181,17 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	// Set the elevated flag
 	scriptCmd.Elevated = script.Elevated
 
+	// buildCommand checks Elevated first, so asking for both silently ignored one
+	// of them. Say which one won rather than letting the script run as the wrong
+	// account.
+	if script.AsUser != "" {
+		if script.Elevated {
+			log.Warnf("Script %s declares both elevated and asUser: running elevated and ignoring asUser %q", script.Name, script.AsUser)
+		} else {
+			scriptCmd.AsUser = script.AsUser
+		}
+	}
+
 	// Set the interactive flag using per-blueprint override or global default
 	scriptCmd.Interactive = helpers.ResolveInteractive(script.Interactive, initConfig.Variables.Flags.Interactive)
 

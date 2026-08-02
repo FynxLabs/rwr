@@ -55,6 +55,17 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 			log.Infof("[DRY-RUN] Would clone/update git repository: %s -> %s", repo.URL, repo.Path)
 			continue
 		}
+		// The action field was decoded and never read, so `action: pull` cloned and
+		// `action: banana` was accepted. Empty and "clone" keep the original
+		// behavior — clone when missing, pull when present.
+		switch repo.Action {
+		case "", types.GitActionClone, types.GitActionPull:
+		default:
+			recordFailure("git", repo.Name,
+				fmt.Errorf("unsupported action %q: use %q or %q", repo.Action, types.GitActionClone, types.GitActionPull))
+			continue
+		}
+
 		gitOpts := types.GitOptions{
 			URL:     repo.URL,
 			Private: repo.Private,
@@ -68,63 +79,38 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 			log.Infof("Git repository %s already exists at %s", repo.Name, gitOpts.Target)
 			err = helpers.CheckAndUpdateRemoteURL(gitOpts.Target, gitOpts.URL)
 			if err != nil {
-				log.Warnf("Error checking/updating remote URL for %s: %v", repo.Name, err)
-				// Continue with other repositories instead of returning
+				recordFailure("git", repo.Name, fmt.Errorf("checking/updating remote URL: %w", err))
 				continue
 			}
 
 			// Pull latest changes
 			err = helpers.HandleGitPull(gitOpts, initConfig)
 			if err != nil {
-				log.Warnf("Error pulling latest changes for %s: %v", repo.Name, err)
-				// Continue with other repositories instead of returning
+				recordFailure("git", repo.Name, fmt.Errorf("pulling latest changes: %w", err))
 				continue
 			}
 			log.Infof("Git repository %s updated successfully", repo.Name)
 		} else if os.IsNotExist(err) {
+			if repo.Action == types.GitActionPull {
+				recordFailure("git", repo.Name,
+					fmt.Errorf("action is %q but nothing is checked out at %s", types.GitActionPull, gitOpts.Target))
+				continue
+			}
 			// Repository doesn't exist, clone it
 			err = helpers.HandleGitClone(gitOpts, initConfig)
 			if err != nil {
-				log.Warnf("Error cloning Git repository %s: %v", repo.Name, err)
-				// Continue with other repositories instead of returning
+				recordFailure("git", repo.Name, fmt.Errorf("cloning: %w", err))
 				continue
 			}
 			log.Infof("Git repository %s cloned successfully", repo.Name)
 		} else {
 			// Some other error occurred
-			log.Warnf("Error checking Git repository %s: %v", repo.Name, err)
-			// Continue with other repositories instead of returning
+			recordFailure("git", repo.Name, fmt.Errorf("checking repository path: %w", err))
 			continue
 		}
 	}
 	return nil
 }
-
-// func cloneGitRepository(repo types.Git, initConfig *types.InitConfig) error {
-// 	gitOpts := types.GitOptions{
-// 		URL:     repo.URL,
-// 		Private: repo.Private,
-// 		Target:  repo.Path,
-// 		Branch:  repo.Branch,
-// 	}
-
-// 	_, err := os.Stat(gitOpts.Target)
-// 	if err == nil {
-// 		// Repository already exists
-// 		log.Infof("Git repository %s already exists at %s", repo.Name, gitOpts.Target)
-// 		return nil
-// 	} else if !os.IsNotExist(err) {
-// 		// Some other error occurred
-// 		return fmt.Errorf("error checking Git repository %s: %w", repo.Name, err)
-// 	}
-
-// 	err = helpers.HandleGitClone(gitOpts, initConfig)
-// 	if err != nil {
-// 		return fmt.Errorf("error cloning Git repository %s: %w", repo.Name, err)
-// 	}
-
-// 	return nil
-// }
 
 func processGitImports(items []types.Git, blueprintDir string, format string, treeVersion int) ([]types.Git, error) {
 	return helpers.ResolveImports(items, blueprintDir,

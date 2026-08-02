@@ -31,8 +31,15 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	}
 	defer os.RemoveAll(tempDir) //nolint:errcheck
 
+	// The init file decides the run order, the blueprint git remote and which
+	// credentials blueprints may read, so anyone who can rewrite it in flight owns
+	// the run. Over http:// that is anyone on the path between here and the server.
+	if strings.HasPrefix(initFilePath, "http://") {
+		return nil, fmt.Errorf("refusing to fetch the init file over http://: it is served in cleartext and drives everything rwr runs; use https:// instead (%s)", initFilePath)
+	}
+
 	// Handle URL or local file
-	if strings.HasPrefix(initFilePath, "http://") || strings.HasPrefix(initFilePath, "https://") {
+	if strings.HasPrefix(initFilePath, "https://") {
 		log.Debugf("Init File is a Web URL, Downloading %s", initFilePath)
 
 		fileExt = filepath.Ext(initFilePath)
@@ -124,9 +131,19 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		return nil, fmt.Errorf("error in %s: %w", initFilePath, err)
 	}
 
-	// Set additional config values
+	// The runtime halves of Variables (user, system, flags) are computed, not
+	// declared, so they are filled in here. userDefined is the one part that comes
+	// from the init file, so it has to survive: assigning the whole struct threw
+	// away everything the operator wrote under `variables:`.
+	declared := initConfig.Variables.UserDefined
 	initConfig.Variables = variables
 	initConfig.Variables.Flags = flags
+	if initConfig.Variables.UserDefined == nil {
+		initConfig.Variables.UserDefined = make(map[string]interface{})
+	}
+	for key, value := range declared {
+		initConfig.Variables.UserDefined[key] = value
+	}
 
 	// Set the blueprints location
 	setBlueprintsLocation(&initConfig, initFilePath)

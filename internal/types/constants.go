@@ -40,11 +40,20 @@ const (
 const (
 	ActionInstall = "install"
 	ActionRemove  = "remove"
-	ActionUpdate  = "update"
+	// There is deliberately no per-package "update" action. Validation accepted one
+	// and the processor never implemented it, so `action: update` passed
+	// `rwr validate` and then failed the run. It cannot be implemented on top of
+	// the providers' `update` commands either: they disagree about what update
+	// means — apt's refreshes the package lists, while pacman's is a full system
+	// upgrade — so appending a package name would do something different, and in
+	// pacman's case drastic, on each distribution.
 )
 
 // Service actions for service management operations.
 const (
+	GitActionClone = "clone"
+	GitActionPull  = "pull"
+
 	// ConfigurationActionSet is the only action the configuration tools implement.
 	ConfigurationActionSet = "set"
 

@@ -170,7 +170,7 @@ func validatePackagesWithVisited(packages []types.Package, file string, results 
 		}
 		validateRequired(pkg.Name, fmt.Sprintf("packages[%d].name", i), file, results, "Add name field to package")
 		validateEnum(pkg.Action, fmt.Sprintf("packages[%d].action", i),
-			[]string{types.ActionInstall, types.ActionRemove, types.ActionUpdate}, file, results)
+			[]string{types.ActionInstall, types.ActionRemove}, file, results)
 	}
 }
 
@@ -202,6 +202,10 @@ func validateGitWithVisited(repos []types.Git, file string, results *types.Valid
 		if repo.Import != "" {
 			validateImportWithVisited(repo.Import, fmt.Sprintf("git[%d]", i), blueprintDir, file, results, &types.GitData{}, visited)
 			continue
+		}
+		if repo.Action != "" {
+			validateEnum(repo.Action, fmt.Sprintf("git[%d].action", i),
+				[]string{types.GitActionClone, types.GitActionPull}, file, results)
 		}
 		validateRequired(repo.URL, fmt.Sprintf("git[%d].url", i), file, results, "Add URL field to git repository")
 	}

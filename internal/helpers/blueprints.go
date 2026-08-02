@@ -6,8 +6,11 @@
 package helpers
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"runtime"
@@ -22,25 +25,78 @@ import (
 // UnmarshalBlueprint parses blueprint data into the provided struct.
 // It supports YAML, JSON, and TOML formats specified by the format parameter.
 // Format accepts file extensions (".yaml", ".json", ".toml") or format names ("yaml", "json", "toml").
+//
+// Unknown keys are ignored. Use UnmarshalBlueprintStrict for blueprint content;
+// this lenient form exists for probes that deliberately read one key out of a
+// document, such as the schema_version declaration.
 func UnmarshalBlueprint(data []byte, format string, v interface{}) error {
+	return unmarshalBlueprint(data, format, v, false)
+}
+
+// UnmarshalBlueprintStrict parses blueprint data and rejects any key the target
+// struct does not define.
+//
+// A silently ignored key is a blueprint that looks applied and is not: `pacakges:`
+// yields an empty section, every processor finds nothing to do, and the run
+// reports success having changed nothing. A misspelled `profiles` is worse — the
+// entry loses its scoping and runs on every machine. Both failures are invisible
+// at any log level, so they surface as "rwr didn't do anything" long after the
+// typo was written.
+func UnmarshalBlueprintStrict(data []byte, format string, v interface{}) error {
+	return unmarshalBlueprint(data, format, v, true)
+}
+
+func unmarshalBlueprint(data []byte, format string, v interface{}, strict bool) error {
 	switch format {
 	case types.FormatExtYAML, types.FormatExtYAMLAlt, types.FormatYAML, types.FormatYAMLAlt:
 		log.Debug("Unmarshaling YAML")
-		err := yaml.Unmarshal(data, v)
-		if err != nil {
+		if !strict {
+			if err := yaml.Unmarshal(data, v); err != nil {
+				return fmt.Errorf("error unmarshaling YAML: %w", err)
+			}
+			break
+		}
+		dec := yaml.NewDecoder(bytes.NewReader(data))
+		dec.KnownFields(true)
+		if err := dec.Decode(v); err != nil {
+			// An empty document is a valid blueprint section with nothing in it.
+			if errors.Is(err, io.EOF) {
+				break
+			}
 			return fmt.Errorf("error unmarshaling YAML: %w", err)
 		}
 	case types.FormatExtJSON, types.FormatJSON:
 		log.Debug("Unmarshaling JSON")
-		err := json.Unmarshal(data, v)
-		if err != nil {
+		if !strict {
+			if err := json.Unmarshal(data, v); err != nil {
+				return fmt.Errorf("error unmarshaling JSON: %w", err)
+			}
+			break
+		}
+		dec := json.NewDecoder(bytes.NewReader(data))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(v); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
 			return fmt.Errorf("error unmarshaling JSON: %w", err)
 		}
 	case types.FormatExtTOML, types.FormatTOML:
 		log.Debug("Unmarshaling TOML")
-		err := toml.Unmarshal(data, v)
+		meta, err := toml.Decode(string(data), v)
 		if err != nil {
 			return fmt.Errorf("error unmarshaling TOML: %w", err)
+		}
+		// BurntSushi has no strict mode; it reports what it could not place
+		// instead, so the check has to happen here rather than in the decoder.
+		if strict {
+			if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+				keys := make([]string, 0, len(undecoded))
+				for _, key := range undecoded {
+					keys = append(keys, key.String())
+				}
+				return fmt.Errorf("error unmarshaling TOML: unknown key(s): %s", strings.Join(keys, ", "))
+			}
 		}
 	default:
 		return fmt.Errorf("unsupported blueprint format: %s", format)
