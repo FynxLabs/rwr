@@ -258,7 +258,15 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 	log.Debugf("Successfully read template file, content length: %d bytes", len(content))
 
 	log.Debug("Resolving template variables")
+	// Copying the struct still shares the UserDefined map, so writing template
+	// overrides into it mutated initConfig for every later template and
+	// blueprint — a per-template variable permanently clobbered a run-wide one
+	// of the same name. Merge into a fresh map instead.
 	mergedVariables := initConfig.Variables
+	mergedVariables.UserDefined = make(map[string]interface{}, len(initConfig.Variables.UserDefined)+len(template.Variables))
+	for k, v := range initConfig.Variables.UserDefined {
+		mergedVariables.UserDefined[k] = v
+	}
 	for k, v := range template.Variables {
 		mergedVariables.UserDefined[k] = v
 	}
