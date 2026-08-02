@@ -133,7 +133,11 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 		}()
 
 		log.Debug("Downloading Source File")
-		downloadPath := filepath.Join(tempDir, filepath.Base(file.Source))
+		name := file.Name
+		if name == "" {
+			name = filepath.Base(file.Source)
+		}
+		downloadPath := filepath.Join(tempDir, name)
 		err = system.DownloadFile(file.Source, downloadPath, false)
 		if err != nil {
 			return fmt.Errorf("error downloading file: %v", err)
@@ -141,7 +145,7 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 
 		log.Debug("Setting File Source and Name")
 		file.Source = filepath.Dir(downloadPath)
-		file.Name = filepath.Base(downloadPath)
+		file.Name = name
 	}
 
 	// If Content exists, we'll always use it and perform a create action
@@ -745,6 +749,11 @@ func determineSourceAndTargetPaths(file types.File, blueprintDir string) (string
 	} else if file.Content != "" {
 		log.Debug("File Content present, sourcePath will be empty")
 		sourcePath = ""
+	} else if filepath.IsAbs(file.Source) {
+		// An absolute source stands on its own: joining it under blueprintDir
+		// would silently produce <blueprintDir>/<abs path>, a path that never
+		// exists. URL downloads land here too, via their absolute temp dir.
+		sourcePath = filepath.Join(file.Source, file.Name)
 	} else {
 		sourcePath = filepath.Join(blueprintDir, file.Source, file.Name)
 	}

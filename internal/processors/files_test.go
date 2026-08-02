@@ -1,6 +1,8 @@
 package processors
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -797,5 +799,98 @@ files:
 	}
 	if got := info.Mode().Perm(); got != 0o600 {
 		t.Errorf("copied file mode = %04o, want 0600", got)
+	}
+}
+
+// A URL source downloads to an absolute temp path; the path resolution must
+// use that path as-is, not join it under the blueprint directory.
+func TestProcessFiles_URLSource(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("downloaded contents"))
+	}))
+	defer server.Close()
+
+	tempDir := t.TempDir()
+	blueprintDir := filepath.Join(tempDir, "blueprints")
+
+	config := &types.InitConfig{
+		Init: types.Init{
+			Location: blueprintDir,
+			Format:   "yaml",
+		},
+		Variables: types.Variables{
+			Flags: types.Flags{
+				Debug: true,
+			},
+		},
+	}
+
+	osInfo := &types.OSInfo{}
+
+	blueprintData := `
+files:
+  - name: "fetched.conf"
+    action: "copy"
+    source: "` + server.URL + `/remote.conf"
+    target: "` + tempDir + `/"
+`
+
+	if err := ProcessFiles([]byte(blueprintData), blueprintDir, "yaml", osInfo, config); err != nil {
+		t.Fatalf("ProcessFiles with URL source failed: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(tempDir, "fetched.conf"))
+	if err != nil {
+		t.Fatalf("expected downloaded file at target: %v", err)
+	}
+	if string(got) != "downloaded contents" {
+		t.Errorf("target content = %q, want %q", got, "downloaded contents")
+	}
+}
+
+// An absolute local source must not be joined under the blueprint directory.
+func TestProcessFiles_AbsoluteSource(t *testing.T) {
+	tempDir := t.TempDir()
+	blueprintDir := filepath.Join(tempDir, "blueprints")
+	srcDir := filepath.Join(tempDir, "srcdir")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "abs.conf"), []byte("abs contents"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	config := &types.InitConfig{
+		Init: types.Init{
+			Location: blueprintDir,
+			Format:   "yaml",
+		},
+		Variables: types.Variables{
+			Flags: types.Flags{
+				Debug: true,
+			},
+		},
+	}
+
+	osInfo := &types.OSInfo{}
+
+	blueprintData := `
+files:
+  - name: "abs.conf"
+    action: "copy"
+    source: "` + srcDir + `"
+    target: "` + tempDir + `/out/"
+`
+
+	if err := ProcessFiles([]byte(blueprintData), blueprintDir, "yaml", osInfo, config); err != nil {
+		t.Fatalf("ProcessFiles with absolute source failed: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(tempDir, "out", "abs.conf"))
+	if err != nil {
+		t.Fatalf("expected copied file at target: %v", err)
+	}
+	if string(got) != "abs contents" {
+		t.Errorf("target content = %q, want %q", got, "abs contents")
 	}
 }
