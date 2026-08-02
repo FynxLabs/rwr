@@ -58,6 +58,36 @@ jobs:
         continue-on-error: true
         run: go test -race -v ./...
 
+  # The build matrix above compiles natively: linux/amd64, darwin/arm64,
+  # windows/amd64. The release ships more targets than that — linux/arm 32-bit,
+  # linux/riscv64, linux/arm64, windows/arm64, darwin/amd64 — and none of them
+  # was compiled before merge, so a target-specific break (a constant that
+  # overflows 32-bit int, a missing syscall) surfaced only when the release ran.
+  # That is exactly how the linux_arm_7 math.MaxInt64 break reached master.
+  #
+  # goreleaser build compiles every target from .goreleaser.yaml itself, so this
+  # job can never drift from the release matrix. CGO is off; all targets
+  # cross-compile from one runner.
+  cross-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # goreleaser reads git state; a shallow clone breaks its version math.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ">=1.26.5"
+
+      - name: Build every release target
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: build --snapshot --clean
+
   # golangci-lint gates every commit locally, through mise (`mise run lint`) and
   # the hk pre-commit hook — but only for contributors who ran `mise install`.
   # Anyone else got no lint at all, and neither did any pull request.
