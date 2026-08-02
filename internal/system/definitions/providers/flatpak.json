@@ -1,0 +1,95 @@
+{
+  "commands": {
+    "clean": "uninstall --unused -y",
+    "install": "install -y",
+    "list": "list",
+    "remove": "uninstall -y",
+    "search": "search",
+    "update": "update -y"
+  },
+  "detection": {
+    "binary": "flatpak",
+    "distributions": [
+      "linux"
+    ],
+    "files": [
+      "/usr/bin/flatpak",
+      "~/.local/share/flatpak",
+      "/var/lib/flatpak"
+    ]
+  },
+  "elevated": false,
+  "name": "flatpak",
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "remote-add",
+            "--if-not-exists",
+            "{{ .Name }}",
+            "{{ .URL }}"
+          ],
+          "exec": "flatpak"
+        },
+        {
+          "action": "command",
+          "args": [
+            "remote-add",
+            "--if-not-exists",
+            "--user",
+            "{{ .Name }}",
+            "{{ .URL }}"
+          ],
+          "condition": "{{ .UserMode }}",
+          "exec": "flatpak"
+        },
+        {
+          "action": "command",
+          "args": [
+            "remote-add",
+            "--if-not-exists",
+            "--system",
+            "{{ .Name }}",
+            "{{ .URL }}"
+          ],
+          "condition": "{{ not .UserMode }}",
+          "exec": "flatpak"
+        }
+      ]
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "remote-delete",
+            "{{ .Name }}"
+          ],
+          "exec": "flatpak"
+        },
+        {
+          "action": "command",
+          "args": [
+            "remote-delete",
+            "--user",
+            "{{ .Name }}"
+          ],
+          "condition": "{{ .UserMode }}",
+          "exec": "flatpak"
+        },
+        {
+          "action": "command",
+          "args": [
+            "remote-delete",
+            "--system",
+            "{{ .Name }}"
+          ],
+          "condition": "{{ not .UserMode }}",
+          "exec": "flatpak"
+        }
+      ]
+    }
+  }
+}

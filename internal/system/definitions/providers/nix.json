@@ -1,0 +1,179 @@
+{
+  "commands": {
+    "clean": "nix-collect-garbage -d",
+    "install": "-i",
+    "list": "-q",
+    "remove": "-e",
+    "search": "nix search",
+    "update": "-u '*'"
+  },
+  "corePackages": {
+    "build-essentials": [
+      "gnumake",
+      "cmake",
+      "freetype",
+      "fontconfig",
+      "pkg-config",
+      "libxcb",
+      "libxkbcommon",
+      "python3"
+    ],
+    "openssl": [
+      "openssl",
+      "openssl.dev"
+    ]
+  },
+  "detection": {
+    "binary": "nix-env",
+    "distributions": [
+      "linux",
+      "darwin"
+    ],
+    "files": [
+      "/nix/store",
+      "~/.nix-profile",
+      "/etc/nix",
+      "/etc/nixos",
+      "~/.config/nixpkgs"
+    ]
+  },
+  "elevated": false,
+  "install": {
+    "steps": [
+      {
+        "action": "command",
+        "args": [
+          "-L",
+          "https://nixos.org/nix/install",
+          "--output",
+          "{{ .TempDir }}/nix-install"
+        ],
+        "exec": "curl"
+      },
+      {
+        "action": "command",
+        "args": [
+          "+x",
+          "{{ .TempDir }}/nix-install"
+        ],
+        "exec": "chmod"
+      },
+      {
+        "action": "command",
+        "args": [
+          "{{ .TempDir }}/nix-install"
+        ],
+        "exec": "sh"
+      },
+      {
+        "action": "command",
+        "args": [
+          "{{ .TempDir }}/nix-install"
+        ],
+        "exec": "rm"
+      },
+      {
+        "action": "command",
+        "args": [
+          "--add",
+          "https://nixos.org/channels/nixpkgs-unstable",
+          "nixpkgs"
+        ],
+        "exec": "nix-channel"
+      },
+      {
+        "action": "command",
+        "args": [
+          "--update"
+        ],
+        "exec": "nix-channel"
+      }
+    ]
+  },
+  "name": "nix",
+  "remove": {
+    "steps": [
+      {
+        "action": "command",
+        "args": [
+          "-L",
+          "https://nixos.org/nix/uninstall",
+          "--output",
+          "{{ .TempDir }}/nix-uninstall"
+        ],
+        "exec": "curl"
+      },
+      {
+        "action": "command",
+        "args": [
+          "+x",
+          "{{ .TempDir }}/nix-uninstall"
+        ],
+        "exec": "chmod"
+      },
+      {
+        "action": "command",
+        "args": [
+          "{{ .TempDir }}/nix-uninstall"
+        ],
+        "exec": "sh"
+      },
+      {
+        "action": "command",
+        "args": [
+          "{{ .TempDir }}/nix-uninstall"
+        ],
+        "exec": "rm"
+      }
+    ]
+  },
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "--add",
+            "{{ .URL }}",
+            "{{ .Name }}"
+          ],
+          "exec": "nix-channel"
+        },
+        {
+          "action": "command",
+          "args": [
+            "--update",
+            "{{ .Name }}"
+          ],
+          "exec": "nix-channel"
+        },
+        {
+          "action": "write",
+          "condition": "{{ .IsOverlay }}",
+          "content": "{\n  packageOverrides = pkgs: {\n    {{ .Name }} = import (builtins.fetchTarball {\n      url = \"{{ .URL }}\";\n      sha256 = \"{{ .SHA256 }}\";\n    }) {\n      inherit pkgs;\n    };\n  };\n}\n",
+          "dest": "{{ .ConfigPath }}/config.nix"
+        }
+      ]
+    },
+    "paths": {
+      "config": "/etc/nix/nix.conf"
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "--remove",
+            "{{ .Name }}"
+          ],
+          "exec": "nix-channel"
+        },
+        {
+          "action": "remove",
+          "condition": "{{ .IsOverlay }}",
+          "path": "{{ .ConfigPath }}/config.nix"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "commands": {
+    "clean": "cleanup -q",
+    "install": "install -fq",
+    "list": "list",
+    "remove": "uninstall -fq",
+    "search": "search",
+    "update": "update"
+  },
+  "corePackages": {
+    "build-essentials": [
+      "make",
+      "cmake",
+      "pkg-config",
+      "freetype",
+      "fontconfig"
+    ],
+    "openssl": [
+      "openssl"
+    ]
+  },
+  "detection": {
+    "binary": "brew",
+    "distributions": [
+      "darwin",
+      "linux"
+    ],
+    "files": [
+      "/usr/local/bin/brew",
+      "/opt/homebrew/bin/brew",
+      "/home/linuxbrew/.linuxbrew/bin/brew",
+      "~/.linuxbrew/bin/brew"
+    ]
+  },
+  "elevated": false,
+  "install": {
+    "steps": [
+      {
+        "action": "download",
+        "dest": "{{ .TempDir }}/brew-install.sh",
+        "source": "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+      },
+      {
+        "action": "command",
+        "args": [
+          "+x",
+          "{{ .TempDir }}/brew-install.sh"
+        ],
+        "exec": "chmod"
+      },
+      {
+        "action": "command",
+        "args": [
+          "{{ .TempDir }}/brew-install.sh"
+        ],
+        "exec": "bash"
+      },
+      {
+        "action": "command",
+        "args": [
+          "{{ .TempDir }}/brew-install.sh"
+        ],
+        "exec": "rm"
+      }
+    ]
+  },
+  "name": "brew",
+  "remove": {
+    "steps": [
+      {
+        "action": "download",
+        "dest": "{{ .TempDir }}/brew-uninstall.sh",
+        "source": "https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
+      },
+      {
+        "action": "command",
+        "args": [
+          "+x",
+          "{{ .TempDir }}/brew-uninstall.sh"
+        ],
+        "exec": "chmod"
+      },
+      {
+        "action": "command",
+        "args": [
+          "{{ .TempDir }}/brew-uninstall.sh"
+        ],
+        "exec": "bash"
+      },
+      {
+        "action": "command",
+        "args": [
+          "{{ .TempDir }}/brew-uninstall.sh"
+        ],
+        "exec": "rm"
+      }
+    ]
+  },
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "tap",
+            "{{ .URL }}"
+          ],
+          "exec": "brew"
+        }
+      ]
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "untap",
+            "{{ .URL }}"
+          ],
+          "exec": "brew"
+        }
+      ]
+    }
+  }
+}

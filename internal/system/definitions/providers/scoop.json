@@ -1,0 +1,122 @@
+{
+  "commands": {
+    "clean": "cache rm *",
+    "install": "install",
+    "list": "list",
+    "remove": "uninstall",
+    "search": "search",
+    "update": "update"
+  },
+  "corePackages": {
+    "build-essentials": [
+      "make",
+      "cmake",
+      "freetype",
+      "fontconfig"
+    ],
+    "openssl": [
+      "openssl"
+    ]
+  },
+  "detection": {
+    "binary": "scoop",
+    "distributions": [
+      "windows"
+    ],
+    "files": [
+      "%USERPROFILE%\\scoop\\shims\\scoop.cmd"
+    ]
+  },
+  "elevated": false,
+  "install": {
+    "steps": [
+      {
+        "action": "command",
+        "args": [
+          "-Command",
+          "Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force"
+        ],
+        "exec": "powershell"
+      },
+      {
+        "action": "command",
+        "args": [
+          "-Command",
+          "iex (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')"
+        ],
+        "exec": "powershell"
+      },
+      {
+        "action": "command",
+        "args": [
+          "bucket",
+          "add",
+          "main"
+        ],
+        "exec": "scoop"
+      },
+      {
+        "action": "command",
+        "args": [
+          "bucket",
+          "add",
+          "extras"
+        ],
+        "exec": "scoop"
+      }
+    ]
+  },
+  "name": "scoop",
+  "remove": {
+    "steps": [
+      {
+        "action": "command",
+        "args": [
+          "uninstall",
+          "scoop",
+          "-p"
+        ],
+        "exec": "scoop"
+      }
+    ]
+  },
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "bucket",
+            "add",
+            "{{ .Name }}",
+            "{{ .URL }}"
+          ],
+          "exec": "scoop"
+        },
+        {
+          "action": "command",
+          "args": [
+            "bucket",
+            "add",
+            "{{ .Name }}"
+          ],
+          "condition": "{{ not .URL }}",
+          "exec": "scoop"
+        }
+      ]
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "bucket",
+            "rm",
+            "{{ .Name }}"
+          ],
+          "exec": "scoop"
+        }
+      ]
+    }
+  }
+}

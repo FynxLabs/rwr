@@ -1,0 +1,48 @@
+{
+  "commands": {
+    "clean": "reset",
+    "install": "install",
+    "list": "list",
+    "remove": "uninstall",
+    "search": "search",
+    "update": "upgrade"
+  },
+  "detection": {
+    "binary": "mas",
+    "distributions": [
+      "darwin"
+    ],
+    "files": [
+      "/usr/local/bin/mas",
+      "/opt/homebrew/bin/mas"
+    ]
+  },
+  "elevated": false,
+  "name": "mas",
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "signin",
+            "--dialog"
+          ],
+          "condition": "{{ .RequiresAuth }}",
+          "exec": "mas"
+        }
+      ]
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "signout"
+          ],
+          "exec": "mas"
+        }
+      ]
+    }
+  }
+}

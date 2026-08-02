@@ -1,0 +1,89 @@
+{
+  "commands": {
+    "clean": "rmo -y",
+    "install": "it -y",
+    "list": "li",
+    "remove": "rm -y",
+    "search": "sr",
+    "update": "ur"
+  },
+  "detection": {
+    "binary": "eopkg",
+    "distributions": [
+      "solus"
+    ],
+    "files": [
+      "/usr/bin/eopkg",
+      "/var/lib/eopkg",
+      "/etc/eopkg"
+    ]
+  },
+  "elevated": true,
+  "name": "eopkg",
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "add-repo",
+            "{{ .Name }}",
+            "{{ .URL }}"
+          ],
+          "exec": "eopkg"
+        },
+        {
+          "action": "download",
+          "condition": "{{ .HasKey }}",
+          "dest": "{{ .KeyPath }}",
+          "source": "{{ .KeyURL }}"
+        },
+        {
+          "action": "command",
+          "args": [
+            "import",
+            "{{ .KeyPath }}"
+          ],
+          "condition": "{{ .HasKey }}",
+          "exec": "eopkg"
+        },
+        {
+          "action": "command",
+          "args": [
+            "update-repo",
+            "{{ .Name }}"
+          ],
+          "exec": "eopkg"
+        }
+      ]
+    },
+    "paths": {
+      "keys": "/etc/eopkg/keys"
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "remove-repo",
+            "{{ .Name }}"
+          ],
+          "exec": "eopkg"
+        },
+        {
+          "action": "remove",
+          "condition": "{{ .HasKey }}",
+          "path": "{{ .KeyPath }}"
+        },
+        {
+          "action": "command",
+          "args": [
+            "update-repo",
+            "--all"
+          ],
+          "exec": "eopkg"
+        }
+      ]
+    }
+  }
+}
