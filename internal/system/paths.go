@@ -23,14 +23,7 @@ func AddCommonPaths() string {
 
 	switch runtime.GOOS {
 	case "windows":
-		commonPaths = []string{
-			"%USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps", // Path for Windows Store apps
-			"%USERPROFILE%\\scoop\\shims",                           // Path for Scoop package manager
-			"%PROGRAMFILES%\\Git\\bin",                              // Path for Git
-			"%PROGRAMFILES%\\Go\\bin",                               // Path for Go
-			"%PROGRAMFILES%\\nodejs",                                // Path for Node.js
-			"%PROGRAMFILES%\\Rust\\.cargo\\bin",                     // Path for Cargo (Rust package manager)
-		}
+		commonPaths = windowsCommonPaths(os.Getenv)
 	default: // Unix-like systems (macOS, Linux)
 		currentUser, err := user.Current()
 		if err != nil {
@@ -86,6 +79,40 @@ func AddCommonPaths() string {
 	}
 
 	return strings.Join(paths, string(os.PathListSeparator))
+}
+
+// windowsCommonPaths builds the Windows tool directories, resolving each
+// %VARIABLE% through getenv and dropping entries whose variable is unset.
+//
+// The variables have to be expanded here: Go does not interpret cmd-style
+// "%USERPROFILE%\..." strings, so the literal paths never resolved and every
+// Windows entry was silently skipped — including scoop's shims directory, which
+// an elevated shell often does not inherit in PATH, so scoop went undetected.
+//
+// getenv is a parameter so the expansion can be tested off Windows.
+func windowsCommonPaths(getenv func(string) string) []string {
+	entries := []struct {
+		variable string
+		rest     string
+	}{
+		{"USERPROFILE", `AppData\Local\Microsoft\WindowsApps`}, // Windows Store apps
+		{"USERPROFILE", `scoop\shims`},                         // Scoop package manager
+		{"ProgramFiles", `Git\bin`},                            // Git
+		{"ProgramFiles", `Go\bin`},                             // Go
+		{"ProgramFiles", `nodejs`},                             // Node.js
+		{"USERPROFILE", `.cargo\bin`},                          // Cargo (Rust package manager)
+	}
+
+	paths := make([]string, 0, len(entries))
+	for _, e := range entries {
+		base := getenv(e.variable)
+		if base == "" {
+			log.Debugf("Skipping %s: %%%s%% is not set", e.rest, e.variable)
+			continue
+		}
+		paths = append(paths, filepath.Join(base, e.rest))
+	}
+	return paths
 }
 
 // SetPaths updates the PATH environment variable by appending common tool directories.

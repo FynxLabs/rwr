@@ -8,15 +8,6 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// GetPackageManager retrieves the configuration for a named package manager
-// from the available providers. Returns an error if the provider is not found.
-func GetPackageManager(pm string) (types.PackageManagerInfo, error) {
-	if prov, exists := GetProviderWithAlternatives(pm); exists {
-		return GetPackageManagerInfo(prov, prov.BinPath), nil
-	}
-	return types.PackageManagerInfo{}, fmt.Errorf("unsupported package manager: %s", pm)
-}
-
 // InstallOpenSSL ensures OpenSSL is installed on the system, using the
 // default package manager to install it if not already present.
 func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {

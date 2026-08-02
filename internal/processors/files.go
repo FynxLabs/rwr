@@ -14,6 +14,20 @@ import (
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
 
+const (
+	// A plain file with no declared mode is world-readable, as a config file
+	// normally is. A rendered template is not: the whole point of exposing
+	// credentials to templates is that one can render a .netrc or a gh config,
+	// and those must never exist world-readable, not even for an instant.
+	defaultFileMode     os.FileMode = 0644
+	defaultTemplateMode os.FileMode = 0600
+
+	defaultDirMode os.FileMode = 0755
+	// A file no one else may read is not much protected by a directory everyone
+	// may list, so a private file gets a private parent.
+	privateDirMode os.FileMode = 0700
+)
+
 // ProcessFiles handles file, directory, and template operations from blueprint data.
 // It supports create, delete, copy, append, symlink, and template rendering actions
 // with optional profile filtering and interactive diff-based overwrite prompts.
@@ -59,7 +73,7 @@ func resolveAndFilterFileData(blueprintData []byte, blueprintDir string, format 
 		return nil, nil, nil, fmt.Errorf("error processing directory imports: %w", err)
 	}
 
-	allTemplates, err := processFileImports(fileData.Templates, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
+	allTemplates, err := processTemplateImports(fileData.Templates, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error processing template imports: %w", err)
 	}
@@ -114,10 +128,7 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 		}
 		defer func() {
 			if removeErr := os.RemoveAll(tempDir); removeErr != nil {
-				log.Errorf("Error removing temporary directory: %v", removeErr)
-				if err == nil {
-					err = removeErr
-				}
+				log.Errorf("Error removing temporary directory %s: %v", tempDir, removeErr)
 			}
 		}()
 
@@ -157,28 +168,35 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 	switch file.Action {
 	case "copy":
 		log.Debugf("Copying file: %s to %s (elevated: %v)", sourcePath, targetPath, file.Elevated)
-		return system.CopyFile(sourcePath, targetPath, file.Elevated, osInfo)
+		if err := system.CopyFile(sourcePath, targetPath, file.Elevated, osInfo); err != nil {
+			return err
+		}
+		// A copy used to keep the source's mode and drop the declared one, so a
+		// blueprint copying a secret with mode: 0600 landed it world-readable and
+		// said nothing. The declared mode is the intent regardless of the action
+		// that put the file there.
+		return applyFileAttributes(targetPath, file)
 	case "move":
 		log.Debugf("Moving file: %s to %s", sourcePath, targetPath)
-		return moveFile(file, blueprintDir)
+		return moveFile(sourcePath, targetPath)
 	case "delete":
 		log.Debugf("Deleting file: %s", targetPath)
-		return deleteFile(file)
+		return deleteFile(targetPath)
 	case "create":
 		log.Debugf("Creating file: %s", targetPath)
-		return createFile(file)
+		return createFile(file, targetPath)
 	case "chmod":
 		log.Debugf("Changing file permissions: %s", targetPath)
-		return chmodFile(file)
+		return chmodFile(file, targetPath)
 	case "chown":
 		log.Debugf("Changing file owner: %s", targetPath)
-		return chownFile(file)
+		return chownFile(file, targetPath)
 	case "chgrp":
 		log.Debugf("Changing file group: %s", targetPath)
-		return chgrpFile(file)
+		return chgrpFile(file, targetPath)
 	case "symlink":
 		log.Debugf("Symlinking file: %s to %s", sourcePath, targetPath)
-		return symlinkFile(file, blueprintDir)
+		return symlinkFile(sourcePath, targetPath)
 	default:
 		return fmt.Errorf("unsupported action for file: %s", file.Action)
 	}
@@ -247,6 +265,11 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 	}
 	log.Debugf("Successfully resolved template, new content length: %d bytes", len(resolvedContent))
 
+	mode := template.Mode
+	if !mode.IsSet() {
+		mode = types.FileMode(defaultTemplateMode)
+	}
+
 	// Create a File struct from the Template
 	file := types.File{
 		Name:     template.Name,
@@ -255,7 +278,7 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 		Target:   template.Target,
 		Owner:    template.Owner,
 		Group:    template.Group,
-		Mode:     template.Mode,
+		Mode:     mode,
 		Elevated: template.Elevated,
 	}
 
@@ -316,16 +339,20 @@ func processDirectories(directories []types.Directory, blueprintDir string, init
 	return nil
 }
 
-func moveFile(file types.File, blueprintDir string) error {
-	source := filepath.Join(blueprintDir, file.Source, file.Name)
-	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
-
-	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
+func moveFile(source, target string) error {
+	if err := os.MkdirAll(filepath.Dir(target), defaultDirMode); err != nil {
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
 	if err := os.Rename(source, target); err != nil {
+		// A move already carried out on an earlier run has no source left. That is
+		// the state the blueprint asked for, so it is not a failure.
+		if os.IsNotExist(err) {
+			if _, statErr := os.Lstat(target); statErr == nil {
+				log.Infof("File already moved: %s", target)
+				return nil
+			}
+		}
 		return fmt.Errorf("error moving file: %w", err)
 	}
 
@@ -333,10 +360,12 @@ func moveFile(file types.File, blueprintDir string) error {
 	return nil
 }
 
-func deleteFile(file types.File) error {
-	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
-
+func deleteFile(target string) error {
 	if err := os.Remove(target); err != nil {
+		if os.IsNotExist(err) {
+			log.Debugf("File already absent: %s", target)
+			return nil
+		}
 		return fmt.Errorf("error deleting file: %w", err)
 	}
 
@@ -344,24 +373,29 @@ func deleteFile(file types.File) error {
 	return nil
 }
 
-func createFile(file types.File) error {
-
-	log.Debugf("Creating file type: %v", file)
-
-	targetPath := filepath.Join(system.ExpandPath(file.Target), file.Name)
-
+func createFile(file types.File, targetPath string) error {
 	log.Debugf("Creating file: %s", targetPath)
 
+	mode := defaultFileMode
+	if file.Mode.IsSet() {
+		mode = file.Mode.OSMode()
+	}
+
+	dirMode := defaultDirMode
+	if mode.Perm()&0o077 == 0 {
+		dirMode = privateDirMode
+	}
+
 	targetDir := filepath.Dir(targetPath)
-
 	log.Debugf("Creating file dir: %s", targetDir)
-
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
+	if err := os.MkdirAll(targetDir, dirMode); err != nil {
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
-	// Create the file
-	f, err := os.Create(targetPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	// The mode is carried into the open so the content is never readable by anyone
+	// the blueprint did not name — a later chmod would leave a window in which a
+	// rendered credential sat on disk world-readable.
+	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, mode) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}
@@ -372,13 +406,25 @@ func createFile(file types.File) error {
 		}
 	}(f)
 
-	// Write the content to the file
+	// O_CREATE's mode applies only to a file that did not exist. A rerun over a
+	// file left too permissive by an earlier one still has to narrow it, and has
+	// to do so before the content goes back in.
+	if info, err := f.Stat(); err == nil && info.Mode().Perm() != mode.Perm() {
+		if err := f.Chmod(mode); err != nil {
+			return fmt.Errorf("error setting file permissions: %v", err)
+		}
+	}
+
+	if err := f.Truncate(0); err != nil {
+		return fmt.Errorf("error truncating file: %v", err)
+	}
+
 	_, err = f.WriteString(file.Content)
 	if err != nil {
 		return fmt.Errorf("error writing content to file: %v", err)
 	}
 
-	log.Infof("File created and content written: %s", file.Target)
+	log.Infof("File created and content written: %s", targetPath)
 
 	if err := applyFileAttributes(targetPath, file); err != nil {
 		return fmt.Errorf("error applying file attributes: %v", err)
@@ -387,20 +433,22 @@ func createFile(file types.File) error {
 	return nil
 }
 
-func chmodFile(file types.File) error {
-	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
+func chmodFile(file types.File, target string) error {
+	// Without this the zero value would be applied literally, and a chmod entry
+	// that forgot its mode would take every permission off the file.
+	if !file.Mode.IsSet() {
+		return fmt.Errorf("no mode declared for chmod of %s: add mode: \"0644\" to the file entry", target)
+	}
 
-	if err := os.Chmod(target, os.FileMode(file.Mode)); err != nil { // #nosec G115 -- uid/gid parsed from operator config and range-checked by strconv
+	if err := os.Chmod(target, file.Mode.OSMode()); err != nil {
 		return fmt.Errorf("error changing file permissions: %w", err)
 	}
 
-	log.Infof("File permissions changed: %s (mode: %o)", target, file.Mode)
+	log.Infof("File permissions changed: %s (mode: %s)", target, file.Mode)
 	return nil
 }
 
-func chownFile(file types.File) error {
-	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
-
+func chownFile(file types.File, target string) error {
 	if file.Owner != "" {
 		uid, err := system.LookupUID(file.Owner)
 		if err != nil {
@@ -425,9 +473,7 @@ func chownFile(file types.File) error {
 	return nil
 }
 
-func chgrpFile(file types.File) error {
-	target := filepath.Join(system.ExpandPath(file.Target), file.Name)
-
+func chgrpFile(file types.File, target string) error {
 	if file.Group != "" {
 		gid, err := system.LookupGID(file.Group)
 		if err != nil {
@@ -442,15 +488,45 @@ func chgrpFile(file types.File) error {
 	return nil
 }
 
-func symlinkFile(file types.File, blueprintDir string) error {
-	source := filepath.Join(blueprintDir, file.Source, file.Name)
-	target := system.ExpandPath(file.Target)
+func symlinkFile(source, target string) error {
+	return ensureSymlink(source, target)
+}
+
+// ensureSymlink brings target to the state "a symlink pointing at source",
+// whatever it happens to be in now. Creating one unconditionally fails with
+// EEXIST on the second run of a blueprint, and one failing file aborts the
+// whole run.
+func ensureSymlink(source, target string) error {
+	info, err := os.Lstat(target)
+	switch {
+	case err == nil && info.Mode()&os.ModeSymlink == 0:
+		return fmt.Errorf("cannot create symlink at %s: a regular file or directory already exists there", target)
+	case err == nil:
+		existing, readErr := os.Readlink(target)
+		if readErr != nil {
+			return fmt.Errorf("error reading existing symlink %s: %w", target, readErr)
+		}
+		if existing == source {
+			log.Debugf("Symlink already present: %s -> %s", target, source)
+			return nil
+		}
+		log.Infof("Replacing symlink %s: pointed at %s, should point at %s", target, existing, source)
+		if err := os.Remove(target); err != nil {
+			return fmt.Errorf("error removing existing symlink %s: %w", target, err)
+		}
+	case !os.IsNotExist(err):
+		return fmt.Errorf("error inspecting symlink target %s: %w", target, err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(target), defaultDirMode); err != nil {
+		return fmt.Errorf("error creating symlink parent directory: %w", err)
+	}
 
 	if err := os.Symlink(source, target); err != nil {
 		return fmt.Errorf("error creating symlink: %w", err)
 	}
 
-	log.Infof("Symlink created: %s -> %s", source, target)
+	log.Infof("Symlink created: %s -> %s", target, source)
 	return nil
 }
 
@@ -458,7 +534,7 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
+	if err := os.MkdirAll(target, directoryMode(dir)); err != nil {
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -479,11 +555,17 @@ func moveDirectory(dir types.Directory, blueprintDir string) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
 	targetDir := filepath.Dir(target)
-	if err := os.MkdirAll(targetDir, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
+	if err := os.MkdirAll(targetDir, defaultDirMode); err != nil {
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
 	if err := os.Rename(source, target); err != nil {
+		if os.IsNotExist(err) {
+			if _, statErr := os.Lstat(target); statErr == nil {
+				log.Infof("Directory already moved: %s", target)
+				return nil
+			}
+		}
 		return fmt.Errorf("error moving directory: %w", err)
 	}
 
@@ -505,7 +587,7 @@ func deleteDirectory(dir types.Directory) error {
 func createDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, os.ModePerm); err != nil { // #nosec G301 -- TODO(PR8): blueprint-target directory; create with the requested mode
+	if err := os.MkdirAll(target, directoryMode(dir)); err != nil {
 		return fmt.Errorf("error creating directory: %w", err)
 	}
 
@@ -520,11 +602,15 @@ func createDirectory(dir types.Directory) error {
 func chmodDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil { // #nosec G115 -- uid/gid parsed from operator config and range-checked by strconv
+	if !dir.Mode.IsSet() {
+		return fmt.Errorf("no mode declared for chmod of %s: add mode: \"0755\" to the directory entry", target)
+	}
+
+	if err := os.Chmod(target, dir.Mode.OSMode()); err != nil {
 		return fmt.Errorf("error changing directory permissions: %w", err)
 	}
 
-	log.Infof("Directory permissions changed: %s (mode: %o)", target, dir.Mode)
+	log.Infof("Directory permissions changed: %s (mode: %s)", target, dir.Mode)
 	return nil
 }
 
@@ -576,23 +662,25 @@ func symlinkDirectory(dir types.Directory, blueprintDir string) error {
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := system.ExpandPath(dir.Target)
 
-	if err := os.Symlink(source, target); err != nil {
-		return fmt.Errorf("error creating symlink: %w", err)
-	}
+	return ensureSymlink(source, target)
+}
 
-	log.Infof("Symlink created: %s -> %s", source, target)
-	return nil
+func directoryMode(dir types.Directory) os.FileMode {
+	if dir.Mode.IsSet() {
+		return dir.Mode.OSMode()
+	}
+	return defaultDirMode
 }
 
 func applyFileAttributes(targetPath string, file types.File) error {
-	if file.Mode != 0 {
-		if err := os.Chmod(targetPath, os.FileMode(file.Mode)); err != nil { // #nosec G115 -- uid/gid parsed from operator config and range-checked by strconv
+	if file.Mode.IsSet() {
+		if err := os.Chmod(targetPath, file.Mode.OSMode()); err != nil {
 			return fmt.Errorf("error changing file permissions: %v", err)
 		}
 	}
 
 	if file.Owner != "" || file.Group != "" {
-		if err := chownFile(file); err != nil {
+		if err := chownFile(file, targetPath); err != nil {
 			return fmt.Errorf("error changing file owner/group: %v", err)
 		}
 	}
@@ -603,8 +691,8 @@ func applyFileAttributes(targetPath string, file types.File) error {
 func applyDirectoryAttributes(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if dir.Mode != 0 {
-		if err := os.Chmod(target, os.FileMode(dir.Mode)); err != nil { // #nosec G115 -- uid/gid parsed from operator config and range-checked by strconv
+	if dir.Mode.IsSet() {
+		if err := os.Chmod(target, dir.Mode.OSMode()); err != nil {
 			return fmt.Errorf("error changing directory permissions: %w", err)
 		}
 	}
@@ -623,8 +711,33 @@ func isURL(str string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
+// resolveTargetPath resolves a file entry's target to the one path every action
+// operates on. A target ending in a separator names the directory the file goes
+// into; anything else is the file's own path, the rename form documented in
+// docs/blueprints/files.md.
+//
+// The trailing separator is read off the blueprint's own value: ExpandPath sends
+// the "~/" form through filepath.Join, which drops it.
+//
+// A target that is already a directory takes the file inside it even without the
+// separator, because the alternative is truncating a directory, which no
+// blueprint can have meant.
+func resolveTargetPath(target, name string) string {
+	expanded := system.ExpandPath(target)
+
+	if strings.HasSuffix(target, "/") || strings.HasSuffix(target, string(os.PathSeparator)) {
+		return filepath.Join(expanded, name)
+	}
+
+	if info, err := os.Stat(expanded); err == nil && info.IsDir() {
+		return filepath.Join(expanded, name)
+	}
+
+	return filepath.Clean(expanded)
+}
+
 func determineSourceAndTargetPaths(file types.File, blueprintDir string) (string, string, error) {
-	var sourcePath, targetPath string
+	var sourcePath string
 
 	// Determine source path
 	if isURL(file.Source) {
@@ -636,15 +749,7 @@ func determineSourceAndTargetPaths(file types.File, blueprintDir string) (string
 		sourcePath = filepath.Join(blueprintDir, file.Source, file.Name)
 	}
 
-	// Determine target path
-	targetPath = system.ExpandPath(file.Target)
-	if !strings.HasSuffix(targetPath, string(os.PathSeparator)) {
-		targetPath = filepath.Join(filepath.Dir(targetPath), filepath.Base(targetPath))
-	} else {
-		targetPath = filepath.Join(targetPath, file.Name)
-	}
-
-	return sourcePath, targetPath, nil
+	return sourcePath, resolveTargetPath(file.Target, file.Name), nil
 }
 
 func processFileImports(items []types.File, blueprintDir string, format string, treeVersion int) ([]types.File, error) {
@@ -656,6 +761,20 @@ func processFileImports(items []types.File, blueprintDir string, format string, 
 				return nil, err
 			}
 			return d.Files, nil
+		}, format)
+}
+
+// processTemplateImports takes the imported file's `templates:` list. Taking its
+// `files:` list instead loses every imported template without an error.
+func processTemplateImports(items []types.File, blueprintDir string, format string, treeVersion int) ([]types.File, error) {
+	return helpers.ResolveImports(items, blueprintDir,
+		func(item types.File) string { return item.Import },
+		func(data []byte, fileFormat string) ([]types.File, error) {
+			var d types.FileData
+			if err := helpers.DecodeBlueprintInto(data, fileFormat, types.BlueprintTypeFiles, treeVersion, &d); err != nil {
+				return nil, err
+			}
+			return d.Templates, nil
 		}, format)
 }
 
