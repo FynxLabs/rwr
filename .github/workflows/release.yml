@@ -1,9 +1,12 @@
 name: RWR - Release
 
+# Only version tags cut a release. "*" meant any tag — a typo, an experiment,
+# a manually pushed `nightly` — published to GitHub, the Homebrew tap and the
+# naur dispatch. Release tags here have always been v-prefixed (v0.5.1).
 on:
   push:
     tags:
-      - "*"
+      - "v*"
 permissions:
   contents: write
 
@@ -15,10 +18,13 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      # The same constraint go.yml tests with (and mise.toml pins locally for
+      # GO-2026-5856). `stable` here meant release binaries could be built by a
+      # toolchain no CI run had ever tested.
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version: ">=1.26.5"
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
