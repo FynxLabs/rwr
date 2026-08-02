@@ -172,7 +172,10 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				}
 
 				// One event instead of ten near-identical log lines; the
-				// LogReporter renders exactly what those lines printed.
+				// LogReporter renders exactly what those lines printed. The
+				// processor stamp is what attributes every captured log line
+				// without touching the ten processor files.
+				reporting.SetCurrentProcessor(processor)
 				reporting.Emit(reporting.ProcStarted{Processor: processor, Files: len(files)})
 
 				switch processor {
