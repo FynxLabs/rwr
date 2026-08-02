@@ -1,10 +1,2 @@
-# Review routing for pull requests. Later rules win over earlier ones.
-
-# Default owner for everything in the repository.
+# Default owner for every pull request.
 * @TheFynx
-
-# Release pipeline and CI changes affect what ships and how it is signed.
-/.github/ @TheFynx
-/.goreleaser.yaml @TheFynx
-/install.sh @TheFynx
-/install.ps1 @TheFynx
