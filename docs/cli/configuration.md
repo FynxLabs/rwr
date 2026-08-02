@@ -40,7 +40,7 @@ The `rwr` section contains general settings for the RWR tool.
 
 | Option | Description |
 |--------|-------------|
-| `configdir` | The directory that `rwr config --create` writes `config.yaml` to, and the directory that holds the `bootstrap` marker file. The default is `$HOME/.config/rwr`. It does **not** change where RWR reads `config.yaml` from — use `--config` for that |
+| `configdir` | The config directory: where `config.yaml` is looked up, where `rwr config --create` writes it, and where the `bootstrap` marker lives. The default is `$HOME/.config/rwr`. Because it decides where the config file is, it only takes effect from the environment (`RWR_RWR_CONFIGDIR`) — a config file cannot name its own directory. `--config` overrides it |
 
 > [!NOTE]
 > There is no working `rwr.skipVersionCheck` option. The key is written by
@@ -113,7 +113,7 @@ not turned into an underscore.
 | `log.level` | `RWR_LOG_LEVEL` |
 | `repository.gh_api_token` | `RWR_REPOSITORY_GH_API_TOKEN` |
 | `repository.ssh_private_key` | `RWR_REPOSITORY_SSH_PRIVATE_KEY` |
-| `repository.init-file` | `RWR_REPOSITORY_INIT-FILE` |
+| `repository.init-file` | `RWR_REPOSITORY_INIT_FILE` |
 | `rwr.configdir` | `RWR_RWR_CONFIGDIR` |
 
 ```bash
