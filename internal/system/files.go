@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -172,6 +173,26 @@ func ValidateDownloadURL(raw string) error {
 	}
 }
 
+// DownloadClient is the HTTP client behind every content download rwr performs.
+// Two properties the default client lacks:
+//
+//   - every redirect hop is re-validated with ValidateDownloadURL. Validating
+//     only the initial URL is worthless the moment the server answers with a
+//     302 to plain http — the default client follows it silently and the
+//     content is once again substitutable in transit.
+//   - a timeout, so a stalled mirror fails the step instead of hanging the
+//     whole run forever. Generous, because font archives run to hundreds of MB
+//     on slow links; it exists to bound a hang, not to race the download.
+var DownloadClient = &http.Client{
+	Timeout: 15 * time.Minute,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return ValidateDownloadURL(req.URL.String())
+	},
+}
+
 // verifyFileSHA256 compares the file's digest against the expected hex string.
 func verifyFileSHA256(path, wantHex string) error {
 	f, err := os.Open(path) // #nosec G304 -- staging file created by this package
@@ -197,7 +218,7 @@ func downloadFileContent(url, filePath string) error {
 	}
 
 	// Send an HTTP GET request to the URL
-	response, err := http.Get(url) // #nosec G107 -- scheme restricted by ValidateDownloadURL above
+	response, err := DownloadClient.Get(url) // #nosec G107 -- scheme restricted by ValidateDownloadURL above and per redirect hop by the client
 	if err != nil {
 		return fmt.Errorf("error downloading file: %v", err)
 	}

@@ -472,6 +472,36 @@ RWR SHALL enforce the schema version of every file in the chain.
   `schema_version`
 - **THEN** the run stops and no command is issued
 
+### Requirement: Downloads are validated on every hop, bounded, and pinnable
+
+Everything RWR downloads — package-signing keys, fonts, file sources, the init
+file — is installed with the operator's privileges, so a download URL SHALL be
+refused unless it is https (plain http is allowed only for loopback hosts), and
+that check SHALL be re-applied to **every redirect hop**, not only the initial
+URL. Validating only the first URL is worthless the moment a server answers
+with a 302 to plain http.
+
+Downloads SHALL time out rather than hang a run indefinitely.
+
+Where a step or blueprint entry declares a `sha256` for downloaded content, RWR
+SHALL verify the download against it before the content is moved into place,
+and SHALL discard the download on a mismatch. This applies to repository action
+steps and package-manager install/remove steps alike.
+
+#### Scenario: A redirect to plain http
+
+- **WHEN** an https download URL answers with a redirect to a plain-http,
+  non-loopback URL
+- **THEN** the download is refused before any request is made to the redirect
+  target
+
+#### Scenario: An install step with a wrong digest
+
+- **WHEN** a provider's install step declares `sha256` and the downloaded
+  content does not match it
+- **THEN** the step fails, the staged download is discarded, and nothing is
+  written to the destination
+
 ## Known Gaps
 
 - **The failure ledger covers four processors.** `packages`, `git`, `ssh_keys` and
