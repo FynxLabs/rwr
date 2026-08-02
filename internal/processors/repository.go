@@ -134,7 +134,7 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 				log.Infof("[DRY-RUN] Would download file: %s -> %s", step.Source, step.Dest)
 				continue
 			}
-			if err := system.DownloadFile(step.Source, step.Dest, provider.Elevated); err != nil {
+			if err := system.DownloadFileWithChecksum(step.Source, step.Dest, provider.Elevated, step.Sha256); err != nil {
 				return fmt.Errorf("error downloading file: %w", err)
 			}
 			continue
@@ -539,7 +539,7 @@ func withinAny(path string, boundaries []string) bool {
 func renderActionStep(step types.ActionStep, data map[string]any) (types.ActionStep, error) {
 	rendered := step
 
-	for _, field := range []*string{&rendered.Source, &rendered.Dest, &rendered.Exec, &rendered.Content, &rendered.Path, &rendered.Match, &rendered.Section} {
+	for _, field := range []*string{&rendered.Source, &rendered.Dest, &rendered.Exec, &rendered.Content, &rendered.Path, &rendered.Match, &rendered.Section, &rendered.Sha256} {
 		value, err := renderStepField(*field, data)
 		if err != nil {
 			return types.ActionStep{}, err

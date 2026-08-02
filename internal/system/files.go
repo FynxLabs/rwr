@@ -1,10 +1,14 @@
 package system
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -132,9 +136,59 @@ func removeStaged(name string) {
 	}
 }
 
+// ValidateDownloadURL refuses URLs rwr must not fetch from: everything it
+// downloads (package-signing keys included) is installed with the operator's
+// privileges, and a plain-http fetch lets anyone on the path substitute the
+// content. https is required; http is allowed only for loopback hosts, so
+// local mirrors and tests keep working.
+func ValidateDownloadURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid download URL %q: %v", raw, err)
+	}
+	switch u.Scheme {
+	case "https":
+		return nil
+	case "http":
+		host := u.Hostname()
+		if host == "localhost" {
+			return nil
+		}
+		if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+			return nil
+		}
+		return fmt.Errorf("refusing to download %s over plain http: the content cannot be trusted in transit; use https", raw)
+	default:
+		return fmt.Errorf("refusing to download %s: unsupported scheme %q", raw, u.Scheme)
+	}
+}
+
+// verifyFileSHA256 compares the file's digest against the expected hex string.
+func verifyFileSHA256(path, wantHex string) error {
+	f, err := os.Open(path) // #nosec G304 -- staging file created by this package
+	if err != nil {
+		return fmt.Errorf("error opening downloaded file for verification: %v", err)
+	}
+	defer f.Close() //nolint:errcheck
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("error hashing downloaded file: %v", err)
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	if !strings.EqualFold(got, strings.TrimSpace(wantHex)) {
+		return fmt.Errorf("sha256 mismatch: expected %s, got %s", wantHex, got)
+	}
+	return nil
+}
+
 func downloadFileContent(url, filePath string) error {
+	if err := ValidateDownloadURL(url); err != nil {
+		return err
+	}
+
 	// Send an HTTP GET request to the URL
-	response, err := http.Get(url) // #nosec G107 -- URL is operator-supplied (init/blueprint source); scheme restricted in PR6
+	response, err := http.Get(url) // #nosec G107 -- scheme restricted by ValidateDownloadURL above
 	if err != nil {
 		return fmt.Errorf("error downloading file: %v", err)
 	}
@@ -187,6 +241,13 @@ func moveFileWithElevatedPrivileges(source, target string) error {
 // DownloadFile downloads a file from the given URL to filePath.
 // If elevated is true, the file is moved to the target using sudo.
 func DownloadFile(url, filePath string, elevated bool) error {
+	return DownloadFileWithChecksum(url, filePath, elevated, "")
+}
+
+// DownloadFileWithChecksum is DownloadFile with an optional expected sha256
+// hex digest: when non-empty, the download is verified before it is moved
+// into place and discarded on a mismatch.
+func DownloadFileWithChecksum(url, filePath string, elevated bool, sha256Hex string) error {
 
 	log.Debugf("Downloading file from %s to %s", url, filePath)
 	mode := targetMode(filePath)
@@ -203,6 +264,13 @@ func DownloadFile(url, filePath string, elevated bool) error {
 	if err := downloadFileContent(url, tempFile.Name()); err != nil {
 		removeStaged(tempFile.Name())
 		return err
+	}
+
+	if sha256Hex != "" {
+		if err := verifyFileSHA256(tempFile.Name(), sha256Hex); err != nil {
+			removeStaged(tempFile.Name())
+			return fmt.Errorf("refusing to install %s: %w", url, err)
+		}
 	}
 
 	return moveIntoPlace(tempFile.Name(), filePath, mode, elevated)
