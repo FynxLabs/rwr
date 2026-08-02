@@ -1,0 +1,10 @@
+# Makes this tree reachable by `rwr validate`: the walker needs an init file at
+# or above the blueprints it checks. Arch/ is the tree a machine would run;
+# Common/ holds the shared files Arch imports — validated here both through the
+# import resolution and as blueprints in their own right.
+blueprints:
+  format: yaml
+  schema_version: 1
+  location: "."
+  order:
+    - packages

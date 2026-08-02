@@ -105,7 +105,7 @@ func GetAvailableProviders() map[string]*types.Provider {
 
 	log.Debugf("GetAvailableProviders: Found %d available providers: %v", len(available), getAvailableProviderNames(available))
 	if len(available) == 0 {
-		log.Errorf("GetAvailableProviders: No package managers detected! Current system: %s/%s", currentOS, currentDistro)
+		log.Errorf("GetAvailableProviders: No package managers detected! Current system: %s/%s (run with --debug for the per-provider detection summary)", currentOS, currentDistro)
 		logDetectionSummary(currentOS, currentDistro)
 	}
 
@@ -482,35 +482,37 @@ func getAvailableProviderNames(available map[string]*types.Provider) []string {
 	return names
 }
 
-// logDetectionSummary provides a detailed summary of why provider detection failed.
+// logDetectionSummary details why provider detection failed. Debug level: the
+// one-line "No package managers detected" above is the error; ~9 lines per
+// provider at ERROR drowned everything else in red.
 func logDetectionSummary(currentOS, currentDistro string) {
-	log.Errorf("=== PROVIDER DETECTION SUMMARY ===")
-	log.Errorf("System: %s", currentOS)
+	log.Debugf("=== PROVIDER DETECTION SUMMARY ===")
+	log.Debugf("System: %s", currentOS)
 	if currentOS == "linux" {
-		log.Errorf("Distribution: %s", currentDistro)
+		log.Debugf("Distribution: %s", currentDistro)
 	}
-	log.Errorf("Total providers loaded: %d", len(providers))
+	log.Debugf("Total providers loaded: %d", len(providers))
 
 	for name, provider := range providers {
-		log.Errorf("Provider: %s", name)
-		log.Errorf("  Binary: %s", provider.Detection.Binary)
-		log.Errorf("  Supported distributions: %v", provider.Detection.Distributions)
-		log.Errorf("  Required files: %v", provider.Detection.Files)
+		log.Debugf("Provider: %s", name)
+		log.Debugf("  Binary: %s", provider.Detection.Binary)
+		log.Debugf("  Supported distributions: %v", provider.Detection.Distributions)
+		log.Debugf("  Required files: %v", provider.Detection.Files)
 
 		compatible := supportsSystem(provider, currentOS, currentDistro)
-		log.Errorf("  System compatible: %v", compatible)
+		log.Debugf("  System compatible: %v", compatible)
 
 		if compatible {
 			tool := FindTool(provider.Detection.Binary)
-			log.Errorf("  Binary found: %v", tool.Exists)
+			log.Debugf("  Binary found: %v", tool.Exists)
 			if tool.Exists {
-				log.Errorf("  Binary path: %s", tool.Bin)
+				log.Debugf("  Binary path: %s", tool.Bin)
 			}
-			log.Errorf("  All files exist: %v", areRequiredFilesPresent(provider))
+			log.Debugf("  All files exist: %v", areRequiredFilesPresent(provider))
 		}
-		log.Errorf("  ---")
+		log.Debugf("  ---")
 	}
-	log.Errorf("=== END DETECTION SUMMARY ===")
+	log.Debugf("=== END DETECTION SUMMARY ===")
 }
 
 // SetProvidersForTest replaces the loaded provider set and returns a function

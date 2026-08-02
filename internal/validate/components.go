@@ -94,6 +94,27 @@ func ValidateFiles(files []types.File, file string, results *types.ValidationRes
 	}
 }
 
+// ValidateDirectories checks directory entries the same way ValidateFiles
+// checks files: they share the action vocabulary and the mode rules, and the
+// files processor dispatches both — validating only two of the three kinds a
+// files blueprint carries let a bad directory mode through to run time.
+func ValidateDirectories(directories []types.Directory, file string, results *types.ValidationResults) {
+	blueprintDir := filepath.Dir(file)
+	for i, d := range directories {
+		if validateImport(d.Import, fmt.Sprintf("directories[%d]", i), blueprintDir, file, results, &types.FileData{}) {
+			continue
+		}
+
+		validateRequired(d.Target, fmt.Sprintf("directories[%d].target", i), file, results, "Add target field to directory")
+
+		validateEnum(d.Action, fmt.Sprintf("directories[%d].action", i), types.FileActions, file, results)
+
+		validateFileMode(d.Mode, d.Action, fmt.Sprintf("directories[%d]", i), file, results)
+
+		validatePath(d.Target, fmt.Sprintf("directory '%s'", d.Target), file, results)
+	}
+}
+
 // modeCarryingActions are the actions that apply a declared mode. Every other
 // action ignores it: a symlink has no mode of its own, and delete, move, chown
 // and chgrp do not touch it.

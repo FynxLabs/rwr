@@ -8,7 +8,7 @@ Add an `import` field to any blueprint entry to include definitions from another
 
 ```yaml
 packages:
-  - import: ../../Common/packages/arch/base-aur.yaml
+  - import: ../../Common/packages/base-aur-arch.yaml
   - names:
       - custom-package
     action: install
@@ -36,7 +36,7 @@ examples/imports/
 
 ## Usage Example
 
-### Shared Configuration (Common/packages/arch/base-aur.yaml)
+### Shared Configuration (Common/packages/base-aur-arch.yaml)
 
 ```yaml
 packages:
@@ -54,7 +54,7 @@ packages:
 ```yaml
 packages:
   # Import shared packages
-  - import: ../../Common/packages/arch/base-aur.yaml
+  - import: ../../Common/packages/base-aur-arch.yaml
 
   # Add system-specific packages
   - names:
