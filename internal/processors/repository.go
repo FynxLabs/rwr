@@ -58,149 +58,162 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 		return fmt.Errorf("error initializing providers: %w", err)
 	}
 
-	// Process each repository
+	// One repository failing does not stop the rest: the failure goes to the
+	// ledger, which puts it in the run's exit code, and processing continues.
 	for _, repo := range repositories {
 		log.Infof("Processing repository %s", repo.Name)
 		log.Debugf("Repository definition: %s", repo.LogString())
 
-		// Get provider for this repository
-		provider, exists := system.GetProvider(repo.PackageManager)
-		if !exists {
-			return fmt.Errorf("unsupported package manager: %s", repo.PackageManager)
-		}
-
-		// Get repository config
-		repoConfig := provider.Repository
-
-		// Execute repository action steps
-		var steps []types.ActionStep
-		switch repo.Action {
-		case "add":
-			steps = repoConfig.Add.Steps
-		case "remove":
-			steps = repoConfig.Remove.Steps
-		default:
-			return fmt.Errorf("unsupported repository action: %s", repo.Action)
-		}
-
-		// Execute each step
-		data := repositoryStepData(repo, repoConfig.Paths, provider)
-		for _, rawStep := range steps {
-			// The condition is evaluated before the rest of the step is
-			// rendered: a skipped step is allowed to reference data this
-			// repository does not carry, which is the whole reason it is
-			// conditional.
-			run, err := stepCondition(rawStep.Condition, data)
-			if err != nil {
-				return fmt.Errorf("error evaluating condition for %s repository step of %s: %w", repo.Action, repo.Name, err)
-			}
-			if !run {
-				log.Debugf("Skipping %s step: condition %q is not met", rawStep.Action, rawStep.Condition)
-				continue
-			}
-
-			step, err := renderActionStep(rawStep, data)
-			if err != nil {
-				return fmt.Errorf("error rendering %s repository step for %s: %w", repo.Action, repo.Name, err)
-			}
-
-			var cmd types.Command
-
-			switch step.Action {
-			case "exec", "command": // Support both "exec" and "command" action types
-				cmd = types.Command{
-					Exec:        step.Exec,
-					Args:        step.Args,
-					Elevated:    provider.Elevated,
-					Interactive: helpers.ResolveInteractive(repo.Interactive, initConfig.Variables.Flags.Interactive),
-					// chocolatey's --password and cargo's login token are accepted
-					// only as arguments, so they cannot move to stdin. They can at
-					// least be kept out of the debug and dry-run log lines, which
-					// print the full argv.
-					Secrets: repo.SecretValues(),
-				}
-			case "download":
-				if system.IsDryRun() {
-					log.Infof("[DRY-RUN] Would download file: %s -> %s", step.Source, step.Dest)
-					continue
-				}
-				if err := system.DownloadFile(step.Source, step.Dest, provider.Elevated); err != nil {
-					return fmt.Errorf("error downloading file: %w", err)
-				}
-				continue
-			case "write":
-				if system.IsDryRun() {
-					log.Infof("[DRY-RUN] Would write file: %s", step.Dest)
-					continue
-				}
-				if err := system.WriteToFile(step.Dest, step.Content, provider.Elevated); err != nil {
-					return fmt.Errorf("error writing file: %w", err)
-				}
-				continue
-			case "append":
-				path, err := repositoryFilePath(step.Path, repoConfig.Paths)
-				if err != nil {
-					return fmt.Errorf("error appending to repository file for %s: %w", repo.Name, err)
-				}
-				if system.IsDryRun() {
-					log.Infof("[DRY-RUN] Would append to file: %s", path)
-					continue
-				}
-				if err := system.AppendToFile(path, step.Content, provider.Elevated); err != nil {
-					return fmt.Errorf("error appending to %s: %w", path, err)
-				}
-				continue
-			case "remove_line":
-				path, err := repositoryFilePath(step.Path, repoConfig.Paths)
-				if err != nil {
-					return fmt.Errorf("error removing line from repository file for %s: %w", repo.Name, err)
-				}
-				if system.IsDryRun() {
-					log.Infof("[DRY-RUN] Would remove lines naming %s from file: %s", step.Match, path)
-					continue
-				}
-				if err := system.RemoveLineFromFile(path, step.Match, provider.Elevated); err != nil {
-					return fmt.Errorf("error removing line from %s: %w", path, err)
-				}
-				continue
-			case "remove_section":
-				path, err := repositoryFilePath(step.Path, repoConfig.Paths)
-				if err != nil {
-					return fmt.Errorf("error removing section from repository file for %s: %w", repo.Name, err)
-				}
-				if system.IsDryRun() {
-					log.Infof("[DRY-RUN] Would remove section [%s] from file: %s", step.Section, path)
-					continue
-				}
-				if err := system.RemoveSectionFromFile(path, step.Section, provider.Elevated); err != nil {
-					return fmt.Errorf("error removing section from %s: %w", path, err)
-				}
-				continue
-			case "remove":
-				if err := removeRepositoryPath(step.Path, repoConfig.Paths, provider.Elevated, initConfig.Variables.Flags.Debug); err != nil {
-					return fmt.Errorf("error removing repository path for %s: %w", repo.Name, err)
-				}
-				continue
-			case "copy":
-				if system.IsDryRun() {
-					log.Infof("[DRY-RUN] Would copy file: %s -> %s", step.Source, step.Dest)
-					continue
-				}
-				if err := system.CopyFile(step.Source, step.Dest, provider.Elevated, osInfo); err != nil {
-					return fmt.Errorf("error copying file: %w", err)
-				}
-				continue
-			default:
-				return fmt.Errorf("unsupported repository action step: %s", step.Action)
-			}
-
-			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
-				return fmt.Errorf("error executing repository step: %w", err)
-			}
+		if err := processRepository(repo, osInfo, initConfig); err != nil {
+			recordFailure("repositories", repo.Name, err)
 		}
 	}
 
-	// Run updates for all available providers
+	return runRepositoryUpdates(initConfig)
+}
+
+// processRepository runs one repository's provider action steps.
+func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	provider, exists := system.GetProvider(repo.PackageManager)
+	if !exists {
+		return fmt.Errorf("unsupported package manager: %s", repo.PackageManager)
+	}
+
+	// Get repository config
+	repoConfig := provider.Repository
+
+	// Execute repository action steps
+	var steps []types.ActionStep
+	switch repo.Action {
+	case "add":
+		steps = repoConfig.Add.Steps
+	case "remove":
+		steps = repoConfig.Remove.Steps
+	default:
+		return fmt.Errorf("unsupported repository action: %s", repo.Action)
+	}
+
+	// Execute each step
+	data := repositoryStepData(repo, repoConfig.Paths, provider)
+	for _, rawStep := range steps {
+		// The condition is evaluated before the rest of the step is
+		// rendered: a skipped step is allowed to reference data this
+		// repository does not carry, which is the whole reason it is
+		// conditional.
+		run, err := stepCondition(rawStep.Condition, data)
+		if err != nil {
+			return fmt.Errorf("error evaluating condition for %s repository step of %s: %w", repo.Action, repo.Name, err)
+		}
+		if !run {
+			log.Debugf("Skipping %s step: condition %q is not met", rawStep.Action, rawStep.Condition)
+			continue
+		}
+
+		step, err := renderActionStep(rawStep, data)
+		if err != nil {
+			return fmt.Errorf("error rendering %s repository step for %s: %w", repo.Action, repo.Name, err)
+		}
+
+		var cmd types.Command
+
+		switch step.Action {
+		case "exec", "command": // Support both "exec" and "command" action types
+			cmd = types.Command{
+				Exec:        step.Exec,
+				Args:        step.Args,
+				Elevated:    provider.Elevated,
+				Interactive: helpers.ResolveInteractive(repo.Interactive, initConfig.Variables.Flags.Interactive),
+				// chocolatey's --password and cargo's login token are accepted
+				// only as arguments, so they cannot move to stdin. They can at
+				// least be kept out of the debug and dry-run log lines, which
+				// print the full argv.
+				Secrets: repo.SecretValues(),
+			}
+		case "download":
+			if system.IsDryRun() {
+				log.Infof("[DRY-RUN] Would download file: %s -> %s", step.Source, step.Dest)
+				continue
+			}
+			if err := system.DownloadFile(step.Source, step.Dest, provider.Elevated); err != nil {
+				return fmt.Errorf("error downloading file: %w", err)
+			}
+			continue
+		case "write":
+			if system.IsDryRun() {
+				log.Infof("[DRY-RUN] Would write file: %s", step.Dest)
+				continue
+			}
+			if err := system.WriteToFile(step.Dest, step.Content, provider.Elevated); err != nil {
+				return fmt.Errorf("error writing file: %w", err)
+			}
+			continue
+		case "append":
+			path, err := repositoryFilePath(step.Path, repoConfig.Paths)
+			if err != nil {
+				return fmt.Errorf("error appending to repository file for %s: %w", repo.Name, err)
+			}
+			if system.IsDryRun() {
+				log.Infof("[DRY-RUN] Would append to file: %s", path)
+				continue
+			}
+			if err := system.AppendToFile(path, step.Content, provider.Elevated); err != nil {
+				return fmt.Errorf("error appending to %s: %w", path, err)
+			}
+			continue
+		case "remove_line":
+			path, err := repositoryFilePath(step.Path, repoConfig.Paths)
+			if err != nil {
+				return fmt.Errorf("error removing line from repository file for %s: %w", repo.Name, err)
+			}
+			if system.IsDryRun() {
+				log.Infof("[DRY-RUN] Would remove lines naming %s from file: %s", step.Match, path)
+				continue
+			}
+			if err := system.RemoveLineFromFile(path, step.Match, provider.Elevated); err != nil {
+				return fmt.Errorf("error removing line from %s: %w", path, err)
+			}
+			continue
+		case "remove_section":
+			path, err := repositoryFilePath(step.Path, repoConfig.Paths)
+			if err != nil {
+				return fmt.Errorf("error removing section from repository file for %s: %w", repo.Name, err)
+			}
+			if system.IsDryRun() {
+				log.Infof("[DRY-RUN] Would remove section [%s] from file: %s", step.Section, path)
+				continue
+			}
+			if err := system.RemoveSectionFromFile(path, step.Section, provider.Elevated); err != nil {
+				return fmt.Errorf("error removing section from %s: %w", path, err)
+			}
+			continue
+		case "remove":
+			if err := removeRepositoryPath(step.Path, repoConfig.Paths, provider.Elevated, initConfig.Variables.Flags.Debug); err != nil {
+				return fmt.Errorf("error removing repository path for %s: %w", repo.Name, err)
+			}
+			continue
+		case "copy":
+			if system.IsDryRun() {
+				log.Infof("[DRY-RUN] Would copy file: %s -> %s", step.Source, step.Dest)
+				continue
+			}
+			if err := system.CopyFile(step.Source, step.Dest, provider.Elevated, osInfo); err != nil {
+				return fmt.Errorf("error copying file: %w", err)
+			}
+			continue
+		default:
+			return fmt.Errorf("unsupported repository action step: %s", step.Action)
+		}
+
+		if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
+			return fmt.Errorf("error executing repository step: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// runRepositoryUpdates refreshes package lists for every available provider.
+func runRepositoryUpdates(initConfig *types.InitConfig) error {
 	available := system.GetAvailableProviders()
 	for name, provider := range available {
 		if provider.Commands.Update == "" {

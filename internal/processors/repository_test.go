@@ -215,12 +215,12 @@ func TestProcessRepositories_UnknownPlaceholderIsAnError(t *testing.T) {
 		},
 	})()
 
-	err := processRepositories([]types.Repository{{
+	err := processRepository(types.Repository{
 		Name:           "example",
 		PackageManager: "fake",
 		Action:         "add",
 		URL:            "https://example.com/repo",
-	}}, &types.OSInfo{}, &types.InitConfig{})
+	}, &types.OSInfo{}, &types.InitConfig{})
 
 	if err == nil {
 		t.Fatal("processRepositories succeeded, want an error for the unknown placeholder")
@@ -286,11 +286,11 @@ func TestProcessRepositories_RemoveRefusesPathOutsideProviderPaths(t *testing.T)
 	defer system.SetExecutor(rec)()
 	defer system.SetProvidersForTest(map[string]*types.Provider{"apt": provider})()
 
-	err := processRepositories([]types.Repository{{
+	err := processRepository(types.Repository{
 		Name:           "docker",
 		PackageManager: "apt",
 		Action:         "remove",
-	}}, &types.OSInfo{}, &types.InitConfig{})
+	}, &types.OSInfo{}, &types.InitConfig{})
 
 	if err == nil {
 		t.Fatal("processRepositories succeeded, want a refusal for a path outside the provider's paths")
@@ -312,11 +312,11 @@ func TestProcessRepositories_RemoveRefusesRelativePath(t *testing.T) {
 	defer system.SetExecutor(exectest.New())()
 	defer system.SetProvidersForTest(map[string]*types.Provider{"apt": provider})()
 
-	err := processRepositories([]types.Repository{{
+	err := processRepository(types.Repository{
 		Name:           "docker",
 		PackageManager: "apt",
 		Action:         "remove",
-	}}, &types.OSInfo{}, &types.InitConfig{})
+	}, &types.OSInfo{}, &types.InitConfig{})
 
 	if err == nil || !strings.Contains(err.Error(), "not absolute") {
 		t.Fatalf("error = %v, want a refusal naming the relative path", err)
@@ -569,12 +569,12 @@ func TestProcessRepositories_AppendRefusesPathOutsideProviderPaths(t *testing.T)
 	defer system.SetExecutor(exectest.New())()
 	defer system.SetProvidersForTest(map[string]*types.Provider{"pacman": provider})()
 
-	err := processRepositories([]types.Repository{{
+	err := processRepository(types.Repository{
 		Name:           "chaotic-aur",
 		PackageManager: "pacman",
 		Action:         "add",
 		URL:            "https://example.com/repo",
-	}}, &types.OSInfo{}, &types.InitConfig{})
+	}, &types.OSInfo{}, &types.InitConfig{})
 
 	if err == nil || !strings.Contains(err.Error(), "outside the provider's repository paths") {
 		t.Fatalf("error = %v, want a refusal naming the containment check", err)
@@ -750,12 +750,12 @@ func TestProcessRepositories_UnknownConditionPredicateIsAnError(t *testing.T) {
 		},
 	})()
 
-	err := processRepositories([]types.Repository{{
+	err := processRepository(types.Repository{
 		Name:           "example",
 		PackageManager: "fake",
 		Action:         "add",
 		URL:            "https://example.com/repo",
-	}}, &types.OSInfo{}, &types.InitConfig{})
+	}, &types.OSInfo{}, &types.InitConfig{})
 
 	if err == nil {
 		t.Fatal("processRepositories succeeded, want an error for the underivable condition")

@@ -106,13 +106,22 @@ func TestSymlink_RegularFileInTheWayIsAnError(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// The occupied target is a ledger failure, not an abort: the processor
+	// returns nil so later items still run, and the failure reaches the exit
+	// code through All().
+	resetFailures()
+	defer resetFailures()
+
 	blueprint := "files:\n  - name: vimrc\n    action: symlink\n    source: dotfiles\n    target: " + link + "\n"
-	err := runFilesBlueprint(t, blueprintDir, blueprint)
+	if err := runFilesBlueprint(t, blueprintDir, blueprint); err != nil {
+		t.Fatalf("runFilesBlueprint = %v, want nil: item failures belong in the ledger", err)
+	}
+	err := failureError()
 	if err == nil {
-		t.Fatal("expected an error when a regular file occupies the symlink target")
+		t.Fatal("expected a recorded failure when a regular file occupies the symlink target")
 	}
 	if !strings.Contains(err.Error(), "already exists") {
-		t.Errorf("error should say what is in the way, got: %v", err)
+		t.Errorf("failure should say what is in the way, got: %v", err)
 	}
 
 	content, readErr := os.ReadFile(link)
