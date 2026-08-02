@@ -75,10 +75,10 @@ To run your first blueprint, follow these steps:
     cd my-rwr-config
     ```
 
-2. Run the `rwr all` command to execute all blueprints:
+2. Run the `rwr run` command to execute all blueprints:
 
     ```bash
-    rwr all
+    rwr run
     ```
 
     RWR installs only the base packages: git, curl, wget, and htop.
@@ -87,13 +87,13 @@ To run your first blueprint, follow these steps:
 
     ```bash
     # Install base packages + development profile
-    rwr all --profile development
+    rwr run --profile development
 
     # Install base packages + work profile
-    rwr all --profile work
+    rwr run --profile work
 
     # Install multiple profiles
-    rwr all --profile development --profile work
+    rwr run --profile development --profile work
     ```
 
 4. To see what profiles are available in your configuration:

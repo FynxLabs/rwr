@@ -26,7 +26,7 @@ Items with no profiles field    →  Always installed (the "base" concept)
 ```
 
 > [!IMPORTANT]
-> The filter only runs when you name at least one profile. `rwr all` with no
+> The filter only runs when you name at least one profile. `rwr run` with no
 > `--profile` installs **everything**, profile items included. Naming a profile
 > is what narrows the run down to the base items plus that profile.
 
@@ -102,7 +102,7 @@ Only **one** keyword is reserved:
 
 ## CLI Usage
 
-The command that applies blueprints is `rwr all` (everything) or
+The command that applies blueprints is `rwr run` (everything) or
 `rwr run <processor>` (one processor). Bare `rwr` prints the help text and
 applies nothing, so `rwr --profile work` does nothing at all.
 
@@ -111,7 +111,7 @@ applies nothing, so `rwr --profile work` does nothing at all.
 #### Install Everything
 
 ```bash
-rwr all
+rwr run
 ```
 
 With no profile named, no filtering happens: every item applies, whether it
@@ -120,8 +120,8 @@ carries a `profiles` field or not.
 #### Install Base + Specific Profile
 
 ```bash
-rwr all --profile work
-rwr all -p work
+rwr run --profile work
+rwr run -p work
 ```
 
 Installs base items + items with the "work" profile.
@@ -129,8 +129,8 @@ Installs base items + items with the "work" profile.
 #### Install Multiple Profiles
 
 ```bash
-rwr all --profile work,gaming
-rwr all -p work -p gaming
+rwr run --profile work,gaming
+rwr run -p work -p gaming
 ```
 
 Installs base items + work profile items + gaming profile items.
@@ -138,7 +138,7 @@ Installs base items + work profile items + gaming profile items.
 #### Install Everything Explicitly
 
 ```bash
-rwr all --profile all
+rwr run --profile all
 ```
 
 `all` is the reserved profile name; it matches every item regardless of profiles.
@@ -452,16 +452,16 @@ Usage examples:
 
 ```bash
 # Frontend developer setup
-rwr all --profile frontend
+rwr run --profile frontend
 
 # Full-stack developer setup
-rwr all --profile frontend,backend
+rwr run --profile frontend,backend
 
 # Mobile developer setup
-rwr all --profile mobile
+rwr run --profile mobile
 
 # Complete development environment
-rwr all --profile all
+rwr run --profile all
 ```
 
 ### Scenario 2: Multi-Environment Management
@@ -595,10 +595,10 @@ Usage:
 
 ```bash
 # Frontend development (includes base tools)
-rwr all --profile frontend,dev-base
+rwr run --profile frontend,dev-base
 
 # Backend development (includes base tools)
-rwr all --profile backend,dev-base
+rwr run --profile backend,dev-base
 ```
 
 ## Best Practices
@@ -630,7 +630,7 @@ rwr all --profile backend,dev-base
 #### A Misspelled Profile Is Silent
 
 RWR does not check the names you pass against the ones your blueprints declare.
-`rwr all --profile worx` produces no error and no warning: nothing matches
+`rwr run --profile worx` produces no error and no warning: nothing matches
 `worx`, so only the base items are applied.
 
 **Solution**: Compare against `rwr profiles`. Names are case-sensitive — `Work`
@@ -661,13 +661,13 @@ rwr profiles
 #### Dry Run with Profiles
 
 ```bash
-rwr all --dry-run --profile work
+rwr run --dry-run --profile work
 ```
 
 #### Debug Mode
 
 ```bash
-rwr all --debug --profile work
+rwr run --debug --profile work
 ```
 
 Reports, for each blueprint file, how many entries survived the filter:
@@ -733,7 +733,7 @@ Yes! Profile names are completely user-defined. Use whatever makes sense for you
 
 Everything is installed. With no active profiles RWR skips the filter entirely,
 so profile items are applied along with the base items. To install the base items
-and one profile, name that profile: `rwr all --profile work`.
+and one profile, name that profile: `rwr run --profile work`.
 
 ### Can an item belong to multiple profiles?
 

@@ -45,12 +45,12 @@ applies.`,
 
 			fmt.Println()
 			fmt.Println("Usage examples:")
-			fmt.Printf("  rwr all --profile %s\n", summary.Names[0])
+			fmt.Printf("  rwr run --profile %s\n", summary.Names[0])
 			if len(summary.Names) > 1 {
-				fmt.Printf("  rwr all --profile %s --profile %s\n", summary.Names[0], summary.Names[1])
+				fmt.Printf("  rwr run --profile %s --profile %s\n", summary.Names[0], summary.Names[1])
 				fmt.Printf("  rwr run packages --profile %s\n", strings.Join(summary.Names[:2], ","))
 			}
-			fmt.Println("  rwr all --profile all")
+			fmt.Println("  rwr run --profile all")
 			return nil
 		},
 	}

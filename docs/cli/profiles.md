@@ -16,19 +16,19 @@ There are two pieces:
 ## The `--profile` / `-p` flag
 
 `--profile` is a global flag, so it is accepted by every command. It only
-changes what is applied when a command applies something — that is `rwr all` and
+changes what is applied when a command applies something — that is `rwr run` and
 `rwr run <processor>`.
 
 > [!IMPORTANT]
 > `rwr --profile work` applies nothing. Bare `rwr` prints the help text. The
-> command that applies a profile is `rwr all --profile work`, or
+> command that applies a profile is `rwr run --profile work`, or
 > `rwr run <processor> --profile work`.
 
 ### Syntax
 
 ```bash
-rwr all --profile PROFILE1,PROFILE2
-rwr all -p PROFILE1 -p PROFILE2
+rwr run --profile PROFILE1,PROFILE2
+rwr run -p PROFILE1 -p PROFILE2
 ```
 
 Both forms may be mixed; the values accumulate.
@@ -36,8 +36,8 @@ Both forms may be mixed; the values accumulate.
 ### Single profile
 
 ```bash
-rwr all --profile work
-rwr all -p work
+rwr run --profile work
+rwr run -p work
 
 rwr run packages --profile work
 rwr run services -p gaming
@@ -47,13 +47,13 @@ rwr run services -p gaming
 
 ```bash
 # Comma-separated
-rwr all --profile work,gaming,dev
+rwr run --profile work,gaming,dev
 
 # Repeated flag
-rwr all -p work -p gaming -p dev
+rwr run -p work -p gaming -p dev
 
 # Mixed
-rwr all --profile work,gaming -p dev
+rwr run --profile work,gaming -p dev
 ```
 
 ### The `all` keyword
@@ -62,16 +62,16 @@ rwr all --profile work,gaming -p dev
 every item applies whatever its `profiles` field says.
 
 ```bash
-rwr all --profile all
+rwr run --profile all
 
 # "all" wins over the others: this is the same as --profile all
-rwr all --profile work,gaming,all
+rwr run --profile work,gaming,all
 ```
 
 ### No `--profile` at all
 
 ```bash
-rwr all
+rwr run
 ```
 
 > [!IMPORTANT]
@@ -107,10 +107,10 @@ Available profiles (2 found):
   base items (always applied): 2
 
 Usage examples:
-  rwr all --profile dev
-  rwr all --profile dev --profile work
+  rwr run --profile dev
+  rwr run --profile dev --profile work
   rwr run packages --profile dev,work
-  rwr all --profile all
+  rwr run --profile all
 ```
 
 When the tree declares no profiles at all:
@@ -138,7 +138,7 @@ in the init file.
 `--debug` reports, per blueprint file, how many entries survived the filter:
 
 ```bash
-rwr all --debug --profile work
+rwr run --debug --profile work
 ```
 
 ```text
@@ -152,7 +152,7 @@ Combine with `--dry-run` to see exactly which commands a profile combination
 would run, without running them:
 
 ```bash
-rwr all --dry-run --profile work,gaming
+rwr run --dry-run --profile work,gaming
 ```
 
 ## Error handling
@@ -173,7 +173,7 @@ case-sensitive.
 | Command | Description |
 |---------|-------------|
 | `rwr profiles` | List the profiles the blueprint tree declares |
-| `rwr all --profile ...` | Apply every blueprint with those profiles active |
+| `rwr run --profile ...` | Apply every blueprint with those profiles active |
 | `rwr run <processor> --profile ...` | Apply one processor with those profiles active |
 
 ## Examples by use case
@@ -185,21 +185,21 @@ case-sensitive.
 rwr profiles
 
 # Frontend environment
-rwr all --profile frontend
+rwr run --profile frontend
 
 # Full stack
-rwr all --profile frontend,backend,database
+rwr run --profile frontend,backend,database
 
 # Check first
-rwr all --dry-run --debug --profile dev
+rwr run --dry-run --debug --profile dev
 ```
 
 ### System administration
 
 ```bash
-rwr all --profile server
-rwr all --profile desktop,productivity
-rwr all --profile all
+rwr run --profile server
+rwr run --profile desktop,productivity
+rwr run --profile all
 ```
 
 ### One processor at a time
@@ -211,13 +211,13 @@ rwr run files --profile work,dev
 ```
 
 `rwr run` takes exactly one processor name. There is no `rwr run all` and no
-comma-separated list of processors; use `rwr all` to run everything.
+comma-separated list of processors; use `rwr run` to run everything.
 
 ## Best practices
 
 1. **Use `-p` interactively, `--profile` in scripts.** The long form reads
    better in automation.
-2. **Group related profiles in one run**: `rwr all --profile work,dev` rather
+2. **Group related profiles in one run**: `rwr run --profile work,dev` rather
    than two commands.
 3. **Check with `--dry-run` first.** Nothing validates a profile name for you,
    so a dry run is how a typo gets caught.

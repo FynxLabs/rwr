@@ -20,7 +20,7 @@ The following flags are available for all commands:
 | `--no-op` | Alias for `--dry-run` |
 | `--interactive`, `-I` | Enable interactive mode (default: true). Use `--interactive=false` to disable |
 | `--gh-key` | Another name for `--gh-api-key` |
-| `--gh-auth` | Get a GitHub token with the OAuth device flow. Only `rwr all` and `rwr run ssh_keys` act on it |
+| `--gh-auth` | Get a GitHub token with the OAuth device flow. Only `rwr run` and `rwr run ssh_keys` act on it |
 | `--profile`, `-p` | Make a profile active. Repeat the flag, or give a comma-separated list |
 | `--force-bootstrap` | Run the bootstrap process again |
 | `--version`, `-v` | Print the version and exit |
@@ -52,7 +52,7 @@ The following commands are available in the RWR CLI:
 
 > [!IMPORTANT]
 > `rwr` on its own does not apply anything. It prints a greeting and the help
-> text. Use `rwr all` to apply every blueprint, or `rwr run <processor>` to apply
+> text. Use `rwr run` to apply every blueprint, or `rwr run <processor>` to apply
 > one.
 
 ### `rwr version`
@@ -93,7 +93,7 @@ Manage RWR configuration settings.
 |------|-------------|
 | `--create`, `-c` | Create the configuration file |
 
-### `rwr all`
+### `rwr run`
 
 Run all blueprints and set up the system.
 
@@ -173,7 +173,7 @@ Run the fonts processor.
 > files blueprint. Use `rwr run files` to process it.
 >
 > There is no `rwr run all`, and `rwr run` takes one processor, not a list. Use
-> `rwr all` to run everything.
+> `rwr run` to run everything.
 
 ### `rwr completion`
 
@@ -186,7 +186,7 @@ Here are a few examples of using the RWR CLI with different commands and flags:
 
 ```bash
 # Apply every blueprint with debug mode enabled
-rwr all --debug
+rwr run --debug
 
 # Run the package processor with a specific init file
 rwr run packages --init-file path/to/init.yaml
@@ -195,10 +195,10 @@ rwr run packages --init-file path/to/init.yaml
 rwr config --create
 
 # Apply every blueprint with bootstrap forced
-rwr all --force-bootstrap
+rwr run --force-bootstrap
 
 # Apply every blueprint, with two profiles active, using a separate config
-rwr all --config ~/rwr-work --profile work --profile dev
+rwr run --config ~/rwr-work --profile work --profile dev
 ```
 
 For more detailed information on each command and its usage, please refer to the specific blueprint type documentation or the [Configuration File](configuration.md) page.

@@ -26,7 +26,7 @@ belongs to.
 
 An entry with no `profiles` is a base item and is always processed. An entry
 with `profiles` is processed only when one of those profiles is active
-(`rwr all --profile dev`). See [Profiles](../profiles.md).
+(`rwr run --profile dev`). See [Profiles](../profiles.md).
 
 ```yaml
 packages:

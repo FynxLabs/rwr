@@ -181,10 +181,10 @@ Test your profile configurations before running them.
 
 ```bash
 # Dry run to see what would happen
-rwr all --profile development --dry-run
+rwr run --profile development --dry-run
 
 # Check specific combinations
-rwr all --profile frontend --profile development --dry-run
+rwr run --profile frontend --profile development --dry-run
 ```
 
 ## Organization Tips
@@ -322,10 +322,10 @@ For large configurations with many profiles:
 
 ```bash
 # Only install what you need
-rwr all --profile specific-profile
+rwr run --profile specific-profile
 
 # Rather than installing everything
-rwr all --profile profile1 --profile profile2 --profile profile3
+rwr run --profile profile1 --profile profile2 --profile profile3
 ```
 
 ### Profile Combinations

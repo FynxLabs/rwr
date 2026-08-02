@@ -18,8 +18,8 @@ The `config.yaml` file is located in the RWR configuration directory. By default
   directory as the configuration directory.
 
 ```bash
-rwr all --config ~/rwr-work/config.yaml
-rwr all --config ~/rwr-work
+rwr run --config ~/rwr-work/config.yaml
+rwr run --config ~/rwr-work
 ```
 
 A leading `~` is expanded. RWR creates the configuration directory and its
@@ -117,8 +117,8 @@ not turned into an underscore.
 | `rwr.configdir` | `RWR_RWR_CONFIGDIR` |
 
 ```bash
-RWR_LOG_LEVEL=debug rwr all
-RWR_REPOSITORY_GH_API_TOKEN=your_token rwr all
+RWR_LOG_LEVEL=debug rwr run
+RWR_REPOSITORY_GH_API_TOKEN=your_token rwr run
 ```
 
 > [!NOTE]
@@ -126,7 +126,7 @@ RWR_REPOSITORY_GH_API_TOKEN=your_token rwr all
 > in the `NAME=value command` form. Use `env` instead, or pass `--init-file`:
 >
 > ```bash
-> env "RWR_REPOSITORY_INIT-FILE=/path/to/init.yaml" rwr all
+> env "RWR_REPOSITORY_INIT-FILE=/path/to/init.yaml" rwr run
 > ```
 >
 > `RWR_REPOSITORY_INIT_FILE`, with an underscore, is a different name and is

@@ -24,10 +24,10 @@ Packages install via `chocolatey` and `winget`; a `scoop` bucket and `cargo` too
 
 ```bash
 # From this directory
-rwr all --init-file init.toml
+rwr run --init-file init.toml
 
 # Apply profile-gated entries too
-rwr all --init-file init.toml --profile dev
+rwr run --init-file init.toml --profile dev
 ```
 
 Entries without a `profiles` field always apply. Entries with `profiles` only apply when you pass a matching `--profile`.

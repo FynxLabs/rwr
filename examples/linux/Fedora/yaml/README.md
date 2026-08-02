@@ -25,10 +25,10 @@ System packages install via `dnf`; extra sets use `brew` and `cargo`.
 
 ```bash
 # From this directory
-rwr all --init-file init.yaml
+rwr run --init-file init.yaml
 
 # Apply profile-gated entries too
-rwr all --init-file init.yaml --profile dev
+rwr run --init-file init.yaml --profile dev
 ```
 
 Entries without a `profiles` field always apply. Entries with `profiles` only apply when you pass a matching `--profile`.

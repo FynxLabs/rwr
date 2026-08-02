@@ -15,8 +15,9 @@ func newRunCmd(app *AppConfig) *cobra.Command {
 		Short: "Run the blueprints — everything, or a single processor",
 		Long: `Run the blueprint tree.
 
-"rwr run" on its own runs everything, the same as "rwr all". Name a processor
-to run just that piece: "rwr run packages", "rwr run files".`,
+"rwr run" on its own runs everything. Name a processor to run just that
+piece — "rwr run packages", "rwr run files" — or use the shorthand straight
+off the root: "rwr packages".`,
 		// Bare `rwr run` is the landing command: it runs the whole tree. It used
 		// to print help and error, while the docs told people to run it.
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -43,7 +44,8 @@ to run just that piece: "rwr run packages", "rwr run files".`,
 	return runCmd
 }
 
-// runEverything is the whole-tree run both `rwr run` and `rwr all` dispatch.
+// runEverything is the whole-tree run behind `rwr run` (and the deprecated
+// `rwr all` alias).
 // On a real terminal it runs under the dashboard; everywhere else the output
 // is byte-identical to the pre-TUI stream.
 func runEverything(app *AppConfig) error {

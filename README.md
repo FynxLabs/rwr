@@ -137,7 +137,7 @@ Read [Install](docs/install.md) for the full description.
    and writes the file.
 2. **Give the blueprints**: Give a git repository URL or a local path when RWR
    asks for it.
-3. **Set up the system**: Run [`rwr all`](docs/cli/command-and-flags.md). RWR
+3. **Set up the system**: Run [`rwr run`](docs/cli/command-and-flags.md). RWR
    applies the blueprints.
 
 For detailed setup instructions, see the [Quick Start Guide](docs/quick-start.md).
@@ -176,17 +176,17 @@ RWR uses an additive profile system where:
 
 ```bash
 # Apply everything: with no profile named, nothing is filtered out
-rwr all
+rwr run
 
 # Apply base + dev profile
-rwr all --profile dev
+rwr run --profile dev
 
 # Apply base + multiple profiles
-rwr all --profile dev --profile work
+rwr run --profile dev --profile work
 ```
 
 > [!NOTE]
-> The profile filter runs only when you name at least one profile. `rwr all` on
+> The profile filter runs only when you name at least one profile. `rwr run` on
 > its own applies profile items too.
 
 For detailed information, see the [Profile System documentation](docs/profiles.md).

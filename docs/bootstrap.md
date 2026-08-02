@@ -112,7 +112,7 @@ By default, the Bootstrap Process is only executed once during the initial setup
 To force the execution of the Bootstrap Process on every run, you can use the `--force-bootstrap` flag:
 
 ```bash
-rwr all --force-bootstrap
+rwr run --force-bootstrap
 ```
 
 This flag will ensure that the Bootstrap Process is executed even if it has been run previously.

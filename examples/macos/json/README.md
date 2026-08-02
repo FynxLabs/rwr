@@ -24,10 +24,10 @@ Packages install via Homebrew (`brew`); Rust tools via `cargo`.
 
 ```bash
 # From this directory
-rwr all --init-file init.json
+rwr run --init-file init.json
 
 # Apply profile-gated entries too
-rwr all --init-file init.json --profile dev
+rwr run --init-file init.json --profile dev
 ```
 
 Entries without a `profiles` field always apply. Entries with `profiles` only apply when you pass a matching `--profile`.

@@ -89,6 +89,9 @@ func blueprintTargetForPath(rel string) interface{} {
 		return &types.InitConfig{}
 	case types.BlueprintTypeBootstrap:
 		return &types.BootstrapData{}
+	case "manifest":
+		// A multi-configuration repo root file, not a blueprint.
+		return &types.Manifest{}
 	}
 
 	// Same rule production uses: the first path segment naming a blueprint type wins.
