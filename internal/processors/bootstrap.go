@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 
 	"charm.land/log/v2"
@@ -123,12 +124,22 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Set the bootstrap file
 	log.Debugf("Setting bootstrap fileProcessDirectories")
-	err = helpers.Bootstrap()
-	if err != nil {
+	if err := writeBootstrapMarker(); err != nil {
 		log.Errorf("Error setting bootstrap file: %v", err)
 		return err
 	}
 
 	log.Info("Bootstrap processor completed successfully.")
 	return nil
+}
+
+// writeBootstrapMarker records that bootstrap has run, unless this was a dry-run.
+// Writing the marker during a dry-run would make every later real run believe the
+// system is already bootstrapped and skip bootstrap entirely.
+func writeBootstrapMarker() error {
+	if system.IsDryRun() {
+		log.Infof("[DRY-RUN] Would write the bootstrap marker file")
+		return nil
+	}
+	return helpers.Bootstrap()
 }
