@@ -117,7 +117,7 @@ try {
     # (checksums.txt.sigstore.json, a sigstore bundle). Verifying it upgrades the
     # checksum comparison from integrity to authenticity. Opportunistic: cosign
     # is rarely installed on Windows, so a missing cosign or missing bundle only
-    # warns — the install then rests on checksum integrity alone, and a
+    # warns - the install then rests on checksum integrity alone, and a
     # substituted checksums.txt would not be detected. When cosign is present
     # and a bundle is published, a bad signature is a hard stop.
     $bundle_url = $latest_release.assets |
