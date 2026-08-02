@@ -113,7 +113,10 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 					log.Infof("[DRY-RUN] Would download file: %s -> %s", step.Source, step.Dest)
 					continue
 				}
-				if err := system.DownloadFile(step.Source, step.Dest, provider.Elevated); err != nil {
+				// step.Sha256 is rendered by renderActionStep like every other
+				// field; dropping it here silently waived the digest check the
+				// provider author asked for (repository.go threads it through).
+				if err := system.DownloadFileWithChecksum(step.Source, step.Dest, provider.Elevated, step.Sha256); err != nil {
 					return fmt.Errorf("error downloading file: %w", err)
 				}
 				continue

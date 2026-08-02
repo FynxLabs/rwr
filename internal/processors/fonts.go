@@ -29,7 +29,7 @@ type GithubRelease struct {
 }
 
 func getLatestReleaseURL() (string, error) {
-	resp, err := http.Get(nerdFontRepoAPI) // #nosec G107 -- package-level constant URL, a var only so tests can point it at their own server
+	resp, err := system.DownloadClient.Get(nerdFontRepoAPI) // #nosec G107 -- package-level constant URL, a var only so tests can point it at their own server
 	if err != nil {
 		return "", err
 	}
@@ -218,7 +218,7 @@ func downloadFontTarball(url, filepath string) error {
 	if err := system.ValidateDownloadURL(url); err != nil {
 		return err
 	}
-	resp, err := http.Get(url) // #nosec G107 -- scheme restricted by ValidateDownloadURL above
+	resp, err := system.DownloadClient.Get(url) // #nosec G107 -- scheme restricted by ValidateDownloadURL above and per redirect hop by the client
 	if err != nil {
 		return err
 	}
