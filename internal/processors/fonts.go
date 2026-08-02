@@ -158,16 +158,22 @@ func installFont(font types.Font, osInfo *types.OSInfo, releaseURL string) error
 	}
 
 	fontDir := getFontDirectory(font.Location, osInfo)
-	err = extractFontTarball(tarballPath, fontDir, font.Location == "system", osInfo)
+	extracted, err := extractFontTarball(tarballPath, fontDir, font.Location == "system", osInfo)
 	if err != nil {
 		return fmt.Errorf("error extracting font tarball: %v", err)
+	}
+	// An archive that produced nothing is a failure, not a success: reporting
+	// "installed successfully" with zero files written is how the .ttf-only
+	// filter hid OTF archives for so long.
+	if extracted == 0 {
+		return fmt.Errorf("font archive for %s contained no font faces (.ttf/.otf); nothing was installed", font.Name)
 	}
 
 	if err := updateFontCache(font.Location == "system"); err != nil {
 		log.Warnf("Failed to update font cache: %v", err)
 	}
 
-	log.Infof("Font %s installed successfully", font.Name)
+	log.Infof("Font %s installed successfully (%d files)", font.Name, extracted)
 	return nil
 }
 
@@ -179,11 +185,15 @@ func removeFont(font types.Font, osInfo *types.OSInfo) error {
 	}
 
 	fontDir := getFontDirectory(font.Location, osInfo)
-	fontPattern := filepath.Join(fontDir, font.Name+"*.ttf")
-
-	matches, err := filepath.Glob(fontPattern)
-	if err != nil {
-		return fmt.Errorf("error finding font files: %v", err)
+	// Same face filter as install: removal was .ttf-blind too, so an installed
+	// OTF face would have survived its own removal.
+	var matches []string
+	for _, ext := range []string{"*.ttf", "*.otf"} {
+		found, err := filepath.Glob(filepath.Join(fontDir, font.Name+ext))
+		if err != nil {
+			return fmt.Errorf("error finding font files: %v", err)
+		}
+		matches = append(matches, found...)
 	}
 
 	for _, match := range matches {
@@ -273,28 +283,32 @@ func resolveTarEntryPath(destDir, name string) (string, error) {
 	return targetPath, nil
 }
 
-func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *types.OSInfo) error {
+// extractFontTarball writes every font face in the archive into destDir and
+// returns how many it installed, so the caller can refuse to call an archive
+// that produced nothing a success.
+func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *types.OSInfo) (int, error) {
 	file, err := os.Open(tarballPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer file.Close() //nolint:errcheck
 
 	// Create a new XZ reader
 	xzReader, err := xz.NewReader(file)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	tr := tar.NewReader(xzReader)
 
+	extracted := 0
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return err
+			return extracted, err
 		}
 
 		// Links are never needed to install a font and are the cheapest way to make a
@@ -304,25 +318,25 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 			continue
 		}
 
-		if header.Typeflag == tar.TypeReg && strings.HasSuffix(header.Name, ".ttf") {
+		if header.Typeflag == tar.TypeReg && isFontFace(header.Name) {
 			targetPath, err := resolveTarEntryPath(destDir, header.Name)
 			if err != nil {
-				return fmt.Errorf("error extracting font archive: %w", err)
+				return extracted, fmt.Errorf("error extracting font archive: %w", err)
 			}
 
 			// Create a temporary file for the extracted font
 			tempFile, err := os.CreateTemp("", "font-")
 			if err != nil {
-				return err
+				return extracted, err
 			}
 			if err := tempFile.Close(); err != nil {
-				return fmt.Errorf("error closing temp file: %w", err)
+				return extracted, fmt.Errorf("error closing temp file: %w", err)
 			}
 
 			// Write the font data to the temporary file
 			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755) // #nosec G302 -- TODO(PR8): create with target mode instead of chmod-after
 			if err != nil {
-				return err
+				return extracted, err
 			}
 			// The cap turns a decompression bomb into an error instead of a
 			// filled tmpfs: the archive arrives xz-compressed from the network,
@@ -331,9 +345,9 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 			n, err := io.Copy(tempFile, io.LimitReader(tr, maxFontFileBytes+1))
 			if err != nil {
 				if closeErr := tempFile.Close(); closeErr != nil {
-					return fmt.Errorf("error copying font data: %w (also failed to close: %v)", err, closeErr)
+					return extracted, fmt.Errorf("error copying font data: %w (also failed to close: %v)", err, closeErr)
 				}
-				return err
+				return extracted, err
 			}
 			if n > maxFontFileBytes {
 				if closeErr := tempFile.Close(); closeErr != nil {
@@ -342,22 +356,31 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 				return fmt.Errorf("font file %s decompresses past %d MB; refusing what looks like a decompression bomb", header.Name, maxFontFileBytes>>20)
 			}
 			if err := tempFile.Close(); err != nil {
-				return fmt.Errorf("error closing temp file after copy: %w", err)
+				return extracted, fmt.Errorf("error closing temp file after copy: %w", err)
 			}
 
 			if tempFile == nil || targetPath == "" {
-				return fmt.Errorf("invalid arguments: tempFile or targetPath is nil/empty")
+				return extracted, fmt.Errorf("invalid arguments: tempFile or targetPath is nil/empty")
 			}
 			// Elevated only for a system-scoped install; a user font goes under $HOME
 			// and needs no privilege.
 			err = system.CopyFile(tempFile.Name(), targetPath, elevated, osInfo)
 			if err != nil {
-				return fmt.Errorf("error copying font file to destination: %v", err)
+				return extracted, fmt.Errorf("error copying font file to destination: %v", err)
 			}
+			extracted++
 		}
 	}
 
-	return nil
+	return extracted, nil
+}
+
+// isFontFace reports whether an archive entry is a font face rwr installs.
+// The filter used to be ".ttf" alone, so an OTF-only archive — several Nerd
+// Fonts ship only .otf — "installed successfully" with zero files written.
+func isFontFace(name string) bool {
+	lower := strings.ToLower(name)
+	return strings.HasSuffix(lower, ".ttf") || strings.HasSuffix(lower, ".otf")
 }
 
 func getFontDirectory(location string, osInfo *types.OSInfo) string {
