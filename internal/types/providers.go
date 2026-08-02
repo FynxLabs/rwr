@@ -75,10 +75,15 @@ type ActionStep struct {
 	Path string `toml:"path,omitempty"`
 	// Match is the line a "remove_line" step takes out of Path, Section the
 	// ini-style section a "remove_section" step takes out of it.
-	Match   string   `toml:"match,omitempty"`
-	Section string   `toml:"section,omitempty"`
-	Source  string   `toml:"source,omitempty"`
-	Dest    string   `toml:"dest,omitempty"`
+	Match   string `toml:"match,omitempty"`
+	Section string `toml:"section,omitempty"`
+	Source  string `toml:"source,omitempty"`
+	Dest    string `toml:"dest,omitempty"`
+	// Sha256, when set on a "download" step, is the hex digest the fetched
+	// content must match — the download is discarded on a mismatch. It is a
+	// template like every other step field, so a provider can take it from the
+	// blueprint with `sha256 = "{{ .SHA256 }}"`.
+	Sha256  string   `toml:"sha256,omitempty"`
 	Exec    string   `toml:"exec,omitempty"`
 	Args    []string `toml:"args,omitempty"`
 	Content string   `toml:"content,omitempty"`

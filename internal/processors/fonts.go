@@ -215,7 +215,10 @@ func getFontURL(font types.Font, releaseURL string) string {
 }
 
 func downloadFontTarball(url, filepath string) error {
-	resp, err := http.Get(url) // #nosec G107 -- URL is operator-supplied (init/blueprint source); scheme restricted in PR6
+	if err := system.ValidateDownloadURL(url); err != nil {
+		return err
+	}
+	resp, err := http.Get(url) // #nosec G107 -- scheme restricted by ValidateDownloadURL above
 	if err != nil {
 		return err
 	}
