@@ -105,36 +105,14 @@ func initializeSystemInfo() error {
 		initFilePath = viper.GetString("repository.init-file")
 	}
 
-	// If we have a path, check if it's a directory
-	if initFilePath != "" {
-		// Check if path exists
-		fileInfo, err := os.Stat(initFilePath)
-		if err == nil && fileInfo.IsDir() {
-			// If it's a directory, look for init files
-			possibleFiles := []string{
-				filepath.Join(initFilePath, "init.yaml"),
-				filepath.Join(initFilePath, "init.yml"),
-				filepath.Join(initFilePath, "init.json"),
-				filepath.Join(initFilePath, "init.toml"),
-			}
-			for _, file := range possibleFiles {
-				if _, err := os.Stat(file); err == nil {
-					initFilePath = file
-					log.Debugf("Found init file in directory: %s", initFilePath)
-					break
-				}
-			}
-		}
-	} else {
-		// If no path specified, look in current directory
-		possibleFiles := []string{"init.yaml", "init.yml", "init.json", "init.toml"}
-		for _, file := range possibleFiles {
-			if _, err := os.Stat(file); err == nil {
-				initFilePath = file
-				break
-			}
-		}
+	// One resolver for every accepted form — local path, directory, https URL,
+	// GitHub blob URL, owner/repo[/path][@ref] shorthand. See its doc comment
+	// for the precedence.
+	resolved, err := helpers.ResolveInitSource(initFilePath)
+	if err != nil {
+		return fmt.Errorf("error resolving init source %q: %w", initFilePath, err)
 	}
+	initFilePath = resolved
 
 	flags := types.Flags{
 		Debug:            debug,
