@@ -40,11 +40,16 @@ type System struct {
 	OSArch    string // OS Arch - amd64, arm64
 }
 
+// Variables is the data every blueprint template renders against.
+//
+// Only UserDefined comes from the init file; Flags, User and System are filled in
+// at runtime and are explicitly not decodable, so a blueprint cannot claim to be
+// running as a different user or with different flags than it is.
 type Variables struct {
-	Flags       Flags
-	User        UserInfo
-	System      System
-	UserDefined map[string]interface{}
+	Flags       Flags                  `mapstructure:"-" yaml:"-" json:"-" toml:"-"`
+	User        UserInfo               `mapstructure:"-" yaml:"-" json:"-" toml:"-"`
+	System      System                 `mapstructure:"-" yaml:"-" json:"-" toml:"-"`
+	UserDefined map[string]interface{} `mapstructure:"userDefined,omitempty" yaml:"userDefined,omitempty" json:"userDefined,omitempty" toml:"userDefined,omitempty"`
 }
 
 // InitConfig represents the configuration for the initialization processor.
@@ -58,7 +63,9 @@ type InitConfig struct {
 	Templates       []File               `mapstructure:"templates,omitempty" yaml:"templates,omitempty" json:"templates,omitempty" toml:"templates,omitempty"`
 	Directories     []Directory          `mapstructure:"directories,omitempty" yaml:"directories,omitempty" json:"directories,omitempty" toml:"directories,omitempty"`
 	Configuration   []Configuration      `mapstructure:"configuration,omitempty" yaml:"configuration,omitempty" json:"configuration,omitempty" toml:"configuration,omitempty"`
-	Variables       Variables            `mapstructure:",squash"`
+	// Squashing this made the `variables:` block in the init file decode into
+	// nothing at all, so every {{ .UserDefined.x }} in a blueprint rendered empty.
+	Variables Variables `mapstructure:"variables,omitempty" yaml:"variables,omitempty" json:"variables,omitempty" toml:"variables,omitempty"`
 	// ExposeCredentials names the credentials this tree's blueprints are allowed
 	// to read, e.g. ["gh_api_token"]. Empty — the default — means blueprints get
 	// none of them. See docs/credentials.md.

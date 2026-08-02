@@ -326,3 +326,51 @@ blueprints:
 		}
 	}
 }
+
+// The `variables.userDefined` block is documented in docs/variables.md and used by
+// the shipped examples, but it decoded into nothing: Variables carried only
+// mapstructure tags and was embedded with `mapstructure:",squash"`, and Initialize
+// then overwrote the whole struct with the computed defaults. Every
+// {{ .UserDefined.x }} in a blueprint rendered "<no value>".
+func TestInitialize_UserDefinedVariablesAreReadFromInitFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	initContent := `
+blueprints:
+  location: "blueprints"
+  format: "yaml"
+
+variables:
+  userDefined:
+    project_name: "rwr"
+    server_port: 8080
+    editors:
+      - vim
+      - helix
+`
+
+	initFile := filepath.Join(tempDir, "init.yaml")
+	if err := os.WriteFile(initFile, []byte(initContent), 0644); err != nil {
+		t.Fatalf("Failed to create test init file: %v", err)
+	}
+
+	config, err := Initialize(initFile, types.Flags{})
+	if err != nil {
+		t.Fatalf("Initialize failed: %v", err)
+	}
+
+	if got := config.Variables.UserDefined["project_name"]; got != "rwr" {
+		t.Errorf("UserDefined[project_name] = %v, want \"rwr\"", got)
+	}
+	if got := config.Variables.UserDefined["server_port"]; got != 8080 {
+		t.Errorf("UserDefined[server_port] = %v (%T), want 8080", got, got)
+	}
+	if _, ok := config.Variables.UserDefined["editors"]; !ok {
+		t.Error("UserDefined[editors] is missing; list values must survive decoding")
+	}
+
+	// The computed halves must still be filled in alongside the declared ones.
+	if config.Variables.User.Username == "" {
+		t.Error("User.Username was not populated")
+	}
+}

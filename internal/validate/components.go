@@ -30,7 +30,7 @@ func ValidatePackages(packages []types.Package, file string, results *types.Vali
 		}
 
 		validateEnum(pkg.Action, fmt.Sprintf("packages[%d].action", i),
-			[]string{types.ActionInstall, types.ActionRemove, types.ActionUpdate}, file, results)
+			[]string{types.ActionInstall, types.ActionRemove}, file, results)
 
 		// package_manager is optional: without one, the package is installed by the
 		// default manager detected for this machine, which is the common case.
@@ -107,6 +107,11 @@ func ValidateGitRepositories(gitRepositories []types.Git, file string, results *
 		validateRequired(repo.Path, fmt.Sprintf("git[%d].path", i), file, results, "Add path field to git repository")
 
 		validatePath(repo.Path, fmt.Sprintf("git repository '%s'", repo.URL), file, results)
+
+		if repo.Action != "" {
+			validateEnum(repo.Action, fmt.Sprintf("git[%d].action", i),
+				[]string{types.GitActionClone, types.GitActionPull}, file, results)
+		}
 	}
 }
 

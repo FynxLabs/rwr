@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -113,11 +114,19 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 			case "remove":
 				args = append(args, strings.Fields(provider.Commands.Remove)...)
 			default:
-				log.Warnf("Unknown action %s for package %s", pkg.Action, name)
+				recordFailure("packages", name, fmt.Errorf("unknown action %q", pkg.Action))
 				continue
 			}
 
-			// Add package name
+			// A name beginning with "-" is read as an option by every package
+			// manager, not as a package: "--allow-downgrades", "-U <url>". Commands
+			// are argv-exec'd so this is not shell injection, but it still lets a
+			// blueprint change what the elevated package manager does.
+			if strings.HasPrefix(name, "-") {
+				recordFailure("packages", name, errors.New("package name may not begin with '-'; it would be read as an option by the package manager"))
+				continue
+			}
+
 			args = append(args, name)
 
 			// Add any additional arguments
@@ -127,14 +136,17 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 
 			// Execute command directly with environment variables
 			cmd := types.Command{
-				Exec:        provider.BinPath,
-				Args:        args,
-				Elevated:    provider.Elevated,
+				Exec: provider.BinPath,
+				Args: args,
+				// The provider decides whether its package manager needs elevation;
+				// a blueprint may ask for it on top (a user-scoped manager invoked
+				// against a system path), but may not take it away.
+				Elevated:    provider.Elevated || pkg.Elevated,
 				Variables:   provider.Environment,
 				Interactive: helpers.ResolveInteractive(pkg.Interactive, initConfig.Variables.Flags.Interactive),
 			}
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
-				log.Warnf("Error %s package %s: %v", pkg.Action, name, err)
+				recordFailure("packages", name, fmt.Errorf("%s failed: %w", pkg.Action, err))
 				continue
 			}
 

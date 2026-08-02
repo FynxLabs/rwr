@@ -136,16 +136,16 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 		// Generate SSH key
 		keyPath, err := generateSSHKey(sshKey, initConfig)
 		if err != nil {
-			log.Errorf("Error generating SSH key %s: %v", sshKey.Name, err)
-			continue // Continue with the next key instead of returning
+			recordFailure("ssh_keys", sshKey.Name, fmt.Errorf("generating key: %w", err))
+			continue
 		}
 
 		// Copy public key to GitHub if requested
 		if sshKey.CopyToGitHub {
 			err = copySSHKeyToGitHub(sshKey, initConfig)
 			if err != nil {
-				log.Errorf("Error copying SSH key %s to GitHub: %v", sshKey.Name, err)
-				continue // Continue with the next key instead of returning
+				recordFailure("ssh_keys", sshKey.Name, fmt.Errorf("copying public key to GitHub: %w", err))
+				continue
 			}
 		}
 
@@ -153,8 +153,8 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 		if sshKey.SetAsRWRSSHKey {
 			err = setAsRWRSSHKey(keyPath)
 			if err != nil {
-				log.Errorf("Error setting SSH key %s as RWR SSH Key: %v", sshKey.Name, err)
-				continue // Continue with the next key instead of returning
+				recordFailure("ssh_keys", sshKey.Name, fmt.Errorf("setting as RWR SSH key: %w", err))
+				continue
 			}
 		}
 	}
@@ -184,7 +184,28 @@ func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error
 	}
 }
 
+// defaultSSHKeyType and defaultSSHKeyPath fill in the two fields that read as
+// optional but had no defaults: omitting `type` produced `ssh-keygen -t ""` and
+// omitting `path` wrote the key into the current working directory.
+const (
+	defaultSSHKeyType = "ed25519"
+	defaultSSHKeyPath = "~/.ssh"
+)
+
+// withSSHKeyDefaults returns sshKey with its optional fields filled in.
+func withSSHKeyDefaults(sshKey types.SSHKey) types.SSHKey {
+	if sshKey.Type == "" {
+		sshKey.Type = defaultSSHKeyType
+	}
+	if sshKey.Path == "" {
+		sshKey.Path = defaultSSHKeyPath
+	}
+	return sshKey
+}
+
 func generateSSHKey(sshKey types.SSHKey, initConfig *types.InitConfig) (string, error) {
+	sshKey = withSSHKeyDefaults(sshKey)
+
 	// Expand a leading ~ here. Commands are argv now, so no shell expands it on
 	// the way to ssh-keygen — an unexpanded "~/.ssh" would create a directory
 	// literally named "~" in the working directory.
@@ -426,6 +447,8 @@ func getGitHubToken(initConfig *types.InitConfig) (string, string, error) {
 }
 
 func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error {
+	sshKey = withSSHKeyDefaults(sshKey)
+
 	// Get GitHub token with fallback hierarchy
 	token, source, err := getGitHubToken(initConfig)
 	if err != nil {
@@ -435,7 +458,10 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	log.Infof("Using GitHub token from: %s", source)
 
 	// Read SSH public key
-	sshPath := filepath.Join(sshKey.Path, sshKey.Name)
+	// generateSSHKey writes to the expanded path; reading it back unexpanded meant
+	// a literal "~/.ssh/..." relative to the cwd, so every upload for the common
+	// `path: ~/.ssh` failed and the error was swallowed as a skipped key.
+	sshPath := filepath.Join(system.ExpandPath(sshKey.Path), sshKey.Name)
 	publicKeyPath := sshPath + ".pub"
 	publicKeyBytes, err := os.ReadFile(publicKeyPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {

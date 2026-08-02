@@ -62,7 +62,7 @@ func TestValidateBlueprints_AcceptsAValidNestedTree(t *testing.T) {
 		"scripts/setup.yaml":    "scripts:\n  - name: setup.sh\n    action: run\n    source: ./bin\n",
 		"git/repos.yaml":        "git:\n  - name: dots\n    action: clone\n    url: https://example.invalid/d.git\n    path: /tmp/dots\n",
 		"fonts/nerd.yaml":       "fonts:\n  - name: FiraCode\n    action: install\n",
-		"configuration/ui.yaml": "configuration:\n  - name: theme\n    type: dconf\n    action: set\n    key: /org/gnome/theme\n    value: dark\n",
+		"configuration/ui.yaml": "configurations:\n  - name: theme\n    tool: dconf\n    action: set\n    key: /org/gnome/theme\n    value: dark\n",
 	})
 
 	results := &types.ValidationResults{}
