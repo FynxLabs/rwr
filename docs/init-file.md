@@ -23,6 +23,20 @@ GitHub `/blob/` URL, which RWR rewrites to the raw address. An `http://` URL is
 refused: the Init file decides everything RWR runs, so it is not fetched in
 cleartext.
 
+A **GitHub shorthand** also works: `owner/repo` fetches the init file from the
+repository root on the default branch, `owner/repo@ref` pins a branch, tag or
+commit, and `owner/repo/path/to/init.yaml` (optionally with `@ref`) names the
+file explicitly:
+
+```bash
+rwr all -i fynxlabs/my-blueprints
+rwr all -i fynxlabs/my-blueprints@v1.2
+rwr all -i fynxlabs/my-blueprints/machines/laptop.yaml
+```
+
+A local path that exists always wins over shorthand interpretation, so a
+directory literally named `owner/repo` keeps working.
+
 ## Init File Structure
 
 The Init file consists of the following main sections:
