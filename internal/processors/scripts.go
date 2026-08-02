@@ -96,8 +96,12 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	if script.Source != "" {
 		scriptPath = filepath.Join(blueprintDir, script.Source, script.Name)
 	} else if script.Content != "" {
-		// Write the script content to a temporary file
-		tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.sh", script.Name))
+		// Write the script content to a temporary file, named for the executor
+		// that will run it. The extension used to be .sh unconditionally, and
+		// `powershell -File` refuses any file not ending in .ps1 — so every
+		// inline script on Windows (where powershell is the default executor)
+		// failed before its first line ran.
+		tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-*%s", script.Name, scriptTempExtension(script.Exec)))
 		if err != nil {
 			return fmt.Errorf("error creating temporary file for script: %v", err)
 		}
@@ -204,6 +208,27 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	}
 
 	return nil
+}
+
+// scriptTempExtension names an inline script's staging file for the executor
+// that will run it. Only powershell actually enforces its extension
+// (`-File` refuses non-.ps1 files); the rest are for the reader and for any
+// tooling that keys off the suffix.
+func scriptTempExtension(executor string) string {
+	switch executor {
+	case "powershell":
+		return ".ps1"
+	case "python":
+		return ".py"
+	case "ruby":
+		return ".rb"
+	case "perl":
+		return ".pl"
+	case "lua":
+		return ".lua"
+	default: // bash, /bin/bash, self
+		return ".sh"
+	}
 }
 
 func processScriptImports(items []types.Script, blueprintDir string, format string, treeVersion int) ([]types.Script, error) {
