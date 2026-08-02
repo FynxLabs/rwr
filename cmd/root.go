@@ -210,9 +210,14 @@ func init() {
 
 	// GitHub API Key flags
 	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-api-key", "", "GitHub API token (stored under repository.gh_api_token)")
-	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-key", "", "GitHub API token (alias for --gh-api-key)")
 	mustBindFlag("repository.gh_api_token", "gh-api-key")
-	mustBindFlag("repository.gh_api_token", "gh-key")
+	// --gh-key wrote to the same variable and viper key, so when both flags
+	// were given one silently won. Deprecated rather than removed: existing
+	// scripts keep working and get told what to change.
+	rootCmd.PersistentFlags().StringVar(&ghApiToken, "gh-key", "", "GitHub API token (alias for --gh-api-key)")
+	if err := rootCmd.PersistentFlags().MarkDeprecated("gh-key", "use --gh-api-key instead"); err != nil {
+		log.Fatalf("marking --gh-key deprecated: %v", err)
+	}
 
 	// GitHub OAuth authentication flag
 	rootCmd.PersistentFlags().BoolVar(&ghAuth, "gh-auth", false, "Authenticate with GitHub using OAuth device flow")
@@ -237,7 +242,10 @@ func init() {
 	// Config keys are nested ("log.level"), but a dot is not legal in an
 	// environment variable name. Without this replacer viper would look up
 	// "RWR_LOG.LEVEL" and the documented RWR_LOG_LEVEL could never resolve.
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	// "-" maps to "_" as well: keys like rwr.init-file were otherwise only
+	// reachable through an env name containing a hyphen, which POSIX shells
+	// cannot export (RWR_RWR_INIT_FILE now works).
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 }
 

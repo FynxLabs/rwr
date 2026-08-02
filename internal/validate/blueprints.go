@@ -274,6 +274,7 @@ var blueprintValidators = map[string]blueprintValidator{
 		// A files blueprint carries files, templates and directories together; the
 		// files processor reads all three, so validation has to as well.
 		ValidateFiles(append(append([]types.File{}, d.Files...), d.Templates...), file, results)
+		ValidateDirectories(d.Directories, file, results)
 		return nil
 	},
 	types.BlueprintTypeGit: func(data []byte, format string, file string, results *types.ValidationResults) error {

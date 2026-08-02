@@ -180,3 +180,24 @@ func TestValidateBlueprints_SkipsDotDirectories(t *testing.T) {
 		}
 	}
 }
+
+// The recursive import validator drifted from ValidatePackages: it required
+// `name` alone, so a names-list entry that validated fine as a file errored
+// the moment another blueprint imported it.
+func TestValidatePackages_ImportedNamesListIsAccepted(t *testing.T) {
+	root := writeTree(t, map[string]string{
+		"init.yaml":          "blueprints:\n  format: yaml\n",
+		"packages/main.yaml": "packages:\n  - import: ../shared/base.yaml\n",
+		"shared/base.yaml":   "packages:\n  - names: [curl, wget]\n    action: install\n",
+	})
+
+	results := &types.ValidationResults{}
+	if err := ValidateBlueprints(root, false, results, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, issue := range results.Issues {
+		if issue.Severity == types.ValidationError {
+			t.Errorf("unexpected error: %s [%s]", issue.Message, issue.File)
+		}
+	}
+}

@@ -168,7 +168,14 @@ func validatePackagesWithVisited(packages []types.Package, file string, results 
 			validateImportWithVisited(pkg.Import, fmt.Sprintf("packages[%d]", i), blueprintDir, file, results, &types.PackagesData{}, visited)
 			continue
 		}
-		validateRequired(pkg.Name, fmt.Sprintf("packages[%d].name", i), file, results, "Add name field to package")
+		// name or names, the same contract ValidatePackages applies — this
+		// copy still required `name` alone, so a names-list entry that
+		// validated fine as a file errored the moment it was imported.
+		if pkg.Name == "" && len(pkg.Names) == 0 {
+			AddIssue(results, types.ValidationError,
+				fmt.Sprintf("Missing required field 'packages[%d].name'", i), file, 0,
+				"Add a name field, or a names list, to the package")
+		}
 		validateEnum(pkg.Action, fmt.Sprintf("packages[%d].action", i),
 			[]string{types.ActionInstall, types.ActionRemove}, file, results)
 	}

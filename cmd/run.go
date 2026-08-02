@@ -29,107 +29,48 @@ for example "rwr run packages" or "rwr run files". To run everything, use
 	},
 }
 
-var runPackageCmd = &cobra.Command{
-	Use:   "packages",
-	Short: "Run packages processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"packages"})
-	},
-}
-
-var runRepositoryCmd = &cobra.Command{
-	Use:   "repository",
-	Short: "Run repository processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"repositories"})
-	},
-}
-
-var runServicesCmd = &cobra.Command{
-	Use:   "services",
-	Short: "Run services processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"services"})
-	},
-}
-
-var runFilesCmd = &cobra.Command{
-	Use:   "files",
-	Short: "Run files processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"files"})
-	},
-}
-
-var runConfigurationCmd = &cobra.Command{
-	Use:   "configuration",
-	Short: "Run configuration processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"configuration"})
-	},
-}
-
-var runUsersCmd = &cobra.Command{
-	Use:   "users",
-	Short: "Run users processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"users"})
-	},
-}
-
-var runGitCmd = &cobra.Command{
-	Use:   "git",
-	Short: "Run git processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"git"})
-	},
-}
-
-var runScriptsCmd = &cobra.Command{
-	Use:   "scripts",
-	Short: "Run scripts processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"scripts"})
-	},
-}
-
-var runSSHKeysCmd = &cobra.Command{
-	Use:   "ssh_keys",
-	Short: "Run SSH key processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Handle GitHub OAuth authentication if --gh-auth flag is set
-		if ghAuth {
-			token, err := processors.AuthenticateWithGitHub(initConfig)
-			if err != nil {
-				return fmt.Errorf("GitHub authentication failed: %w", err)
-			}
-			// Update the token in both global var and initConfig
-			ghApiToken = token
-			initConfig.Variables.Flags.GHAPIToken = token
-		}
-
-		return processors.All(initConfig, osInfo, []string{"ssh_keys"})
-	},
-}
-
-var runFontsCmd = &cobra.Command{
-	Use:   "fonts",
-	Short: "Run fonts processor",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return processors.All(initConfig, osInfo, []string{"fonts"})
-	},
+// runProcessors maps each subcommand to the blueprint type it dispatches. One
+// table instead of ten hand-written near-identical command declarations: the
+// subcommand names and behavior are unchanged.
+var runProcessors = []struct {
+	use       string
+	short     string
+	blueprint string
+	// ssh_keys is the one processor with pre-work: --gh-auth runs the GitHub
+	// device flow before the processor needs the token.
+	githubAuth bool
+}{
+	{use: "packages", short: "Run packages processor", blueprint: "packages"},
+	{use: "repository", short: "Run repository processor", blueprint: "repositories"},
+	{use: "services", short: "Run services processor", blueprint: "services"},
+	{use: "files", short: "Run files processor", blueprint: "files"},
+	{use: "configuration", short: "Run configuration processor", blueprint: "configuration"},
+	{use: "users", short: "Run users processor", blueprint: "users"},
+	{use: "git", short: "Run git processor", blueprint: "git"},
+	{use: "scripts", short: "Run scripts processor", blueprint: "scripts"},
+	{use: "ssh_keys", short: "Run SSH key processor", blueprint: "ssh_keys", githubAuth: true},
+	{use: "fonts", short: "Run fonts processor", blueprint: "fonts"},
 }
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	runCmd.AddCommand(runPackageCmd)
-	runCmd.AddCommand(runRepositoryCmd)
-	runCmd.AddCommand(runServicesCmd)
-	runCmd.AddCommand(runFilesCmd)
-	runCmd.AddCommand(runConfigurationCmd)
-	runCmd.AddCommand(runUsersCmd)
-	runCmd.AddCommand(runGitCmd)
-	runCmd.AddCommand(runScriptsCmd)
-	runCmd.AddCommand(runSSHKeysCmd)
-	runCmd.AddCommand(runFontsCmd)
+
+	for _, p := range runProcessors {
+		runCmd.AddCommand(&cobra.Command{
+			Use:   p.use,
+			Short: p.short,
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if p.githubAuth && ghAuth {
+					token, err := processors.AuthenticateWithGitHub(initConfig)
+					if err != nil {
+						return fmt.Errorf("GitHub authentication failed: %w", err)
+					}
+					// Update the token in both global var and initConfig
+					ghApiToken = token
+					initConfig.Variables.Flags.GHAPIToken = token
+				}
+				return processors.All(initConfig, osInfo, []string{p.blueprint})
+			},
+		})
+	}
 }

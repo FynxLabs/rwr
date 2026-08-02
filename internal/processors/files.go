@@ -492,19 +492,12 @@ func chownFile(file types.File, target string) error {
 	return nil
 }
 
+// chgrpFile is the group half of chownFile: same lookup, same chown call,
+// owner left untouched.
 func chgrpFile(file types.File, target string) error {
-	if file.Group != "" {
-		gid, err := system.LookupGID(file.Group)
-		if err != nil {
-			return fmt.Errorf("error looking up group GID: %w", err)
-		}
-		if err := os.Chown(target, -1, gid); err != nil {
-			return fmt.Errorf("error changing file group: %w", err)
-		}
-	}
-
-	log.Infof("File group changed: %s (group: %s)", target, file.Group)
-	return nil
+	groupOnly := file
+	groupOnly.Owner = ""
+	return chownFile(groupOnly, target)
 }
 
 func symlinkFile(source, target string) error {
@@ -660,21 +653,12 @@ func chownDirectory(dir types.Directory) error {
 	return nil
 }
 
+// chgrpDirectory is the group half of chownDirectory: same lookup, same chown
+// call, owner left untouched.
 func chgrpDirectory(dir types.Directory) error {
-	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
-
-	if dir.Group != "" {
-		gid, err := system.LookupGID(dir.Group)
-		if err != nil {
-			return fmt.Errorf("error looking up group GID: %w", err)
-		}
-		if err := os.Chown(target, -1, gid); err != nil {
-			return fmt.Errorf("error changing directory group: %w", err)
-		}
-	}
-
-	log.Infof("Directory group changed: %s (group: %s)", target, dir.Group)
-	return nil
+	groupOnly := dir
+	groupOnly.Owner = ""
+	return chownDirectory(groupOnly)
 }
 
 func symlinkDirectory(dir types.Directory, blueprintDir string) error {

@@ -138,14 +138,14 @@ jobs:
           }
           Write-Host "install.ps1 parses cleanly"
 
-      # Reporting only for now: the script has never been linted, so the first run
-      # is a findings list rather than a gate. Drop continue-on-error once it is clean.
+      # Gating. PSAvoidUsingWriteHost is excluded deliberately: install.ps1 is
+      # a console script whose entire output is for the human running it —
+      # Write-Host is the right tool there, and it was the only finding class.
       - name: PSScriptAnalyzer install.ps1
         shell: pwsh
-        continue-on-error: true
         run: |
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop
-          $findings = Invoke-ScriptAnalyzer -Path ./install.ps1 -Severity Error,Warning
+          $findings = Invoke-ScriptAnalyzer -Path ./install.ps1 -Severity Error,Warning -ExcludeRule PSAvoidUsingWriteHost
           $findings | Format-Table -AutoSize
           if ($findings) { exit 1 }
 
@@ -192,21 +192,13 @@ jobs:
           echo "Validated $found example trees."
           exit "$status"
 
-      # The loop above only reaches a directory that has an init file at or above
-      # it, so a blueprint tree without one is never validated and nothing says so.
-      # That is true of examples/imports/ today: it ships blueprint files but no
-      # init file, and `rwr validate` requires one (validate.findInitFile), so the
-      # command cannot be pointed at that tree at all. Closing it means adding
-      # examples/imports/Arch/init.yaml, which belongs in a change to examples/.
-      #
-      # This step pins the gap at its current size: a newly uncovered tree fails,
-      # and so does a listed one that becomes covered.
+      # The loop above only reaches a directory that has an init file at or
+      # above it, so a blueprint tree without one is never validated and
+      # nothing says so. Every current tree is covered (examples/imports/ got
+      # its init file); this keeps it that way.
       - name: Every example tree is reachable by rwr validate
         run: |
           set -euo pipefail
-          known_gaps="examples/imports/Arch/packages
-          examples/imports/Common/packages/arch"
-
           uncovered=""
           while IFS= read -r dir; do
             d="$dir"
@@ -222,14 +214,11 @@ jobs:
               -printf '%h\n' | sort -u
           )
 
-          if diff <(printf '%s\n' "$known_gaps" | sed 's/^ *//' | sort) \
-                  <(printf '%s' "$uncovered" | sed '/^$/d' | sort); then
-            exit 0
+          if [ -n "$uncovered" ]; then
+            echo "::error::These example directories have no init file at or above them, so 'rwr validate' cannot reach them:"
+            printf '%s' "$uncovered"
+            exit 1
           fi
-          echo "::error::The set of example directories 'rwr validate' cannot reach changed."
-          echo "'>' lines are newly unreachable: give that tree an init file."
-          echo "'<' lines are now reachable: drop them from known_gaps in this workflow."
-          exit 1
 
   security:
     runs-on: ubuntu-latest

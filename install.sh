@@ -164,6 +164,30 @@ if ! curl -fsSL -H "User-Agent: $USER_AGENT" -o "$TMP_DIR/$CHECKSUMS" "$checksum
     fail "Failed to download $CHECKSUMS from $checksums_url. Exiting."
 fi
 
+# Releases carry a keyless cosign signature over checksums.txt, bound to this
+# repository's GitHub Actions identity. Verifying it upgrades the checksum
+# comparison from integrity to authenticity. Opportunistic: cosign is not a
+# requirement to install, but when it is present and the release publishes a
+# signature, a bad signature is a hard stop.
+sig_url=$(url_for_asset "$CHECKSUMS.sig")
+cert_url=$(url_for_asset "$CHECKSUMS.pem")
+if command -v cosign >/dev/null 2>&1 && [ -n "$sig_url" ] && [ -n "$cert_url" ]; then
+    if ! curl -fsSL -H "User-Agent: $USER_AGENT" -o "$TMP_DIR/$CHECKSUMS.sig" "$sig_url" ||
+       ! curl -fsSL -H "User-Agent: $USER_AGENT" -o "$TMP_DIR/$CHECKSUMS.pem" "$cert_url"; then
+        fail "The release publishes a signature for $CHECKSUMS but it could not be downloaded. Refusing to install."
+    fi
+    if ! cosign verify-blob "$TMP_DIR/$CHECKSUMS" \
+        --signature "$TMP_DIR/$CHECKSUMS.sig" \
+        --certificate "$TMP_DIR/$CHECKSUMS.pem" \
+        --certificate-identity-regexp "github.com/$REPO" \
+        --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null 2>&1; then
+        fail "cosign signature verification FAILED for $CHECKSUMS. The release may have been tampered with. Refusing to install."
+    fi
+    echo "Signature verified (cosign)"
+elif [ -n "$sig_url" ]; then
+    echo "Note: this release is signed; install cosign to verify signatures."
+fi
+
 # goreleaser writes "<sha256>  <file name>" lines. Compare $2 exactly so a
 # prefix of another asset name cannot be picked up by mistake.
 expected=$(awk -v n="$ASSET" '{ name = $2; sub(/^\*/, "", name); if (name == n) { print $1; exit } }' "$TMP_DIR/$CHECKSUMS")

@@ -1,7 +1,7 @@
 packages:
   # Import common base AUR packages shared with Archcraft
   # See: Common/packages/arch/base-aur.yaml
-  - import: ../../Common/packages/arch/base-aur.yaml
+  - import: ../../Common/packages/base-aur-arch.yaml
   # Arch-specific AUR packages not in Archcraft
   - names:
       - nvm
