@@ -172,6 +172,30 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		return filepath.Dir(path)
 	}
 
+	// The run loop only executes buckets named after a processor. A file whose
+	// path matches none lands in a directory-named bucket ("." for a top-level
+	// file) that nothing ever reads — the flattened/minimal_files example
+	// layouts hit exactly this and exited 0 having executed nothing. Until
+	// detection is content-based, the least we owe the operator is a loud
+	// statement that the file will not run.
+	warnIfUnrouted := func(processor, relPath string) {
+		switch processor {
+		case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
+			types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration:
+			return
+		}
+		log.Warnf("Blueprint file %s is not under a recognized processor directory and will NOT be executed. "+
+			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/.", relPath)
+	}
+
+	// The init file configures the run and bootstrap is dispatched separately
+	// (findBootstrapFile); neither is a processor blueprint, so neither belongs
+	// in a processor bucket — nor in the unrouted warning above.
+	isReservedFile := func(path string) bool {
+		base := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		return base == "init" || base == "bootstrap"
+	}
+
 	// Process ordered items first
 	for _, item := range order {
 		if str, ok := item.(string); ok {
@@ -184,12 +208,13 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 						if err != nil {
 							return err
 						}
-						if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format {
+						if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format && !isReservedFile(path) {
 							relPath, err := filepath.Rel(blueprintDir, path)
 							if err != nil {
 								return err
 							}
 							processor := getProcessorType(relPath)
+							warnIfUnrouted(processor, relPath)
 							fileOrder[processor] = append(fileOrder[processor], relPath)
 							log.Debugf("Added file to processor %s: %s", processor, relPath)
 						}
@@ -218,12 +243,13 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 			if err != nil {
 				return err
 			}
-			if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format {
+			if !info.IsDir() && filepath.Ext(path) == "."+initConfig.Init.Format && !isReservedFile(path) {
 				relPath, err := filepath.Rel(blueprintDir, path)
 				if err != nil {
 					return err
 				}
 				processor := getProcessorType(relPath)
+				warnIfUnrouted(processor, relPath)
 				if _, exists := fileOrder[processor]; !exists {
 					fileOrder[processor] = []string{relPath}
 				} else if !helpers.Contains(fileOrder[processor], relPath) {
