@@ -113,12 +113,28 @@ func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo)
 	return nil
 }
 
+// fileActionConsumesContent reports whether an action reads file content at
+// all. The metadata actions act on a target that already exists; the empty
+// action defaults to create-from-content later in processFile.
+func fileActionConsumesContent(action string) bool {
+	switch action {
+	case types.FileActionChmod, types.FileActionChown, types.FileActionChgrp, types.FileActionDelete:
+		return false
+	}
+	return true
+}
+
 func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) error {
 
 	log.Debugf("Processing file: %s", file.Name)
 
-	if file.Content == "" && file.Source == "" {
-		return fmt.Errorf("either Content or Source must be provided for file %s", file.Name)
+	// Only the actions that consume content need it. chmod/chown/chgrp/delete
+	// operate on an existing target — demanding content or source for them
+	// broke the documented metadata examples (docs/blueprints/files.md), which
+	// pair a copy entry with a follow-up chmod/chown entry. The validator
+	// (internal/validate/components.go) has always gated this by action.
+	if file.Content == "" && file.Source == "" && fileActionConsumesContent(file.Action) {
+		return fmt.Errorf("either Content or Source must be provided for file %s (action %q)", file.Name, file.Action)
 	}
 
 	// Handle URL source
