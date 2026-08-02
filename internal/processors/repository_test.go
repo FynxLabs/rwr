@@ -127,7 +127,10 @@ func TestProcessRepositories_AptAddRendersProviderTemplates(t *testing.T) {
 	}
 
 	keyPath := filepath.Join(keysDir, "docker.gpg")
-	tempKeyPath := filepath.Join(os.TempDir(), "docker.gpg")
+	// The staging path is inside the run's private 0700 directory, not a
+	// world-known name under /tmp any local user could pre-create or swap
+	// between the download and the dearmor that imports it as root.
+	tempKeyPath := filepath.Join(repositoryTempDir(), "docker.gpg")
 
 	// The key is downloaded to the temporary path the dearmor step reads from.
 	if _, err := os.Stat(tempKeyPath); err != nil {
