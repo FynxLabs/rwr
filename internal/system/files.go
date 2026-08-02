@@ -526,10 +526,18 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		return fmt.Errorf("error getting source file info: %v", err)
 	}
 
+	// The directory has to be created with the same privilege as the copy:
+	// an elevated copy into /etc/new-dir ran os.MkdirAll unelevated first and
+	// died with EACCES before the elevated mv ever ran.
 	targetDir := filepath.Dir(target)
-	// 0755, not os.ModePerm: 0777 through a permissive umask is a directory
-	// every local user can write, on a path that may hold installed content.
-	if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G301 -- parent of a blueprint-named target; 0755 so installed content stays world-readable, never world-writable
+	if elevated {
+		mkdir := types.Command{Exec: "mkdir", Args: []string{"-p", "--", targetDir}, Elevated: true}
+		if err := RunCommand(mkdir, false); err != nil {
+			return fmt.Errorf("error creating target directory with elevated privileges: %v", err)
+		}
+		// 0755, not os.ModePerm: 0777 through a permissive umask is a directory
+		// every local user can write, on a path that may hold installed content.
+	} else if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G301 -- parent of a blueprint-named target; 0755 so installed content stays world-readable, never world-writable
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
@@ -610,36 +618,6 @@ func ExpandPath(path string) string {
 	return path
 }
 
-func copyFileContent(source, target string) error {
-	log.Debugf("Copying file content from %s to %s", source, target)
-	sourceFile, err := os.Open(source) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-	if err != nil {
-		return fmt.Errorf("error opening source file: %v", err)
-	}
-	defer func() {
-		if err := sourceFile.Close(); err != nil { //nolint:errcheck
-			log.Errorf("error closing source file: %v", err)
-		}
-	}()
-
-	targetFile, err := os.Create(target) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
-	if err != nil {
-		return fmt.Errorf("error creating target file: %v", err)
-	}
-	defer func() {
-		if err := targetFile.Close(); err != nil { //nolint:errcheck
-			log.Errorf("error closing target file: %v", err)
-		}
-	}()
-
-	_, err = io.Copy(targetFile, sourceFile)
-	if err != nil {
-		return fmt.Errorf("error copying file: %v", err)
-	}
-
-	return err
-}
-
 // CopyDirectory recursively copies a directory from source to target.
 // In interactive mode, it shows diffs and prompts before overwriting existing files.
 func CopyDirectory(source, target string, elevated, interactive bool) error {
@@ -658,8 +636,15 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 		targetPath := filepath.Join(target, relPath)
 
 		if info.IsDir() {
-			err := os.MkdirAll(targetPath, info.Mode())
-			if err != nil {
+			// Created with the same privilege as the copy: `elevated` used to be
+			// accepted and ignored, so a directories blueprint with elevated: true
+			// failed with EACCES on the first root-owned target.
+			if elevated {
+				mkdir := types.Command{Exec: "mkdir", Args: []string{"-p", "--", targetPath}, Elevated: true}
+				if err := RunCommand(mkdir, false); err != nil {
+					return fmt.Errorf("error creating directory %s with elevated privileges: %v", targetPath, err)
+				}
+			} else if err := os.MkdirAll(targetPath, info.Mode()); err != nil {
 				return err
 			}
 		} else {
@@ -684,16 +669,18 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 					}
 				}
 
-				// Overwrite the file
-				err := os.Remove(targetPath) //nolint:errcheck
-				if err != nil {
-					return err
+				// Overwrite the file. The elevated path replaces it via an
+				// elevated mv inside CopyFile, so only the unelevated copy has
+				// to clear the target itself.
+				if !elevated {
+					if err := os.Remove(targetPath); err != nil {
+						return err
+					}
 				}
 			}
 
-			// Copy the file
-			err = copyFileContent(path, targetPath)
-			if err != nil {
+			// Copy the file with the privilege the blueprint asked for.
+			if err := CopyFile(path, targetPath, elevated, nil); err != nil {
 				return err
 			}
 		}

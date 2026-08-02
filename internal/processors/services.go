@@ -76,7 +76,10 @@ func createServiceFile(service types.Service, osInfo *types.OSInfo) error {
 			log.Infof("[DRY-RUN] Would create service file: %s", service.Target)
 			return nil
 		}
-		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil { // #nosec G306 -- TODO(PR8): create with target mode instead of chmod-after
+		// system.WriteToFile, not a plain os.WriteFile: the unit file usually
+		// lives under /etc, and the plain write ignored `elevated` and died
+		// with EACCES for any non-root run that declared it.
+		if err := system.WriteToFile(service.Target, service.Content, service.Elevated); err != nil {
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
@@ -190,7 +193,10 @@ func createLaunchDaemon(service types.Service, osInfo *types.OSInfo) error {
 			log.Infof("[DRY-RUN] Would create launch daemon: %s", service.Target)
 			return nil
 		}
-		if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil { // #nosec G306 -- TODO(PR8): create with target mode instead of chmod-after
+		// system.WriteToFile, not a plain os.WriteFile: /Library/LaunchDaemons
+		// is root-owned, and the plain write ignored `elevated` and died with
+		// EACCES for any non-root run that declared it.
+		if err := system.WriteToFile(service.Target, service.Content, service.Elevated); err != nil {
 			return fmt.Errorf("error creating launch daemon: %v", err)
 		}
 	} else if service.Source != "" {
@@ -299,7 +305,7 @@ func createWindowsService(service types.Service, osInfo *types.OSInfo, initConfi
 	if service.Content != "" {
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would create Windows service file: %s", service.Target)
-		} else if err := os.WriteFile(service.Target, []byte(service.Content), 0644); err != nil { // #nosec G306 -- TODO(PR8): create with target mode instead of chmod-after
+		} else if err := system.WriteToFile(service.Target, service.Content, service.Elevated); err != nil {
 			return fmt.Errorf("error creating service file: %v", err)
 		}
 	} else if service.Source != "" {
