@@ -194,7 +194,7 @@ func ValidateUsers(users []types.User, file string, results *types.ValidationRes
 		validateRequired(user.Name, fmt.Sprintf("users[%d].name", i), file, results, "Add name field to user")
 
 		validateEnum(user.Action, fmt.Sprintf("users[%d].action", i),
-			[]string{types.UserActionCreate, types.UserActionModify, types.UserActionDelete}, file, results)
+			[]string{types.UserActionCreate, types.UserActionModify, types.UserActionRemove, types.UserActionDelete}, file, results)
 	}
 }
 

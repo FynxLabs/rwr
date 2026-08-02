@@ -331,8 +331,12 @@ files:
   - name: "executable.sh"
     action: "create"
     content: "#!/bin/bash\necho 'Hello World'"
-    target: "` + tempDir + `"
-    mode: 755
+    target: "` + tempDir + `/"
+    mode: 0755
+  - name: "plain.conf"
+    action: "create"
+    content: "key = value"
+    target: "` + tempDir + `/"
 `
 
 	err := ProcessFiles([]byte(blueprintData), blueprintDir, "yaml", osInfo, config)
@@ -341,19 +345,23 @@ files:
 		t.Fatalf("ProcessFiles with permissions failed: %v", err)
 	}
 
-	// Verify file was created with correct permissions
-	createdFile := filepath.Join(tempDir, "executable.sh")
-	info, err := os.Stat(createdFile)
+	// The declared mode has to be the mode the file is created with, not one
+	// applied after the content is already on disk.
+	info, err := os.Stat(filepath.Join(tempDir, "executable.sh"))
 	if err != nil {
 		t.Fatalf("Failed to stat created file: %v", err)
 	}
+	if perms := info.Mode().Perm(); perms != 0755 {
+		t.Errorf("File permissions: expected 0755, got %o", perms)
+	}
 
-	// Check if file has executable permissions (on Unix-like systems)
-	// Note: File permissions may vary in test environments, so we'll check for reasonable values
-	perms := info.Mode().Perm()
-	if perms != 0755 {
-		t.Logf("File permissions: expected 0755, got %o (this may vary in test environments)", perms)
-		// Just verify the file was created successfully
+	// A plain file with no declared mode stays readable, unlike a rendered template.
+	info, err = os.Stat(filepath.Join(tempDir, "plain.conf"))
+	if err != nil {
+		t.Fatalf("Failed to stat created file: %v", err)
+	}
+	if perms := info.Mode().Perm(); perms != 0644 {
+		t.Errorf("File permissions: expected 0644, got %o", perms)
 	}
 }
 
@@ -586,5 +594,208 @@ func TestResolveAndFilterFileData_EmptyBlueprint(t *testing.T) {
 	}
 	if len(templates) != 0 {
 		t.Errorf("Expected 0 templates, got %d", len(templates))
+	}
+}
+
+// modeBlueprint writes one file entry declaring mode, in the given format.
+func modeBlueprint(format, target, modeField string) string {
+	switch format {
+	case "json":
+		return `{"files": [{"name": "app.conf", "action": "create", "content": "x", "target": "` +
+			target + `/", ` + modeField + `}]}`
+	case "toml":
+		return "[[files]]\nname = \"app.conf\"\naction = \"create\"\ncontent = \"x\"\ntarget = \"" +
+			target + "/\"\n" + modeField + "\n"
+	default:
+		return "files:\n  - name: app.conf\n    action: create\n    content: x\n    target: \"" +
+			target + "/\"\n    " + modeField + "\n"
+	}
+}
+
+func modeTestConfig(blueprintDir, format string) (*types.InitConfig, *types.OSInfo) {
+	config := &types.InitConfig{
+		Init: types.Init{Location: blueprintDir, Format: format},
+	}
+	return config, &types.OSInfo{}
+}
+
+// A mode written as a quoted octal string means the same thing in all three
+// formats. That is the form the docs recommend precisely because it is the only
+// one none of the three can reinterpret.
+func TestProcessFiles_QuotedOctalModeIsTheSameInEveryFormat(t *testing.T) {
+	fields := map[string]string{
+		"yaml": `mode: "0640"`,
+		"json": `"mode": "0640"`,
+		"toml": `mode = "0640"`,
+	}
+
+	for _, format := range testFormats {
+		t.Run(format.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			blueprintDir := filepath.Join(tempDir, "blueprints")
+			config, osInfo := modeTestConfig(blueprintDir, format.format)
+
+			data := modeBlueprint(format.format, tempDir, fields[format.format])
+			if err := ProcessFiles([]byte(data), blueprintDir, format.format, osInfo, config); err != nil {
+				t.Fatalf("ProcessFiles failed: %v", err)
+			}
+
+			info, err := os.Stat(filepath.Join(tempDir, "app.conf"))
+			if err != nil {
+				t.Fatalf("Failed to stat created file: %v", err)
+			}
+			if perms := info.Mode().Perm(); perms != 0o640 {
+				t.Errorf("File permissions: expected 0640, got %o", perms)
+			}
+		})
+	}
+}
+
+// The number every format already converts for a mode: YAML's 0644, TOML's
+// 0o644, and the 420 a JSON blueprint has to write because JSON has no octal
+// literal. All three name one mode and must produce it.
+func TestProcessFiles_NumericOctalModeResolvesTo0644(t *testing.T) {
+	fields := map[string]string{
+		"yaml": `mode: 0644`,
+		"json": `"mode": 420`,
+		"toml": `mode = 0o644`,
+	}
+
+	for _, format := range testFormats {
+		t.Run(format.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			blueprintDir := filepath.Join(tempDir, "blueprints")
+			config, osInfo := modeTestConfig(blueprintDir, format.format)
+
+			data := modeBlueprint(format.format, tempDir, fields[format.format])
+			if err := ProcessFiles([]byte(data), blueprintDir, format.format, osInfo, config); err != nil {
+				t.Fatalf("ProcessFiles failed: %v", err)
+			}
+
+			info, err := os.Stat(filepath.Join(tempDir, "app.conf"))
+			if err != nil {
+				t.Fatalf("Failed to stat created file: %v", err)
+			}
+			if perms := info.Mode().Perm(); perms != 0o644 {
+				t.Errorf("File permissions: expected 0644, got %o", perms)
+			}
+		})
+	}
+}
+
+// `mode: 644` is decimal 644, which is 0o1204 — a setuid mode with almost none
+// of the permissions the writer asked for. The run has to stop at the blueprint
+// rather than put that on disk.
+func TestProcessFiles_DecimalModeIsRefusedBeforeAnythingIsWritten(t *testing.T) {
+	fields := map[string]string{
+		"yaml": `mode: 644`,
+		"json": `"mode": 644`,
+		"toml": `mode = 644`,
+	}
+
+	for _, format := range testFormats {
+		t.Run(format.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			blueprintDir := filepath.Join(tempDir, "blueprints")
+			config, osInfo := modeTestConfig(blueprintDir, format.format)
+
+			data := modeBlueprint(format.format, tempDir, fields[format.format])
+			err := ProcessFiles([]byte(data), blueprintDir, format.format, osInfo, config)
+			if err == nil {
+				t.Fatal("mode 644 was accepted; expected the blueprint to be refused")
+			}
+			if !containsString(err.Error(), "ambiguous file mode 644") {
+				t.Errorf("error does not explain the ambiguity: %v", err)
+			}
+			if _, statErr := os.Stat(filepath.Join(tempDir, "app.conf")); statErr == nil {
+				t.Error("file was created despite the mode being refused")
+			}
+		})
+	}
+}
+
+func TestProcessFiles_ModeOutOfRangeIsRefused(t *testing.T) {
+	tempDir := t.TempDir()
+	blueprintDir := filepath.Join(tempDir, "blueprints")
+	config, osInfo := modeTestConfig(blueprintDir, "yaml")
+
+	data := modeBlueprint("yaml", tempDir, `mode: "10000"`)
+	err := ProcessFiles([]byte(data), blueprintDir, "yaml", osInfo, config)
+	if err == nil {
+		t.Fatal("mode 10000 was accepted; expected the blueprint to be refused")
+	}
+	if !containsString(err.Error(), "larger than the largest permission mode") {
+		t.Errorf("error does not name the range: %v", err)
+	}
+}
+
+// A chmod with no mode would otherwise chmod the target to 0000.
+func TestChmodFile_WithoutAModeIsRefused(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "app.conf")
+	if err := os.WriteFile(target, []byte("x"), 0o644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	err := chmodFile(types.File{Name: "app.conf"}, target)
+	if err == nil {
+		t.Fatal("chmod with no mode succeeded; expected it to be refused")
+	}
+
+	info, statErr := os.Stat(target)
+	if statErr != nil {
+		t.Fatalf("Failed to stat file: %v", statErr)
+	}
+	if perms := info.Mode().Perm(); perms != 0o644 {
+		t.Errorf("File permissions were changed to %o by a chmod with no mode", perms)
+	}
+}
+
+// A copy used to keep the source file's mode and silently discard the declared
+// one, so a blueprint copying a secret with mode: "0600" landed it 0644.
+func TestProcessFiles_CopyAppliesDeclaredMode(t *testing.T) {
+	tempDir := t.TempDir()
+	blueprintDir := filepath.Join(tempDir, "blueprints")
+	if err := os.MkdirAll(blueprintDir, 0o755); err != nil {
+		t.Fatalf("creating blueprint dir: %v", err)
+	}
+
+	srcDir := filepath.Join(blueprintDir, "src")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatalf("creating source dir: %v", err)
+	}
+	source := filepath.Join(srcDir, "netrc")
+	if err := os.WriteFile(source, []byte("machine example.com password hunter2\n"), 0o644); err != nil {
+		t.Fatalf("writing source: %v", err)
+	}
+
+	target := filepath.Join(tempDir, "out")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatalf("creating target dir: %v", err)
+	}
+
+	config := &types.InitConfig{
+		Init:      types.Init{Location: blueprintDir, Format: "yaml"},
+		Variables: types.Variables{},
+	}
+
+	blueprintData := `
+files:
+  - name: "netrc"
+    action: "copy"
+    source: "src"
+    target: "` + target + `/"
+    mode: "0600"
+`
+
+	if err := ProcessFiles([]byte(blueprintData), blueprintDir, "yaml", &types.OSInfo{}, config); err != nil {
+		t.Fatalf("ProcessFiles: %v", err)
+	}
+
+	info, err := os.Stat(filepath.Join(target, "netrc"))
+	if err != nil {
+		t.Fatalf("copied file missing: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("copied file mode = %04o, want 0600", got)
 	}
 }
