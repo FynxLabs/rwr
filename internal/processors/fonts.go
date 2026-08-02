@@ -353,7 +353,7 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 				if closeErr := tempFile.Close(); closeErr != nil {
 					log.Debugf("closing oversized font temp file: %v", closeErr)
 				}
-				return fmt.Errorf("font file %s decompresses past %d MB; refusing what looks like a decompression bomb", header.Name, maxFontFileBytes>>20)
+				return extracted, fmt.Errorf("font file %s decompresses past %d MB; refusing what looks like a decompression bomb", header.Name, maxFontFileBytes>>20)
 			}
 			if err := tempFile.Close(); err != nil {
 				return extracted, fmt.Errorf("error closing temp file after copy: %w", err)
