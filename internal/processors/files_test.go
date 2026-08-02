@@ -902,3 +902,69 @@ files:
 		t.Errorf("target content = %q, want %q", got, "abs contents")
 	}
 }
+
+// The metadata actions act on an existing target and carry no content, but
+// processFile demanded content or source for every entry — which broke the
+// documented pattern of a copy entry followed by a chmod/chown entry
+// (docs/blueprints/files.md). The validator has always allowed them.
+func TestProcessFile_MetadataActionsNeedNoContentOrSource(t *testing.T) {
+	osInfo := &types.OSInfo{}
+	osInfo.System.OS = "linux"
+
+	t.Run("chmod", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "script.sh")
+		if err := os.WriteFile(target, []byte("#!/bin/sh\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := processFile(types.File{
+			Name:   "script.sh",
+			Action: "chmod",
+			Target: target,
+			Mode:   types.FileMode(0o755),
+		}, dir, osInfo)
+		if err != nil {
+			t.Fatalf("processFile(chmod): %v", err)
+		}
+		info, err := os.Stat(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0o755 {
+			t.Errorf("mode = %o, want 0755", info.Mode().Perm())
+		}
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "stale.conf")
+		if err := os.WriteFile(target, []byte("old"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := processFile(types.File{
+			Name:   "stale.conf",
+			Action: "delete",
+			Target: target,
+		}, dir, osInfo)
+		if err != nil {
+			t.Fatalf("processFile(delete): %v", err)
+		}
+		if _, err := os.Stat(target); !os.IsNotExist(err) {
+			t.Errorf("target still exists after delete: %v", err)
+		}
+	})
+
+	t.Run("copy still requires a source", func(t *testing.T) {
+		dir := t.TempDir()
+		err := processFile(types.File{
+			Name:   "orphan",
+			Action: "copy",
+			Target: filepath.Join(dir, "out"),
+		}, dir, osInfo)
+		if err == nil {
+			t.Fatal("processFile(copy without source) succeeded, want an error")
+		}
+	})
+}
