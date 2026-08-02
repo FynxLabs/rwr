@@ -1,18 +1,19 @@
 package system
 
 import (
+	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strings"
 
 	"charm.land/log/v2"
-	"github.com/BurntSushi/toml"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-//go:embed definitions/providers/*.toml
+//go:embed definitions/providers/*.json
 var embeddedProviders embed.FS
 
 // LoadEmbeddedProviders parses all TOML provider definitions from the embedded
@@ -42,7 +43,7 @@ func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 	log.Debugf("LoadEmbeddedProviders: Found %d entries in embedded filesystem", len(entries))
 
 	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".toml") {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
 			path := filepath.Join("definitions/providers", entry.Name())
 
 			// Read the file content
@@ -52,16 +53,17 @@ func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 				continue
 			}
 
-			// Parse TOML
-			var config struct {
-				Provider types.Provider `toml:"provider"`
-			}
-			if _, err := toml.Decode(string(data), &config); err != nil {
-				log.Errorf("LoadEmbeddedProviders: Failed to decode TOML %s: %v", path, err)
+			// The embedded JSON is the committed export of providers/cue/
+			// (mise run providers:export). Decoded strictly: an unknown key
+			// here means the CUE schema and types.Provider have drifted, and
+			// silence is how the last drift happened.
+			var provider types.Provider
+			dec := json.NewDecoder(bytes.NewReader(data))
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(&provider); err != nil {
+				log.Errorf("LoadEmbeddedProviders: Failed to decode %s: %v", path, err)
 				continue
 			}
-
-			provider := config.Provider
 
 			// Ensure provider name is set
 			if provider.Name == "" {
@@ -78,7 +80,7 @@ func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 	return providers, nil
 }
 
-// GetEmbeddedProviderFiles returns a map of filename to raw TOML content
+// GetEmbeddedProviderFiles returns a map of filename to raw JSON content
 // for all provider definitions in the embedded filesystem.
 func GetEmbeddedProviderFiles() (map[string][]byte, error) {
 	files := make(map[string][]byte)
@@ -88,7 +90,7 @@ func GetEmbeddedProviderFiles() (map[string][]byte, error) {
 			return err
 		}
 
-		if !d.IsDir() && strings.HasSuffix(d.Name(), ".toml") {
+		if !d.IsDir() && strings.HasSuffix(d.Name(), ".json") {
 			data, err := embeddedProviders.ReadFile(path)
 			if err != nil {
 				return err

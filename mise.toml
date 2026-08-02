@@ -10,6 +10,7 @@ node = "lts"
 pkl = "latest"
 hk = "latest"
 "npm:@fission-ai/openspec" = "latest"
+cue = "0.17.1" # pinned: the provider-export pipeline must be deterministic; renovate proposes bumps
 
 [env]
 HK_MISE = "1"
@@ -67,6 +68,14 @@ go mod tidy
 [tasks.start]
 description = "Run rwr locally (pass args after --)"
 run = "go run . $@"
+
+[tasks."providers:export"]
+description = "Export providers/cue sources to the committed JSON the binary embeds"
+run = "./scripts/providers-export.sh"
+
+[tasks."providers:vet"]
+description = "Validate the CUE provider sources against their schema"
+run = "cue vet ./providers/cue/"
 
 [tasks.security]
 description = "Scan for known vulnerabilities (govulncheck — staged by postinstall)"
