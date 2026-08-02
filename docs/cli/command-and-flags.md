@@ -36,11 +36,13 @@ rwr: a newer version is available: 0.6.0 (you have 0.5.2)
 rwr: https://github.com/fynxlabs/rwr/releases/latest (silence with --skip-version-check)
 ```
 
-The check is advisory and never fails the run. It has a two-second timeout. Each
-error (no network, a rate limit, an unexpected response) becomes a debug log
-entry. RWR also skips the check for a development build (one built with plain
-`go build`, or from a modified tree). The commands `rwr help`, `rwr config`,
-`rwr version` and `rwr validate` do no version check.
+Behavior:
+
+* The check is advisory and never fails the run.
+* It has a two-second timeout.
+* Each error (no network, a rate limit, an unexpected response) becomes a debug log entry.
+* RWR skips the check for a development build (one built with plain `go build`, or from a modified tree).
+* The commands `rwr help`, `rwr config`, `rwr version` and `rwr validate` do no version check.
 
 > [!NOTE]
 > Only the flag turns the check off. There is no configuration-file or
@@ -69,10 +71,9 @@ tree state: dirty
 go:         go1.26.5 linux/amd64
 ```
 
-RWR prints the `commit`, `built`, `built by` and `tree state` lines only when
-the binary carries that information. RWR always prints the `go` line. A release
-or nightly binary carries the commit it was built from, so a binary on disk can
-be traced back to its source.
+* RWR prints the `commit`, `built`, `built by` and `tree state` lines only when the binary carries that information.
+* RWR always prints the `go` line.
+* A release or nightly binary carries the commit it was built from, so a binary on disk can be traced back to its source.
 
 `rwr --version` prints the first line only:
 

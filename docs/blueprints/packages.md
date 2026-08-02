@@ -1,6 +1,9 @@
 # Packages Blueprint
 
-With the Packages Blueprint, you manage packages on your system with RWR. You can install or remove packages with many package managers. You can also give additional arguments for the installation.
+With the Packages Blueprint, you manage packages on your system with RWR:
+
+- install or remove packages with many package managers
+- give additional arguments for the installation
 
 See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `import`, `interactive`, and the rule that an unknown key is an error.
@@ -56,20 +59,26 @@ Note that you must provide either `name`, `names`, or `import` for each package 
 
 ### Package names must not begin with `-`
 
-Every package manager reads a name that starts with `-` as an **option**
-(`--allow-downgrades`, `-U <url>`), not as a package. RWR refuses such a name
-and records it as a failure for that entry. The rest of the run continues. RWR
-runs commands as argv, not through a shell, so this is not shell injection. But
-such a name lets a blueprint change what the elevated package manager does.
+- Every package manager reads a name that starts with `-` as an **option**
+  (`--allow-downgrades`, `-U <url>`), not as a package.
+- RWR refuses such a name and records it as a failure for that entry. The rest
+  of the run continues.
+- RWR runs commands as argv, not through a shell, so this is not shell
+  injection. But such a name lets a blueprint change what the elevated package
+  manager does.
 
 ### Actions
 
 `install` and `remove` are implemented.
 
-`rwr validate` accepts `update`, but the packages processor does **not
-implement it**: RWR records an entry that declares it as a failure with
-"unknown action" at run time. To refresh package lists, run a repositories blueprint —
-RWR runs each available provider's update command after processing it.
+`update` is not:
+
+- `rwr validate` accepts it, but the packages processor does **not implement
+  it**.
+- RWR records an entry that declares it as a failure with "unknown action" at
+  run time.
+- To refresh package lists, run a repositories blueprint — RWR runs each
+  available provider's update command after processing it.
 
 ## Blueprint Imports
 
@@ -112,12 +121,16 @@ RWR ships provider definitions for:
 
 There is no `yum` provider. Use `dnf`.
 
-If `package_manager` is omitted, RWR uses the default detected for this machine
-(which honors `/etc/os-release` and, on Arch, the AUR helper preference order).
-If that provider is not available, RWR uses the first available provider in
-alphabetical order. Thus an unqualified package gets the same manager on each
-run. A named package manager that is not available on the machine logs a
-warning and skips the entry.
+When `package_manager` is omitted:
+
+- RWR uses the default detected for this machine (which honors
+  `/etc/os-release` and, on Arch, the AUR helper preference order).
+- If that provider is not available, RWR uses the first available provider in
+  alphabetical order.
+- An unqualified package therefore gets the same manager on each run.
+
+A named package manager that is not available on the machine logs a warning
+and skips the entry.
 
 ## Examples
 

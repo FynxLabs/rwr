@@ -1,6 +1,10 @@
 # Users and Groups Blueprint
 
-With the Users and Groups blueprint, you manage user accounts and groups on your system. You can create, modify, and remove users, assign them to groups, and set their properties such as password, shell, and home directory.
+With the Users and Groups blueprint, you manage user accounts and groups on your system:
+
+- create, modify, and remove users
+- assign users to groups
+- set user properties such as password, shell, and home directory
 
 ## Blueprint Structure
 
@@ -52,12 +56,15 @@ See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `create`, `modify` and `remove` for both users and groups. `delete` is an
 accepted alias for `remove`.
 
-`create` is idempotent. If the account or group already exists, RWR does not
-fail. It converges the existing one to the attributes that the entry declares
-(`usermod` on Linux, `dscl -create` on macOS). If a password is given, RWR sets
-it. RWR treats a declared `home` on an existing account as the intended home,
-not as a request to relocate the current one. To relocate, use `modify` with
-`new_home`.
+`create` is idempotent:
+
+- If the account or group already exists, RWR does not fail. It converges the
+  existing one to the attributes that the entry declares (`usermod` on Linux,
+  `dscl -create` on macOS).
+- If a password is given, RWR sets it.
+- RWR treats a declared `home` on an existing account as the intended home,
+  not as a request to relocate the current one. To relocate, use `modify` with
+  `new_home`.
 
 `remove` on an account or group that does not exist succeeds and does nothing.
 
@@ -114,9 +121,12 @@ RWR detects which of the two you wrote. There is no field to declare it.
 > [!WARNING]
 > **On macOS**, RWR passes the password to `dscl . -passwd` as a command-line
 > argument. macOS computes its own salted blob, and there is no hash to
-> pre-compute. The password is therefore briefly visible in `ps` to every local user on
-> the machine, and lands in sudo's syslog record. RWR logs a warning each time
-> it does this. Prefer setting macOS passwords out of band.
+> pre-compute.
+>
+> - The password is briefly visible in `ps` to every local user on the
+>   machine, and lands in sudo's syslog record.
+> - RWR logs a warning each time it does this.
+> - Prefer setting macOS passwords out of band.
 
 Both `create` and `modify` apply a `password`.
 

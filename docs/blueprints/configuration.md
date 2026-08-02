@@ -76,14 +76,19 @@ The gsettings tool sets individual keys in one schema.
 | `schema` | Yes | The gsettings schema |
 | `settings` | Yes | A map of key to value. This is where the keys go — `key` and `value` are **not** read by this tool |
 
-RWR checks each key with `gsettings writable` first. RWR records a key that is
-not writable, or that fails to apply, as a failure. It reports the failures at
-the end of the run and still attempts the remaining keys.
+How RWR applies the keys:
 
-RWR formats values for gsettings automatically. It quotes a string, writes a
-list as `[…]`, and writes booleans as `true`/`false`. RWR passes a string that
-starts with `[` or `(` through unchanged. Thus pre-formatted values continue to
-work.
+- RWR checks each key with `gsettings writable` first.
+- A key that is not writable, or that fails to apply, is recorded as a failure.
+- RWR reports the failures at the end of the run and still attempts the
+  remaining keys.
+
+How RWR formats values:
+
+- Strings are quoted. Lists are written as `[…]`. Booleans are written as
+  `true`/`false`.
+- A string that starts with `[` or `(` passes through unchanged, so
+  pre-formatted values continue to work.
 
 Example:
 
@@ -132,18 +137,22 @@ The windows_registry tool writes a single value under `HKLM:`.
 | `type` | Yes | `string`, `expandstring`, `binary`, `dword` or `qword`. Any other value is an error |
 | `value` | Yes | The value to write |
 
-`dword` and `qword` values must be whole numbers (a numeric string is accepted).
-`binary` takes a list of byte values 0–255. `string` and `expandstring` take a
-string. A value of the wrong shape is a named error rather than garbage in the
-registry.
+Value shapes:
+
+- `dword` and `qword` values must be whole numbers (a numeric string is
+  accepted).
+- `binary` takes a list of byte values 0–255.
+- `string` and `expandstring` take a string.
+- A value of the wrong shape is a named error rather than garbage in the
+  registry.
 
 > [!IMPORTANT]
 > `elevated: true` raises a UAC prompt, so the run is not unattended: someone has
 > to approve it. Run rwr from an already-elevated shell to avoid the prompt.
 
-RWR passes the path, name, and value to PowerShell as environment variables. It
-does not interpolate them into the command. Thus PowerShell does not parse
-anything that a blueprint supplies.
+RWR passes the path, name, and value to PowerShell as environment variables,
+not interpolated into the command. PowerShell never parses anything a
+blueprint supplies.
 
 Example:
 

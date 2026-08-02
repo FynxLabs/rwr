@@ -1,6 +1,10 @@
 # SSH Keys Blueprint
 
-With the SSH Keys blueprint in Rinse, Wash, Repeat (RWR), you generate and manage SSH keys as part of your system configuration. You can create SSH keys and set their properties. You can also copy the public keys to your GitHub account and set one key as the default RWR SSH key.
+With the SSH Keys blueprint in Rinse, Wash, Repeat (RWR), you generate and manage SSH keys as part of your system configuration:
+
+- create SSH keys and set their properties
+- copy the public keys to your GitHub account
+- set one key as the default RWR SSH key
 
 See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `import`, `interactive`, and the rule that an unknown key is an error.
@@ -67,9 +71,11 @@ RWR generates the SSH keys with the settings you give. It stores the keys in the
 
 If `no_passphrase` is `true`, RWR generates the SSH key without a passphrase. Otherwise, RWR prompts you for a passphrase.
 
-RWR does not change a key file that already exists: RWR logs a warning, skips
-generation, and goes on to the `copy_to_github` and `set_as_rwr_ssh_key` steps
-with the existing key.
+RWR does not change a key file that already exists:
+
+- RWR logs a warning and skips generation.
+- It goes on to the `copy_to_github` and `set_as_rwr_ssh_key` steps with the
+  existing key.
 
 ## Copying Public Keys to GitHub
 
@@ -174,6 +180,11 @@ ssh_keys:
     copy_to_github: false
 ```
 
-This example defines two SSH keys: `id_rsa` and `id_ed25519`. RWR generates the `id_rsa` key without a passphrase, copies it to GitHub with the title "My SSH Key", and sets it as the default RWR SSH key. RWR generates the `id_ed25519` key with a passphrase. It does not copy this key to GitHub or set it as the RWR SSH key.
+This example defines two SSH keys:
+
+- `id_rsa`: generated without a passphrase, copied to GitHub with the title
+  "My SSH Key", and set as the default RWR SSH key.
+- `id_ed25519`: generated with a passphrase. Not copied to GitHub and not set
+  as the RWR SSH key.
 
 For more information, see the [Blueprints Overview](../blueprints-general.md) and [Best Practices](../best-practices.md).

@@ -1,6 +1,6 @@
 # Git Blueprint
 
-With the Git blueprint in Rinse, Wash, Repeat (RWR), you clone and manage Git repositories as part of your system configuration. This page describes how to define and use the Git blueprint.
+With the Git blueprint in Rinse, Wash, Repeat (RWR), you clone and manage Git repositories as part of your system configuration.
 
 See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `import`, `interactive`, and the rule that an unknown key is an error.

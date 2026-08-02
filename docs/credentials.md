@@ -43,8 +43,8 @@ These names are correct:
 | `gh_api_token` | `repository.gh_api_token` |
 | `ssh_private_key` | `repository.ssh_private_key` |
 
-When a credential is available, RWR gives a warning at start. This warning
-makes the exposure visible.
+When a credential is available, RWR warns at startup, so the exposure is
+always visible.
 
 ## What a permitted credential gives you
 

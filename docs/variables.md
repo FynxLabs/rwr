@@ -43,9 +43,10 @@ Every environment variable whose name begins with `RWR_` is also placed in
 `UserDefined`, under the name with the `RWR_` prefix removed and the rest of the
 name unchanged. `RWR_BUILD_ID=42` becomes `{{ .UserDefined.BUILD_ID }}`.
 
-The names are case-sensitive and are not lowercased, so a variable set this way
-does not collide with a lower-case key from the init file. A key set in the
-environment overwrites a key of exactly the same name from `userDefined`.
+- The names are case-sensitive and are not lowercased, so a variable set this
+  way does not collide with a lower-case key from the init file.
+- A key set in the environment overwrites a key of exactly the same name from
+  `userDefined`.
 
 > [!NOTE]
 > `RWR_` is also the prefix RWR uses for its own [configuration
@@ -81,9 +82,11 @@ RWR provides a set of built-in variables that you can use in your blueprints. RW
 
 > [!NOTE]
 > RWR withholds `{{ .Flags.ghAPIToken }}` and `{{ .Flags.sshKey }}` by default.
-> A template writes to a path that the blueprint selects. An exposed credential
-> can therefore go to any path. If a blueprint needs one, name it under
-> `exposeCredentials`. Read [credentials](credentials.md).
+>
+> - A template writes to a path that the blueprint selects. An exposed
+>   credential can therefore go to any path.
+> - If a blueprint needs one, name it under `exposeCredentials`. Read
+>   [credentials](credentials.md).
 
 ## Templating
 

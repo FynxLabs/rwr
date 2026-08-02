@@ -42,16 +42,17 @@ RWR makes the provider available when these two conditions are true:
 
 The `distributions` list is a hint. A match in that list is not necessary.
 
-This is intentional. There are many derivatives of Arch and Debian, and one list
-cannot contain all of them. Some derivatives give a new value in
-`/etc/os-release` and give no `ID_LIKE` value. A machine that has the `pacman`
-binary and the `/var/lib/pacman` database uses pacman. The name of the
-distribution does not change that fact.
+This is intentional. RWR tests each package manager, not the name of the
+distribution:
 
-The opposite condition is also correct. A machine with the name "Arch" that uses
-apt has no `apt` binary and no `/etc/apt` directory. RWR does not make apt
-available on that machine. RWR tests each package manager, not the name of the
-distribution.
+- There are many derivatives of Arch and Debian, and one list cannot contain
+  all of them. Some derivatives give a new value in `/etc/os-release` and give
+  no `ID_LIKE` value.
+- A machine that has the `pacman` binary and the `/var/lib/pacman` database
+  uses pacman. The name of the distribution does not change that fact.
+- The opposite condition is also correct. A machine with the name "Arch" that
+  uses apt has no `apt` binary and no `/etc/apt` directory. RWR does not make
+  apt available on that machine.
 
 Give a `files` list for each provider. Without that list, RWR can find the
 provider only from a match in `distributions`.
@@ -148,13 +149,13 @@ These variables are in the repository steps of the provider files:
 - `{{ .Channel }}` - Channel of the repository
 - `{{ .Component }}` - Component of the repository
 
-CAUTION: RWR replaces only `{{ .URL }}`, and only in the `args` of a step. RWR
-does not replace the other variables. RWR does not replace a variable in the
-`dest` or `content` of a step. A step that uses one of those variables writes the
-text of the variable to the file.
+CAUTION: RWR replaces only `{{ .URL }}`, and only in the `args` of a step.
 
-This is a known fault. Do not write a new provider that depends on these
-variables until the fault is corrected.
+- RWR does not replace the other variables.
+- RWR does not replace a variable in the `dest` or `content` of a step. A step
+  that uses one of those variables writes the text of the variable to the file.
+- This is a known fault. Do not write a new provider that depends on these
+  variables until the fault is corrected.
 
 ## Supported Providers
 

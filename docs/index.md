@@ -4,7 +4,11 @@ Welcome to the Rinse, Wash, Repeat (RWR) documentation. This guide tells you how
 
 ## Introduction
 
-RWR is a configuration management tool for users who reinstall their systems frequently. It works on Linux, macOS, and Windows. Blueprints configure the system. Profiles select what RWR installs.
+RWR is a configuration management tool for users who reinstall their systems frequently.
+
+- It works on Linux, macOS, and Windows.
+- Blueprints configure the system.
+- Profiles select what RWR installs.
 
 ## Install and Quick Start
 

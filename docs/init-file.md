@@ -17,16 +17,22 @@ RWR finds the init file in this order:
 3. `init.yaml`, `init.yml`, `init.json`, then `init.toml` in the current
    directory.
 
-For 1 and 2 the path can be a **directory**. RWR then looks inside it for those
-four names, in that order. The path can also be an `https://` URL, including a
-GitHub `/blob/` URL, which RWR rewrites to the raw address. RWR refuses an
-`http://` URL. The init file decides everything that RWR runs, so RWR does not
-fetch it in cleartext.
+For 1 and 2:
 
-A **GitHub shorthand** also works: `owner/repo` fetches the init file from the
-repository root on the default branch, `owner/repo@ref` pins a branch, tag or
-commit, and `owner/repo/path/to/init.yaml` (optionally with `@ref`) names the
-file explicitly:
+- The path can be a **directory**. RWR then looks inside it for those four
+  names, in that order.
+- The path can be an `https://` URL, including a GitHub `/blob/` URL, which
+  RWR rewrites to the raw address.
+- RWR refuses an `http://` URL. The init file decides everything that RWR
+  runs, so RWR does not fetch it in cleartext.
+
+A **GitHub shorthand** also works:
+
+- `owner/repo` fetches the init file from the repository root on the default
+  branch.
+- `owner/repo@ref` pins a branch, tag or commit.
+- `owner/repo/path/to/init.yaml` (optionally with `@ref`) names the file
+  explicitly.
 
 ```bash
 rwr all -i fynxlabs/my-blueprints
@@ -114,11 +120,15 @@ variables:
       - neovim
 ```
 
-`userDefined` is the only field you write here. The `{{ .User }}`,
-`{{ .System }}` and `{{ .Flags }}` groups are also available to blueprints.
-RWR fills them from the machine and from the flags that you passed. You cannot
-set them from the init file. A blueprint therefore cannot claim a different user
-or different flags. Read [Variables and Templating](variables.md).
+`userDefined` is the only field you write here.
+
+- The `{{ .User }}`, `{{ .System }}` and `{{ .Flags }}` groups are also
+  available to blueprints.
+- RWR fills them from the machine and from the flags that you passed.
+- You cannot set them from the init file. A blueprint therefore cannot claim a
+  different user or different flags.
+
+Read [Variables and Templating](variables.md).
 
 ## Example Init File
 
@@ -153,10 +163,13 @@ variables:
     api_key: abc123
 ```
 
-In this example, the init file gives the format and location of the blueprint
-files and the order of execution. It also configures package managers and
-repositories. It defines custom variables. A blueprint in this tree reads them
-as `{{ .UserDefined.app_version }}` and `{{ .UserDefined.api_key }}`.
+This init file:
+
+- gives the format and location of the blueprint files and the order of
+  execution
+- configures package managers and repositories
+- defines custom variables — a blueprint in this tree reads them as
+  `{{ .UserDefined.app_version }}` and `{{ .UserDefined.api_key }}`
 
 ### Package Manager Installation
 

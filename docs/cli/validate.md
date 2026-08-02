@@ -4,8 +4,6 @@ The `validate` command in RWR checks your blueprints and provider configurations
 
 ## Overview
 
-The `validate` command checks your blueprints and provider configurations. It finds errors before you run them.
-
 ```bash
 rwr validate [flags]
 ```
@@ -40,10 +38,11 @@ directory:
 rwr validate path/to/blueprints
 ```
 
-With neither `--blueprints` nor `--providers`, RWR chooses one from the path.
-RWR validates a directory named `providers` or a `.toml` file as providers. RWR
-validates all other paths as blueprints. Each run validates one of the two,
-never both.
+With neither `--blueprints` nor `--providers`, RWR chooses one from the path:
+
+* A directory named `providers`, or a `.toml` file, is validated as providers.
+* Every other path is validated as blueprints.
+* Each run validates one of the two, never both.
 
 Blueprint validation needs an init file (`init.json`, `init.yaml`, `init.yml`
 or `init.toml`) at or above the checked files. RWR cannot validate a tree with

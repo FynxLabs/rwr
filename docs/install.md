@@ -14,17 +14,25 @@ On Windows, in a PowerShell that you started with "Run as administrator":
 Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.ps1'))
 ```
 
-Each script finds the correct build for your machine. It downloads
-`checksums.txt` from the same release. It compares the SHA-256 of the archive
-against the entry for that file. If the two do not agree, or if the release
-publishes no checksum for the archive, the script does not install.
+Each script:
 
-`install.sh` installs to `/usr/local/bin`, with `LICENSE` and the README under
-`/usr/local/share/doc/rwr`. It uses `sudo` only if those directories are not
-writable. If `sudo` is missing, the script reports this before it downloads
-anything.
-`install.ps1` installs to `%ProgramFiles%\rwr` and adds that directory to the
-machine `PATH`, so it needs an elevated PowerShell.
+- finds the correct build for your machine
+- downloads `checksums.txt` from the same release
+- compares the SHA-256 of the archive against the entry for that file
+- does not install if the two do not agree, or if the release publishes no
+  checksum for the archive
+
+`install.sh`:
+
+- installs to `/usr/local/bin`, with `LICENSE` and the README under
+  `/usr/local/share/doc/rwr`
+- uses `sudo` only if those directories are not writable
+- reports a missing `sudo` before it downloads anything
+
+`install.ps1`:
+
+- installs to `%ProgramFiles%\rwr` and adds that directory to the machine
+  `PATH`, so it needs an elevated PowerShell
 
 WARNING: Read a script before you run it with root or administrator permissions.
 Both scripts are in the RWR repository.

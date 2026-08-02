@@ -8,14 +8,15 @@ a blueprint format and still read your older blueprints correctly.
 There is no single version number for the full schema. Each blueprint type has a
 version. The types are `packages`, `files`, `services`, and the others.
 
-This is intentional. With one version number for the full schema, a change to
-`packages` moves `files`, `git`, `scripts` and all other types to v2. Those types
-did not change. After a small number of such changes, the schema is at v11, and
-the version number does not tell you which type changed.
+This is intentional.
 
-With a version for each type, a change to `packages` makes one change:
-`packages` is v2. All other types stay at v1. Blueprints for those types continue
-to operate.
+- With one version number for the full schema, a change to `packages` moves
+  `files`, `git`, `scripts` and all other types to v2. Those types did not
+  change. After a small number of such changes, the schema is at v11, and the
+  version number does not tell you which type changed.
+- With a version for each type, a change to `packages` makes one change:
+  `packages` is v2. All other types stay at v1. Blueprints for those types
+  continue to operate.
 
 ## How to give a version
 
@@ -51,9 +52,10 @@ A new blueprint then uses the current schema, and you do not write a version. Ad
 a version when you want RWR to hold the blueprint at that version.
 
 A blueprint with no version moves to a new schema when you upgrade RWR. Give a
-version if the tree must stay at one version. One example is a tree that is not
-ready for a new format. Another is a tree that must operate in the same way on
-each machine.
+version if the tree must stay at one version:
+
+- a tree that is not ready for a new format
+- a tree that must operate in the same way on each machine
 
 ```yaml
 blueprints:

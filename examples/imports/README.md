@@ -27,8 +27,7 @@ packages:
 examples/imports/
 ├── Common/
 │   └── packages/
-│       └── arch/
-│           └── base-aur.yaml          # Shared AUR packages
+│       └── base-aur-arch.yaml          # Shared AUR packages
 └── Arch/
     └── packages/
         └── packages.yaml               # Imports common + adds specific packages

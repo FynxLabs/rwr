@@ -1,10 +1,13 @@
 # What are Blueprints?
 
-Blueprints are the core of Rinse, Wash, Repeat (RWR). They define the configuration of your system. You write them in YAML, JSON, or TOML. RWR reads them to manage packages, repositories, files, services, and more.
+Blueprints are the core of Rinse, Wash, Repeat (RWR). They define the configuration of your system.
+
+- You write them in YAML, JSON, or TOML.
+- RWR reads them to manage packages, repositories, files, services, and more.
 
 ## Blueprint Structure
 
-RWR blueprints are organized into different types, each responsible for managing a specific aspect of your system. The available blueprint types are:
+Blueprints are organized into types. Each type manages one aspect of your system:
 
 - [Packages](blueprints/packages.md): Install or remove packages
 - [Repositories](blueprints/repositories.md): Manage repositories for package managers
@@ -16,7 +19,7 @@ RWR blueprints are organized into different types, each responsible for managing
 - [Scripts](blueprints/scripts.md): Run scripts
 - [Users and Groups](blueprints/users-and-groups.md): Manage user accounts and groups
 
-Each blueprint type has its own specific structure and settings, which are described in detail on their respective pages.
+Each blueprint type has its own structure and settings. Read its page for the details.
 
 ## Blueprint Imports
 

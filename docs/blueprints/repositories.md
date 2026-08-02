@@ -17,12 +17,13 @@ repositories:
 
 ## Blueprint Settings
 
-Which of the optional settings matter depends on the provider. Each provider
-declares the steps it runs to add or remove a repository. Those steps are Go
-templates that RWR renders against the values below. A value that a provider
-never references is unused. A placeholder that a provider references, and that
-the blueprint did not supply, is an error that names the repository, not a
-blank.
+Which of the optional settings matter depends on the provider:
+
+- Each provider declares the steps it runs to add or remove a repository.
+- Those steps are Go templates that RWR renders against the values below.
+- A value that a provider never references is unused.
+- A placeholder that a provider references, and that the blueprint did not
+  supply, is an error that names the repository, not a blank.
 
 | Setting | Required | Description |
 |---------|----------|-------------|
@@ -50,18 +51,25 @@ blank.
 | `import` | No | See [common fields](common-fields.md) |
 | `interactive` | No | See [common fields](common-fields.md) |
 
-Earlier versions parsed these fields and then dropped them. Only a bare
-`{{ .URL }}` argument was substituted. An apt add wrote a file literally named
-`{{ .SourcesPath }}/{{ .Name }}.list`. RWR now renders every field of a
-provider step, so the settings above take effect.
+Earlier versions parsed these fields and then dropped them:
+
+- Only a bare `{{ .URL }}` argument was substituted.
+- An apt add wrote a file literally named
+  `{{ .SourcesPath }}/{{ .Name }}.list`.
+
+RWR now renders every field of a provider step, so the settings above take
+effect.
 
 > [!WARNING]
 > RWR passes `username`, `password` and `token` to the package manager as
 > **command-line arguments** — `choco source add --password=…`, `cargo login …`
-> — because those tools accept them no other way. They are therefore visible in
-> `ps` to every local user on the machine for the lifetime of the call. RWR
-> keeps them out of its own output. Logs, `--debug` argv dumps, and `--dry-run`
-> lines redact them. But nothing rwr can do hides them from the process list.
+> — because those tools accept them no other way.
+>
+> - They are visible in `ps` to every local user on the machine for the
+>   lifetime of the call.
+> - RWR keeps them out of its own output: logs, `--debug` argv dumps, and
+>   `--dry-run` lines redact them.
+> - But nothing rwr can do hides them from the process list.
 
 ## Actions and what actually works
 

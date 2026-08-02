@@ -1,6 +1,9 @@
 # The Files Blueprint
 
-With the Files Blueprint in Rinse, Wash, Repeat (RWR), you manage files on your system. You can copy, move, delete, create, and modify files with this blueprint type. The Files Blueprint also renders template files, the function of the former Templates Blueprint.
+With the Files Blueprint in Rinse, Wash, Repeat (RWR), you manage files on your system:
+
+- copy, move, delete, create, and modify files
+- render template files (the function of the former Templates Blueprint)
 
 See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `import`, `interactive`, and the rule that an unknown key is an error.
@@ -122,23 +125,30 @@ RWR resolves `target` to the single path the action operates on:
   the name to it even without the trailing separator. The alternative is
   truncation of a directory, and no blueprint intends that.
 
-RWR expands `~`. Expansion drops a trailing separator internally. Thus RWR
-reads the separator from the value you wrote, and `target: "~/.config/"` still
-behaves as a directory.
+RWR expands `~`:
+
+- Expansion drops a trailing separator internally.
+- RWR reads the separator from the value you wrote, so `target: "~/.config/"`
+  still behaves as a directory.
 
 ## File modes
 
-`mode` is a permission mode, at most four octal digits (`0o7777`). Only the
-`create` and `chmod` actions apply it. A copy takes the permissions of the
-source. A symlink has none. The delete, chown and chgrp actions do not touch
-the mode. `rwr validate` warns when a mode is set on an action that ignores it.
+`mode` is a permission mode, at most four octal digits (`0o7777`).
+
+- Only the `create` and `chmod` actions apply it.
+- A copy takes the permissions of the source.
+- A symlink has none.
+- The delete, chown and chgrp actions do not touch the mode.
+- `rwr validate` warns when a mode is set on an action that ignores it.
 
 ### How to write one
 
-**Write it as a quoted octal string.** `mode: "0644"` means the same thing in
-YAML, JSON and TOML, and needs no thought about how each format reads numbers.
-RWR accepts the `0` and `0o` prefixes, and no prefix at all: `"0644"`,
-`"0o644"` and `"644"` are the same mode.
+**Write it as a quoted octal string.**
+
+- `mode: "0644"` means the same thing in YAML, JSON and TOML. No thought needed
+  about how each format reads numbers.
+- RWR accepts the `0` and `0o` prefixes, and no prefix at all: `"0644"`,
+  `"0o644"` and `"644"` are the same mode.
 
 RWR reads a number as **the mode's own value**, which is what every parser
 already produces for an octal literal. YAML `0644`, TOML `0o644` and JSON `420`
@@ -157,17 +167,20 @@ mode 0644 typed without quotes; write mode: "0644" for 0o644, or mode: "1204"
 for 0o1204
 ```
 
-This is the change to watch for. `mode: 644` used to decode to 0o1204 — a setuid
-mode nobody asked for — and apply it without complaint. It is now an error, and
-the message tells you what to write instead. RWR refuses anything above
-`0o7777`, or a negative number, the same way.
+This is the change to watch for:
+
+- `mode: 644` used to decode to 0o1204 — a setuid mode nobody asked for — and
+  apply it without complaint.
+- It is now an error, and the message tells you what to write instead.
+- RWR refuses anything above `0o7777`, or a negative number, the same way.
 
 ### TOML and setuid/setgid/sticky modes
 
-TOML's decoder hands rwr the decoded number with the literal already lost. Thus
-`0o4755` and `2541` arrive identically, and the ambiguity check cannot tell
-them apart. In TOML, **a mode with a setuid, setgid or sticky bit must be a quoted
-string**:
+- TOML's decoder hands rwr the decoded number with the literal already lost.
+- `0o4755` and `2541` arrive identically, so the ambiguity check cannot tell
+  them apart.
+- In TOML, **a mode with a setuid, setgid or sticky bit must be a quoted
+  string**:
 
 ```toml
 mode = "04755"   # correct
@@ -187,10 +200,12 @@ When no `mode` is declared:
 | A plain file (`create`) | `0644` |
 | A directory | `0755` |
 
-Rendered templates are private because templates can render credentials (a
-`.netrc`, a `gh` config). Credentials must not exist world-readable, even for
-an instant. For the same reason, when a created file's mode gives nothing to
-group or other, RWR makes new parent directories `0700`, not `0755`.
+Why templates default private:
+
+- Templates can render credentials (a `.netrc`, a `gh` config).
+- Credentials must not exist world-readable, even for an instant.
+- For the same reason, when a created file's mode gives nothing to group or
+  other, RWR makes new parent directories `0700`, not `0755`.
 
 A `chmod` action with no `mode` is an error at validation time and at run time.
 RWR never treats it as `0000`.
@@ -201,11 +216,13 @@ The `templates` section of the blueprint renders template files. RWR reads the
 template from `<blueprint_dir>/<source>/<name>`, renders it with the merged
 variable set, and writes it to `target`.
 
-A template entry needs `name`, `source` and `target`. RWR skips an entry that
-misses any of them and logs a warning. RWR writes the rendered result as
-content. Thus a template is always **created** at its target, whatever `action`
-says. An entry that declares `action: copy` renders, creates, and logs a
-warning.
+Rules:
+
+- A template entry needs `name`, `source` and `target`. RWR skips an entry
+  that misses any of them and logs a warning.
+- RWR writes the rendered result as content. A template is always **created**
+  at its target, whatever `action` says.
+- An entry that declares `action: copy` renders, creates, and logs a warning.
 
 Template files use the Go template syntax and can include variables, conditionals, and loops. With the `variables` setting, you define a map of variables and their values for use in the template files.
 

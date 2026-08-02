@@ -135,9 +135,9 @@ The Scripts blueprint supports the following settings:
 
 ### How RWR runs the arguments
 
-RWR divides the `args` string at each space. It then sends each part to the
-script as one argument. The value `--verbose --out /tmp` becomes three
-arguments.
+- RWR divides the `args` string at each space.
+- Each part goes to the script as one argument.
+- The value `--verbose --out /tmp` becomes three arguments.
 
 RWR does not use a shell to run the script. The shell characters keep their
 literal value. These characters have no special function:
@@ -191,9 +191,10 @@ RWR runs the scripts in the order that the blueprint defines them. You can give 
 RWR runs scripts in Bash, Python, Ruby, Perl, Lua, and PowerShell. The `exec`
 field gives the program that runs the script.
 
-CAUTION: RWR does not read the shebang line and does not read the file
-extension. Give the `exec` field. Without it, RWR uses `bash` on Linux and
-macOS, and `powershell` on Windows.
+> [!CAUTION]
+> RWR does not read the shebang line and does not read the file extension.
+> Give the `exec` field. Without it, RWR uses `bash` on Linux and macOS, and
+> `powershell` on Windows.
 
 With `elevated: true`, RWR runs the script as `sudo -- <program> <script>`. With
 the `asUser` field, RWR runs it as `sudo -u <user> -- <program> <script>`:

@@ -50,11 +50,14 @@ skipped.
 
 ### Installation
 
-RWR asks GitHub for the latest nerd-fonts release, downloads `<name>.tar.xz`
-from it, and extracts the `.ttf` members into the font directory. RWR skips
-symlink and hard-link members of the archive. A member whose path goes out of
-the font directory stops the install. RWR then refreshes the font cache with
-`fc-cache -f -v`.
+What RWR does:
+
+- Asks GitHub for the latest nerd-fonts release.
+- Downloads `<name>.tar.xz` from it.
+- Extracts the `.ttf` members into the font directory.
+- Skips symlink and hard-link members of the archive.
+- Stops the install if a member's path goes out of the font directory.
+- Refreshes the font cache with `fc-cache -f -v`.
 
 A name that does not match an archive in the release is a download failure, not
 a silent no-op.

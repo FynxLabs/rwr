@@ -22,9 +22,9 @@ rwr all --config ~/rwr-work/config.yaml
 rwr all --config ~/rwr-work
 ```
 
-A leading `~` is expanded. RWR creates the configuration directory and its
-`run_once` subdirectory if they do not exist. A missing configuration file is not
-an error: RWR logs it at debug level and continues with the defaults.
+* A leading `~` is expanded.
+* RWR creates the configuration directory and its `run_once` subdirectory if they do not exist.
+* A missing configuration file is not an error: RWR logs it at debug level and continues with the defaults.
 
 ## File Format
 

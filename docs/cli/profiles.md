@@ -127,10 +127,9 @@ All 12 item(s) are base items and always apply.
 * Entries written inline in the init file are counted as well as the ones in the
   blueprint tree.
 
-The command finds the type of a blueprint from its directory, the same way a run
-does. A file must be under `packages/`, `services/`, `files/` or a similar
-directory to be read. The command only reads files whose extension matches the
-`format` declared in the init file.
+* The command finds the type of a blueprint from its directory, the same way a run does.
+* A file must be under `packages/`, `services/`, `files/` or a similar directory to be read.
+* The command only reads files whose extension matches the `format` declared in the init file.
 
 ## Debugging profile selection
 
@@ -158,10 +157,11 @@ rwr all --dry-run --profile work,gaming
 ## Error handling
 
 RWR does **not** check the names you pass against the ones your blueprints
-declare. A misspelled profile is not an error and produces no warning — it matches
-nothing, and the run applies the base items only. If a run installs less than
-you expected, check the spelling against `rwr profiles`. The names are
-case-sensitive.
+declare.
+
+* A misspelled profile is not an error and produces no warning — it matches nothing, and the run applies the base items only.
+* If a run installs less than you expected, check the spelling against `rwr profiles`.
+* The names are case-sensitive.
 
 ## Command reference
 

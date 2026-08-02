@@ -1,8 +1,9 @@
 # Directories Blueprint
 
-The `directories` key manages the directories on your system. You can create,
-delete, copy, and move a directory. You can also set the permissions and the
-owner of a directory.
+The `directories` key manages the directories on your system. With it you can:
+
+- create, delete, copy, and move a directory
+- set the permissions and the owner of a directory
 
 > [!IMPORTANT]
 > `directories` is not a blueprint type. It is a key in a **files** blueprint,

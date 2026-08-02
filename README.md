@@ -287,7 +287,7 @@ Read the `docs/` directory for the full documentation. This is an overview of th
 
 ### Prerequisites
 
-RWR uses [mise](https://mise.jdx.dev/) to manage development tools. Install mise. The mise documentation gives the procedure.
+RWR uses [mise](https://mise.jdx.dev/) to manage development tools. Install mise following their documentation.
 
 ### Setting Up Development Environment
 

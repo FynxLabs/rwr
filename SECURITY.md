@@ -11,8 +11,8 @@ computers.
 
 Report it privately via
 [GitHub Security Advisories](https://github.com/FynxLabs/rwr/security/advisories/new)
-("Report a vulnerability" on the Security tab). You will receive an initial
-response in one week or less.
+("Report a vulnerability" on the Security tab). You should receive an initial
+response within a week.
 
 Include what you can: the rwr version (`rwr version`), a minimal blueprint or
 provider definition that demonstrates the problem, and what an attacker gains.
