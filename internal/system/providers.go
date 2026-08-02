@@ -274,6 +274,22 @@ func GetProvider(name string) (*types.Provider, bool) {
 	return provider, true
 }
 
+// GetProviderDefinition returns a provider by name without requiring its
+// binary to exist. GetProvider treats a missing binary as "not available",
+// which is right everywhere except the install flow — whose entire purpose is
+// that the binary is not there yet.
+func GetProviderDefinition(name string) (*types.Provider, bool) {
+	if err := InitProviders(); err != nil {
+		log.Errorf("GetProviderDefinition: Error initializing providers: %v", err)
+		return nil, false
+	}
+
+	providersMu.Lock()
+	defer providersMu.Unlock()
+	provider, exists := providers[name]
+	return provider, exists
+}
+
 // GetProvidersPath returns the absolute path to the provider definitions directory,
 // searching the executable's directory and common installation paths.
 //

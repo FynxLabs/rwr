@@ -25,38 +25,38 @@ clean = "cleanup -q"
 [provider.install]
 steps = [
   # Download install script
-  { action = "download", source = "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh", dest = "/tmp/brew-install.sh" },
+  { action = "download", source = "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh", dest = "{{ .TempDir }}/brew-install.sh" },
   # Make executable
   { action = "command", exec = "chmod", args = [
     "+x",
-    "/tmp/brew-install.sh",
+    "{{ .TempDir }}/brew-install.sh",
   ] },
   # Run installer
   { action = "command", exec = "bash", args = [
-    "/tmp/brew-install.sh",
+    "{{ .TempDir }}/brew-install.sh",
   ] },
   # Clean up
   { action = "command", exec = "rm", args = [
-    "/tmp/brew-install.sh",
+    "{{ .TempDir }}/brew-install.sh",
   ] },
 ]
 
 [provider.remove]
 steps = [
   # Download uninstall script
-  { action = "download", source = "https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh", dest = "/tmp/brew-uninstall.sh" },
+  { action = "download", source = "https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh", dest = "{{ .TempDir }}/brew-uninstall.sh" },
   # Make executable
   { action = "command", exec = "chmod", args = [
     "+x",
-    "/tmp/brew-uninstall.sh",
+    "{{ .TempDir }}/brew-uninstall.sh",
   ] },
   # Run uninstaller
   { action = "command", exec = "bash", args = [
-    "/tmp/brew-uninstall.sh",
+    "{{ .TempDir }}/brew-uninstall.sh",
   ] },
   # Clean up
   { action = "command", exec = "rm", args = [
-    "/tmp/brew-uninstall.sh",
+    "{{ .TempDir }}/brew-uninstall.sh",
   ] },
 ]
 

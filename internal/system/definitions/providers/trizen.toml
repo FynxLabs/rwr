@@ -35,12 +35,12 @@ args = ["-S", "--needed", "--noconfirm", "base-devel", "git"]
 [[provider.install.steps]]
 action = "command"
 exec = "git"
-args = ["clone", "https://aur.archlinux.org/trizen.git", "/tmp/trizen"]
+args = ["clone", "https://aur.archlinux.org/trizen.git", "{{ .TempDir }}/trizen"]
 
 [[provider.install.steps]]
 action = "command"
 exec = "sh"
-args = ["-c", "cd /tmp/trizen && makepkg -si --noconfirm"]
+args = ["-c", "cd {{ .TempDir }}/trizen && makepkg -si --noconfirm"]
 
 [[provider.remove.steps]]
 action = "command"

@@ -44,12 +44,12 @@ args = ["-S", "--needed", "--noconfirm", "base-devel", "git"]
 [[provider.install.steps]]
 action = "command"
 exec = "git"
-args = ["clone", "https://aur.archlinux.org/pamac-aur.git", "/tmp/pamac"]
+args = ["clone", "https://aur.archlinux.org/pamac-aur.git", "{{ .TempDir }}/pamac"]
 
 [[provider.install.steps]]
 action = "command"
 exec = "sh"
-args = ["-c", "cd /tmp/pamac && makepkg -si --noconfirm"]
+args = ["-c", "cd {{ .TempDir }}/pamac && makepkg -si --noconfirm"]
 
 [[provider.remove.steps]]
 action = "command"
