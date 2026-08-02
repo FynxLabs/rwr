@@ -113,6 +113,38 @@ try {
         exit 1
     }
 
+    # Releases carry a keyless cosign signature over checksums.txt
+    # (checksums.txt.sigstore.json, a sigstore bundle). Verifying it upgrades the
+    # checksum comparison from integrity to authenticity. Opportunistic: cosign
+    # is rarely installed on Windows, so a missing cosign or missing bundle only
+    # warns - the install then rests on checksum integrity alone, and a
+    # substituted checksums.txt would not be detected. When cosign is present
+    # and a bundle is published, a bad signature is a hard stop.
+    $bundle_url = $latest_release.assets |
+        Where-Object { $_.name -eq "checksums.txt.sigstore.json" } |
+        Select-Object -First 1 -ExpandProperty browser_download_url
+    $cosign = Get-Command cosign -ErrorAction SilentlyContinue
+
+    if ($cosign -and $bundle_url) {
+        $tmp_bundle = Join-Path $tmp_dir "checksums.txt.sigstore.json"
+        Invoke-WebRequest -Uri $bundle_url -OutFile $tmp_bundle -Headers $headers -UseBasicParsing
+        & $cosign.Source verify-blob $tmp_sums `
+            --bundle $tmp_bundle `
+            --certificate-identity-regexp '^https://github\.com/FynxLabs/rwr/' `
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "cosign signature verification FAILED for checksums.txt. The release may have been tampered with. Refusing to install."
+            exit 1
+        }
+        Write-Host "Signature verified (cosign)"
+    }
+    elseif ($bundle_url) {
+        Write-Host "Note: this release is signed; install cosign to verify signatures. Proceeding on checksum integrity only."
+    }
+    else {
+        Write-Host "Note: this release publishes no signature for checksums.txt. Proceeding on checksum integrity only."
+    }
+
     $actual = (Get-FileHash -Path $tmp_file -Algorithm SHA256).Hash
     if ($actual -ne $expected.ToUpper()) {
         Write-Host "Checksum mismatch for ${asset_name}:"
