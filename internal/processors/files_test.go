@@ -1,10 +1,13 @@
 package processors
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/types"
@@ -965,6 +968,50 @@ func TestProcessFile_MetadataActionsNeedNoContentOrSource(t *testing.T) {
 		}, dir, osInfo)
 		if err == nil {
 			t.Fatal("processFile(copy without source) succeeded, want an error")
+		}
+	})
+}
+
+// A files entry with a URL source and a sha256 is verified before install; a
+// mismatch refuses and writes nothing (the digest used to be hard-coded "").
+func TestProcessFile_URLSourceSha256(t *testing.T) {
+	content := []byte("remote payload")
+	sum := sha256.Sum256(content)
+	good := hex.EncodeToString(sum[:])
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(content)
+	}))
+	defer server.Close()
+
+	osInfo := &types.OSInfo{}
+	run := func(t *testing.T, digest string) (string, error) {
+		t.Helper()
+		dir := t.TempDir()
+		target := filepath.Join(dir, "out")
+		err := processFile(types.File{
+			Name:   "payload",
+			Action: "copy",
+			Source: server.URL + "/payload",
+			Sha256: digest,
+			Target: target,
+		}, dir, osInfo)
+		return filepath.Join(target, "payload"), err
+	}
+
+	t.Run("matching digest installs", func(t *testing.T) {
+		if _, err := run(t, good); err != nil {
+			t.Fatalf("processFile: %v", err)
+		}
+	})
+
+	t.Run("mismatch refuses and installs nothing", func(t *testing.T) {
+		installed, err := run(t, strings.Repeat("0", 64))
+		if err == nil || !strings.Contains(err.Error(), "sha256 mismatch") {
+			t.Fatalf("err = %v, want a sha256 mismatch refusal", err)
+		}
+		if _, statErr := os.Stat(installed); statErr == nil {
+			t.Fatal("file installed despite the mismatch")
 		}
 	})
 }

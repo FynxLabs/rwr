@@ -20,6 +20,14 @@ func ValidatePackages(packages []types.Package, file string, results *types.Vali
 			continue
 		}
 
+		// Only the names list is processed when both are declared; say so
+		// rather than silently ignoring one of them.
+		if pkg.Name != "" && len(pkg.Names) > 0 {
+			AddIssue(results, types.ValidationWarning,
+				fmt.Sprintf("packages[%d] declares both 'name' and 'names'; only the names list is processed", i),
+				file, 0, "Remove one of the two fields")
+		}
+
 		// A package entry names one package with `name` or several with `names`.
 		// Requiring `name` and separately warning on an empty `names` reported two
 		// problems against every correct entry, whichever form it used.

@@ -156,7 +156,13 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 			name = filepath.Base(file.Source)
 		}
 		downloadPath := filepath.Join(tempDir, name)
-		err = system.DownloadFile(file.Source, downloadPath, false)
+		// A URL source without a declared digest is trusted on nothing but the
+		// TLS connection that served it. Warn now; a later major refuses.
+		if file.Sha256 == "" {
+			log.Warnf("File %s downloads %s with no sha256 declared — the content is unpinned. "+
+				"Add sha256 to the entry; a future major version will refuse this.", file.Name, file.Source)
+		}
+		err = system.DownloadFileWithChecksum(file.Source, downloadPath, false, file.Sha256)
 		if err != nil {
 			return fmt.Errorf("error downloading file: %v", err)
 		}
@@ -379,11 +385,11 @@ func moveFile(source, target string) error {
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
-	if err := os.Rename(source, target); err != nil {
+	if err := os.Rename(source, target); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 		// A move already carried out on an earlier run has no source left. That is
 		// the state the blueprint asked for, so it is not a failure.
 		if os.IsNotExist(err) {
-			if _, statErr := os.Lstat(target); statErr == nil {
+			if _, statErr := os.Lstat(target); statErr == nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 				log.Infof("File already moved: %s", target)
 				return nil
 			}
@@ -396,7 +402,7 @@ func moveFile(source, target string) error {
 }
 
 func deleteFile(target string) error {
-	if err := os.Remove(target); err != nil {
+	if err := os.Remove(target); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 		if os.IsNotExist(err) {
 			log.Debugf("File already absent: %s", target)
 			return nil
@@ -423,14 +429,14 @@ func createFile(file types.File, targetPath string) error {
 
 	targetDir := filepath.Dir(targetPath)
 	log.Debugf("Creating file dir: %s", targetDir)
-	if err := os.MkdirAll(targetDir, dirMode); err != nil {
+	if err := os.MkdirAll(targetDir, dirMode); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 		return fmt.Errorf("error creating target directory: %v", err)
 	}
 
 	// The mode is carried into the open so the content is never readable by anyone
 	// the blueprint did not name — a later chmod would leave a window in which a
 	// rendered credential sat on disk world-readable.
-	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, mode) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, mode) // #nosec G304 G703 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}
@@ -475,7 +481,7 @@ func chmodFile(file types.File, target string) error {
 		return fmt.Errorf("no mode declared for chmod of %s: add mode: \"0644\" to the file entry", target)
 	}
 
-	if err := os.Chmod(target, file.Mode.OSMode()); err != nil {
+	if err := os.Chmod(target, file.Mode.OSMode()); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 		return fmt.Errorf("error changing file permissions: %w", err)
 	}
 
@@ -489,7 +495,7 @@ func chownFile(file types.File, target string) error {
 		if err != nil {
 			return fmt.Errorf("error looking up owner UID: %w", err)
 		}
-		if err := os.Chown(target, uid, -1); err != nil {
+		if err := os.Chown(target, uid, -1); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 			return fmt.Errorf("error changing file owner: %w", err)
 		}
 	}
@@ -499,7 +505,7 @@ func chownFile(file types.File, target string) error {
 		if err != nil {
 			return fmt.Errorf("error looking up group GID: %w", err)
 		}
-		if err := os.Chown(target, -1, gid); err != nil {
+		if err := os.Chown(target, -1, gid); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 			return fmt.Errorf("error changing file group: %w", err)
 		}
 	}
@@ -525,7 +531,7 @@ func symlinkFile(source, target string) error {
 // EEXIST on the second run of a blueprint, and one failing file aborts the
 // whole run.
 func ensureSymlink(source, target string) error {
-	info, err := os.Lstat(target)
+	info, err := os.Lstat(target) // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 	switch {
 	case err == nil && info.Mode()&os.ModeSymlink == 0:
 		return fmt.Errorf("cannot create symlink at %s: a regular file or directory already exists there", target)
@@ -539,14 +545,14 @@ func ensureSymlink(source, target string) error {
 			return nil
 		}
 		log.Infof("Replacing symlink %s: pointed at %s, should point at %s", target, existing, source)
-		if err := os.Remove(target); err != nil {
+		if err := os.Remove(target); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 			return fmt.Errorf("error removing existing symlink %s: %w", target, err)
 		}
 	case !os.IsNotExist(err):
 		return fmt.Errorf("error inspecting symlink target %s: %w", target, err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(target), defaultDirMode); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), defaultDirMode); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 		return fmt.Errorf("error creating symlink parent directory: %w", err)
 	}
 
@@ -562,7 +568,7 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, directoryMode(dir)); err != nil {
+	if err := os.MkdirAll(target, directoryMode(dir)); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -615,7 +621,7 @@ func deleteDirectory(dir types.Directory) error {
 func createDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, directoryMode(dir)); err != nil {
+	if err := os.MkdirAll(target, directoryMode(dir)); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 		return fmt.Errorf("error creating directory: %w", err)
 	}
 
@@ -693,7 +699,7 @@ func directoryMode(dir types.Directory) os.FileMode {
 
 func applyFileAttributes(targetPath string, file types.File) error {
 	if file.Mode.IsSet() {
-		if err := os.Chmod(targetPath, file.Mode.OSMode()); err != nil {
+		if err := os.Chmod(targetPath, file.Mode.OSMode()); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 			return fmt.Errorf("error changing file permissions: %v", err)
 		}
 	}

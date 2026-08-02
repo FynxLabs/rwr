@@ -40,7 +40,7 @@ const macDefaultPrimaryGroupID = "20"
 // gpasswd); macOS goes through Open Directory (dscl, sysadminctl, dseditgroup,
 // pwpolicy) — none of the shadow-utils binaries exist there. Windows has no
 // implementation and logs a warning per entry.
-func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitConfig) error {
+func ProcessUsers(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
 	var usersData types.UsersData
 	var err error
 
@@ -53,7 +53,6 @@ func ProcessUsers(blueprintData []byte, format string, initConfig *types.InitCon
 	}
 
 	// Process imports and merge imported users and groups
-	blueprintDir := initConfig.Init.Location
 	allGroups, err := processGroupImports(usersData.Groups, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing group imports: %w", err)

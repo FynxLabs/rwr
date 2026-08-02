@@ -85,18 +85,6 @@ The `packageManagers` section defines the configuration settings for package man
 | `action` | The action to perform (install, remove) | Yes |
 | `asUser` | The user to run the package manager commands as | No |
 
-### `repositories`
-
-The `repositories` section defines the configuration settings for repositories.
-
-| Field | Description | Required |
-|-------|-------------|----------|
-| `name` | The name of the repository | Yes |
-| `package_manager` | The package manager associated with the repository | Yes |
-| `action` | The action to perform (add, remove) | Yes |
-| `url` | The URL of the repository | Yes |
-| `key_url` | The URL of the repository's signing key | No |
-
 ### `variables`
 
 The `variables` section holds the custom variables that your blueprints can read.
@@ -142,12 +130,6 @@ packageManagers:
   - name: brew
     action: install
 
-repositories:
-  - name: homebrew-core
-    package_manager: brew
-    action: add
-    url: https://github.com/Homebrew/homebrew-core.git
-
 variables:
   userDefined:
     app_version: 1.0.0
@@ -156,7 +138,7 @@ variables:
 
 In this example, the Init file specifies the format and location of the blueprint
 files and the order of execution. It also configures package managers,
-repositories, and defines custom variables. A blueprint in this tree reads them
+and defines custom variables. A blueprint in this tree reads them
 as `{{ .UserDefined.app_version }}` and `{{ .UserDefined.api_key }}`.
 
 ### Package Manager Installation

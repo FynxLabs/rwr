@@ -65,7 +65,7 @@ func TestPackageImports(t *testing.T) {
 	}
 
 	// Process packages (this will trigger import processing)
-	err = ProcessPackages(data, nil, "yaml", osInfo, initConfig)
+	err = ProcessPackages(data, nil, tempDir, "yaml", osInfo, initConfig)
 
 	// We expect this to fail because package managers aren't available
 	// but we can verify the import was processed by checking the error doesn't mention import issues
@@ -132,7 +132,7 @@ func TestCircularImportDetection(t *testing.T) {
 
 	// Process should complete without infinite loop
 	// Circular import should be detected and skipped
-	err = ProcessPackages(data, nil, "yaml", osInfo, initConfig)
+	err = ProcessPackages(data, nil, tempDir, "yaml", osInfo, initConfig)
 
 	// Should complete without hanging (circular detection works)
 	if err != nil && containsString(err.Error(), "circular") {
@@ -205,7 +205,7 @@ func TestMultipleImports(t *testing.T) {
 		},
 	}
 
-	err = ProcessPackages(data, nil, "yaml", osInfo, initConfig)
+	err = ProcessPackages(data, nil, tempDir, "yaml", osInfo, initConfig)
 
 	// Verify imports were processed (no import-related errors)
 	if err != nil {
@@ -257,7 +257,7 @@ func TestMissingImportFile(t *testing.T) {
 		},
 	}
 
-	err = ProcessPackages(data, nil, "yaml", osInfo, initConfig)
+	err = ProcessPackages(data, nil, tempDir, "yaml", osInfo, initConfig)
 
 	// Should fail with import error
 	if err == nil {
@@ -323,7 +323,7 @@ func TestRelativeImportPaths(t *testing.T) {
 		},
 	}
 
-	err = ProcessPackages(data, nil, "yaml", osInfo, initConfig)
+	err = ProcessPackages(data, nil, tempDir, "yaml", osInfo, initConfig)
 
 	// Verify relative import worked (no import-related errors)
 	if err != nil {

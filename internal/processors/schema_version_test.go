@@ -76,21 +76,21 @@ var unsupportedVersionCases = []struct {
 		name:      "packages",
 		blueprint: "schema_version: 99\npackages:\n  - name: git\n    action: install\n    package_manager: pacman\n",
 		run: func(data []byte, osInfo *types.OSInfo, init *types.InitConfig) error {
-			return ProcessPackages(data, nil, "yaml", osInfo, init)
+			return ProcessPackages(data, nil, "", "yaml", osInfo, init)
 		},
 	},
 	{
 		name:      "services",
 		blueprint: "schema_version: 99\nservices:\n  - name: sshd\n    action: enable\n",
 		run: func(data []byte, osInfo *types.OSInfo, init *types.InitConfig) error {
-			return ProcessServices(data, "yaml", osInfo, init)
+			return ProcessServices(data, "", "yaml", osInfo, init)
 		},
 	},
 	{
 		name:      "git",
 		blueprint: "schema_version: 99\nrepositories:\n  - name: dots\n    url: https://example.invalid/d.git\n    path: /tmp/rwr-test-dots\n",
 		run: func(data []byte, osInfo *types.OSInfo, init *types.InitConfig) error {
-			return ProcessGitRepositories(data, "yaml", init)
+			return ProcessGitRepositories(data, "", "yaml", init)
 		},
 	},
 	{
@@ -104,7 +104,7 @@ var unsupportedVersionCases = []struct {
 		name:      "users",
 		blueprint: "schema_version: 99\nusers:\n  - name: tester\n    action: create\n",
 		run: func(data []byte, osInfo *types.OSInfo, init *types.InitConfig) error {
-			return ProcessUsers(data, "yaml", init)
+			return ProcessUsers(data, "", "yaml", init)
 		},
 	},
 	{
@@ -151,7 +151,7 @@ func TestProcessors_AcceptSupportedSchemaVersion(t *testing.T) {
 	init.Init.Location = t.TempDir()
 
 	blueprint := []byte("schema_version: 1\npackages:\n  - name: git\n    action: install\n    package_manager: pacman\n")
-	if err := ProcessPackages(blueprint, nil, "yaml", newTestOSInfo(), init); err != nil {
+	if err := ProcessPackages(blueprint, nil, t.TempDir(), "yaml", newTestOSInfo(), init); err != nil {
 		t.Fatalf("schema_version 1 should be accepted: %v", err)
 	}
 	if len(rec.Calls) == 0 {
@@ -170,7 +170,7 @@ func TestProcessors_UndeclaredVersionIsAccepted(t *testing.T) {
 	init.Init.Location = t.TempDir()
 
 	blueprint := []byte("packages:\n  - name: git\n    action: install\n    package_manager: pacman\n")
-	if err := ProcessPackages(blueprint, nil, "yaml", newTestOSInfo(), init); err != nil {
+	if err := ProcessPackages(blueprint, nil, t.TempDir(), "yaml", newTestOSInfo(), init); err != nil {
 		t.Fatalf("undeclared version should resolve to latest: %v", err)
 	}
 	if len(rec.Calls) == 0 {
@@ -189,7 +189,7 @@ func TestProcessors_TreeVersionApplies(t *testing.T) {
 	init.Init.SchemaVersion = 99
 
 	blueprint := []byte("packages:\n  - name: git\n    action: install\n    package_manager: pacman\n")
-	err := ProcessPackages(blueprint, nil, "yaml", newTestOSInfo(), init)
+	err := ProcessPackages(blueprint, nil, t.TempDir(), "yaml", newTestOSInfo(), init)
 	if err == nil {
 		t.Fatalf("tree version 99 was accepted; %d command(s) ran: %+v", len(rec.Calls), rec.Calls)
 	}
@@ -210,7 +210,7 @@ func TestProcessors_FileVersionOverridesTree(t *testing.T) {
 	init.Init.SchemaVersion = 99 // unreadable tree-wide
 
 	blueprint := []byte("schema_version: 1\npackages:\n  - name: git\n    action: install\n    package_manager: pacman\n")
-	if err := ProcessPackages(blueprint, nil, "yaml", newTestOSInfo(), init); err != nil {
+	if err := ProcessPackages(blueprint, nil, t.TempDir(), "yaml", newTestOSInfo(), init); err != nil {
 		t.Fatalf("file declaration should override the tree version: %v", err)
 	}
 	if len(rec.Calls) == 0 {
@@ -236,7 +236,7 @@ func TestProcessors_ImportedFileVersionIsEnforced(t *testing.T) {
 	init.Init.Location = dir
 
 	blueprint := []byte("packages:\n  - import: extra.yaml\n")
-	err := ProcessPackages(blueprint, nil, "yaml", newTestOSInfo(), init)
+	err := ProcessPackages(blueprint, nil, t.TempDir(), "yaml", newTestOSInfo(), init)
 	if err == nil {
 		t.Fatalf("imported blueprint with version 99 was accepted; %d command(s) ran: %+v",
 			len(rec.Calls), rec.Calls)
@@ -255,7 +255,7 @@ func TestProcessors_UnsupportedVersionErrorIsActionable(t *testing.T) {
 	init.Init.Location = t.TempDir()
 
 	blueprint := []byte("schema_version: 7\npackages:\n  - name: git\n    action: install\n")
-	err := ProcessPackages(blueprint, nil, "yaml", newTestOSInfo(), init)
+	err := ProcessPackages(blueprint, nil, t.TempDir(), "yaml", newTestOSInfo(), init)
 	if err == nil {
 		t.Fatal("expected refusal")
 	}

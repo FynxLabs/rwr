@@ -3,6 +3,8 @@ package helpers
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"sort"
 	"text/template"
 
 	"charm.land/log/v2"
@@ -66,4 +68,39 @@ func resolveTemplate(templateData []byte, variables types.Variables, missingKey 
 	}
 
 	return renderedTemplate.Bytes(), nil
+}
+
+// builtinRefPattern matches simple references into the fixed template
+// namespaces — {{ .User.home }}, {{ if .System.os }} — whose keys are known at
+// validate time, unlike UserDefined's.
+var builtinRefPattern = regexp.MustCompile(`\.(User|System|Flags)\.([A-Za-z0-9_]+)`)
+
+// UnknownTemplateReferences reports references into the User, System, and
+// Flags namespaces that name no existing key. UserDefined is deliberately
+// exempt: its values vary per machine, so a reference to one is not a defect
+// validate can report. The fixed namespaces have no such excuse — validate
+// used to render every namespace with missingkey=zero, so a typo like
+// {{ .User.hoem }} validated clean and failed at run time.
+func UnknownTemplateReferences(templateData []byte, variables types.Variables) []string {
+	namespaces := map[string]map[string]interface{}{
+		"User":   variables.User.ToMap(),
+		"System": variables.System.ToMap(),
+		"Flags":  variables.Flags.ToMap(),
+	}
+
+	var unknown []string
+	seen := map[string]bool{}
+	for _, match := range builtinRefPattern.FindAllSubmatch(templateData, -1) {
+		namespace, key := string(match[1]), string(match[2])
+		ref := "." + namespace + "." + key
+		if seen[ref] {
+			continue
+		}
+		seen[ref] = true
+		if _, ok := namespaces[namespace][key]; !ok {
+			unknown = append(unknown, ref)
+		}
+	}
+	sort.Strings(unknown)
+	return unknown
 }

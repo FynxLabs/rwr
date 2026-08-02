@@ -17,7 +17,7 @@ import (
 
 // ProcessRepositories adds or removes package manager repositories from blueprint data,
 // with support for profile filtering and import resolution.
-func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessRepositories(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var repositoriesBlueprint types.RepositoriesData
 	var err error
 
@@ -31,7 +31,6 @@ func ProcessRepositories(blueprintData []byte, format string, osInfo *types.OSIn
 	}
 
 	// Process imports and merge imported repositories
-	blueprintDir := initConfig.Init.Location
 	allRepositories, err := processRepositoryImports(repositoriesBlueprint.Repositories, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing repository imports: %w", err)
@@ -100,6 +99,15 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 	provider, exists := system.GetProvider(repo.PackageManager)
 	if !exists {
 		return fmt.Errorf("unsupported package manager: %s", repo.PackageManager)
+	}
+
+	// A signing key fetched without a declared digest is trusted on nothing
+	// but the TLS connection that served it. Warn now; a later major refuses
+	// (the policy ratchets, never loosens).
+	if repo.Action == "add" && repo.KeyURL != "" && repo.KeySha256 == "" {
+		log.Warnf("Repository %s downloads its signing key from %s with no key_sha256 declared — "+
+			"the key is unpinned. Add key_sha256 to the repository entry; a future major version will refuse this.",
+			repo.Name, repo.KeyURL)
 	}
 
 	// Get repository config
@@ -315,6 +323,7 @@ func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, prov
 		"KeysPath":       paths.Keys,
 		"ConfigPath":     paths.Config,
 		"KeyPath":        keyPath,
+		"KeySha256":      repo.KeySha256,
 		"TempKeyPath":    filepath.Join(tempDir, repo.Name+".gpg"),
 		"KeyID":          repo.KeyID,
 		// The local file a snap or a GNOME extension is installed from. Only

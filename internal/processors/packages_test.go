@@ -4,7 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fynxlabs/rwr/internal/exectest"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -579,5 +581,35 @@ func TestProcessPackages_ResolveInteractiveIntegration(t *testing.T) {
 				t.Errorf("ResolveInteractive() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// `names` wins over `name` when both are set — matching files and fonts.
+// packages had it backwards.
+func TestProcessPackages_NamesWinsOverName(t *testing.T) {
+	useTestProvider(t)
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	data := []byte("packages:\n  - name: ignored\n    names: [vim, tmux]\n    action: install\n    package_manager: pacman\n")
+	if err := ProcessPackages(data, nil, t.TempDir(), "yaml", newTestOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessPackages: %v", err)
+	}
+
+	var installed []string
+	for _, call := range rec.Calls {
+		if len(call.Args) > 0 {
+			installed = append(installed, call.Args[len(call.Args)-1])
+		}
+	}
+	want := map[string]bool{"vim": true, "tmux": true}
+	for _, name := range installed {
+		if name == "ignored" {
+			t.Fatalf("name field was processed despite names being set: %v", installed)
+		}
+		delete(want, name)
+	}
+	if len(want) != 0 {
+		t.Errorf("missing installs %v; recorded %v", want, installed)
 	}
 }

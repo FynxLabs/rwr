@@ -3,6 +3,7 @@ package processors
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/types"
@@ -400,5 +401,29 @@ packageManagers: [{name: "brew", action: "install"}]
 	}
 	if len(initConfig.PackageManagers) != 1 || initConfig.PackageManagers[0].Name != "brew" {
 		t.Errorf("PackageManagers = %+v, want the declared brew entry", initConfig.PackageManagers)
+	}
+}
+
+// The init file's inline resource sections were decoded, validated, and never
+// applied. They are gone from the schema; strict decode turns a leftover key
+// into an error naming it instead of a silent no-op.
+func TestInitialize_InlineResourceSectionsAreRejected(t *testing.T) {
+	dir := t.TempDir()
+	initFile := filepath.Join(dir, "init.yaml")
+	content := `
+blueprints:
+  format: yaml
+  location: ` + dir + `
+packages:
+  - name: git
+    action: install
+`
+	if err := os.WriteFile(initFile, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Initialize(initFile, types.Flags{})
+	if err == nil || !strings.Contains(err.Error(), "packages") {
+		t.Fatalf("err = %v, want a strict-decode error naming the packages key", err)
 	}
 }

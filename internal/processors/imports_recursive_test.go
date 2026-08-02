@@ -63,7 +63,7 @@ func TestImports_FollowANestedChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ProcessPackages(data, nil, "yaml", newTestOSInfo(), init); err != nil {
+	if err := ProcessPackages(data, nil, root, "yaml", newTestOSInfo(), init); err != nil {
 		t.Fatal(err)
 	}
 
@@ -101,7 +101,7 @@ func TestImports_ResolveRelativeToTheImportingFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ProcessPackages(data, nil, "yaml", newTestOSInfo(), init); err != nil {
+	if err := ProcessPackages(data, nil, root, "yaml", newTestOSInfo(), init); err != nil {
 		t.Fatal(err)
 	}
 
@@ -128,7 +128,7 @@ func TestImports_CycleIsReported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ProcessPackages(data, nil, "yaml", newTestOSInfo(), init)
+	err = ProcessPackages(data, nil, root, "yaml", newTestOSInfo(), init)
 	if err == nil {
 		t.Fatal("a cycle between a.yaml and b.yaml was not reported")
 	}
@@ -158,7 +158,7 @@ func TestImports_DiamondIsNotACycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ProcessPackages(data, nil, "yaml", newTestOSInfo(), init); err != nil {
+	if err := ProcessPackages(data, nil, root, "yaml", newTestOSInfo(), init); err != nil {
 		t.Fatalf("a shared file reached twice was treated as a cycle: %v", err)
 	}
 }
@@ -178,7 +178,7 @@ func TestImports_MissingFileIsReported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := ProcessPackages(data, nil, "yaml", newTestOSInfo(), init); err == nil {
+	if err := ProcessPackages(data, nil, root, "yaml", newTestOSInfo(), init); err == nil {
 		t.Fatal("a missing import file was accepted")
 	}
 }
@@ -203,11 +203,43 @@ func TestImports_SchemaVersionEnforcedThroughTheChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ProcessPackages(data, nil, "yaml", newTestOSInfo(), init)
+	err = ProcessPackages(data, nil, root, "yaml", newTestOSInfo(), init)
 	if err == nil {
 		t.Fatalf("version 99 two levels down was accepted; %d command(s) ran", len(rec.Calls))
 	}
 	if len(rec.Calls) != 0 {
 		t.Errorf("refused chain still ran %d command(s)", len(rec.Calls))
+	}
+}
+
+// Import paths resolve relative to the file that declares them, in every
+// processor. Six processors (packages among them) used to resolve top-level
+// imports against the tree root instead, so `import: ../shared/common.yaml`
+// written in packages/base.yaml meant a different file than the same string in
+// files/base.yaml — and the spec has always mandated file-relative.
+func TestImports_TopLevelResolvesRelativeToTheBlueprintFile(t *testing.T) {
+	useTestProvider(t)
+	root := writeFiles(t, map[string]string{
+		"packages/base.yaml": "packages:\n  - import: ../shared/common.yaml\n",
+		"shared/common.yaml": "packages:\n  - name: from-shared\n    action: install\n    package_manager: pacman\n",
+	})
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	init := &types.InitConfig{}
+	init.Init.Location = root
+
+	data, err := os.ReadFile(filepath.Join(root, "packages", "base.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ProcessPackages(data, nil, filepath.Join(root, "packages"), "yaml", newTestOSInfo(), init); err != nil {
+		t.Fatal(err)
+	}
+
+	installed := installedNames(rec.Calls)
+	if len(installed) != 1 || installed[0] != "from-shared" {
+		t.Errorf("installed = %v, want [from-shared] resolved relative to packages/base.yaml", installed)
 	}
 }

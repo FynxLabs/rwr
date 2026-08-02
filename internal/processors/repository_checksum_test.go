@@ -92,3 +92,58 @@ func TestProcessRepository_DownloadStepVerifiesSha256(t *testing.T) {
 		}
 	})
 }
+
+// key_sha256 pins the signing key the apt/dnf key-download step fetches. The
+// shipped apt provider's own step template carries `sha256 = "{{ .KeySha256 }}"`,
+// so the pin flows from the blueprint entry into the download verification.
+func TestProcessRepository_KeySha256PinsTheAptKey(t *testing.T) {
+	content := []byte("armored key bytes")
+	sum := sha256.Sum256(content)
+	good := hex.EncodeToString(sum[:])
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(content)
+	}))
+	defer server.Close()
+
+	run := func(t *testing.T, digest string) error {
+		t.Helper()
+		root := t.TempDir()
+		sourcesDir := filepath.Join(root, "sources.list.d")
+		keysDir := filepath.Join(root, "keyrings")
+		for _, dir := range []string{sourcesDir, keysDir} {
+			if err := os.MkdirAll(dir, 0o750); err != nil {
+				t.Fatal(err)
+			}
+		}
+		defer system.SetExecutor(exectest.New())()
+		defer system.SetProvidersForTest(map[string]*types.Provider{
+			"apt": providerForTest(t, "apt", sourcesDir, keysDir),
+		})()
+
+		return processRepository(types.Repository{
+			Name:           "pinned",
+			PackageManager: "apt",
+			Action:         "add",
+			URL:            "https://example.com/repo",
+			KeyURL:         server.URL + "/gpg",
+			KeySha256:      digest,
+			Arch:           "amd64",
+			Channel:        "stable",
+			Component:      "main",
+		}, &types.OSInfo{}, &types.InitConfig{})
+	}
+
+	t.Run("matching key digest proceeds", func(t *testing.T) {
+		if err := run(t, good); err != nil {
+			t.Fatalf("processRepository: %v", err)
+		}
+	})
+
+	t.Run("mismatched key digest refuses", func(t *testing.T) {
+		err := run(t, strings.Repeat("0", 64))
+		if err == nil || !strings.Contains(err.Error(), "sha256 mismatch") {
+			t.Fatalf("err = %v, want a sha256 mismatch refusal", err)
+		}
+	})
+}
