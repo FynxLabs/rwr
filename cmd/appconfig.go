@@ -27,6 +27,7 @@ type AppConfig struct {
 
 	// Paths
 	ConfigPath      string // --config: overrides where the config file is looked up
+	ConfigName      string // --config-name: manifest entry selection, always wins
 	ConfigLocation  string
 	RunOnceLocation string
 	InitFilePath    string

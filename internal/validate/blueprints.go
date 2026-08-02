@@ -23,6 +23,12 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 	// Find init file in the specified directory only
 	initFile := findInitFile(path)
 	if initFile == "" {
+		// A multi-configuration repo has a manifest instead: validate it —
+		// decode, escape checks, and each entry's init file existing.
+		if manifestPath := helpers.FindManifest(path); manifestPath != "" {
+			validateManifest(manifestPath, results)
+			return nil
+		}
 		AddIssue(results, types.ValidationError, "Failed to find init file", path, 0, "Create an init file in the specified directory")
 		return nil // Continue with other validations
 	}
@@ -357,4 +363,27 @@ func decode[T any](data []byte, format, blueprintType string, out *T) error {
 		return fmt.Errorf("error unmarshaling %s blueprint: %w", blueprintType, err)
 	}
 	return nil
+}
+
+// validateManifest checks a multi-configuration repo root: the manifest
+// decodes (strictly, with the escape refusal LoadManifest enforces) and every
+// entry's init file exists.
+func validateManifest(manifestPath string, results *types.ValidationResults) {
+	manifest, err := helpers.LoadManifest(manifestPath)
+	if err != nil {
+		AddIssue(results, types.ValidationError, err.Error(), manifestPath, 0, "Fix the manifest")
+		return
+	}
+	root := filepath.Dir(manifestPath)
+	for _, entry := range manifest.Configurations {
+		initPath := filepath.Join(root, entry.Init)
+		if _, statErr := os.Stat(initPath); statErr != nil {
+			AddIssue(results, types.ValidationError,
+				fmt.Sprintf("Manifest configuration %q points at %s, which does not exist", entry.Name, entry.Init),
+				manifestPath, 0, "Fix the init path or create the file")
+		}
+	}
+	if len(manifest.Configurations) == 0 {
+		AddIssue(results, types.ValidationWarning, "Manifest declares no configurations", manifestPath, 0, "Add a configurations list")
+	}
 }

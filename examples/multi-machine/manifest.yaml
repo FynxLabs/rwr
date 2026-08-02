@@ -1,0 +1,12 @@
+# A multi-configuration blueprint repo: one entry per machine shape. Pointing
+# rwr at this repo root (or its git URL) selects the matching entry — or ask
+# for one explicitly with --config-name.
+configurations:
+  - name: arch-desktop
+    init: Arch/init.yaml
+    os: linux
+    family: arch
+    default: true
+  - name: mac
+    init: macOS/init.yaml
+    os: darwin

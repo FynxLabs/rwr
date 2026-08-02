@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/types"
 )
 
 // initFileNames are the file names probed, in order, when the init source is a
@@ -73,7 +74,11 @@ func ResolveInitSource(ref string) (string, error) {
 	return "", fmt.Errorf("init source %q is not an existing path, an https:// URL, or an owner/repo shorthand", ref)
 }
 
-// probeInitDir returns the first init file name that exists in dir.
+// probeInitDir returns the first init file name that exists in dir. A
+// directory with no init file but a manifest at its root is a
+// multi-configuration repo: the manifest path is returned and the caller
+// runs entry selection (the manifest path only activates when there is no
+// init file, so plain trees behave exactly as before).
 func probeInitDir(dir string) (string, error) {
 	for _, name := range initFileNames {
 		candidate := filepath.Join(dir, name)
@@ -82,7 +87,11 @@ func probeInitDir(dir string) (string, error) {
 			return candidate, nil
 		}
 	}
-	return "", fmt.Errorf("no init file (%s) found in %s", strings.Join(initFileNames, ", "), dir)
+	if manifest := FindManifest(dir); manifest != "" {
+		log.Debugf("Found manifest: %s", manifest)
+		return manifest, nil
+	}
+	return "", fmt.Errorf("no init file (%s) or manifest found in %s", strings.Join(initFileNames, ", "), dir)
 }
 
 // rewriteBlobURL turns a GitHub /blob/ page URL into its raw content URL and
@@ -140,5 +149,44 @@ func resolveShorthand(ref string) (string, error) {
 		}
 		tried = append(tried, name)
 	}
-	return "", fmt.Errorf("no init file found in %s at %s: tried %s", ref, gitRef, strings.Join(tried, ", "))
+
+	// No init file at the repo root: a manifest there marks a
+	// multi-configuration repo, which needs the whole tree locally — entry
+	// init files reference siblings — so it is cloned and probed as a local
+	// root. Only reached when no init file exists, same as the local rule.
+	for _, name := range CandidateFilenames("manifest") {
+		candidate := base + "/" + name
+		resp, err := probeClient.Head(candidate)
+		if err != nil {
+			return "", fmt.Errorf("probing %s: %w", candidate, err)
+		}
+		if cerr := resp.Body.Close(); cerr != nil {
+			log.Debugf("closing probe response for %s: %v", candidate, cerr)
+		}
+		if resp.StatusCode == http.StatusOK {
+			log.Debugf("Shorthand %s@%s is a manifest repo", ref, gitRef)
+			return cloneManifestRepo(segments[0], segments[1])
+		}
+	}
+	return "", fmt.Errorf("no init file or manifest found in %s at %s: tried %s", ref, gitRef, strings.Join(tried, ", "))
+}
+
+// cloneManifestRepo is a seam so tests can fake the clone.
+var cloneManifestRepo = func(owner, repo string) (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("error finding home directory: %w", err)
+	}
+	target := filepath.Join(homeDir, ".config", "rwr", "blueprints", owner+"-"+repo)
+
+	if _, err := os.Stat(filepath.Join(target, ".git")); err != nil {
+		opts := types.GitOptions{
+			URL:    "https://github.com/" + owner + "/" + repo + ".git",
+			Target: target,
+		}
+		if err := HandleGitClone(opts, &types.InitConfig{}); err != nil {
+			return "", fmt.Errorf("error cloning manifest repo %s/%s: %w", owner, repo, err)
+		}
+	}
+	return probeInitDir(target)
 }

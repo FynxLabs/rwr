@@ -121,6 +121,7 @@ func registerRootFlags(rootCmd *cobra.Command, app *AppConfig) {
 	flags := rootCmd.PersistentFlags()
 
 	flags.StringVar(&app.ConfigPath, "config", "", "Path to the config file, or to a directory containing config.yaml (default ~/.config/rwr)")
+	flags.StringVar(&app.ConfigName, "config-name", "", "Manifest configuration to use in a multi-configuration blueprint repo")
 	flags.BoolVarP(&app.Debug, "debug", "d", false, "Enable debug mode")
 	flags.StringVar(&app.LogLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
 	flags.BoolVar(&app.ForceBootstrap, "force-bootstrap", false, "Force Bootstrap to be ran again")
@@ -209,6 +210,16 @@ func initializeSystemInfo(app *AppConfig) error {
 		return fmt.Errorf("error resolving init source %q: %w", app.InitFilePath, err)
 	}
 	app.InitFilePath = resolved
+
+	// A multi-configuration repo resolves to its manifest; entry selection
+	// happens here, before resolve stage 1 touches anything.
+	if isManifestPath(app.InitFilePath) {
+		selected, err := selectFromManifest(app, app.InitFilePath)
+		if err != nil {
+			return err
+		}
+		app.InitFilePath = selected
+	}
 
 	flags := types.Flags{
 		Debug:            app.Debug,
