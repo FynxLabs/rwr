@@ -46,6 +46,81 @@ func blueprintTarget(kind string) interface{} {
 	}
 }
 
+// multiTypeBlueprint is the target for an example that carries several blueprint
+// types in one file (examples/alternative_layouts/minimal_files/all_in_one.*).
+// RWR has no single struct for that layout, so the fields here are exactly the
+// per-type fields from the structs above; the file is asserted against the union
+// of the real schemas rather than being skipped.
+type multiTypeBlueprint struct {
+	types.SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
+	Packages            []types.Package       `yaml:"packages,omitempty" json:"packages,omitempty" toml:"packages,omitempty"`
+	Repositories        []types.Repository    `yaml:"repositories,omitempty" json:"repositories,omitempty" toml:"repositories,omitempty"`
+	Files               []types.File          `yaml:"files,omitempty" json:"files,omitempty" toml:"files,omitempty"`
+	Templates           []types.File          `yaml:"templates,omitempty" json:"templates,omitempty" toml:"templates,omitempty"`
+	Directories         []types.Directory     `yaml:"directories,omitempty" json:"directories,omitempty" toml:"directories,omitempty"`
+	Services            []types.Service       `yaml:"services,omitempty" json:"services,omitempty" toml:"services,omitempty"`
+	Git                 []types.Git           `yaml:"git,omitempty" json:"git,omitempty" toml:"git,omitempty"`
+	Scripts             []types.Script        `yaml:"scripts,omitempty" json:"scripts,omitempty" toml:"scripts,omitempty"`
+	SSHKeys             []types.SSHKey        `yaml:"ssh_keys,omitempty" json:"ssh_keys,omitempty" toml:"ssh_keys,omitempty"`
+	Fonts               []types.Font          `yaml:"fonts,omitempty" json:"fonts,omitempty" toml:"fonts,omitempty"`
+	Groups              []types.Group         `yaml:"groups,omitempty" json:"groups,omitempty" toml:"groups,omitempty"`
+	Users               []types.User          `yaml:"users,omitempty" json:"users,omitempty" toml:"users,omitempty"`
+	Configurations      []types.Configuration `yaml:"configurations,omitempty" json:"configurations,omitempty" toml:"configurations,omitempty"`
+}
+
+// blueprintTargetForPath decides which struct an example file must decode into,
+// from its path relative to examples/.
+//
+// This deliberately mirrors production: getProcessorType (processors/blueprints.go)
+// scans *every* path segment for a blueprint type name, it does not look only at
+// the immediate parent directory. Using the parent alone — as this test used to —
+// gave a nil target to every init and bootstrap file (their parent is the format
+// name, "yaml"/"json"/"toml"), to everything under alternative_layouts/, and to
+// examples/imports/Common/packages/arch/base-aur.yaml, all of which were then
+// silently skipped by the very check that is supposed to cover them.
+func blueprintTargetForPath(rel string) interface{} {
+	base := filepath.Base(rel)
+	stem := strings.TrimSuffix(base, filepath.Ext(base))
+
+	// An init file configures the run; a bootstrap file is its own type. Neither
+	// lives in a directory named after its type.
+	switch stem {
+	case "init":
+		return &types.InitConfig{}
+	case types.BlueprintTypeBootstrap:
+		return &types.BootstrapData{}
+	}
+
+	// Same rule production uses: the first path segment naming a blueprint type wins.
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		if target := blueprintTarget(part); target != nil {
+			return target
+		}
+	}
+
+	// Flattened layouts (examples/alternative_layouts/flattened) keep one blueprint
+	// type per file at the tree root, so the file name is what names the type.
+	if target := blueprintTarget(stem); target != nil {
+		return target
+	}
+
+	// A single file holding several blueprint types (all_in_one.*).
+	return &multiTypeBlueprint{}
+}
+
+// knownSchemaViolations records example files that do NOT decode cleanly, and the
+// single unknown key each one is allowed to carry.
+//
+// It is currently empty, and that is the goal state. Widening the type derivation
+// above brought init, bootstrap, alternative_layouts/ and imports/ under the strict
+// check for the first time and uncovered two real bugs — `asUser` on script entries
+// and `variables.userDefined` in init files — both of which are now implemented
+// rather than tolerated.
+//
+// This is a shrinking list, never a growing one: an entry whose file starts
+// decoding cleanly fails the test, so fixing an example forces its removal.
+var knownSchemaViolations = map[string]struct{ key string }{}
+
 // Every example must decode into its blueprint struct with no unknown fields.
 //
 // This is the backwards-compatibility check: the decoders RWR uses in production
@@ -74,13 +149,11 @@ func TestExamples_DecodeStrictlyIntoBlueprintStructs(t *testing.T) {
 			return nil
 		}
 
-		// The directory name is how RWR itself decides the blueprint type
-		// (getProcessorType in processors/blueprints.go).
-		kind := filepath.Base(filepath.Dir(path))
-		target := blueprintTarget(kind)
-		if target == nil {
-			return nil // init files, bootstrap, and the layout examples
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
 		}
+		target := blueprintTargetForPath(rel)
 
 		raw, readErr := os.ReadFile(path) // #nosec G304 -- test walks the repo's own examples tree
 		if readErr != nil {
@@ -92,10 +165,21 @@ func TestExamples_DecodeStrictlyIntoBlueprintStructs(t *testing.T) {
 			return nil // reported by TestExamples_ParseInTheirDeclaredFormat
 		}
 
-		if unknown := strictDecode(resolved, ext, target); len(unknown) > 0 {
+		unknown := strictDecode(resolved, ext, target)
+		key := filepath.ToSlash(rel)
+		known, isKnown := knownSchemaViolations[key]
+
+		switch {
+		case len(unknown) > 0 && !isKnown:
 			t.Errorf("%s: keys that no %T field accepts: %s\n"+
 				"    (production decoding ignores these silently, so the blueprint would be a no-op)",
 				path, target, strings.Join(unknown, ", "))
+		case len(unknown) > 0 && !strings.Contains(strings.Join(unknown, " "), known.key):
+			t.Errorf("%s: expected only the known %q violation, got: %s",
+				path, known.key, strings.Join(unknown, ", "))
+		case len(unknown) == 0 && isKnown:
+			t.Errorf("%s: now decodes cleanly — delete its knownSchemaViolations entry "+
+				"so the file cannot regress", path)
 		}
 		return nil
 	})
@@ -157,6 +241,50 @@ func unknownFieldsFromError(msg string) []string {
 	return out
 }
 
+// knownTrailingNewlineDrift lists the files where the .toml copy differs from the
+// .yaml copy by exactly one thing: the final newline of a multi-line string.
+//
+// This replaces a blanket "skip everything under alternative_layouts/" exclusion.
+// That exclusion was written when the whole subtree had drifted; it no longer
+// holds — every other pair under alternative_layouts/ agrees exactly, so the
+// exclusion was hiding nothing but suppressing a real check on eleven files.
+//
+// What remains is narrow and real: YAML's `|` block scalar keeps the trailing
+// newline, TOML's `"""` does not unless the source writes one, and these three
+// .toml files do not. A .bashrc written from the TOML tree therefore ends without
+// a newline where the YAML tree's ends with one. Every other .toml file in
+// examples/ writes the `\n`, which is why nothing else is listed here. Fix is in
+// examples/, not here; an entry whose file starts agreeing exactly fails the test.
+var knownTrailingNewlineDrift = map[string]struct{}{
+	"alternative_layouts/flattened/yaml/files.yaml":          {},
+	"alternative_layouts/flattened/yaml/scripts.yaml":        {},
+	"alternative_layouts/minimal_files/yaml/all_in_one.yaml": {},
+}
+
+// trimStringNewlines returns v with the trailing newlines stripped from every
+// string it contains, at any depth. Used only to confirm that a mismatch is the
+// trailing-newline difference above and nothing else.
+func trimStringNewlines(v interface{}) interface{} {
+	switch t := v.(type) {
+	case string:
+		return strings.TrimRight(t, "\n")
+	case map[string]interface{}:
+		out := make(map[string]interface{}, len(t))
+		for k, val := range t {
+			out[k] = trimStringNewlines(val)
+		}
+		return out
+	case []interface{}:
+		out := make([]interface{}, len(t))
+		for i, val := range t {
+			out[i] = trimStringNewlines(val)
+		}
+		return out
+	default:
+		return v
+	}
+}
+
 // The yaml, json and toml copies of a blueprint must express the same thing.
 //
 // They had drifted badly — the Arch files example was 194 lines of YAML against
@@ -175,13 +303,6 @@ func TestExamples_FormatsAgreeWithEachOther(t *testing.T) {
 		if relErr != nil {
 			return relErr
 		}
-		// alternative_layouts/ demonstrates a layout the code does not implement
-		// (type detection by file content); it is being reworked separately, and
-		// its copies have drifted along with everything else there.
-		if strings.HasPrefix(rel, "alternative_layouts"+string(filepath.Separator)) {
-			return nil
-		}
-
 		parts := strings.Split(rel, string(filepath.Separator))
 		idx := -1
 		for i, p := range parts {
@@ -222,12 +343,25 @@ func TestExamples_FormatsAgreeWithEachOther(t *testing.T) {
 		dropDeclaredFormat(fromJSON)
 		dropDeclaredFormat(fromTOML)
 
-		if !reflect.DeepEqual(fromYAML, fromJSON) {
-			t.Errorf("%s and its .json copy describe different things", rel)
+		key := filepath.ToSlash(rel)
+		compare := func(other map[string]interface{}, format string) {
+			if reflect.DeepEqual(fromYAML, other) {
+				if _, listed := knownTrailingNewlineDrift[key]; listed && format == "toml" {
+					t.Errorf("%s and its .toml copy now agree exactly — delete its "+
+						"knownTrailingNewlineDrift entry", rel)
+				}
+				return
+			}
+			// The only tolerated difference, and only for the files listed below:
+			// a block scalar's final newline.
+			if _, listed := knownTrailingNewlineDrift[key]; listed && format == "toml" &&
+				reflect.DeepEqual(trimStringNewlines(fromYAML), trimStringNewlines(other)) {
+				return
+			}
+			t.Errorf("%s and its .%s copy describe different things", rel, format)
 		}
-		if !reflect.DeepEqual(fromYAML, fromTOML) {
-			t.Errorf("%s and its .toml copy describe different things", rel)
-		}
+		compare(fromJSON, "json")
+		compare(fromTOML, "toml")
 		return nil
 	})
 	if err != nil {

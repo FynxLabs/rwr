@@ -55,8 +55,13 @@ On a non-Windows host:
 The `--` separator SHALL be present so a program whose name begins with a dash
 cannot be absorbed as a `sudo` option.
 
-On Windows, `Elevated` SHALL be a no-op: there is no `sudo` equivalent, and the
-process must already be elevated.
+On Windows, `Elevated` SHALL be a no-op at this layer: there is no `sudo`
+equivalent. A processor that genuinely needs elevation on Windows SHALL raise it
+itself through `Start-Process -Verb RunAs`, and SHALL pass the elevated process
+its inputs as data rather than as command text — the elevated shell tokenizes its
+argument list a second time, so any value interpolated into it becomes code
+running as administrator. The Windows registry processor does this by writing a
+JSON payload and invoking a constant script via `-EncodedCommand`.
 
 #### Scenario: An elevated command on Linux
 
@@ -98,10 +103,100 @@ When a command declares `LogName` and debug output is off, RWR SHALL open that f
 and point the command's stdout at it. RWR SHALL close the file after the command
 finishes, not before.
 
+The log path comes from the blueprint (`log:` on a script), so it is
+attacker-influenced whenever the blueprint is. RWR SHALL refuse to write a command
+log through a symlink, and SHALL create the log file at `0600`.
+
+Appending through a symlink would put command output into `~/.ssh/authorized_keys`
+or `~/.bashrc` without the blueprint containing anything that looks like it writes
+a file, and command output routinely contains more than the operator expects.
+
 #### Scenario: A script that writes to its declared log
 
 - **WHEN** a blueprint declares `log: build.log` for a command that writes output
 - **THEN** `build.log` contains what the command wrote
+- **AND** the file is created at `0600`
+
+#### Scenario: A log path that is a symlink
+
+- **WHEN** a blueprint declares `log:` at a path that is a symlink
+- **THEN** RWR refuses the command with an error naming the path, and writes nothing
+  through the link
+
+### Requirement: A secret reaches a tool on standard input, not in argv
+
+`types.Command` SHALL carry a `Stdin` field, and RWR SHALL feed its contents to the
+spawned process on standard input. `Stdin` SHALL NOT be a blueprint field: it exists
+so RWR can hand a tool a credential without putting it in argv.
+
+Where a tool accepts a credential on stdin, RWR SHALL use that path. Setting a Linux
+account password SHALL go through `chpasswd` on stdin — `chpasswd -e` when the value
+is already a crypt(3) hash, plain `chpasswd` otherwise — and SHALL NOT use
+`useradd`/`usermod --password`.
+
+An argument of a `sudo`'d process is readable in `ps` by every local user for the
+lifetime of the call, lands in sudo's syslog record, and is printed verbatim by the
+debug logger, which logs `cmd.Args`. `usermod --password` is wrong a second way: it
+writes its argument into the hash field of `/etc/shadow`, so a cleartext value
+becomes a hash nothing can match and the account silently has no password.
+
+Supplied input SHALL win over the terminal even for an interactive command, because
+inheriting `os.Stdin` would hang waiting for a human who has nothing to type.
+
+#### Scenario: Setting a Linux user password
+
+- **WHEN** a users blueprint declares a cleartext password
+- **THEN** `chpasswd` is spawned with `<name>:<password>` on stdin
+- **AND** the password does not appear in the argv of any process
+
+#### Scenario: A pre-hashed password
+
+- **WHEN** the declared password is already a crypt(3) hash such as `$6$...`
+- **THEN** `chpasswd -e` is used so the hash is stored as given
+
+### Requirement: Values a tool only accepts as an argument are redacted from logs
+
+`types.Command` SHALL carry a `Secrets` field listing values that must not be
+written to a log, and SHALL expose a `LogArgs()` method returning `Args` with every
+such value replaced by the redaction placeholder. Every log line that prints a
+command's arguments — the debug lines in `buildCommand`, and the `[DRY-RUN]` line —
+SHALL use `LogArgs()` rather than `Args`.
+
+Some tools accept a credential only as an argument (chocolatey's `--password`,
+cargo's login token), so the value cannot always be moved to `Stdin`. It should
+still never be written to a log file.
+
+#### Scenario: A command carrying a credential in its arguments
+
+- **WHEN** a command lists its token in `Secrets` and debug logging is on
+- **THEN** the logged argument list shows the redaction placeholder in place of the
+  token
+
+#### Scenario: A command with no declared secrets
+
+- **WHEN** `Secrets` is empty
+- **THEN** `LogArgs()` returns the arguments unchanged
+
+### Requirement: A script may declare the account it runs as
+
+`types.Script` SHALL accept an `asUser` field, which RWR SHALL map to the command's
+`AsUser` and therefore to `sudo -u`.
+
+When a script declares both `elevated` and `asUser`, RWR SHALL run it elevated,
+SHALL ignore `asUser`, and SHALL warn naming the ignored account. `sudo` cannot do
+both at once and command construction checks `Elevated` first, so the previous
+behavior silently dropped one of the two.
+
+#### Scenario: A script run as another account
+
+- **WHEN** a script declares `asUser: levi` and does not declare `elevated`
+- **THEN** the script is spawned as `sudo -u levi -- <interpreter> <script>`
+
+#### Scenario: A script declaring both
+
+- **WHEN** a script declares `elevated: true` and `asUser: levi`
+- **THEN** the script runs elevated
+- **AND** RWR warns that `asUser: levi` was ignored
 
 ### Requirement: Dry-run reports commands without running them
 
@@ -116,6 +211,11 @@ at the end.
 - **WHEN** `rwr all --dry-run` runs against a blueprint tree
 - **THEN** every command is logged with a `[DRY-RUN]` marker
 - **AND** no package is installed, no file is written, and no service changes state
+
+#### Scenario: A dry-run of a command carrying a secret
+
+- **WHEN** a command listing a value in `Secrets` is reported in dry-run mode
+- **THEN** the `[DRY-RUN]` line shows the redaction placeholder, not the value
 
 ### Requirement: Command execution is replaceable for tests
 
@@ -146,3 +246,18 @@ the init file opted into them by name. See the credential-handling specification
 - **WHEN** a blueprint runs a script and the init file names no exposed credentials
 - **THEN** `RWR_VAR_REPOSITORY_GH_API_TOKEN` and `RWR_VAR_REPOSITORY_SSH_PRIVATE_KEY`
   are absent from the script's environment
+
+## Known Gaps
+
+- **The macOS account password is still passed in argv.** `dscl . -passwd` takes
+  the cleartext password as an argument, so it is visible in `ps` to every local
+  user and recorded by sudo. RWR warns when it does this, and lists the value in
+  `Secrets` so it is at least kept out of the logs. Open Directory computes its own
+  salted hash, so there is no pre-computed value to send instead; `dscl` offers no
+  stdin equivalent, so nothing keeps it out of `ps`.
+- **Repository credentials are still passed in argv.** chocolatey's `--password`
+  and cargo's login token are accepted only as arguments. They are listed in
+  `Secrets`, so they do not reach the logs, but they are readable in `ps` while the
+  command runs.
+- **Very short secrets are not redacted.** `LogArgs` skips any secret under four
+  characters, because substring-replacing one would corrupt unrelated arguments.

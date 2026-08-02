@@ -1,6 +1,9 @@
 # The Fonts Blueprint
 
-The Fonts Blueprint in Rinse, Wash, Repeat (RWR) allows you to manage fonts on your system. You can install, remove, and manage fonts from various providers, with a current focus on Nerd Fonts. This blueprint type simplifies the process of maintaining consistent font configurations across different systems.
+The Fonts Blueprint in Rinse, Wash, Repeat (RWR) installs and removes Nerd Fonts. Nerd Fonts is the only provider that exists; each entry names a font in the [nerd-fonts](https://github.com/ryanoasis/nerd-fonts) releases.
+
+See [Fields Common to Every Blueprint](common-fields.md) for the rule that an
+unknown key is an error.
 
 ## Blueprint Structure
 
@@ -12,11 +15,12 @@ fonts:
     action: <action>
     provider: <provider>
     location: <location>
+    profiles:
+      - <profile>
   - names:
       - <font_name1>
       - <font_name2>
     action: <action>
-    provider: <provider>
     location: <location>
 ```
 
@@ -26,34 +30,56 @@ The following settings are available for the Fonts Blueprint:
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes* | The name of the font to manage. Use "AllFonts" to manage all available fonts. |
-| `names` | Yes* | A list of font names to manage. Used when managing multiple fonts in a single entry. |
-| `action` | Yes | The action to perform on the font(s). Valid values are `install` and `remove`. |
-| `provider` | No | The font provider to use. Currently, only "nerd" (Nerd Fonts) is supported. Defaults to "nerd" if not specified. |
-| `location` | No | Where to install the font. Valid values are `local` (user's home directory) and `system` (system-wide). Defaults to `local` if not specified. |
+| `name` | Yes* | The name of the font to manage, exactly as the nerd-fonts release names its archive — `Hack`, `FiraCode`, `JetBrainsMono`. It must not contain a path separator or `..` |
+| `names` | Yes* | A list of font names to manage. The rest of the entry is repeated for each |
+| `action` | Yes | `install` or `remove` |
+| `provider` | No | Defaults to `nerd`. Nerd Fonts is the only implementation; another value is accepted by the schema but changes nothing |
+| `location` | No | `system` installs system-wide. **Any other value, and the default, installs for the current user** |
+| `profiles` | No | Profiles this font belongs to. Empty means it is always processed |
 
-*Note: Either `name` or `names` must be provided, but not both.
+*Note: Either `name` or `names` must be provided. An entry with neither is
+skipped.
+
+> [!NOTE]
+> Profiles work for fonts as of this release — the type had no `profiles` field
+> before, so a font entry ran on every machine regardless of what it declared.
+> The fonts blueprint has **no `import` field** and no `interactive` field;
+> writing either one is now a decode error.
 
 ## Font Processing
 
-The Fonts Blueprint manages fonts based on the specified actions:
-
 ### Installation
 
-When the `action` is set to `install`, RWR will download and install the specified font(s) using the appropriate provider (currently Nerd Fonts). The installation process differs based on the `location`:
+RWR asks GitHub for the latest nerd-fonts release, downloads `<name>.tar.xz`
+from it, and extracts the `.ttf` members into the font directory. Symlink and
+hard-link members of the archive are skipped, and a member whose path would
+escape the font directory aborts the install. The font cache is then refreshed
+with `fc-cache -f -v`.
 
-- `local`: Installs the font(s) in the user's home directory.
-- `system`: Installs the font(s) system-wide, which requires elevated privileges.
+A name that does not match an archive in the release is a download failure, not
+a silent no-op.
 
 ### Removal
 
-When the `action` is set to `remove`, RWR will remove the specified font(s) from the system. The removal process also respects the `location` setting.
+RWR deletes everything matching `<name>*.ttf` in the font directory and
+refreshes the font cache.
 
-## Provider Support
+### Where fonts go
 
-Currently, the Fonts Blueprint supports the following providers:
+| `location` | Directory |
+|------------|-----------|
+| `system`, Linux | `/usr/local/share/fonts` |
+| `system`, macOS | `/Library/Fonts` |
+| `system`, Windows | `%WINDIR%\Fonts` |
+| anything else | `$HOME/.local/share/fonts`, on every platform |
 
-- Nerd Fonts: A collection of fonts patched with extra glyphs, particularly useful for developers and power users.
+A `system` install writes and refreshes the cache with elevation; a per-user one
+does not.
+
+### Dry runs
+
+`--dry-run` lists the fonts that would be installed and makes no network call,
+so it works offline.
 
 ## Examples
 
@@ -68,7 +94,7 @@ fonts:
   - name: Hack
     action: install
     provider: nerd
-    location: local
+    location: user
 ```
 
 #### JSON
@@ -80,7 +106,7 @@ fonts:
       "name": "Hack",
       "action": "install",
       "provider": "nerd",
-      "location": "local"
+      "location": "user"
     }
   ]
 }
@@ -93,7 +119,7 @@ fonts:
 name = "Hack"
 action = "install"
 provider = "nerd"
-location = "local"
+location = "user"
 ```
 
 ### Installing Multiple Fonts
@@ -104,7 +130,7 @@ location = "local"
 fonts:
   - names:
       - Hack
-      - SauceCodePro
+      - SourceCodePro
     action: install
     provider: nerd
     location: system
@@ -116,7 +142,7 @@ fonts:
 {
   "fonts": [
     {
-      "names": ["Hack", "SauceCodePro"],
+      "names": ["Hack", "SourceCodePro"],
       "action": "install",
       "provider": "nerd",
       "location": "system"
@@ -129,7 +155,7 @@ fonts:
 
 ```toml
 [[fonts]]
-names = ["Hack", "SauceCodePro"]
+names = ["Hack", "SourceCodePro"]
 action = "install"
 provider = "nerd"
 location = "system"
@@ -143,7 +169,7 @@ location = "system"
 fonts:
   - name: Hack
     action: remove
-    location: local
+    location: user
 ```
 
 #### Font Removal JSON
@@ -154,7 +180,7 @@ fonts:
     {
       "name": "Hack",
       "action": "remove",
-      "location": "local"
+      "location": "user"
     }
   ]
 }
@@ -166,51 +192,14 @@ fonts:
 [[fonts]]
 name = "Hack"
 action = "remove"
-location = "local"
-```
-
-### Installing All Available Fonts
-
-#### All Fonts YAML
-
-```yaml
-fonts:
-  - name: AllFonts
-    action: install
-    provider: nerd
-    location: system
-```
-
-#### All Fonts JSON
-
-```json
-{
-  "fonts": [
-    {
-      "name": "AllFonts",
-      "action": "install",
-      "provider": "nerd",
-      "location": "system"
-    }
-  ]
-}
-```
-
-#### All Fonts TOML
-
-```toml
-[[fonts]]
-name = "AllFonts"
-action = "install"
-provider = "nerd"
-location = "system"
+location = "user"
 ```
 
 ## Notes
 
 - Installing fonts system-wide (`location: system`) requires elevated privileges.
-- The `AllFonts` option for the `name` field will process all available fonts from the specified provider.
-- When using the `names` field to specify multiple fonts, all listed fonts will be processed with the same action and settings.
-- The Fonts Blueprint uses the Nerd Fonts installation script for managing fonts. Ensure that the necessary dependencies for this script are available on your system.
+- There is no way to install every font at once. An entry names one archive; use `names` to list several.
+- When using the `names` field to specify multiple fonts, all listed fonts are processed with the same action and settings.
+- Installing requires network access to the GitHub API and to the nerd-fonts release assets. `fc-cache` must be on PATH for the cache refresh; a missing one is a warning, not a failure.
 
 For more information on using the Fonts Blueprint in your RWR configuration, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Best Practices](../best-practices.md) guide.

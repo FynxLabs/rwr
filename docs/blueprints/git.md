@@ -2,6 +2,9 @@
 
 The Git blueprint in Rinse, Wash, Repeat (RWR) allows you to clone and manage Git repositories as part of your system configuration. This page describes how to define and use the Git blueprint.
 
+See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
+`import`, `interactive`, and the rule that an unknown key is an error.
+
 ## Blueprint Structure
 
 The Git blueprint follows a specific structure to define the repositories to be cloned and managed. Here's an example of a Git blueprint in YAML format:
@@ -30,7 +33,7 @@ The following settings are available for each repository in the Git blueprint:
 |---------|----------|-------------|
 | `name` | Yes, if `import` is not provided | A unique name for the repository |
 | `import` | Yes, if `name` is not provided | Path to import git repository definitions from another file (relative to blueprint directory) |
-| `action` | Yes | The action to perform (`clone` is the only supported action) |
+| `action` | No | Accepted by the schema but **not read**. Each entry is cloned if `path` does not exist and pulled if it does |
 | `url` | Yes | The URL of the Git repository to clone |
 | `branch` | No | The branch to clone (defaults to the repository's default branch) |
 | `path` | Yes | The local path where the repository should be cloned |

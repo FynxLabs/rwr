@@ -136,6 +136,8 @@ what a processor rejects is a missed one. Specifically:
 - A file entry's action SHALL be one of `create`, `delete`, `copy`, `move`,
   `chmod`, `chown`, `chgrp`, `symlink` — the set the files processor dispatches on.
 - A script SHALL be valid with `exec`, `content`, or `source`.
+- A user or group action SHALL be valid as `create`, `modify`, `remove`, or
+  `delete` — the last being the accepted alias for `remove`.
 - Every blueprint type SHALL have a validator, including `fonts` and
   `configuration`.
 
@@ -159,10 +161,44 @@ what a processor rejects is a missed one. Specifically:
 - **WHEN** a package entry declares neither `name` nor `names`
 - **THEN** validation reports an error
 
+### Requirement: Validation checks declared file modes
+
+`rwr validate` SHALL check the `mode` on every file and template entry:
+
+- A `chmod` action with no mode SHALL be an error, because applying it would strip
+  every permission off the target at run time.
+- A mode larger than `0o7777` SHALL be an error: it is not a permission mode.
+- A mode on an action that ignores it — `copy`, `move`, `delete`, `chown`, `chgrp`,
+  `symlink` — SHALL be a warning, so an operator who expected it to be applied
+  finds out here.
+- A world-writable mode SHALL be a warning.
+- A mode setting setuid or setgid SHALL be a warning.
+
+An ambiguously written mode such as `mode: 644` never reaches these rules: it is
+refused while the blueprint is being decoded, and arrives as a parse error naming
+the file.
+
+#### Scenario: A chmod with no mode
+
+- **WHEN** a file entry declares `action: chmod` and no `mode`
+- **THEN** validation reports an error and suggests a quoted octal string
+
+#### Scenario: A mode on a symlink
+
+- **WHEN** a file entry declares `action: symlink` and `mode: "0644"`
+- **THEN** validation warns that the mode is ignored by that action
+
+#### Scenario: A world-writable mode
+
+- **WHEN** a file entry declares `mode: "0666"`
+- **THEN** validation warns about the world-write bit
+
 ### Requirement: Unknown keys are rejected when decoding strictly
 
 Strict decoding SHALL reject a blueprint containing a key the schema does not
-define, across YAML, JSON, and TOML.
+define, across YAML, JSON, and TOML. It SHALL be what a run uses as well as what
+validation uses, so `rwr validate` and `rwr all` agree on which keys exist; see the
+blueprint-processing specification.
 
 A silently ignored key is a blueprint that looks applied and is not — a misspelled
 `profiles` key means an entry runs on every machine instead of the one it was
@@ -173,7 +209,26 @@ scoped to.
 - **WHEN** a blueprint declares `packagess:` instead of `packages:`
 - **THEN** strict decoding reports the unknown key
 
+#### Scenario: A misspelled entry key
+
+- **WHEN** a package entry declares `profile:` instead of `profiles:`
+- **THEN** strict decoding reports the unknown key
+
+#### Scenario: An empty document
+
+- **WHEN** a blueprint file contains no keys at all
+- **THEN** strict decoding accepts it as a section with nothing in it
+
+The `schema_version` probe is exempt: it reads a single key out of a full
+document to decide which schema to decode against, so it SHALL remain lenient.
+
 ## Known Gaps
 
-- **Strict decoding is not enabled.** The requirement above describes the intended
-  contract; the shipped decoders still ignore unknown keys.
+- **Directory entries are not mode-checked.** `validateFileMode` runs over the
+  `files` and `templates` sections; the `directories` section carries a `mode` that
+  no validation rule inspects.
+- **A blueprint tree with no init file cannot be validated.** `rwr validate` looks
+  for an init file at or above the path it is given and reports an error without
+  one, so a directory of blueprint files on its own cannot be checked.
+  `examples/imports/` is in that state today; CI pins the set of unreachable
+  example directories so it cannot grow silently.

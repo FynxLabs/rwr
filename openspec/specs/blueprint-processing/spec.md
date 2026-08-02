@@ -65,6 +65,21 @@ made the omission easy to miss.
 
 An init file that declares `blueprints.order` SHALL override this order.
 
+`packageManagers` SHALL NOT appear in this list: it is not dispatched from the
+blueprint loop at all, and listing it only produced an "Unknown processor" warning.
+
+When an `order` entry is a mapping rather than a plain name, RWR SHALL run the named
+processors in sorted order and SHALL warn that it did so, naming them. A mapping
+cannot preserve the order it was written in, and Go randomizes map iteration, so
+such an entry previously produced a different sequence on every run — the one thing
+an explicit order is written to control.
+
+#### Scenario: A nested order mapping
+
+- **WHEN** an `order` entry is a mapping naming `packages` and `files`
+- **THEN** they run in sorted order
+- **AND** RWR warns naming the sorted sequence and suggesting a flat list
+
 #### Scenario: A default run
 
 - **WHEN** `rwr all` runs against a tree whose init file declares no order
@@ -85,8 +100,18 @@ An init file that declares `blueprints.order` SHALL override this order.
 When the blueprint tree contains a bootstrap file, RWR SHALL process it before the
 ordered blueprint types.
 
+RWR SHALL look for the bootstrap file in every supported format — `bootstrap.yaml`,
+`bootstrap.yml`, `bootstrap.json`, `bootstrap.toml`. Looking only for
+`bootstrap.yaml` meant a tree written in TOML or JSON silently never bootstrapped,
+with no message saying so.
+
 RWR SHALL record that bootstrap ran and SHALL NOT repeat it, unless
 `--force-bootstrap` is given.
+
+#### Scenario: A TOML tree with a bootstrap file
+
+- **WHEN** a tree declares `format: toml` and contains `bootstrap.toml`
+- **THEN** bootstrap is processed before the ordered blueprint types
 
 #### Scenario: A second run on a bootstrapped machine
 
@@ -97,6 +122,173 @@ RWR SHALL record that bootstrap ran and SHALL NOT repeat it, unless
 
 - **WHEN** `rwr all --force-bootstrap` runs
 - **THEN** bootstrap runs again
+
+### Requirement: Blueprints are decoded strictly on a run, not only in tests
+
+Every blueprint a processor reads SHALL be decoded with unknown keys rejected, in
+YAML, JSON, and TOML alike. `helpers.DecodeBlueprint` SHALL use the strict decoder,
+and every processor SHALL read its blueprint through `DecodeBlueprintInto`.
+
+A silently ignored key is a blueprint that looks applied and is not: `pacakges:`
+yields an empty section, every processor finds nothing to do, and the run reports
+success having changed nothing. A misspelled `profiles` is worse — the entry loses
+its scoping and runs on every machine. Both are invisible at any log level, so they
+surface as "rwr didn't do anything" long after the typo was written.
+
+The `schema_version` probe SHALL remain lenient, because it reads a single key out
+of a whole document to decide which schema to decode against.
+
+#### Scenario: A misspelled top-level key on a real run
+
+- **WHEN** `rwr all` reads a blueprint declaring `packagess:`
+- **THEN** the run stops with an error naming the unknown key
+
+#### Scenario: An empty blueprint file
+
+- **WHEN** a blueprint file contains no keys at all
+- **THEN** it decodes as a section with nothing in it and the run continues
+
+### Requirement: Applying a state that already holds is not a failure
+
+RWR SHALL check for the desired state before issuing a mutating command, and SHALL
+converge rather than abort when that state already holds. Running `rwr all` a second
+time on an unchanged machine is the normal case, not an error path. Specifically:
+
+- A `create` for a user or group that already exists SHALL converge the declared
+  attributes instead of running `useradd`/`groupadd`, which exit non-zero on
+  "already exists" and used to abandon the rest of the run.
+- A `remove` for a user or group that does not exist SHALL report that there is
+  nothing to remove and succeed.
+- A symlink already pointing at the declared source SHALL be left alone; one
+  pointing elsewhere SHALL be replaced, with the change logged; a regular file or
+  directory in the way SHALL be an error rather than a silent replacement.
+- Deleting a file or directory that is already absent SHALL succeed.
+- A move whose source is gone because an earlier run performed it SHALL succeed.
+
+#### Scenario: Running the same tree twice
+
+- **WHEN** `rwr all` runs twice against an unchanged tree
+- **THEN** the second run makes no change and reports no error
+
+#### Scenario: A symlink that points somewhere else
+
+- **WHEN** the declared symlink target exists and points at a different source
+- **THEN** RWR logs the old and new source and repoints the link
+
+#### Scenario: A symlink target occupied by a real file
+
+- **WHEN** a regular file already exists at the declared symlink target
+- **THEN** RWR reports an error rather than removing it
+
+### Requirement: Non-fatal item failures reach the exit code
+
+A processor that SHALL continue past a failed item — a package that is not in the
+repositories, a git remote that is temporarily unreachable, an SSH key that could
+not be registered — SHALL record that failure in a run ledger rather than only
+logging it.
+
+At the end of the run RWR SHALL report every recorded failure and SHALL return an
+error, so the exit code is non-zero.
+
+Without the ledger those failures vanished: they were logged, the run printed
+"RWR Run Complete!" and exited 0, so a run in which every single package failed to
+install was indistinguishable from a clean one.
+
+The ledger is populated by the packages, git, and `ssh_keys` processors.
+
+#### Scenario: A run where every package fails
+
+- **WHEN** every package in a tree fails to install
+- **THEN** the remaining blueprint types still run
+- **AND** the run ends by listing the failures and exiting non-zero
+
+#### Scenario: A clean run
+
+- **WHEN** nothing fails
+- **THEN** RWR reports the run complete and exits zero
+
+### Requirement: A file mode is declared unambiguously
+
+A blueprint SHALL declare a file or directory mode as a quoted octal string —
+`"0644"`, `"644"`, `"0o644"` — which is the recommended form because it means the
+same thing in YAML, JSON, and TOML.
+
+A number SHALL be read as the mode's own value, which is what every parser already
+produces for an octal literal: YAML `0644`, TOML `0o644`, and JSON `420` are one
+mode. A bare decimal that instead reads like unquoted octal digits — `644`, `755` —
+SHALL be refused with an error showing both readings, rather than guessed at.
+
+A mode SHALL NOT exceed `0o7777`. Zero SHALL mean "no mode declared", so a
+processor can apply its default.
+
+Where no mode is declared, a rendered template SHALL be written `0600` and a plain
+file `0644`. A template's output is the place a credential is most likely to land.
+
+#### Scenario: A quoted octal mode
+
+- **WHEN** a file entry declares `mode: "0644"` in YAML, JSON, or TOML
+- **THEN** the file is created with mode `0644` in all three
+
+#### Scenario: An unquoted decimal that reads as octal
+
+- **WHEN** a file entry declares `mode: 644`
+- **THEN** the blueprint is refused with an error naming the file and showing both
+  the value `0o1204` and the intended `0o644`
+
+#### Scenario: A rendered template with no mode
+
+- **WHEN** a templates entry declares no `mode`
+- **THEN** the rendered file is written at `0600`
+
+### Requirement: Repository action steps are rendered before they run
+
+RWR SHALL render every templated field of a repository action step against the
+repository's values before acting on it, with `missingkey=error`. A provider's
+`add` and `remove` steps are Go templates — apt writes
+`deb [arch={{ .Arch }} signed-by={{ .KeyPath }}] {{ .URL }} ...`.
+
+Previously the placeholders were written to disk literally, producing source files
+containing `{{ .URL }}`.
+
+A step MAY declare a `condition`, which SHALL be evaluated before the rest of the
+step is rendered — a skipped step is allowed to reference data this repository does
+not carry, which is the reason it is conditional. Only an explicitly truthy
+rendering SHALL run the step.
+
+RWR SHALL support these step actions: `exec`/`command`, `download`, `write`,
+`copy`, `append`, `remove_line`, `remove_section`, and `remove`. Any other action
+SHALL stop the run.
+
+`action: remove` on a repository blueprint SHALL run the provider's remove steps.
+Every embedded provider defines them.
+
+The steps that edit or delete an existing file — `append`, `remove_line`,
+`remove_section`, and `remove` — SHALL resolve their path against the provider's
+declared repository directories and SHALL refuse a path that resolves outside them,
+including through a symlink.
+
+#### Scenario: Adding an apt repository
+
+- **WHEN** an apt repository is added
+- **THEN** the written source file contains the resolved URL and key path, not the
+  template placeholders
+
+#### Scenario: A step whose condition does not hold
+
+- **WHEN** a step declares `condition = "{{ .HasKey }}"` and the repository has no key
+- **THEN** the step is skipped and its other fields are never rendered
+
+#### Scenario: Removing a repository
+
+- **WHEN** a repositories blueprint declares `action: remove`
+- **THEN** the provider's remove steps run — deleting the source file and keyring,
+  or removing the named section from the provider's config file
+
+#### Scenario: A step path outside the provider's directories
+
+- **WHEN** a rendered `remove` or `append` path resolves outside the provider's
+  declared repository paths
+- **THEN** the run stops rather than removing or appending there
 
 ### Requirement: Variables resolve before a blueprint is decoded
 
@@ -179,10 +371,15 @@ about profiles.
 When the init file declares git options, RWR SHALL clone the blueprint repository to
 the declared target, or update it in place when it is already a valid clone.
 
-When the target exists but is not a git repository, RWR SHALL remove it and clone
-fresh.
+When the target exists but is not a git repository, RWR SHALL refuse with an error
+naming the path and SHALL NOT delete it. RWR runs unattended, and a mistyped target
+such as `~/dotfiles` was previously reclaimed by deleting whatever was there.
 
 RWR SHALL fail when the resulting directory is empty.
+
+In dry-run mode RWR SHALL report the sync it would perform and SHALL touch neither
+disk nor network, because cloning and pulling go directly to the filesystem rather
+than through the command executor where dry-run is otherwise enforced.
 
 #### Scenario: First run on a new machine
 
@@ -193,6 +390,12 @@ RWR SHALL fail when the resulting directory is empty.
 
 - **WHEN** the target is a valid clone and updates are enabled
 - **THEN** the repository is pulled before blueprints are processed
+
+#### Scenario: A target that already holds something else
+
+- **WHEN** the declared target exists and is not a git repository
+- **THEN** the run stops with an error naming the path
+- **AND** nothing at that path is removed
 
 ### Requirement: A missing blueprint file does not stop the run
 
@@ -268,3 +471,17 @@ RWR SHALL enforce the schema version of every file in the chain.
 - **WHEN** a file three levels into an import chain declares an unsupported
   `schema_version`
 - **THEN** the run stops and no command is issued
+
+## Known Gaps
+
+- **The failure ledger covers four processors.** `packages`, `git`, `ssh_keys` and
+  `configuration` record their skipped items. The files, services, repositories and
+  fonts processors abort the whole run on a failure instead, which does reach the
+  exit code but gives up the remaining work rather than reporting it at the end.
+- **Path containment is only applied to repository steps that edit an existing
+  file.** The `download`, `write` and `copy` repository steps write to the
+  destination a provider names with no containment check, and the files processor's
+  own `target` is not contained either.
+- **Windows users are unimplemented.** `ProcessUsers` has Linux (shadow-utils) and
+  macOS (Open Directory) implementations; on Windows it logs a warning per entry
+  and does nothing.

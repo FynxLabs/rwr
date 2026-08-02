@@ -94,11 +94,100 @@ RWR SHALL accept these flags on any command:
 | `--gh-auth` | Authenticate with GitHub by OAuth device flow |
 | `--ssh-key` | SSH private key path or base64 value |
 | `--skip-version-check` | Do not check for a newer RWR |
+| `--config` | Config file, or a directory containing `config.yaml` |
+| `--version`, on the root command | Print the version and exit |
 
 #### Scenario: A non-interactive run
 
 - **WHEN** `rwr all --interactive=false` runs and a choice is needed
 - **THEN** RWR takes the documented default rather than prompting
+
+### Requirement: `rwr version` reports what this binary is
+
+RWR SHALL provide a `version` subcommand and a `--version` flag on the root command,
+both reporting the version injected at link time by goreleaser, along with the
+commit, build date, builder, tree state, and the Go toolchain and platform.
+
+When a field was not injected — which is the case for `go build` and `go install`
+binaries — RWR SHALL fall back to the module and VCS information the Go toolchain
+embeds, and SHALL report `dev` rather than nothing.
+
+A binary on disk that cannot say which commit produced it cannot be matched to a
+bug report.
+
+#### Scenario: A release binary
+
+- **WHEN** `rwr version` runs on a released build
+- **THEN** the version, commit, build date and builder are printed
+
+#### Scenario: A locally built binary
+
+- **WHEN** `rwr version` runs on a plain `go build` binary
+- **THEN** the version reads `dev` and the commit comes from the embedded VCS data
+
+### Requirement: `--skip-version-check` suppresses a real check
+
+At the start of any command that initializes the system, RWR SHALL ask GitHub for
+the latest release and SHALL print a one-line notice to stderr when a newer version
+exists. `--skip-version-check` SHALL suppress it, as SHALL the `rwr.skipVersionCheck`
+configuration key and its environment form — the flag binding into viper is one-way,
+so reading only the flag variable left the key `rwr config --create` writes inert.
+
+The check SHALL be strictly advisory: a timeout, an unreachable network, a rate
+limit, or a response RWR cannot parse SHALL each be a debug log and a silent
+return, never a failed run.
+
+RWR SHALL skip the check for a dev build, so a plain `go build` in a checkout never
+reaches out to the network.
+
+The flag previously existed and guarded nothing.
+
+#### Scenario: A newer release exists
+
+- **WHEN** a released binary older than the latest release runs `rwr all`
+- **THEN** a one-line notice naming the newer version is printed to stderr and the
+  run proceeds
+
+#### Scenario: GitHub is unreachable
+
+- **WHEN** the release lookup fails
+- **THEN** the run proceeds with no notice and no error
+
+#### Scenario: The check is suppressed
+
+- **WHEN** `--skip-version-check` is passed, or `rwr.skipVersionCheck` is set in the
+  config file
+- **THEN** no request is made
+
+### Requirement: A runtime failure does not print the usage text
+
+RWR SHALL NOT print command usage or the flag listing when a command fails during
+execution, and SHALL report each error exactly once.
+
+A run that fails partway through is not a usage mistake. Printing the full flag
+listing after "validation failed with 3 errors" buries the errors the operator
+needs to read under a screen of help text, and cobra printing its own error line
+alongside RWR's produced every failure twice.
+
+#### Scenario: A failing validate run
+
+- **WHEN** `rwr validate` finds errors
+- **THEN** the errors are printed once and no usage text follows
+
+### Requirement: `remove` and `delete` mean the same thing for users and groups
+
+The users processor SHALL accept `remove` as the canonical action and `delete` as an
+alias, for both users and groups. `rwr validate` SHALL accept both.
+
+Previously each name failed at the opposite end of the run: the processor took only
+one of them and the validator only the other, so whichever the operator wrote was
+rejected somewhere.
+
+#### Scenario: A blueprint using the alias
+
+- **WHEN** a users blueprint declares `action: delete`
+- **THEN** validation reports no error
+- **AND** the run removes the account
 
 ### Requirement: Commands that do not act on the system skip initialization
 
@@ -117,5 +206,7 @@ reports on the current platform.
 
 - **`--gh-api-key` and `--gh-key` bind the same configuration key.** Passing both
   silently lets one win rather than reporting the conflict.
-- **`rwr run` is twelve near-identical subcommands.** One command taking the type as
+- **`rwr run` is ten near-identical subcommands.** One command taking the type as
   an argument would do the same work.
+- **The version notice compares only dotted numeric versions.** A version string it
+  cannot parse compares as equal, so no notice is shown rather than a wrong one.

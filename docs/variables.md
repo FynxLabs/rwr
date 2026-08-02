@@ -11,7 +11,8 @@ Variables allow you to parameterize your blueprints and make them more flexible.
 
 ### User-defined Variables
 
-User-defined variables are specified in the `init.yaml` file under the `variables` section. These variables can be referenced in your blueprints using the `{{ .UserDefined.variable_name }}` syntax.
+User-defined variables are specified in the init file under `variables.userDefined`.
+Read them in a blueprint as `{{ .UserDefined.<key> }}`.
 
 Example `init.yaml` file:
 
@@ -19,20 +20,37 @@ Example `init.yaml` file:
 variables:
   userDefined:
     app_version: 1.0.0
-    server_port: 8080
+    editors:
+      - vim
+      - neovim
 ```
 
 In your blueprint:
 
 ```yaml
 packages:
-  - name: myapp
-    version: {{ .UserDefined.app_version }}
-
-services:
-  - name: myapp
-    port: {{ .UserDefined.server_port }}
+  - name: myapp-{{ .UserDefined.app_version }}
+    action: install
+    package_manager: pacman
 ```
+
+`userDefined` is the only part of `variables` you write. `User`, `System` and
+`Flags` are filled in by RWR and cannot be set from the init file.
+
+#### From the environment
+
+Every environment variable whose name begins with `RWR_` is also placed in
+`UserDefined`, under the name with the `RWR_` prefix removed and the rest of the
+name unchanged. `RWR_BUILD_ID=42` becomes `{{ .UserDefined.BUILD_ID }}`.
+
+The names are case-sensitive and are not lowercased, so a variable set this way
+does not collide with a lower-case key from the init file. A key set in the
+environment overwrites a key of exactly the same name from `userDefined`.
+
+> [!NOTE]
+> `RWR_` is also the prefix RWR uses for its own [configuration
+> options](cli/configuration.md), so `RWR_LOG_LEVEL=debug` both sets the log
+> level and appears as `{{ .UserDefined.LOG_LEVEL }}`.
 
 ### Built-in Variables
 

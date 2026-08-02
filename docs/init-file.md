@@ -4,11 +4,24 @@ The Init file is the main entry point for your RWR blueprints. It defines the co
 
 ## File Format
 
-The Init file is typically named `init.yaml`, but you can also use `init.json` or `init.toml` depending on your preferred configuration format. RWR supports YAML, JSON, and TOML formats for the Init file.
+The Init file is typically named `init.yaml`, but `init.yml`, `init.json` and
+`init.toml` work as well. RWR supports YAML, JSON, and TOML formats for the Init
+file.
 
 ## File Location
 
-By default, RWR looks for the Init file in the current working directory. You can specify a different location using the `--init-file` or `-i` flag when running RWR commands.
+RWR finds the Init file in this order:
+
+1. The path given to `--init-file` / `-i`.
+2. The `repository.init-file` key in the [configuration file](cli/configuration.md).
+3. `init.yaml`, `init.yml`, `init.json`, then `init.toml` in the current
+   directory.
+
+For 1 and 2 the path may be a **directory**, in which case RWR looks inside it
+for those four names in that order. It may also be an `https://` URL, including a
+GitHub `/blob/` URL, which RWR rewrites to the raw address. An `http://` URL is
+refused: the Init file decides everything RWR runs, so it is not fetched in
+cleartext.
 
 ## Init File Structure
 
@@ -25,8 +38,10 @@ The `blueprints` section defines the configuration settings for your blueprints.
 | `order` | The order of the blueprint types | No. The default is a fixed order. See [Blueprints General](blueprints-general.md) |
 | `git` | Git repository settings for managing blueprints | No |
 | `runOnlyListed` | Whether to run only the blueprints listed in the `order` field | No (default: false) |
-| `templatesEnabled` | Whether to process template files | No (default: false) |
 | `schema_version` | The blueprint schema version for this tree. See [Schema versioning](schema-versioning.md) | No. The default is the latest version |
+
+> [!NOTE]
+> There is no `templatesEnabled` option. Templates are always processed.
 
 > [!IMPORTANT]
 > Do not put `packageManagers` in the `order` field. RWR installs the package
@@ -70,13 +85,27 @@ The `repositories` section defines the configuration settings for repositories.
 
 ### `variables`
 
-The `variables` section allows you to define custom variables that can be used in your blueprints.
+The `variables` section holds the custom variables that your blueprints can read.
 
 | Field | Description | Required |
 |-------|-------------|----------|
-| `user` | User-specific variables (username, home directory, etc.) | No |
-| `flags` | Flag-specific variables (debug, log level, etc.) | No |
-| `userDefined` | Custom variables defined by the user | No |
+| `userDefined` | A map of your own variables. Each key becomes `{{ .UserDefined.<key> }}` in a blueprint. The values may be strings, numbers, lists or nested maps | No |
+
+```yaml
+variables:
+  userDefined:
+    app_version: 1.0.0
+    editors:
+      - vim
+      - neovim
+```
+
+`userDefined` is the only field you write here. The `{{ .User }}`,
+`{{ .System }}` and `{{ .Flags }}` groups are also available to blueprints, but
+RWR fills them in from the machine and from the flags you passed; they cannot be
+set from the init file, so that a blueprint cannot claim to be running as a
+different user or with different flags than it is. See
+[Variables and Templating](variables.md).
 
 ## Example Init File
 
@@ -111,7 +140,10 @@ variables:
     api_key: abc123
 ```
 
-In this example, the Init file specifies the format and location of the blueprint files, the order of execution, and enables template processing. It also configures package managers, repositories, and defines custom variables.
+In this example, the Init file specifies the format and location of the blueprint
+files and the order of execution. It also configures package managers,
+repositories, and defines custom variables. A blueprint in this tree reads them
+as `{{ .UserDefined.app_version }}` and `{{ .UserDefined.api_key }}`.
 
 ### Package Manager Installation
 

@@ -10,7 +10,9 @@ The Users and Groups blueprint has the following structure:
 users:
   - name: john
     action: create
-    password: "$6$mysecretpassword"
+    password: "$6$rounds=656000$saltsalt$hashhashhash"
+    uid: "1500"
+    comment: "John Doe"
     groups:
       - users
       - developers
@@ -24,6 +26,9 @@ users:
     new_home: /home/jane_smith
     add_groups:
       - designers
+    remove_groups:
+      - interns
+    unlock: true
 
   - name: bob
     action: remove
@@ -32,108 +37,116 @@ users:
 groups:
   - name: developers
     action: create
+    gid: "3000"
 
   - name: designers
     action: modify
     new_name: design_team
 ```
 
-## Blueprint Settings
+See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
+`import`, `interactive`, and the rule that an unknown key is an error.
 
-The following settings are available for the Users and Groups blueprint:
+## Actions
 
-### `users`
+`create`, `modify` and `remove` for both users and groups. `delete` is an
+accepted alias for `remove`.
 
-An array of user objects representing the user accounts to manage.
+`create` is idempotent. If the account or group already exists, RWR does not
+fail: it converges the existing one to the attributes the entry declares
+(`usermod` on Linux, `dscl -create` on macOS) and sets the password if one is
+given. A declared `home` on an existing account is treated as the intended home,
+not as a request to relocate the current one — use `modify` with `new_home` for
+that.
 
-#### `name`
+`remove` on an account or group that does not exist succeeds and does nothing.
 
-The username for the user account (required if `import` is not provided).
+## `users` settings
 
-#### `import`
+| Setting | Description |
+|---------|-------------|
+| `name` | The username (required if `import` is not provided) |
+| `action` | `create`, `modify`, `remove` (or its alias `delete`) |
+| `uid` | User ID to assign. It is a **string**: write `uid: "1500"` |
+| `password` | See [Passwords](#passwords) |
+| `groups` | Supplementary groups to put the user in (`create`) |
+| `add_groups` | Groups to add the user to (`modify`) |
+| `remove_groups` | Groups to remove the user from (`modify`) |
+| `shell` | Login shell (`create`) |
+| `new_shell` | New login shell (`modify`) |
+| `home` | Home directory (`create`) |
+| `new_home` | New home directory (`modify`) |
+| `comment` | The GECOS/real-name field |
+| `system` | Create as a system account |
+| `expire` | Account expiration date, `YYYY-MM-DD` |
+| `lock` | Lock the account (`modify`) |
+| `unlock` | Unlock the account (`modify`) |
+| `remove_home` | Remove the home directory too (`remove`) |
+| `new_name` | Rename the account (`modify`) |
+| `profiles`, `import`, `interactive` | See [common fields](common-fields.md) |
 
-Path to import user definitions from another file, relative to blueprint directory (required if `name` is not provided).
+## `groups` settings
 
-#### `profiles`
+| Setting | Description |
+|---------|-------------|
+| `name` | The group name (required if `import` is not provided) |
+| `action` | `create`, `modify`, `remove` (or its alias `delete`) |
+| `gid` | Group ID to assign. It is a **string**: write `gid: "3000"` |
+| `system` | Create as a system group |
+| `new_name` | Rename the group (`modify`) |
+| `profiles`, `import` | See [common fields](common-fields.md) |
 
-List of profiles this user belongs to. If empty, user is always managed (base item).
+Groups have no `interactive` field.
 
-#### `action`
+## Passwords
 
-The action to perform on the user account. Supported actions are `create`, `modify`, and `remove`.
+**On Linux**, the password is handed to `chpasswd` on standard input, never as a
+command argument, so it does not appear in `ps` or in rwr's debug output. The
+value may be either:
 
-#### `new_name`
+- **Cleartext**, which `chpasswd` hashes itself, or
+- **A crypt(3) hash** — `$6$…`, `$y$…`, a 13-character DES hash, or one of the
+  locked markers `!`, `!!`, `*`, `*LK*` — which is passed through with
+  `chpasswd -e`.
 
-The new username for the user account (for the `modify` action).
+RWR detects which of the two you wrote; there is no field to declare it.
 
-#### `password`
+> [!WARNING]
+> **On macOS**, the password is passed to `dscl . -passwd` as a command-line
+> argument, because macOS computes its own salted blob and there is no hash to
+> pre-compute. It is therefore briefly visible in `ps` to every local user on
+> the machine, and lands in sudo's syslog record. RWR logs a warning each time
+> it does this. Prefer setting macOS passwords out of band.
 
-The encrypted password for the user account (for the `create` action). You can generate an encrypted password using tools like `mkpasswd` or `openssl passwd`.
-
-#### `groups`
-
-An array of group names to which the user should belong (for the `create` action).
-
-#### `add_groups`
-
-An array of group names to which the user should be added (for the `modify` action).
-
-#### `remove_home`
-
-A boolean flag indicating whether the user's home directory should be removed (for the `remove` action).
-
-#### `shell`
-
-The login shell for the user account (for the `create` action).
-
-#### `new_shell`
-
-The new login shell for the user account (for the `modify` action).
-
-#### `home`
-
-The home directory for the user account (for the `create` action).
-
-#### `new_home`
-
-The new home directory for the user account (for the `modify` action).
-
-#### `interactive`
-
-Override global interactive mode for this user operation (`true`/`false`). If omitted, uses the global `--interactive` flag.
-
-### Groups Configuration
-
-An array of group objects representing the groups to manage.
-
-#### Group `name`
-
-The name of the group (required if `import` is not provided).
-
-#### Group `import`
-
-Path to import group definitions from another file, relative to blueprint directory (required if `name` is not provided).
-
-#### Group `profiles`
-
-List of profiles this group belongs to. If empty, group is always managed (base item).
-
-#### Group `action`
-
-The action to perform on the group. Supported actions are `create` and `modify`.
-
-#### Group `new_name`
-
-The new name for the group (for the `modify` action).
+A `password` is applied by both `create` and `modify`.
 
 ## Supported Platforms
 
-The Users and Groups blueprint is supported on the following platforms:
+| Platform | Support |
+|----------|---------|
+| Linux | Full, via shadow-utils: `useradd`, `usermod`, `userdel`, `groupadd`, `groupmod`, `groupdel`, `gpasswd`, `chpasswd` |
+| macOS | Full, via Open Directory: `sysadminctl` when present, otherwise `dscl`, plus `dseditgroup`, `createhomedir` and `pwpolicy` |
+| Windows | Not implemented. Each entry logs a warning and is skipped |
 
-- Linux
-- macOS
+### What differs on macOS
 
-Note that on Windows, creating, modifying, and removing users and groups is not supported by RWR.
+macOS is genuinely supported, but Open Directory has no equivalent for some of
+the fields, and RWR warns rather than pretending it applied them:
+
+| Field | On macOS |
+|-------|----------|
+| `system` | **Ignored, with a warning.** UIDs and GIDs below 501 are reserved by Apple and RWR does not allocate them |
+| `expire` | **Ignored, with a warning.** A local Open Directory account has no expiration field |
+| `new_home` | The `NFSHomeDirectory` record is rewritten, but the directory's **contents are not moved**. RWR warns when it does this |
+| `remove_home` | Honoured through `sysadminctl -deleteUser` (which is also why RWR passes `-keepHome` when the flag is false). If `sysadminctl` is not available, the `dscl` fallback deletes the record only and warns that the home directory was left in place |
+| `lock` / `unlock` | Applied with `pwpolicy -disableuser` / `-enableuser` |
+| primary group | New accounts land in `staff` (GID 20); there is no field to choose another |
+| `uid` / `gid` | Allocated from 501 upwards when not declared |
+
+Other fields map straight across: `shell` to `UserShell`, `comment` to
+`RealName`, `home` to `NFSHomeDirectory`, `groups`/`add_groups`/`remove_groups`
+to `dseditgroup`, `new_name` to a `RecordName` change (applied last, after every
+other edit).
 
 ## Examples
 

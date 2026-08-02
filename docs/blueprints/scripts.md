@@ -6,6 +6,9 @@ The Scripts blueprint allows you to execute scripts as part of the configuration
 
 The Scripts blueprint follows the same structure as other blueprints in RWR. It can be defined in YAML, JSON, or TOML format.
 
+See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
+`import`, `interactive`, and the rule that an unknown key is an error.
+
 ### YAML Example
 
 ```yaml
@@ -122,7 +125,8 @@ The Scripts blueprint supports the following fields:
 | `source` | No | The path to the script file (relative to blueprint directory). |
 | `content` | No | The inline content of the script. |
 | `args` | No | Additional arguments to pass to the script. |
-| `elevated` | No | Whether to run the script with elevated privileges. Default is `false`. |
+| `elevated` | No | Whether to run the script with elevated privileges (`sudo`). Default is `false`. |
+| `asUser` | No | Run the script as another account: `sudo -u <user>`. Ignored when `elevated: true`, since sudo cannot do both at once; RWR warns and runs elevated. |
 | `log` | No | Log name for script output. |
 | `interactive` | No | Override global interactive mode for this script (`true`/`false`). If omitted, uses the global `--interactive` flag. |
 
@@ -192,7 +196,19 @@ extension. Give the `exec` field. Without it, RWR uses `bash` on Linux and
 macOS, and `powershell` on Windows.
 
 With `elevated: true`, RWR runs the script as `sudo -- <program> <script>`. With
-the `asUser` field, RWR runs it as `sudo -u <user> -- <program> <script>`.
+the `asUser` field, RWR runs it as `sudo -u <user> -- <program> <script>`:
+
+```yaml
+scripts:
+  - name: build_aur_package
+    action: run
+    exec: bash
+    source: ./scripts/
+    asUser: builder
+```
+
+Declaring both `elevated: true` and `asUser` runs the script elevated and
+ignores `asUser`, with a warning naming the account that was dropped.
 
 ## Best Practices
 

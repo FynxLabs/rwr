@@ -2,9 +2,10 @@
 
 The Repositories Blueprint in Rinse, Wash, Repeat (RWR) allows you to manage repositories for various package managers. You can add or remove repositories based on your system's requirements.
 
-## Blueprint Structure
+See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
+`import`, `interactive`, and the rule that an unknown key is an error.
 
-The Repositories Blueprint has the following structure:
+## Blueprint Structure
 
 ```yaml
 repositories:
@@ -12,29 +13,77 @@ repositories:
     package_manager: string
     action: string
     url: string
-    key_url: string (optional)
-    channel: string (optional)
-    component: string (optional)
-    repository: string (optional)
 ```
 
 ## Blueprint Settings
 
-The following settings are available for each repository in the Repositories Blueprint:
+Which of the optional settings matter depends on the package manager: each
+provider declares the steps it runs to add or remove a repository, and those
+steps are Go templates rendered against the values below. A value a provider
+never references is simply unused; a placeholder a provider references and the
+blueprint did not supply is an error naming the repository, not a blank.
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes, if `import` is not provided | The name of the repository |
-| `import` | Yes, if `name` is not provided | Path to import repository definitions from another file (relative to blueprint directory) |
-| `package_manager` | Yes | The package manager associated with the repository (e.g., apt, brew, dnf, zypper, pacman, choco, scoop) |
-| `action` | Yes | The action to perform on the repository (`add` or `remove`) |
-| `url` | Yes | The URL of the repository |
-| `key_url` | No | The URL of the repository's GPG key (required for some package managers) |
-| `channel` | No | The channel of the repository (applicable for some package managers) |
-| `component` | No | The component of the repository (applicable for some package managers) |
-| `repository` | No | The name of the repository (applicable for some package managers) |
-| `profiles` | No | List of profiles this repository belongs to. If empty, repository is always managed (base item) |
-| `interactive` | No | Override global interactive mode for this repository (`true`/`false`). If omitted, uses the global `--interactive` flag |
+| `name` | Yes, if `import` is not provided | The name of the repository. Also names the file most providers write (`/etc/apt/sources.list.d/<name>.list`) and the keyring (`<keys_dir>/<name>.gpg`) |
+| `package_manager` | Yes | The provider that owns the repository (`apt`, `dnf`, `pacman`, `zypper`, `apk`, `xbps`, `eopkg`, `emerge`, `slackpkg`, `brew`, `macports`, `nix`, `flatpak`, `snap`, `cargo`, `chocolatey`, `scoop`, `winget`, `mas`, `gnome-extensions`, and the AUR helpers) |
+| `action` | Yes | `add` or `remove` |
+| `url` | Yes for `add` | The repository URL. A value with no scheme, or a `file://` URL, is treated as a local path — that is what selects the sideload steps for `snap` and `gnome-extensions` |
+| `key_url` | No | URL of the repository's signing key, downloaded to the provider's key directory (apt, dnf, zypper, apk, xbps, eopkg, slackpkg) |
+| `key_id` | No | Key ID to import or delete rather than a URL (pacman family, and the `rpm --erase gpg-pubkey-<id>` step in dnf/zypper removal) |
+| `arch` | No | Architecture written into an apt source line |
+| `channel` | No | Suite/channel written into an apt source line |
+| `component` | No | Component written into an apt source line |
+| `repository` | No | Free-form repository name available to provider steps |
+| `description` | No | Human-readable description; becomes `name=` in a dnf `.repo` file |
+| `overlay_path` | No | Location of a Portage overlay (`emerge`), and what marks a nix entry as an overlay |
+| `sync_type` | No | Portage `sync-type`, e.g. `git` or `rsync` |
+| `sha256` | No | Digest of a fetched nix overlay tarball |
+| `proxy_url` | No | Proxy snapd should route through; setting it adds the `snap set system proxy.*` steps |
+| `uuid` | No | GNOME extension UUID, used to enable, disable and uninstall the extension |
+| `extension_id` | No | GNOME extension ID, used when installing from extensions.gnome.org |
+| `username` | No | Username for a private source (chocolatey). See the warning below |
+| `password` | No | Password for a private source (chocolatey). See the warning below |
+| `token` | No | Registry token (`cargo login`). See the warning below |
+| `profiles` | No | See [common fields](common-fields.md) |
+| `import` | No | See [common fields](common-fields.md) |
+| `interactive` | No | See [common fields](common-fields.md) |
+
+These fields used to be parsed and then dropped: only a bare `{{ .URL }}`
+argument was ever substituted, so an apt add wrote a file literally named
+`{{ .SourcesPath }}/{{ .Name }}.list`. Every field of a provider step is now
+rendered, so the settings above take effect.
+
+> [!WARNING]
+> `username`, `password` and `token` are passed to the package manager as
+> **command-line arguments** — `choco source add --password=…`, `cargo login …`
+> — because those tools accept them no other way. They are therefore visible in
+> `ps` to every local user on the machine for the lifetime of the call. RWR
+> keeps them out of its own output (logs, `--debug` argv dumps and `--dry-run`
+> lines redact them), but nothing rwr can do hides them from the process list.
+
+## Actions and what actually works
+
+Every shipped provider defines both `add` and `remove` steps. Two of them do not
+work, and are documented here rather than left to fail on your machine:
+
+| Provider | State |
+|----------|-------|
+| `snap`, `action: add` | **Broken.** The provider's last add step is gated on a `HasInterfaces` predicate RWR does not derive, and an unknown predicate is an error rather than a silent skip, so every snap repository add fails. Snap removal works |
+| `gnome-extensions`, `action: remove` | **Broken.** The final step is gated on a `ResetSettings` predicate RWR does not derive, so removal fails after the disable and uninstall steps have already run. Installing works |
+
+Everything else — apt, dnf, zypper, pacman/yay/paru/aura/pamac/trizen, apk,
+xbps, eopkg, emerge, slackpkg, brew, macports, nix, flatpak, cargo, chocolatey,
+scoop, winget, mas — supports both `add` and `remove`.
+
+Two more things worth knowing:
+
+- A `remove` step that deletes a file is confined to the directories the
+  provider declares as its repository paths. A path outside them is refused, and
+  symlinked components are resolved before the check.
+- After the repository entries are processed, RWR runs the update command of
+  every available provider (`apt update`, `pacman -Sy`, …). A failing update is
+  a warning, not an error.
 
 ## Blueprint Imports
 
@@ -59,8 +108,6 @@ This allows you to maintain common repository configurations separately from env
 
 ## Examples
 
-Here are some examples of using the Repositories Blueprint in different formats:
-
 ### YAML
 
 ```yaml
@@ -70,11 +117,27 @@ repositories:
     action: add
     url: https://example.com/repo
     key_url: https://example.com/repo/gpg
+    arch: amd64
+    channel: stable
     component: main
+
+  - name: epel
+    package_manager: dnf
+    action: add
+    url: https://example.com/epel/$basearch
+    key_url: https://example.com/RPM-GPG-KEY-EPEL
+    description: Extra Packages for Enterprise Linux
+
+  - name: archlinuxcn
+    package_manager: pacman
+    action: add
+    url: https://repo.archlinuxcn.org/$arch
+    key_id: "FBA220DFC880C036"
+
   - name: another-repo
     package_manager: brew
     action: add
-    url: https://another-example.com/repo
+    url: homebrew/cask-fonts
 ```
 
 ### JSON
@@ -88,13 +151,15 @@ repositories:
       "action": "add",
       "url": "https://example.com/repo",
       "key_url": "https://example.com/repo/gpg",
+      "arch": "amd64",
+      "channel": "stable",
       "component": "main"
     },
     {
       "name": "another-repo",
       "package_manager": "brew",
       "action": "add",
-      "url": "https://another-example.com/repo"
+      "url": "homebrew/cask-fonts"
     }
   ]
 }
@@ -109,18 +174,19 @@ package_manager = "apt"
 action = "add"
 url = "https://example.com/repo"
 key_url = "https://example.com/repo/gpg"
+arch = "amd64"
+channel = "stable"
 component = "main"
 
 [[repositories]]
 name = "another-repo"
 package_manager = "brew"
 action = "add"
-url = "https://another-example.com/repo"
+url = "homebrew/cask-fonts"
 ```
 
 ## Notes
 
 - The Repositories Blueprint is processed by the `rwr run repository` command.
-- The available package managers and their specific settings may vary depending on the operating system.
-- Make sure to provide the correct URLs and GPG key URLs (if required) for the repositories you want to add.
+- The available package managers and their specific settings vary by operating system. See [Providers](../providers.md) for what each one declares.
 - Removing a repository will not automatically remove the packages installed from that repository. You may need to manually remove them using the [Packages Blueprint](packages.md).

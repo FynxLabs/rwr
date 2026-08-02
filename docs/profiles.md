@@ -25,6 +25,11 @@ Items with no profiles field    →  Always installed (the "base" concept)
 + Additional Profile Items      →  Installed when multiple profiles selected
 ```
 
+> [!IMPORTANT]
+> The filter only runs when you name at least one profile. `rwr all` with no
+> `--profile` installs **everything**, profile items included. Naming a profile
+> is what narrows the run down to the base items plus that profile.
+
 ### Base Items vs Profile Items
 
 #### Base Items (No Profiles Field)
@@ -97,41 +102,46 @@ Only **one** keyword is reserved:
 
 ## CLI Usage
 
+The command that applies blueprints is `rwr all` (everything) or
+`rwr run <processor>` (one processor). Bare `rwr` prints the help text and
+applies nothing, so `rwr --profile work` does nothing at all.
+
 ### Basic Profile Commands
-
-#### Install Base Items Only
-
-```bash
-rwr
-```
-
-Installs only items with no `profiles` field.
-
-#### Install Base + Specific Profile
-
-```bash
-rwr --profile work
-rwr -p work
-```
-
-Installs base items + items with "work" profile.
-
-#### Install Multiple Profiles
-
-```bash
-rwr --profile work,gaming
-rwr -p work -p gaming
-```
-
-Installs base items + work profile items + gaming profile items.
 
 #### Install Everything
 
 ```bash
-rwr --profile all
+rwr all
 ```
 
-Installs all items regardless of profiles.
+With no profile named, no filtering happens: every item applies, whether it
+carries a `profiles` field or not.
+
+#### Install Base + Specific Profile
+
+```bash
+rwr all --profile work
+rwr all -p work
+```
+
+Installs base items + items with the "work" profile.
+
+#### Install Multiple Profiles
+
+```bash
+rwr all --profile work,gaming
+rwr all -p work -p gaming
+```
+
+Installs base items + work profile items + gaming profile items.
+
+#### Install Everything Explicitly
+
+```bash
+rwr all --profile all
+```
+
+`all` is the reserved profile name; it matches every item regardless of profiles.
 
 ### Profile Discovery
 
@@ -141,7 +151,8 @@ Installs all items regardless of profiles.
 rwr profiles
 ```
 
-Shows all profiles available in your configuration with usage examples.
+Reads your blueprint tree and lists the profile names it declares, with the
+number of items carrying each. See [Profile CLI Commands](cli/profiles.md).
 
 ### Run Specific Processors with Profiles
 
@@ -153,7 +164,19 @@ rwr run files --profile work,dev
 
 ## Configuration Examples
 
-The `profiles` field can be added to any blueprint type. Here are examples for each supported blueprint type:
+The `profiles` field is available on packages, repositories, files, templates,
+directories, services, users, groups, git repositories, scripts and SSH keys.
+
+> [!IMPORTANT]
+> **Fonts and configuration blueprints do not support `profiles`.** Blueprints
+> decode strictly, so a `profiles` key in a `fonts/` or `configuration/`
+> blueprint is an error:
+>
+> ```text
+> field profiles not found in type types.Font
+> ```
+
+Here are examples for the types that do support it:
 
 ### Packages Blueprint
 
@@ -429,16 +452,16 @@ Usage examples:
 
 ```bash
 # Frontend developer setup
-rwr --profile frontend
+rwr all --profile frontend
 
 # Full-stack developer setup
-rwr --profile frontend,backend
+rwr all --profile frontend,backend
 
 # Mobile developer setup
-rwr --profile mobile
+rwr all --profile mobile
 
 # Complete development environment
-rwr --profile all
+rwr all --profile all
 ```
 
 ### Scenario 2: Multi-Environment Management
@@ -572,10 +595,10 @@ Usage:
 
 ```bash
 # Frontend development (includes base tools)
-rwr --profile frontend,dev-base
+rwr all --profile frontend,dev-base
 
 # Backend development (includes base tools)
-rwr --profile backend,dev-base
+rwr all --profile backend,dev-base
 ```
 
 ## Best Practices
@@ -600,39 +623,32 @@ rwr --profile backend,dev-base
 3. **Use Multi-Profile Items**: For packages that serve multiple purposes
 4. **Test Profile Combinations**: Verify that profile combinations work correctly
 
-### Performance Considerations
-
-1. **Profile Discovery**: The `rwr profiles` command scans all configurations
-2. **Large Configurations**: Profile filtering adds minimal overhead (< 5ms typical)
-3. **Profile Validation**: Invalid profiles are detected and reported
-
 ## Troubleshooting
 
 ### Common Issues
 
-#### Profile Not Found
+#### A Misspelled Profile Is Silent
 
-```bash
-Error: Profile 'worx' not found. Available profiles: work, gaming, dev
-```
+RWR does not check the names you pass against the ones your blueprints declare.
+`rwr all --profile worx` produces no error and no warning: nothing matches
+`worx`, so only the base items are applied.
 
-**Solution**: Check spelling and run `rwr profiles` to see available profiles.
+**Solution**: Compare against `rwr profiles`. Names are case-sensitive — `Work`
+and `work` are different profiles.
 
-#### No Items Installed
-
-If no items are installed when using profiles:
+#### Fewer Items Than Expected
 
 1. Verify profile names match exactly (case-sensitive)
-2. Check that items have the correct `profiles` field
-3. Ensure you're not using reserved words incorrectly
+2. Check that the items carry the `profiles` field you think they do
+3. Confirm the blueprint type supports `profiles` at all — fonts and
+   configuration blueprints do not
 
-#### Unexpected Items Installed
+#### More Items Than Expected
 
-If too many items are installed:
-
-1. Check for items without `profiles` field (base items)
-2. Verify multi-profile items aren't matching unintended profiles
-3. Review profile combinations carefully
+1. If you passed no `--profile`, that is the cause: no filtering happens
+2. Check for items without a `profiles` field — they are base items and always
+   apply
+3. Verify multi-profile items aren't matching a profile you did not intend
 
 ### Profile Debugging Tips
 
@@ -645,16 +661,23 @@ rwr profiles
 #### Dry Run with Profiles
 
 ```bash
-rwr --dry-run --profile work
+rwr all --dry-run --profile work
 ```
 
 #### Debug Mode
 
 ```bash
-rwr --debug --profile work
+rwr all --debug --profile work
 ```
 
-Shows detailed information about profile filtering decisions.
+Reports, for each blueprint file, how many entries survived the filter:
+
+```text
+DEBU Filtering packages: 3 total, 3 matching active profiles [work]
+DEBU Filtering services: 1 total, 1 matching active profiles [work]
+```
+
+There is no per-item line explaining an individual decision.
 
 ## Migration Guide
 
@@ -708,7 +731,9 @@ Yes! Profile names are completely user-defined. Use whatever makes sense for you
 
 ### What happens if I don't specify any profiles?
 
-Only base items (items without a `profiles` field) will be installed.
+Everything is installed. With no active profiles RWR skips the filter entirely,
+so profile items are applied along with the base items. To install the base items
+and one profile, name that profile: `rwr all --profile work`.
 
 ### Can an item belong to multiple profiles?
 
@@ -724,11 +749,14 @@ Run `rwr profiles` to see all available profiles in your configuration.
 
 ### Can I use profiles with any blueprint type?
 
-Yes! All blueprint types support the `profiles` field: packages, services, files, users, scripts, SSH keys, git repositories, etc.
+Almost. Packages, repositories, files, templates, directories, services, users,
+groups, git repositories, scripts and SSH keys all support `profiles`. Fonts and
+configuration blueprints do not, and because blueprints decode strictly, adding
+the key there is an error rather than a no-op.
 
-### What's the performance impact of using profiles?
+### Does RWR warn me about a profile name that does not exist?
 
-Minimal. Profile filtering typically adds less than 5ms to processing time, even with large configurations.
+No. An unknown name simply matches nothing. Use `rwr profiles` to check.
 
 ## Related Documentation
 

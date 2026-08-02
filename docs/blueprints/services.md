@@ -2,6 +2,9 @@
 
 The Services Blueprint in Rinse, Wash, Repeat (RWR) allows you to manage system services, including starting, stopping, enabling, and disabling services across different operating systems.
 
+See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
+`import`, `interactive`, and the rule that an unknown key is an error.
+
 ## Blueprint Structure
 
 The Services Blueprint is defined in a YAML, JSON, or TOML file and consists of an array of service objects. Each service object represents a system service and its associated properties.
@@ -65,6 +68,12 @@ The Services Blueprint supports the following actions:
 - `status`: Check the status of the service
 - `create`: Create a new service file
 - `delete`: Delete an existing service file
+
+> [!NOTE]
+> `rwr validate` currently accepts only `enable`, `disable`, `start`, `stop` and
+> `restart`, and reports the other four as invalid. The processor runs all nine.
+> If you use `reload`, `status`, `create` or `delete`, expect a validation error
+> you can ignore.
 
 ## Platform-Specific Considerations
 
