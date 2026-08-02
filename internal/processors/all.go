@@ -35,6 +35,7 @@ func findBootstrapFile(dir string) string {
 func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
 	var err error
 	var blueprintRunOrder []string
+	var stepErrs []types.StepError
 
 	resetFailures()
 
@@ -205,7 +206,14 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				}
 
 				if err != nil {
-					return fmt.Errorf("error processing %s: %w", processor, err)
+					// Interactive runs halt so the operator can react; a
+					// headless run pushes through, collects, and exits
+					// nonzero — the first error aborting used to leave every
+					// later processor silently unrun in CI.
+					if initConfig.Variables.Flags.Interactive {
+						return fmt.Errorf("error processing %s: %w", processor, err)
+					}
+					stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
 				}
 			}
 		}
@@ -231,6 +239,17 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		log.Infof("=======================")
 		log.Infof("")
 		log.Infof("No changes were made to the system.")
+	}
+
+	reporting.Emit(reporting.RunFinished{Errs: stepErrs})
+
+	// Collected processor errors from a push-through run: each was reported
+	// when it happened; the run's exit code has to carry them too.
+	if len(stepErrs) > 0 {
+		for _, stepErr := range stepErrs {
+			log.Errorf("Processor %s failed: %v", stepErr.Processor, stepErr.Err)
+		}
+		return fmt.Errorf("%d processor(s) failed", len(stepErrs))
 	}
 
 	// Processors that skip a failed item and continue record it rather than

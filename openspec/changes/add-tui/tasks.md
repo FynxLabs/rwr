@@ -8,7 +8,7 @@ Steps 1–5 are prerequisites and carry the risk; 6+ are additive.
       `commands.go`. Byte-identical-output test vs master (the safety net).
 - [x] 3. Store, views, slog handler; test processor attribution of records.
 - [x] 4. Stage 2 resolve: provider grouping, lane counts.
-- [ ] 5. Error accumulation in `All()`; test: non-interactive run with one
+- [x] 5. Error accumulation in `All()`; test: non-interactive run with one
       failing processor continues, exits nonzero (fails today — first error
       aborts).
 - [ ] 6. Static TUI: header, strip, collapsed list, panel, help bar.
