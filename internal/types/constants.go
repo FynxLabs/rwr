@@ -62,6 +62,10 @@ const (
 	ServiceActionStart   = "start"
 	ServiceActionStop    = "stop"
 	ServiceActionRestart = "restart"
+	ServiceActionReload  = "reload"
+	ServiceActionStatus  = "status"
+	ServiceActionCreate  = "create"
+	ServiceActionDelete  = "delete"
 )
 
 // File actions for file management operations.

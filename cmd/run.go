@@ -9,8 +9,24 @@ import (
 )
 
 var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run individual processors",
+	Use:   "run <processor>",
+	Short: "Run an individual processor",
+	Long: `Run a single processor instead of the whole blueprint.
+
+"run" is not a command on its own: it needs the name of the processor to run,
+for example "rwr run packages" or "rwr run files". To run everything, use
+"rwr all".`,
+	// A parent command with no action silently prints help and exits 0, which
+	// reads like a successful run that did nothing. Make the miss explicit.
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := cmd.Help(); err != nil {
+			return err
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("run needs a processor to run (see the list above), or use \"rwr all\" to run everything")
+		}
+		return fmt.Errorf("unknown processor %q (see the list above)", args[0])
+	},
 }
 
 var runPackageCmd = &cobra.Command{

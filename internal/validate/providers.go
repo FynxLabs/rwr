@@ -170,9 +170,16 @@ func validateProviderFile(providerFile string, results *types.ValidationResults,
 // validateActionStep validates a provider action step.
 func validateActionStep(step types.ActionStep, index int, stepType string, file string, results *types.ValidationResults) {
 	switch step.Action {
-	case "command":
+	case "command", "exec":
 		if step.Exec == "" {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing exec in %s step %d", stepType, index), file, 0, "Add exec field to command action")
+		}
+	case "copy":
+		if step.Source == "" {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing source in %s step %d", stepType, index), file, 0, "Add source field to copy action")
+		}
+		if step.Dest == "" {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing dest in %s step %d", stepType, index), file, 0, "Add dest field to copy action")
 		}
 	case "download":
 		if step.Source == "" {
@@ -188,9 +195,38 @@ func validateActionStep(step types.ActionStep, index int, stepType string, file 
 		if step.Content == "" {
 			AddIssue(results, types.ValidationWarning, fmt.Sprintf("Empty content in %s step %d", stepType, index), file, 0, "Add content to write action")
 		}
+	case "append":
+		if step.Path == "" {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing path in %s step %d", stepType, index), file, 0, "Add path field to append action")
+		}
+		if step.Content == "" {
+			AddIssue(results, types.ValidationWarning, fmt.Sprintf("Empty content in %s step %d", stepType, index), file, 0, "Add content to append action")
+		}
 	case "remove":
-		if step.Dest == "" && step.Source == "" {
+		// Every shipped provider spells a removal target as "path"; checking
+		// dest/source here reported a missing path for all of them.
+		if step.Path == "" {
 			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing path in %s step %d", stepType, index), file, 0, "Add path field to remove action")
 		}
+	case "remove_line":
+		if step.Path == "" {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing path in %s step %d", stepType, index), file, 0, "Add path field to remove_line action")
+		}
+		if step.Match == "" {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing match in %s step %d", stepType, index), file, 0, "Add match field to remove_line action")
+		}
+	case "remove_section":
+		if step.Path == "" {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing path in %s step %d", stepType, index), file, 0, "Add path field to remove_section action")
+		}
+		if step.Section == "" {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Missing section in %s step %d", stepType, index), file, 0, "Add section field to remove_section action")
+		}
+	case "":
+		// Reported by the caller, which knows the step is missing its action.
+	default:
+		// An action rwr does not run fails halfway through a provisioning run.
+		// Validation exists to say so beforehand.
+		AddIssue(results, types.ValidationError, fmt.Sprintf("Unsupported action %q in %s step %d", step.Action, stepType, index), file, 0, "Use one of: append, command, copy, download, exec, remove, remove_line, remove_section, write")
 	}
 }

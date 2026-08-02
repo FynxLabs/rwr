@@ -9,7 +9,7 @@ distributions = ["alpine"]
 
 [provider.commands]
 install = "add"
-update = "update && apk upgrade"
+update = "update"
 remove = "del"
 list = "info"
 search = "search"
@@ -46,7 +46,10 @@ steps = [
 ]
 
 [provider.repository.paths]
-repos = "/etc/apk/repositories"
+# Named "sources" because the steps below render it as {{ .SourcesPath }};
+# RepositoryPaths only carries sources/keys/config, so any other key decodes to
+# nothing and the step is left with no path at all.
+sources = "/etc/apk/repositories"
 keys = "/etc/apk/keys"
 
 [[provider.repository.add.steps]]
@@ -57,7 +60,7 @@ condition = "{{ .HasKey }}"
 
 [[provider.repository.add.steps]]
 action = "append"
-path = "/etc/apk/repositories"
+path = "{{ .SourcesPath }}"
 content = "{{ .URL }}"
 
 [[provider.repository.add.steps]]
@@ -67,7 +70,7 @@ args = ["update"]
 
 [[provider.repository.remove.steps]]
 action = "remove_line"
-path = "/etc/apk/repositories"
+path = "{{ .SourcesPath }}"
 match = "{{ .URL }}"
 
 [[provider.repository.remove.steps]]

@@ -9,7 +9,7 @@ distributions = ["debian", "ubuntu"]
 
 [provider.commands]
 install = "install -y"
-update = "update && upgrade -y"
+update = "update"
 remove = "remove -y"
 list = "dpkg --get-selections"
 search = "search"
@@ -35,7 +35,7 @@ keys = "/usr/share/keyrings"
 [[provider.repository.add.steps]]
 action = "download"
 source = "{{ .KeyURL }}"
-dest = "/tmp/{{ .Name }}.gpg"
+dest = "{{ .TempKeyPath }}"
 
 [[provider.repository.add.steps]]
 action = "command"

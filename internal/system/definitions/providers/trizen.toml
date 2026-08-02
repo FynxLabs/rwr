@@ -22,6 +22,10 @@ build-essentials = ["base-devel", "cmake", "freetype2", "fontconfig", "pkg-confi
 [provider.repository.paths]
 sources = "/etc/pacman.d"
 keys = "/etc/pacman.d/gnupg"
+# pacman.conf is where a repository section lands. It is declared here both so
+# the steps below can render it and so that the containment check has a path to
+# allow: an edit outside these paths is refused.
+config = "/etc/pacman.conf"
 
 [[provider.install.steps]]
 action = "command"
@@ -43,9 +47,11 @@ action = "command"
 exec = "pacman"
 args = ["-Rns", "--noconfirm", "trizen"]
 
+# Appended, never written: a write replaces pacman.conf wholesale and takes
+# every other repository and option in it with it.
 [[provider.repository.add.steps]]
-action = "write"
-dest = "/etc/pacman.conf"
+action = "append"
+path = "{{ .ConfigPath }}"
 content = """
 [{{ .Name }}]
 Server = {{ .URL }}
@@ -55,18 +61,21 @@ Server = {{ .URL }}
 action = "command"
 exec = "pacman-key"
 args = ["--recv-keys", "{{ .KeyID }}"]
+condition = "{{ .HasKey }}"
 
 [[provider.repository.add.steps]]
 action = "command"
 exec = "pacman-key"
 args = ["--lsign-key", "{{ .KeyID }}"]
+condition = "{{ .HasKey }}"
 
 [[provider.repository.remove.steps]]
 action = "command"
 exec = "pacman-key"
 args = ["--delete", "{{ .KeyID }}"]
+condition = "{{ .HasKey }}"
 
 [[provider.repository.remove.steps]]
 action = "remove_section"
-path = "/etc/pacman.conf"
+path = "{{ .ConfigPath }}"
 section = "{{ .Name }}"

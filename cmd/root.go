@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -25,6 +26,13 @@ var rootCmd = &cobra.Command{
 	Use:   "rwr",
 	Short: "Rinse, Wash, and Repeat - Distrohopper's Friend",
 	Long:  `rwr is a cli to manage your Linux system's package manager and repositories.`,
+	// A run that fails partway through is not a usage mistake. Printing the full
+	// flag listing after "validation failed with 3 errors" buries the errors the
+	// operator actually needs to read under a screen of help text. Errors are
+	// silenced here too because Execute already reports them; cobra printing its
+	// own line as well produced every failure twice.
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip initialization for these commands
 		skipInit := map[string]bool{
@@ -51,6 +59,8 @@ var rootCmd = &cobra.Command{
 			current = current.Parent()
 		}
 
+		checkForNewVersion()
+
 		return initializeSystemInfo()
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -74,6 +84,7 @@ var (
 	forceBootstrap   bool
 	dryRun           bool
 	logLevel         string
+	configPath       string // --config: overrides where the config file is looked up
 	configLocation   string
 	runOnceLocation  string
 	profiles         []string // Global variable for active profiles
@@ -181,6 +192,7 @@ func init() {
 		}
 	})
 
+	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Path to the config file, or to a directory containing config.yaml (default ~/.config/rwr)")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().BoolVar(&forceBootstrap, "force-bootstrap", false, "Force Bootstrap to be ran again")
@@ -211,6 +223,7 @@ func init() {
 	// Adding skipVersionCheck as a global flag
 	rootCmd.PersistentFlags().BoolVar(&skipVersionCheck, "skip-version-check", false, "Skip checking for the latest version of rwr")
 	mustBindFlag("rwr.skipVersionCheck", "skip-version-check")
+	viper.SetDefault("rwr.skipVersionCheck", false)
 
 	// Secrets are redacted in logs by default. This exists because "is rwr even
 	// reading my token?" has no other answer, but it has to be asked for.
@@ -221,6 +234,10 @@ func init() {
 	mustBindFlag("rwr.profiles", "profile")
 
 	viper.SetEnvPrefix("RWR")
+	// Config keys are nested ("log.level"), but a dot is not legal in an
+	// environment variable name. Without this replacer viper would look up
+	// "RWR_LOG.LEVEL" and the documented RWR_LOG_LEVEL could never resolve.
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 }
 
@@ -250,7 +267,28 @@ func config() error {
 		return fmt.Errorf("error finding home directory: %w", err)
 	}
 	configLocation = filepath.Join(homeDir, ".config", "rwr")
+
+	// --config either names a config file directly or names the directory to
+	// look for config.yaml in. A file keeps its directory as the config
+	// location, so run_once stays next to the config it belongs to.
+	configFile := ""
+	if configPath != "" {
+		expanded := system.ExpandPath(configPath)
+		if info, statErr := os.Stat(expanded); statErr == nil && info.IsDir() {
+			configLocation = expanded
+		} else {
+			configFile = expanded
+			configLocation = filepath.Dir(expanded)
+		}
+	}
+
 	runOnceLocation = filepath.Join(configLocation, "run_once")
+
+	// helpers.Bootstrap and the config creator resolve their paths from this key.
+	// Without it they fell back to ~/.config/rwr regardless of --config, so
+	// --config moved run_once but left the bootstrap marker behind in the default
+	// location — the two disagreed about where the config directory was.
+	viper.Set("rwr.configdir", configLocation)
 
 	if err = helpers.EnsureConfigDir(configLocation); err != nil {
 		return fmt.Errorf("error creating config directory: %w", err)
@@ -260,9 +298,13 @@ func config() error {
 		return fmt.Errorf("error creating bootstrap directory: %w", err)
 	}
 
-	viper.AddConfigPath(configLocation)
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
+	if configFile != "" {
+		viper.SetConfigFile(configFile)
+	} else {
+		viper.AddConfigPath(configLocation)
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+	}
 
 	if err := viper.ReadInConfig(); err == nil {
 		log.Debugf("Using config file: %s", viper.ConfigFileUsed())
@@ -299,6 +341,6 @@ func config() error {
 // It exits with status code 1 if an error occurs.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		log.With("err", err).Fatalf("Error executing command")
+		log.Fatalf("%v", err)
 	}
 }

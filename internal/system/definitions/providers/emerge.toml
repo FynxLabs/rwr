@@ -16,7 +16,9 @@ search = "-s"
 clean = "--depclean"
 
 [provider.repository.paths]
-repos = "/etc/portage/repos.conf"
+# Named "sources" for the same reason as the other providers: the steps below
+# render it as {{ .SourcesPath }}, which only decodes from sources/keys/config.
+sources = "/etc/portage/repos.conf"
 overlays = "/var/db/repos"
 make = "/etc/portage/make.conf"
 

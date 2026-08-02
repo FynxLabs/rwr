@@ -16,7 +16,7 @@ distributions = ["darwin", "linux"] # Works on both macOS and Linux
 
 [provider.commands]
 install = "install -fq"
-update = "update && brew upgrade"
+update = "update"
 remove = "uninstall -fq"
 list = "list"
 search = "search"

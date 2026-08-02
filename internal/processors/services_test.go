@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fynxlabs/rwr/internal/exectest"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -779,6 +780,28 @@ func TestDeleteServiceFile_DryRun(t *testing.T) {
 	err := deleteServiceFile(service)
 	if err != nil {
 		t.Errorf("deleteServiceFile should succeed in dry-run mode, got: %v", err)
+	}
+}
+
+// Commands are exec'd as argv, so a "|" in the argument list is a job label
+// handed to launchctl, not a pipeline. `launchctl list <label>` reports the same
+// thing on its own: it exits non-zero when the job is not loaded.
+func TestProcessMacOSService_StatusUsesArgvNotAPipeline(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	service := types.Service{Name: "com.example.agent", Action: "status"}
+	if err := processMacOSService(service, &types.OSInfo{}, &types.InitConfig{}); err != nil {
+		t.Fatalf("processMacOSService: %v", err)
+	}
+
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls, want 1: %v", len(rec.Calls), rec.Calls)
+	}
+
+	want := []string{"launchctl", "list", "com.example.agent"}
+	if got := rec.Calls[0].Argv(); !equalStrings(got, want) {
+		t.Errorf("argv = %#v, want %#v", got, want)
 	}
 }
 
