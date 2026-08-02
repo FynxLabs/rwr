@@ -66,7 +66,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	packagesData := &types.PackagesData{
 		Packages: bootstrapData.Packages,
 	}
-	err = ProcessPackages(nil, packagesData, format, osInfo, initConfig)
+	err = ProcessPackages(nil, packagesData, blueprintDir, format, osInfo, initConfig)
 	if err != nil {
 		log.Errorf("Error processing packages: %v", err)
 		return err

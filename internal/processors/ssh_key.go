@@ -77,7 +77,7 @@ type accessTokenResponse struct {
 
 // ProcessSSHKeys generates SSH key pairs from blueprint data and optionally
 // uploads public keys to GitHub via API token or OAuth device flow.
-func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessSSHKeys(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var sshKeyData types.SSHKeyData
 	var err error
 
@@ -91,7 +91,6 @@ func ProcessSSHKeys(blueprintData []byte, format string, osInfo *types.OSInfo, i
 	}
 
 	// Process imports and merge imported SSH keys
-	blueprintDir := initConfig.Init.Location
 	allSSHKeys, err := processSSHKeyImports(sshKeyData.SSHKeys, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing SSH key imports: %w", err)
@@ -170,14 +169,14 @@ func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error
 				{Name: "openssh", Action: "install", PackageManager: "chocolatey"},
 			},
 		}
-		return ProcessPackages(nil, pkgData, "", osInfo, initConfig)
+		return ProcessPackages(nil, pkgData, "", "", osInfo, initConfig)
 	case "darwin":
 		pkgData := &types.PackagesData{
 			Packages: []types.Package{
 				{Name: "openssh", Action: "install", PackageManager: "brew"},
 			},
 		}
-		return ProcessPackages(nil, pkgData, "", osInfo, initConfig)
+		return ProcessPackages(nil, pkgData, "", "", osInfo, initConfig)
 	default:
 		// For Linux, OpenSSH is typically pre-installed
 		return nil

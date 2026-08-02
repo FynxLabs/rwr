@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -172,20 +173,34 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		return filepath.Dir(path)
 	}
 
-	// The run loop only executes buckets named after a processor. A file whose
-	// path matches none lands in a directory-named bucket ("." for a top-level
-	// file) that nothing ever reads — the flattened/minimal_files example
-	// layouts hit exactly this and exited 0 having executed nothing. Until
-	// detection is content-based, the least we owe the operator is a loud
-	// statement that the file will not run.
-	warnIfUnrouted := func(processor, relPath string) {
+	isKnownProcessor := func(processor string) bool {
 		switch processor {
 		case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
 			types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration:
-			return
+			return true
 		}
-		log.Warnf("Blueprint file %s is not under a recognized processor directory and will NOT be executed. "+
-			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/.", relPath)
+		return false
+	}
+
+	// The run loop only executes buckets named after a processor. A file whose
+	// path names none is typed by its content instead — the flattened and
+	// minimal_files layouts the examples ship have no processor directories at
+	// all, and used to land in a dead bucket and exit 0 having executed
+	// nothing. A multi-type file (minimal_files' all_in_one) routes to every
+	// type it declares; the dispatch subsets it per processor. A file whose
+	// content matches nothing gets a loud statement that it will not run.
+	routeByPath := func(absPath, relPath string) []string {
+		processor := getProcessorType(relPath)
+		if isKnownProcessor(processor) {
+			return []string{processor}
+		}
+		if detected := detectBlueprintTypesFromContent(absPath, initConfig); len(detected) > 0 {
+			log.Debugf("Blueprint file %s routed to %v by its content", relPath, detected)
+			return detected
+		}
+		log.Warnf("Blueprint file %s is not under a recognized processor directory and its content matches no blueprint type; it will NOT be executed. "+
+			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/ — or give it top-level blueprint keys.", relPath)
+		return []string{processor}
 	}
 
 	// The init file configures the run and bootstrap is dispatched separately
@@ -213,10 +228,10 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 							if err != nil {
 								return err
 							}
-							processor := getProcessorType(relPath)
-							warnIfUnrouted(processor, relPath)
-							fileOrder[processor] = append(fileOrder[processor], relPath)
-							log.Debugf("Added file to processor %s: %s", processor, relPath)
+							for _, processor := range routeByPath(path, relPath) {
+								fileOrder[processor] = append(fileOrder[processor], relPath)
+								log.Debugf("Added file to processor %s: %s", processor, relPath)
+							}
 						}
 						return nil
 					})
@@ -248,14 +263,14 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 				if err != nil {
 					return err
 				}
-				processor := getProcessorType(relPath)
-				warnIfUnrouted(processor, relPath)
-				if _, exists := fileOrder[processor]; !exists {
-					fileOrder[processor] = []string{relPath}
-				} else if !helpers.Contains(fileOrder[processor], relPath) {
-					fileOrder[processor] = append(fileOrder[processor], relPath)
+				for _, processor := range routeByPath(path, relPath) {
+					if _, exists := fileOrder[processor]; !exists {
+						fileOrder[processor] = []string{relPath}
+					} else if !helpers.Contains(fileOrder[processor], relPath) {
+						fileOrder[processor] = append(fileOrder[processor], relPath)
+					}
+					log.Debugf("Added additional file to processor %s: %s", processor, relPath)
 				}
-				log.Debugf("Added additional file to processor %s: %s", processor, relPath)
 			}
 			return nil
 		})
@@ -273,4 +288,111 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 	}
 
 	return fileOrder, nil
+}
+
+// blueprintKeyToType maps a file's top-level keys to the processor that reads
+// them, for content-based routing when the path names no processor directory.
+var blueprintKeyToType = map[string]string{
+	"packages":       types.BlueprintTypePackages,
+	"repositories":   types.BlueprintTypeRepositories,
+	"files":          types.BlueprintTypeFiles,
+	"templates":      types.BlueprintTypeFiles,
+	"directories":    types.BlueprintTypeFiles,
+	"services":       types.BlueprintTypeServices,
+	"git":            types.BlueprintTypeGit,
+	"scripts":        types.BlueprintTypeScripts,
+	"ssh_keys":       types.BlueprintTypeSSHKeys,
+	"fonts":          types.BlueprintTypeFonts,
+	"users":          types.BlueprintTypeUsers,
+	"groups":         types.BlueprintTypeUsers,
+	"configurations": types.BlueprintTypeConfiguration,
+}
+
+// detectBlueprintTypesFromContent types a blueprint by its top-level keys,
+// returning every matched type in run-order-stable form. Templates are
+// resolved leniently first — content routing happens before the run renders
+// anything for real.
+func detectBlueprintTypesFromContent(path string, initConfig *types.InitConfig) []string {
+	top, _, err := decodeTopLevel(path, initConfig)
+	if err != nil {
+		return nil
+	}
+
+	seen := map[string]bool{}
+	var detected []string
+	for key := range top {
+		blueprintType, known := blueprintKeyToType[key]
+		if known && !seen[blueprintType] {
+			seen[blueprintType] = true
+			detected = append(detected, blueprintType)
+		}
+	}
+	sort.Strings(detected)
+	return detected
+}
+
+// decodeTopLevel reads a blueprint's top-level mapping leniently.
+func decodeTopLevel(path string, initConfig *types.InitConfig) (map[string]interface{}, string, error) {
+	format, err := helpers.FormatForPath(path)
+	if err != nil {
+		return nil, "", err
+	}
+	data, err := os.ReadFile(path) // #nosec G304 -- read-only inspection of the operator's own blueprint tree
+	if err != nil {
+		return nil, "", err
+	}
+	resolved, err := helpers.ResolveTemplateForValidation(data, initConfig.Variables)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var top map[string]interface{}
+	if err := helpers.UnmarshalBlueprint(resolved, format, &top); err != nil {
+		return nil, "", err
+	}
+	return top, format, nil
+}
+
+// subsetForProcessor prepares one processor's view of a blueprint. A
+// single-type file passes through untouched, so strict decode keeps its
+// unknown-key typo protection. A multi-type file (minimal_files'
+// all_in_one.yaml) is cut down to the keys this processor reads — plus
+// schema_version — re-encoded as JSON; a top-level key belonging to no type at
+// all is an error rather than something to silently drop.
+func subsetForProcessor(resolved []byte, format, processor string) ([]byte, string, error) {
+	var top map[string]interface{}
+	if err := helpers.UnmarshalBlueprint(resolved, format, &top); err != nil {
+		return nil, "", err
+	}
+
+	typesPresent := map[string]bool{}
+	for key := range top {
+		if blueprintType, ok := blueprintKeyToType[key]; ok {
+			typesPresent[blueprintType] = true
+		}
+	}
+	if len(typesPresent) <= 1 {
+		return resolved, format, nil
+	}
+
+	subset := map[string]interface{}{}
+	for key, value := range top {
+		blueprintType, known := blueprintKeyToType[key]
+		switch {
+		case known && blueprintType == processor:
+			subset[key] = value
+		case known:
+			// Another processor's section; it gets its own dispatch.
+		case key == "schema_version" || key == "variables":
+			subset[key] = value
+		default:
+			return nil, "", fmt.Errorf("multi-type blueprint declares unknown top-level key %q", key)
+		}
+	}
+
+	out, err := json.Marshal(subset)
+	if err != nil {
+		return nil, "", fmt.Errorf("error re-encoding multi-type blueprint for %s: %w", processor, err)
+	}
+	return out, types.FormatJSON, nil
 }

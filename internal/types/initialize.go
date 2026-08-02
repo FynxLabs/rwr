@@ -56,13 +56,11 @@ type Variables struct {
 type InitConfig struct {
 	Init            Init                 `mapstructure:"blueprints" yaml:"blueprints" json:"blueprints" toml:"blueprints"`
 	PackageManagers []PackageManagerInfo `mapstructure:"packageManagers,omitempty" yaml:"packageManagers,omitempty" json:"packageManagers,omitempty" toml:"packageManagers,omitempty"`
-	Repositories    []Repository         `mapstructure:"repositories,omitempty" yaml:"repositories,omitempty" json:"repositories,omitempty" toml:"repositories,omitempty"`
-	Packages        []Package            `mapstructure:"packages,omitempty" yaml:"packages,omitempty" json:"packages,omitempty" toml:"packages,omitempty"`
-	Services        []Service            `mapstructure:"services,omitempty" yaml:"services,omitempty" json:"services,omitempty" toml:"services,omitempty"`
-	Files           []File               `mapstructure:"files,omitempty" yaml:"files,omitempty" json:"files,omitempty" toml:"files,omitempty"`
-	Templates       []File               `mapstructure:"templates,omitempty" yaml:"templates,omitempty" json:"templates,omitempty" toml:"templates,omitempty"`
-	Directories     []Directory          `mapstructure:"directories,omitempty" yaml:"directories,omitempty" json:"directories,omitempty" toml:"directories,omitempty"`
-	Configuration   []Configuration      `mapstructure:"configuration,omitempty" yaml:"configuration,omitempty" json:"configuration,omitempty" toml:"configuration,omitempty"`
+	// The inline resource sections (repositories, packages, services, files,
+	// templates, directories, configuration) are gone: they were decoded,
+	// validated, profile-counted — and never applied at runtime. Blueprints
+	// are the single declaration path; under strict decode a leftover key is
+	// an error naming it instead of a silent no-op.
 	// Squashing this made the `variables:` block in the init file decode into
 	// nothing at all, so every {{ .UserDefined.x }} in a blueprint rendered empty.
 	Variables Variables `mapstructure:"variables,omitempty" yaml:"variables,omitempty" json:"variables,omitempty" toml:"variables,omitempty"`

@@ -14,7 +14,7 @@ import (
 
 // ProcessServices manages system services (enable, disable, start, stop, restart)
 // as defined in blueprint data, with cross-platform support via systemctl, launchctl, etc.
-func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessServices(blueprintData []byte, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	var servicesData types.ServiceData
 	var err error
 
@@ -26,7 +26,6 @@ func ProcessServices(blueprintData []byte, format string, osInfo *types.OSInfo, 
 	}
 
 	// Process imports and merge imported services
-	blueprintDir := initConfig.Init.Location
 	allServices, err := processServiceImports(servicesData.Services, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing service imports: %w", err)

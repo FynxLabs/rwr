@@ -38,6 +38,9 @@ keys = "/etc/pki/rpm-gpg"
 action = "download"
 source = "{{ .KeyURL }}"
 dest = "{{ .TempKeyPath }}"
+# Empty when the blueprint declares no key_sha256; the download helper treats
+# an empty digest as "no check" and the processor warns about the unpinned key.
+sha256 = "{{ .KeySha256 }}"
 
 [[provider.repository.add.steps]]
 action = "command"

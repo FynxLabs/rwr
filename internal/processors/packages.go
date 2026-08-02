@@ -23,7 +23,7 @@ import (
 //
 // Returns an error if no package managers are available or if unmarshaling fails.
 // Individual package installation errors are logged but do not stop processing.
-func ProcessPackages(data []byte, packages *types.PackagesData, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir string, format string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// If data is provided, unmarshal it
 	if data != nil {
 		var pkgData types.PackagesData
@@ -40,7 +40,6 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 	}
 
 	// Process imports and merge imported packages
-	blueprintDir := initConfig.Init.Location
 	allPackages, err := helpers.ResolveImports(packages.Packages, blueprintDir,
 		func(item types.Package) string { return item.Import },
 		func(data []byte, fileFormat string) ([]types.Package, error) {
@@ -96,12 +95,17 @@ func ProcessPackages(data []byte, packages *types.PackagesData, format string, o
 			}
 		}
 
-		// Get package names
+		// Get package names. `names` wins over `name` when both are set,
+		// matching files and fonts — packages had the precedence backwards,
+		// so the same both-declared entry meant different things per type.
 		var names []string
-		if pkg.Name != "" {
-			names = []string{pkg.Name}
-		} else {
+		if len(pkg.Names) > 0 {
 			names = pkg.Names
+			if pkg.Name != "" {
+				log.Warnf("Package entry declares both name (%q) and names; processing the names list and ignoring name", pkg.Name)
+			}
+		} else if pkg.Name != "" {
+			names = []string{pkg.Name}
 		}
 
 		// Process each package

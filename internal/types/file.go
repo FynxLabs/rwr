@@ -215,6 +215,7 @@ type File struct {
 	Action      string                 `mapstructure:"action" yaml:"action" json:"action" toml:"action"`
 	Content     string                 `mapstructure:"content,omitempty" yaml:"content,omitempty" json:"content,omitempty" toml:"content,omitempty"`
 	Source      string                 `mapstructure:"source,omitempty" yaml:"source,omitempty" json:"source,omitempty" toml:"source,omitempty"`
+	Sha256      string                 `mapstructure:"sha256,omitempty" yaml:"sha256,omitempty" json:"sha256,omitempty" toml:"sha256,omitempty"` // digest of a URL source, verified before install
 	Target      string                 `mapstructure:"target" yaml:"target" json:"target" toml:"target"`
 	Owner       string                 `mapstructure:"owner,omitempty" yaml:"owner,omitempty" json:"owner,omitempty" toml:"owner,omitempty"`
 	Group       string                 `mapstructure:"group,omitempty" yaml:"group,omitempty" json:"group,omitempty" toml:"group,omitempty"`

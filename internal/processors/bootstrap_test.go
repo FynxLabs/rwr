@@ -36,7 +36,7 @@ func TestProcessPackages_DefaultSystemState(t *testing.T) {
 		}
 
 		// With enhanced path searching, this should now find package managers and attempt installation
-		err := ProcessPackages(nil, packagesData, "yaml", osInfo, initConfig)
+		err := ProcessPackages(nil, packagesData, "", "yaml", osInfo, initConfig)
 
 		if err == nil {
 			t.Log("ProcessPackages succeeded - package manager detection working correctly")
@@ -82,7 +82,7 @@ func TestProcessPackages_DefaultSystemState(t *testing.T) {
 		}
 
 		// This should not return the "no package managers available" error
-		err := ProcessPackages(nil, packagesData, "yaml", osInfo, initConfig)
+		err := ProcessPackages(nil, packagesData, "", "yaml", osInfo, initConfig)
 
 		// We might get other errors (like package installation failures),
 		// but we specifically want to avoid the "no package managers available" error
@@ -133,7 +133,7 @@ func TestProcessPackages_DefaultSystemState(t *testing.T) {
 		}
 
 		// With enhanced path searching, this should now find system package managers
-		err := ProcessPackages(nil, packagesData, "yaml", osInfo, initConfig)
+		err := ProcessPackages(nil, packagesData, "", "yaml", osInfo, initConfig)
 
 		if err == nil {
 			t.Log("ProcessPackages succeeded - enhanced path searching found system package managers")
@@ -176,7 +176,7 @@ func TestBootstrapPackageManagerDetection(t *testing.T) {
 		}
 
 		// Test that package manager detection now works
-		err := ProcessPackages(nil, packagesData, "yaml", osInfo, initConfig)
+		err := ProcessPackages(nil, packagesData, "", "yaml", osInfo, initConfig)
 
 		// Verify package manager detection is working
 		if err == nil {
@@ -214,7 +214,7 @@ func TestBootstrapPackageManagerDetection(t *testing.T) {
 		}
 
 		// Call should complete without panic and work with enhanced path searching
-		err := ProcessPackages(nil, packagesData, "yaml", osInfo, initConfig)
+		err := ProcessPackages(nil, packagesData, "", "yaml", osInfo, initConfig)
 
 		if err == nil {
 			t.Log("ProcessPackages succeeded with debug logging enabled")
@@ -247,7 +247,7 @@ func TestPackageProcessingEdgeCases(t *testing.T) {
 
 	t.Run("NilPackagesConfig", func(t *testing.T) {
 		// Should handle nil packages config gracefully
-		err := ProcessPackages(nil, nil, "yaml", osInfo, initConfig)
+		err := ProcessPackages(nil, nil, "", "yaml", osInfo, initConfig)
 
 		// Nil config should be handled gracefully, not cause panic
 		if err != nil {
@@ -261,7 +261,7 @@ func TestPackageProcessingEdgeCases(t *testing.T) {
 		packagesData := &types.PackagesData{}
 
 		// Should handle empty packages config gracefully
-		err := ProcessPackages(nil, packagesData, "yaml", osInfo, initConfig)
+		err := ProcessPackages(nil, packagesData, "", "yaml", osInfo, initConfig)
 
 		if err != nil {
 			t.Logf("Empty packages config handled with error: %s", err.Error())
@@ -276,7 +276,7 @@ func TestPackageProcessingEdgeCases(t *testing.T) {
 		}
 
 		// Should handle empty install list gracefully
-		err := ProcessPackages(nil, packagesData, "yaml", osInfo, initConfig)
+		err := ProcessPackages(nil, packagesData, "", "yaml", osInfo, initConfig)
 
 		if err != nil {
 			t.Logf("Empty install list handled with error: %s", err.Error())
@@ -312,6 +312,6 @@ func BenchmarkProcessPackagesError(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ProcessPackages(nil, packagesData, "yaml", osInfo, initConfig)
+		ProcessPackages(nil, packagesData, "", "yaml", osInfo, initConfig)
 	}
 }

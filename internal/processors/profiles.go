@@ -33,14 +33,6 @@ type ProfileSummary struct {
 func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
 	summary := &ProfileSummary{Counts: map[string]int{}}
 
-	// The init file may carry entries of its own; keep counting those.
-	collectFrom(summary, initConfig.Packages)
-	collectFrom(summary, initConfig.Services)
-	collectFrom(summary, initConfig.Files)
-	collectFrom(summary, initConfig.Templates)
-	collectFrom(summary, initConfig.Directories)
-	collectFrom(summary, initConfig.Repositories)
-
 	location := initConfig.Init.Location
 	if location == "" {
 		return finish(summary), nil

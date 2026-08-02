@@ -156,7 +156,13 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 			name = filepath.Base(file.Source)
 		}
 		downloadPath := filepath.Join(tempDir, name)
-		err = system.DownloadFile(file.Source, downloadPath, false)
+		// A URL source without a declared digest is trusted on nothing but the
+		// TLS connection that served it. Warn now; a later major refuses.
+		if file.Sha256 == "" {
+			log.Warnf("File %s downloads %s with no sha256 declared — the content is unpinned. "+
+				"Add sha256 to the entry; a future major version will refuse this.", file.Name, file.Source)
+		}
+		err = system.DownloadFileWithChecksum(file.Source, downloadPath, false, file.Sha256)
 		if err != nil {
 			return fmt.Errorf("error downloading file: %v", err)
 		}

@@ -46,15 +46,15 @@ Choose your preferred format and run:
 ```bash
 # YAML format
 cd yaml
-rwr run
+rwr all
 
 # JSON format
 cd json
-rwr run
+rwr all
 
 # TOML format
 cd toml
-rwr run
+rwr all
 ```
 
 ## What This Demonstrates

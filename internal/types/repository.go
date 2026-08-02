@@ -8,6 +8,7 @@ type Repository struct {
 	URL            string   `mapstructure:"url" yaml:"url" json:"url" toml:"url"`                                                                         // URL of the repository
 	Arch           string   `mapstructure:"arch,omitempty" yaml:"arch,omitempty" json:"arch,omitempty" toml:"arch,omitempty"`                             // Architecture of the repository
 	KeyURL         string   `mapstructure:"key_url,omitempty" yaml:"key_url,omitempty" json:"key_url,omitempty" toml:"key_url,omitempty"`                 // Key URL of the repository
+	KeySha256      string   `mapstructure:"key_sha256,omitempty" yaml:"key_sha256,omitempty" json:"key_sha256,omitempty" toml:"key_sha256,omitempty"`     // sha256 of the signing key at key_url; the key-download step verifies it
 	Channel        string   `mapstructure:"channel,omitempty" yaml:"channel,omitempty" json:"channel,omitempty" toml:"channel,omitempty"`                 // Channel of the repository
 	Component      string   `mapstructure:"component,omitempty" yaml:"component,omitempty" json:"component,omitempty" toml:"component,omitempty"`         // Component of the repository
 	Repository     string   `mapstructure:"repository,omitempty" yaml:"repository,omitempty" json:"repository,omitempty" toml:"repository,omitempty"`     // Repository name

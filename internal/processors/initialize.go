@@ -115,6 +115,18 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 		return nil, fmt.Errorf("error unmarshaling %s: %w", processedInitFile, err)
 	}
 
+	// The inline resource sections were removed from the schema: they were
+	// decoded, validated, and never applied at runtime. Viper ignores unknown
+	// keys, so without this check a tree still carrying them would go from
+	// silent no-op to silent drop — an error naming the key is the only honest
+	// answer. (`rwr convert --migrate` is the planned mover.)
+	for _, removed := range []string{"repositories", "packages", "services", "files", "templates", "directories", "configuration"} {
+		if viper.IsSet(removed) {
+			return nil, fmt.Errorf("init file %s declares %q, which init files no longer support: "+
+				"declare it in a blueprint file under the tree instead", initFilePath, removed)
+		}
+	}
+
 	// A tree-wide schema version applies to every blueprint type, so it has to be
 	// readable everywhere. Checked here rather than per file: an unreadable tree
 	// version is wrong before a single blueprint is opened.

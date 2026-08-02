@@ -36,7 +36,7 @@ ssh_keys:
 
 	// Ignore the error: this asserts on the command that was built, and the key
 	// may already exist on the machine running the test.
-	_ = ProcessSSHKeys(blueprint, "yaml", &types.OSInfo{}, &types.InitConfig{})
+	_ = ProcessSSHKeys(blueprint, t.TempDir(), "yaml", &types.OSInfo{}, &types.InitConfig{})
 
 	calls := rec.Find("ssh-keygen")
 	if len(calls) == 0 {

@@ -158,3 +158,46 @@ packages: [{name: "git", action: "explode"}]
 		t.Errorf("no diagnostic names the failed constraint; issues: %+v", results.Issues)
 	}
 }
+
+// Validate is strict for the fixed namespaces and lenient only for
+// UserDefined: {{ .User.hoem }} is an error; {{ .UserDefined.anything }} is not.
+func TestValidate_TemplateStrictnessPerNamespace(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "files"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile("init.yaml", "blueprints:\n  format: yaml\n  location: "+dir+"\n")
+	writeFile("files/typo.yaml", `files:
+  - name: rc
+    action: create
+    target: "{{ .User.hoem }}/.rc"
+    content: "x={{ .UserDefined.undeclared }}"
+`)
+
+	results := &types.ValidationResults{}
+	if err := ValidateBlueprints(dir, false, results, &types.OSInfo{}); err != nil {
+		t.Fatalf("ValidateBlueprints: %v", err)
+	}
+
+	foundTypo := false
+	for _, issue := range results.Issues {
+		if strings.Contains(issue.Message, ".User.hoem") {
+			foundTypo = true
+			if issue.Severity != types.ValidationError {
+				t.Errorf("typo reported at %v, want an error", issue.Severity)
+			}
+		}
+		if strings.Contains(issue.Message, "UserDefined") && issue.Severity == types.ValidationError {
+			t.Errorf("UserDefined reference reported as an error: %s", issue.Message)
+		}
+	}
+	if !foundTypo {
+		t.Errorf("no diagnostic names .User.hoem; issues: %+v", results.Issues)
+	}
+}

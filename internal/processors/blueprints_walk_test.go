@@ -75,3 +75,50 @@ func TestGetBlueprintFileOrder_MixedFormatTree(t *testing.T) {
 		}
 	}
 }
+
+// A flattened tree — blueprint files at the root, no processor directories —
+// is routed by content: a file with a single recognized top-level key executes
+// under that processor. This is the layout examples/alternative_layouts ships,
+// which used to land in a dead bucket and exit 0 having executed nothing.
+func TestGetBlueprintFileOrder_ContentBasedDetection(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("packages.yaml", "packages:\n  - name: git\n    action: install\n")
+	write("everything.yaml", "services:\n  - name: sshd\n    action: enable\n")
+	// Multi-type: routes to every type it declares (the minimal_files layout).
+	write("mixed.yaml", "packages: []\nservices: []\n")
+
+	initConfig := &types.InitConfig{}
+	initConfig.Init.Format = "yaml"
+	initConfig.Variables.UserDefined = map[string]interface{}{}
+
+	fileOrder, err := GetBlueprintFileOrder(dir, nil, false, initConfig)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder: %v", err)
+	}
+
+	has := func(bucket, file string) bool {
+		for _, f := range fileOrder[bucket] {
+			if f == file {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(types.BlueprintTypePackages, "packages.yaml") {
+		t.Errorf("packages bucket = %v, want packages.yaml routed", fileOrder[types.BlueprintTypePackages])
+	}
+	if !has(types.BlueprintTypeServices, "everything.yaml") {
+		t.Errorf("services bucket = %v, want everything.yaml routed", fileOrder[types.BlueprintTypeServices])
+	}
+	// The multi-type file appears in BOTH buckets; the dispatch subsets it.
+	if !has(types.BlueprintTypePackages, "mixed.yaml") || !has(types.BlueprintTypeServices, "mixed.yaml") {
+		t.Errorf("mixed.yaml not routed to both buckets: packages=%v services=%v",
+			fileOrder[types.BlueprintTypePackages], fileOrder[types.BlueprintTypeServices])
+	}
+}

@@ -12,7 +12,7 @@ import (
 
 // ProcessGitRepositories clones or updates Git repositories defined in blueprint data,
 // with support for profile filtering and import resolution.
-func ProcessGitRepositories(blueprintData []byte, format string, initConfig *types.InitConfig) error {
+func ProcessGitRepositories(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
 	var gitData types.GitData
 	var err error
 
@@ -26,7 +26,6 @@ func ProcessGitRepositories(blueprintData []byte, format string, initConfig *typ
 	}
 
 	// Process imports and merge imported git repos
-	blueprintDir := initConfig.Init.Location
 	allRepos, err := processGitImports(gitData.Repos, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return fmt.Errorf("error processing git imports: %w", err)

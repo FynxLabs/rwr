@@ -176,21 +176,6 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 		}
 	}
 
-	// Validate the Repositories field
-	if initConfig.Repositories != nil {
-		for i, repo := range initConfig.Repositories {
-			if repo.Name == "" {
-				AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'repositories[%d].name'", i), initFile, 0, "Add name field to repository")
-			}
-			if repo.PackageManager == "" {
-				AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'repositories[%d].package_manager'", i), initFile, 0, "Add package_manager field to repository")
-			}
-			if repo.Action == "" {
-				AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'repositories[%d].action'", i), initFile, 0, "Add action field to repository")
-			}
-		}
-	}
-
 	return &initConfig, nil
 }
 
@@ -211,6 +196,15 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	// {{ .User.home }} is not valid YAML until it is rendered — the braces read as a
 	// flow mapping — so validating the raw bytes reports a parse error against a
 	// blueprint that works.
+	// Strict for the fixed namespaces, lenient only for UserDefined: validate
+	// used to render everything with missingkey=zero, so a typo like
+	// {{ .User.hoem }} validated clean and failed at run time.
+	for _, ref := range helpers.UnknownTemplateReferences(blueprintFileData, initConfig.Variables) {
+		AddIssue(results, types.ValidationError,
+			fmt.Sprintf("Template references %s, which does not exist", ref),
+			blueprintFile, 0, "Fix the reference; User/System/Flags keys are fixed (UserDefined values are not checked)")
+	}
+
 	blueprintFileData, err = helpers.ResolveTemplateForValidation(blueprintFileData, initConfig.Variables)
 	if err != nil {
 		return fmt.Errorf("error resolving variables in %s: %w", filepath.Base(blueprintFile), err)
