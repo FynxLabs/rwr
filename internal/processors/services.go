@@ -254,7 +254,11 @@ func processMacOSService(service types.Service, osInfo *types.OSInfo, initConfig
 	case "status":
 		serviceCmd = types.Command{
 			Exec: "launchctl",
-			Args: []string{"list", "|", "grep", service.Name},
+			// `launchctl list <label>` prints the job's dictionary and exits
+			// non-zero when it is not loaded. The "|" and "grep" that used to be
+			// here were argv elements, not a pipeline: launchctl received them as
+			// job labels.
+			Args: []string{"list", service.Name},
 		}
 	case "create":
 		if err := createLaunchDaemon(service, osInfo); err != nil {

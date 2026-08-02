@@ -9,16 +9,19 @@ distributions = ["slackware"]
 
 [provider.commands]
 install = "install"
-update = "update && slackpkg upgrade-all"
+update = "update"
 remove = "remove"
 list = "search installed"
 search = "search"
 clean = "clean-system"
 
 [provider.repository.paths]
-mirrors = "/etc/slackpkg/mirrors"
-blacklist = "/etc/slackpkg/blacklist"
-gpg = "/etc/slackpkg/gpg"
+# The steps below render these as {{ .SourcesPath }} and {{ .KeyPath }}, which
+# only decode from sources/keys/config; under their previous names they decoded
+# to nothing and every step that used them had no path.
+sources = "/etc/slackpkg/mirrors"
+keys = "/etc/slackpkg/gpg"
+config = "/etc/slackpkg/blacklist"
 
 [[provider.repository.add.steps]]
 action = "command"
@@ -26,12 +29,12 @@ exec = "sed"
 args = [
   "-i",
   "s/^[^#].*//",
-  "{{ .MirrorsPath }}",
+  "{{ .SourcesPath }}",
 ] # Comment out all active mirrors
 
 [[provider.repository.add.steps]]
 action = "append"
-path = "{{ .MirrorsPath }}"
+path = "{{ .SourcesPath }}"
 content = "{{ .URL }}"
 
 [[provider.repository.add.steps]]
@@ -53,7 +56,7 @@ args = ["update"]
 
 [[provider.repository.remove.steps]]
 action = "remove_line"
-path = "{{ .MirrorsPath }}"
+path = "{{ .SourcesPath }}"
 match = "{{ .URL }}"
 
 [[provider.repository.remove.steps]]

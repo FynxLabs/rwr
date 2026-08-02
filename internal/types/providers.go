@@ -68,12 +68,26 @@ type RepositoryAction struct {
 
 // ActionStep defines a single step in a repository operation.
 type ActionStep struct {
-	Action  string   `toml:"action"`
+	Action string `toml:"action"`
+	// Path is what a "remove" step deletes. Provider definitions have always
+	// spelled it "path"; without a field to decode into, every shipped remove step
+	// arrived with nothing to act on.
+	Path string `toml:"path,omitempty"`
+	// Match is the line a "remove_line" step takes out of Path, Section the
+	// ini-style section a "remove_section" step takes out of it.
+	Match   string   `toml:"match,omitempty"`
+	Section string   `toml:"section,omitempty"`
 	Source  string   `toml:"source,omitempty"`
 	Dest    string   `toml:"dest,omitempty"`
 	Exec    string   `toml:"exec,omitempty"`
 	Args    []string `toml:"args,omitempty"`
 	Content string   `toml:"content,omitempty"`
+	// Condition gates the step: it is a template rendered against the same data
+	// as the rest of the step, and the step runs only when it renders to a
+	// truthy value. Without a field to decode into, every shipped `condition`
+	// was dropped and mutually exclusive steps all ran — flatpak added a remote
+	// both --user and --system, chocolatey added a source twice.
+	Condition string `toml:"condition,omitempty"`
 }
 
 // GetCorePackagesForDistro returns the appropriate core packages for a given distribution
