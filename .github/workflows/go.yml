@@ -105,7 +105,9 @@ jobs:
       # `golangci-lint run` locally — there is no second copy of the config to drift.
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
-          version: latest
+          # Pinned like the other gate tooling: a lint release must not change
+          # what merges under a PR that didn't touch it.
+          version: v2.12.2
 
   # install.sh and install.ps1 are how most people get rwr, and nothing checked
   # them. Both were rewritten recently with no CI coverage at all.
@@ -144,7 +146,7 @@ jobs:
       - name: PSScriptAnalyzer install.ps1
         shell: pwsh
         run: |
-          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop
+          Install-Module -Name PSScriptAnalyzer -RequiredVersion 1.25.0 -Force -Scope CurrentUser -ErrorAction Stop
           $findings = Invoke-ScriptAnalyzer -Path ./install.ps1 -Severity Error,Warning -ExcludeRule PSAvoidUsingWriteHost
           $findings | Format-Table -AutoSize
           if ($findings) { exit 1 }
@@ -233,13 +235,15 @@ jobs:
       # gosec runs with #nosec annotations honored. Every suppression in the tree is
       # scoped to its rule id and carries a justification; the ones marked TODO(PRn)
       # are removed as those PRs land, so this job gets stricter over time, never looser.
+      # Pinned: @latest meant the security gates could change (or break) under
+      # any PR with no reviewable diff. Renovate proposes updates to these pins.
       - name: gosec
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
           gosec ./...
 
       # Fails on any known vulnerability reachable from our code paths.
       - name: govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
           govulncheck ./...
