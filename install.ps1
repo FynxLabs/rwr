@@ -5,7 +5,10 @@
 # shape, same assets, same checksums.txt.
 param(
     [switch]$Nightly,
-    [string]$Tag
+    [string]$Tag,
+    # After installing, run `rwr all` with this init source — owner/repo[@ref],
+    # an https URL, or a local path.
+    [string]$Init
 )
 
 Set-StrictMode -Version Latest
@@ -158,4 +161,10 @@ try {
     Write-Host "Open a new terminal for the PATH change to take effect."
 } finally {
     Remove-Item -Path $tmp_dir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+if ($Init) {
+    Write-Host "Running rwr with init source: $Init"
+    & (Join-Path $BINARY_PATH "rwr.exe") all --init-file $Init
+    exit $LASTEXITCODE
 }

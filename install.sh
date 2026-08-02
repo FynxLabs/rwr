@@ -18,6 +18,7 @@ fail() {
 # pinned tag) is reached through /releases/tags/<tag> instead — same response
 # shape, same assets, same checksums.txt.
 RELEASE_TAG=""
+INIT_REF=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --nightly)
@@ -32,14 +33,25 @@ while [ $# -gt 0 ]; do
             RELEASE_TAG="${1#--tag=}"
             [ -n "$RELEASE_TAG" ] || fail "--tag needs a value, e.g. --tag v0.5.1 or --tag nightly."
             ;;
+        --init)
+            [ $# -ge 2 ] || fail "--init needs a value, e.g. --init owner/repo or --init https://.../init.yaml"
+            INIT_REF="$2"
+            shift
+            ;;
+        --init=*)
+            INIT_REF="${1#--init=}"
+            [ -n "$INIT_REF" ] || fail "--init needs a value, e.g. --init owner/repo or --init https://.../init.yaml"
+            ;;
         -h|--help)
-            echo "Usage: install.sh [--nightly | --tag <tag>]"
+            echo "Usage: install.sh [--nightly | --tag <tag>] [--init <ref>]"
             echo "  --nightly     install the rolling prerelease built from master"
             echo "  --tag <tag>   install a specific release tag (e.g. v0.5.1)"
+            echo "  --init <ref>  after installing, run 'rwr all' with this init source"
+            echo "                (owner/repo[@ref], an https URL, or a local path)"
             exit 0
             ;;
         *)
-            fail "Unknown option: $1. Supported options: --nightly, --tag <tag>."
+            fail "Unknown option: $1. Supported options: --nightly, --tag <tag>, --init <ref>."
             ;;
     esac
     shift
@@ -216,3 +228,26 @@ for doc in README.adoc README.md README; do
 done
 
 echo "rwr has been installed to $BINARY_PATH for $OS $ARCH."
+
+if [ -n "$INIT_REF" ]; then
+    echo "Running rwr with init source: $INIT_REF"
+
+    # Provisioning must run as the person whose machine this is, not as root:
+    # blueprints write dotfiles, user services and per-user config. Under
+    # `curl | sudo bash` the script is root but SUDO_USER names the real user.
+    RWR_RUN=("$BINARY_PATH/rwr")
+    if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        echo "Installer is running as root; running rwr as $SUDO_USER (it elevates itself where blueprints ask for it)."
+        RWR_RUN=(sudo -u "$SUDO_USER" "$BINARY_PATH/rwr")
+    fi
+
+    # Under `curl ... | bash` stdin is the script itself, already consumed.
+    # rwr prompts interactively by default, so give it the terminal when there
+    # is one; otherwise run non-interactively rather than dying on EOF.
+    if [ -e /dev/tty ] && { : </dev/tty; } 2>/dev/null; then
+        "${RWR_RUN[@]}" all --init-file "$INIT_REF" </dev/tty
+    else
+        echo "No terminal available; running non-interactively."
+        "${RWR_RUN[@]}" all --interactive=false --init-file "$INIT_REF"
+    fi
+fi

@@ -85,6 +85,21 @@ curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/insta
 `-Nightly` and `-Tag v0.5.1` (download the script to a file to pass
 parameters, or wrap the one-liner in `& ([scriptblock]::Create(...))`).
 
+### One-shot machine setup
+
+`--init` installs rwr and immediately provisions the machine from your
+blueprints — the whole new-machine setup in one line:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.sh | bash -s -- --init yourname/your-blueprints
+```
+
+The init source takes any form `rwr -i` accepts: `owner/repo`,
+`owner/repo@ref`, an `https://` URL, or a local path. Provisioning runs as
+you (rwr elevates itself only where a blueprint asks for it); when there is
+no terminal to prompt on, it runs non-interactively. On Windows:
+`-Init yourname/your-blueprints`.
+
 > [!NOTE]
 > Always review scripts before running them with elevated privileges. The install scripts are available for inspection in the RWR repository.
 
