@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"text/template"
 
 	"charm.land/log/v2"
@@ -72,8 +73,28 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 	return runRepositoryUpdates(initConfig)
 }
 
+// validateRepositoryName refuses names that would escape the paths derived
+// from them. repo.Name is blueprint-supplied and is joined into KeyPath,
+// TempKeyPath and provider-templated file names ("{{ .SourcesPath }}/
+// {{ .Name }}.list"), all written with the provider's privileges — root, for
+// every system package manager — so "../../etc/cron.d/x" would land the write
+// outside every declared boundary.
+func validateRepositoryName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("repository name is empty")
+	}
+	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
+		return fmt.Errorf("invalid repository name %q: must not contain path separators or %q", name, "..")
+	}
+	return nil
+}
+
 // processRepository runs one repository's provider action steps.
 func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	if err := validateRepositoryName(repo.Name); err != nil {
+		return err
+	}
+
 	provider, exists := system.GetProvider(repo.PackageManager)
 	if !exists {
 		return fmt.Errorf("unsupported package manager: %s", repo.PackageManager)
@@ -130,20 +151,28 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 				Secrets: repo.SecretValues(),
 			}
 		case "download":
+			dest, err := repositoryWritePath(step.Dest, repoConfig.Paths)
+			if err != nil {
+				return fmt.Errorf("error downloading for %s: %w", repo.Name, err)
+			}
 			if system.IsDryRun() {
-				log.Infof("[DRY-RUN] Would download file: %s -> %s", step.Source, step.Dest)
+				log.Infof("[DRY-RUN] Would download file: %s -> %s", step.Source, dest)
 				continue
 			}
-			if err := system.DownloadFileWithChecksum(step.Source, step.Dest, provider.Elevated, step.Sha256); err != nil {
+			if err := system.DownloadFileWithChecksum(step.Source, dest, provider.Elevated, step.Sha256); err != nil {
 				return fmt.Errorf("error downloading file: %w", err)
 			}
 			continue
 		case "write":
+			dest, err := repositoryWritePath(step.Dest, repoConfig.Paths)
+			if err != nil {
+				return fmt.Errorf("error writing for %s: %w", repo.Name, err)
+			}
 			if system.IsDryRun() {
-				log.Infof("[DRY-RUN] Would write file: %s", step.Dest)
+				log.Infof("[DRY-RUN] Would write file: %s", dest)
 				continue
 			}
-			if err := system.WriteToFile(step.Dest, step.Content, provider.Elevated); err != nil {
+			if err := system.WriteToFile(dest, step.Content, provider.Elevated); err != nil {
 				return fmt.Errorf("error writing file: %w", err)
 			}
 			continue
@@ -192,11 +221,15 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 			}
 			continue
 		case "copy":
+			dest, err := repositoryWritePath(step.Dest, repoConfig.Paths)
+			if err != nil {
+				return fmt.Errorf("error copying for %s: %w", repo.Name, err)
+			}
 			if system.IsDryRun() {
-				log.Infof("[DRY-RUN] Would copy file: %s -> %s", step.Source, step.Dest)
+				log.Infof("[DRY-RUN] Would copy file: %s -> %s", step.Source, dest)
 				continue
 			}
-			if err := system.CopyFile(step.Source, step.Dest, provider.Elevated, osInfo); err != nil {
+			if err := system.CopyFile(step.Source, dest, provider.Elevated, osInfo); err != nil {
 				return fmt.Errorf("error copying file: %w", err)
 			}
 			continue
@@ -264,7 +297,7 @@ func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, prov
 		"KeysPath":       paths.Keys,
 		"ConfigPath":     paths.Config,
 		"KeyPath":        keyPath,
-		"TempKeyPath":    filepath.Join(os.TempDir(), repo.Name+".gpg"),
+		"TempKeyPath":    filepath.Join(repositoryTempDir(), repo.Name+".gpg"),
 		"KeyID":          repo.KeyID,
 		// The local file a snap or a GNOME extension is installed from. Only
 		// the steps gated on IsLocalFile/IsLocalSnap use it, and those are the
@@ -489,6 +522,66 @@ func removeRepositoryPath(path string, paths types.RepositoryPaths, elevated, de
 
 	log.Infof("Removed repository file: %s", resolved)
 	return nil
+}
+
+// repositoryTempDir is the per-run private directory repository steps stage
+// into ({{ .TempKeyPath }}). It replaces fixed paths under os.TempDir(): a
+// world-known name like /tmp/docker.gpg can be pre-created (or swapped
+// between steps) by any local user, and the very next step imports it as a
+// signing key with root privileges. A 0700 per-run directory is not
+// reachable by other users at all.
+var (
+	repoTempDirOnce sync.Once
+	repoTempDirPath string
+)
+
+func repositoryTempDir() string {
+	repoTempDirOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "rwr-repo-")
+		if err != nil {
+			// Surfaced at use: the write into the unusable directory fails
+			// with a real error naming the path.
+			log.Errorf("could not create the repository staging directory: %v", err)
+			repoTempDirPath = filepath.Join(os.TempDir(), "rwr-repo-unavailable")
+			return
+		}
+		repoTempDirPath = dir
+	})
+	return repoTempDirPath
+}
+
+// repositoryWritePath resolves the destination a download/write/copy step
+// names and refuses anything outside the provider's declared repository paths
+// or the run's private staging directory. These steps run with the provider's
+// privileges — root, for every system package manager — and the destination
+// is a template rendered against blueprint values, so an unchecked dest is a
+// root-privileged write to an arbitrary path. The in-place edit and remove
+// steps have been contained since #163; this closes the same door for the
+// steps that create files.
+func repositoryWritePath(dest string, paths types.RepositoryPaths) (string, error) {
+	if strings.TrimSpace(dest) == "" {
+		return "", fmt.Errorf("step has no dest")
+	}
+
+	resolved := filepath.Clean(system.ExpandPath(dest))
+	if !filepath.IsAbs(resolved) {
+		return "", fmt.Errorf("refusing to write %q: path is not absolute", dest)
+	}
+
+	boundaries := append(repositoryBoundaries(paths), repositoryTempDir())
+	if resolved == repositoryTempDir() {
+		return "", fmt.Errorf("refusing to write %q: it is the staging directory itself", dest)
+	}
+	for _, boundary := range boundaries {
+		if resolved == boundary {
+			return resolved, nil
+		}
+	}
+	if withinAny(resolved, boundaries) {
+		return resolved, nil
+	}
+
+	return "", fmt.Errorf("refusing to write %q: outside the provider's repository paths %v", resolved, boundaries)
 }
 
 // repositoryBoundaries returns the directories a remove step may act inside.
