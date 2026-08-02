@@ -12,8 +12,22 @@
 // mechanical shape.
 package providers
 
+// #ConditionRef: what a step condition may reference — the predicates rwr
+// derives (repositoryPredicates; a Go test asserts this list equals its keys)
+// plus the two step-data fields shipped conditions use. A condition naming
+// anything else decoded into nothing historically, so every step ran.
+#ConditionRef: "HasKey" | "HasInterfaces" | "HasSlot" | "HasProxy" |
+	"HasToken" | "HasAuthentication" | "RequiresAuth" | "IsCustomRegistry" |
+	"IsOverlay" | "IsMainRepo" | "IsLocalFile" | "IsLocalSnap" |
+	"IsSnapStore" | "UserMode" |
+	"ResetSettings" | "URL" // step-data fields, not predicates
+
+#conditionPattern: "\\{\\{.*\\.(HasKey|HasInterfaces|HasSlot|HasProxy|HasToken|HasAuthentication|RequiresAuth|IsCustomRegistry|IsOverlay|IsMainRepo|IsLocalFile|IsLocalSnap|IsSnapStore|UserMode|ResetSettings|URL).*\\}\\}"
+
+// Repository action steps: the enum is exactly what the repository processor
+// implements; anything else stops the run there, so it fails export here.
 #ActionStep: {
-	action:     string
+	action:     "exec" | "command" | "download" | "write" | "copy" | "append" | "remove_line" | "remove_section" | "remove"
 	path?:      string
 	match?:     string
 	section?:   string
@@ -23,7 +37,21 @@ package providers
 	exec?:      string
 	args?: [...string]
 	content?:   string
-	condition?: string
+	condition?: string & =~#conditionPattern
+}
+
+// Install/remove steps: the package-manager processor implements only these
+// three actions — and staging at a literal /tmp/ path is the pre-creatable
+// world-known name {{ .TempDir }} exists to eliminate, so it cannot export.
+#InstallStep: {
+	action:  "command" | "download" | "write"
+	source?: string & !~"/tmp/"
+	dest?:   string & !~"/tmp/"
+	sha256?: string
+	exec?:   string & !~"/tmp/"
+	args?: [...string & !~"/tmp/"]
+	content?:   string & !~"/tmp/"
+	condition?: string & =~#conditionPattern
 }
 
 #Detection: {
@@ -33,7 +61,7 @@ package providers
 }
 
 #Commands: {
-	install?: string
+	install: string
 	update?:  string
 	remove?:  string
 	list?:    string
@@ -65,12 +93,12 @@ package providers
 	name:      string
 	elevated?: bool
 	detection: #Detection
-	commands?: #Commands
+	commands: #Commands
 	repository?: #Repository
 	corePackages?: {[string]: [...string]}
 	alternatives?: {[string]: #Alternatives}
-	install?: {steps?: [...#ActionStep]}
-	remove?: {steps?: [...#ActionStep]}
+	install?: {steps?: [...#InstallStep]}
+	remove?: {steps?: [...#InstallStep]}
 	environment?: {[string]: string}
 }
 
