@@ -446,6 +446,9 @@ func getGitHubToken(initConfig *types.InitConfig) (string, string, error) {
 	return prompts.PromptForGitHubAuth(initConfig, AuthenticateWithGitHub)
 }
 
+// A var so a test can point the key upload at a server it controls.
+var githubKeysAPI = "https://api.github.com/user/keys"
+
 func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error {
 	sshKey = withSSHKeyDefaults(sshKey)
 
@@ -504,7 +507,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequest("POST", "https://api.github.com/user/keys", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", githubKeysAPI, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}
@@ -545,8 +548,12 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 			// Check if it's a duplicate key error
 			if len(ghErr.Errors) > 0 {
 				for _, e := range ghErr.Errors {
+					// The key being on the account already is the state
+					// copy_to_github asks for, so a rerun on a converged
+					// system succeeds instead of failing the whole run.
 					if e.Field == "key" && strings.Contains(strings.ToLower(e.Message), "already in use") {
-						return fmt.Errorf("validation failed: this SSH key already exists in your GitHub account")
+						log.Infof("SSH public key already on GitHub: %s", title)
+						return nil
 					}
 				}
 			}

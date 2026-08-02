@@ -221,14 +221,35 @@ func TestCopySSHKeyToGitHub_Success(t *testing.T) {
 	// This test documents the expected behavior
 }
 
-// TestCopySSHKeyToGitHub_Errors tests error scenarios.
+// TestCopySSHKeyToGitHub_Errors drives the real upload against a local server.
+// The duplicate-key 422 is the converged state — the key already being on the
+// account is what copy_to_github asks for — so it succeeds; every other
+// failure still errors.
 func TestCopySSHKeyToGitHub_Errors(t *testing.T) {
+	duplicate := githubError{
+		Message: "Validation Failed",
+		Errors: []struct {
+			Resource string `json:"resource"`
+			Code     string `json:"code"`
+			Field    string `json:"field"`
+			Message  string `json:"message"`
+		}{
+			{Resource: "PublicKey", Field: "key", Message: "key is already in use"},
+		},
+	}
+
 	tests := []struct {
 		name          string
 		statusCode    int
 		responseBody  interface{}
 		expectedError string
 	}{
+		{
+			name:          "201 Created",
+			statusCode:    201,
+			responseBody:  map[string]string{"key": "ok"},
+			expectedError: "",
+		},
 		{
 			name:          "401 Unauthorized",
 			statusCode:    401,
@@ -242,47 +263,50 @@ func TestCopySSHKeyToGitHub_Errors(t *testing.T) {
 			expectedError: "forbidden: GitHub token requires 'write:public_key' scope",
 		},
 		{
-			name:       "422 Duplicate Key",
-			statusCode: 422,
-			responseBody: githubError{
-				Message: "Validation Failed",
-				Errors: []struct {
-					Resource string `json:"resource"`
-					Code     string `json:"code"`
-					Field    string `json:"field"`
-					Message  string `json:"message"`
-				}{
-					{
-						Resource: "PublicKey",
-						Field:    "key",
-						Message:  "key is already in use",
-					},
-				},
-			},
-			expectedError: "validation failed: this SSH key already exists in your GitHub account",
+			name:          "422 Duplicate Key converges",
+			statusCode:    422,
+			responseBody:  duplicate,
+			expectedError: "",
+		},
+		{
+			name:          "422 other validation failure",
+			statusCode:    422,
+			responseBody:  githubError{Message: "key is invalid"},
+			expectedError: "validation failed: key is invalid",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary SSH key files
 			tmpDir := t.TempDir()
-			privKeyPath := filepath.Join(tmpDir, "test_key")
-			pubKeyPath := privKeyPath + ".pub"
-
+			pubKeyPath := filepath.Join(tmpDir, "test_key.pub")
 			testPubKey := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ test@example.com"
-			err := os.WriteFile(pubKeyPath, []byte(testPubKey), 0600)
-			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(pubKeyPath, []byte(testPubKey), 0600))
 
-			// Create mock GitHub API server that returns error
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.statusCode)
-				json.NewEncoder(w).Encode(tt.responseBody)
+				json.NewEncoder(w).Encode(tt.responseBody) //nolint:errcheck
 			}))
 			defer server.Close()
 
-			// Note: In production, we'd need to make the API URL configurable
-			// This test documents the expected error handling
+			orig := githubKeysAPI
+			githubKeysAPI = server.URL
+			defer func() { githubKeysAPI = orig }()
+
+			err := copySSHKeyToGitHub(types.SSHKey{
+				Name:        "test_key",
+				Path:        tmpDir,
+				GithubTitle: "test-title",
+			}, &types.InitConfig{
+				Variables: types.Variables{Flags: types.Flags{GHAPIToken: "ghp_test"}},
+			})
+
+			if tt.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			}
 		})
 	}
 }

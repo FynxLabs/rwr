@@ -100,6 +100,12 @@ func deleteServiceFile(service types.Service) error {
 			return nil
 		}
 		if err := os.Remove(service.File); err != nil {
+			// A file an earlier run already deleted is the state the blueprint
+			// asked for, so a rerun converges instead of failing.
+			if os.IsNotExist(err) {
+				log.Infof("Service file already absent: %s", service.File)
+				return nil
+			}
 			return fmt.Errorf("error deleting service file: %v", err)
 		}
 	} else {
@@ -208,6 +214,11 @@ func deleteLaunchDaemon(service types.Service) error {
 			return nil
 		}
 		if err := os.Remove(service.File); err != nil {
+			// Already deleted by an earlier run: the asked-for state, not an error.
+			if os.IsNotExist(err) {
+				log.Infof("Launch daemon already absent: %s", service.File)
+				return nil
+			}
 			return fmt.Errorf("error deleting launch daemon: %v", err)
 		}
 	} else {
@@ -301,6 +312,15 @@ func createWindowsService(service types.Service, osInfo *types.OSInfo, initConfi
 		return fmt.Errorf("either content or source must be provided for create action")
 	}
 
+	// `sc create` fails when the service already exists, so a rerun on a
+	// converged system errored. `sc query` succeeding means it is already
+	// registered; the service file above was still refreshed. The probe is
+	// skipped in dry-run, where every command "succeeds" without running.
+	if !system.IsDryRun() && windowsServiceExists(service.Name, initConfig) {
+		log.Infof("Windows service already exists: %s", service.Name)
+		return nil
+	}
+
 	createCmd := types.Command{
 		Exec:     "sc",
 		Args:     []string{"create", service.Name, "binPath=", service.Target},
@@ -313,20 +333,39 @@ func createWindowsService(service types.Service, osInfo *types.OSInfo, initConfi
 	return nil
 }
 
-func deleteWindowsService(service types.Service, initConfig *types.InitConfig) error {
-	deleteCmd := types.Command{
+// windowsServiceExists probes the service manager; `sc query` exits non-zero
+// for a service that is not registered.
+func windowsServiceExists(name string, initConfig *types.InitConfig) bool {
+	queryCmd := types.Command{
 		Exec:     "sc",
-		Args:     []string{"delete", service.Name},
+		Args:     []string{"query", name},
 		Elevated: true,
 	}
-	if err := system.RunCommand(deleteCmd, initConfig.Variables.Flags.Debug); err != nil {
-		return fmt.Errorf("error deleting Windows service: %v", err)
+	return system.RunCommand(queryCmd, initConfig.Variables.Flags.Debug) == nil
+}
+
+func deleteWindowsService(service types.Service, initConfig *types.InitConfig) error {
+	// `sc delete` fails for a service that is not registered, so a rerun on a
+	// converged system errored. Absent already is the asked-for state. The
+	// probe is skipped in dry-run, where every command "succeeds" without
+	// running.
+	if system.IsDryRun() || windowsServiceExists(service.Name, initConfig) {
+		deleteCmd := types.Command{
+			Exec:     "sc",
+			Args:     []string{"delete", service.Name},
+			Elevated: true,
+		}
+		if err := system.RunCommand(deleteCmd, initConfig.Variables.Flags.Debug); err != nil {
+			return fmt.Errorf("error deleting Windows service: %v", err)
+		}
+	} else {
+		log.Infof("Windows service already absent: %s", service.Name)
 	}
 
 	if service.File != "" {
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would delete service file: %s", service.File)
-		} else if err := os.Remove(service.File); err != nil {
+		} else if err := os.Remove(service.File); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("error deleting service file: %v", err)
 		}
 	}
