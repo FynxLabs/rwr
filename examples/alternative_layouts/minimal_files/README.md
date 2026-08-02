@@ -1,6 +1,6 @@
-# Minimal Files Approach
+# Minimal Files Layout
 
-This directory demonstrates the **absolute simplest** way to organize RWR blueprints - just 2 files per format.
+This directory shows the simplest way to organize RWR blueprints: 2 files per format.
 
 ## Structure
 
@@ -59,12 +59,12 @@ rwr run
 
 ## What This Demonstrates
 
-- **Content-based identification**: RWR identifies blueprint types by their keys (`packages:`, `git:`, etc.), not filenames
-- **Format flexibility**: Same functionality in YAML, JSON, or TOML
-- **Minimal complexity**: Perfect for personal setups, quick prototypes, or learning RWR
-- **Single-file organization**: Everything you need in just one blueprint file
+- **Content-based detection**: RWR identifies blueprint types by their keys (for example `packages:` and `git:`), not filenames
+- **Format flexibility**: The same content works in YAML, JSON, or TOML
+- **Minimal complexity**: Good for personal setups, quick prototypes, and learning RWR
+- **Single-file layout**: Everything you need is in one blueprint file
 
-## When to Use This Approach
+## When to Use This Layout
 
 ✅ **Good for:**
 
@@ -81,4 +81,4 @@ rwr run
 - When you need clear separation of concerns
 - Projects with many blueprint files
 
-This approach proves that RWR doesn't require complex directory structures - it's perfectly happy with simple, flat organization.
+This layout shows that RWR does not require a complex directory structure. A simple, flat layout works.

@@ -1,21 +1,21 @@
 # Validate Command
 
-The `validate` command in RWR helps you verify your blueprints and provider configurations before running them. This ensures that your configurations are correct and will work as expected when deployed.
+The `validate` command in RWR checks your blueprints and provider configurations before you run them. This check finds errors before you deploy.
 
 ## Overview
 
-The validate command performs comprehensive checks on your RWR blueprints and provider configurations to identify potential issues before you attempt to run them. This can save time and prevent errors during deployment.
+The `validate` command checks your blueprints and provider configurations. It finds errors before you run them.
 
 ```bash
 rwr validate [flags]
 ```
 
-The validation process includes:
+The validation process does these checks:
 
-* Checking blueprint structure and content
-* Validating provider configurations
-* Resolving blueprint imports and detecting circular ones
-* Checking that a referenced package manager has a provider
+* It checks blueprint structure and content
+* It checks provider configurations
+* It resolves blueprint imports and detects circular imports
+* It checks that a referenced package manager has a provider
 
 > [!NOTE]
 > `validate` reads files. It never installs anything and never runs a blueprint's
@@ -40,13 +40,14 @@ directory:
 rwr validate path/to/blueprints
 ```
 
-With neither `--blueprints` nor `--providers`, RWR chooses one from the path: a
-directory named `providers` or a `.toml` file is validated as providers, and
-anything else as blueprints. Each run validates one of the two, never both.
+With neither `--blueprints` nor `--providers`, RWR chooses one from the path.
+RWR validates a directory named `providers` or a `.toml` file as providers. RWR
+validates all other paths as blueprints. Each run validates one of the two,
+never both.
 
-Validating as blueprints needs an init file (`init.json`, `init.yaml`,
-`init.yml` or `init.toml`) at or above the files being checked; a tree with no
-init file cannot be validated.
+Blueprint validation needs an init file (`init.json`, `init.yaml`, `init.yml`
+or `init.toml`) at or above the checked files. RWR cannot validate a tree with
+no init file.
 
 > [!NOTE]
 > `--verbose` does not change what is checked or add per-file output. Use
@@ -56,7 +57,7 @@ init file cannot be validated.
 
 ### Blueprint Validation
 
-Blueprint validation checks your blueprint files for structural and content issues.
+Blueprint validation checks your blueprint files for structural and content errors.
 
 The blueprint validation process includes:
 
@@ -67,13 +68,13 @@ The blueprint validation process includes:
 * **Enumerations**: `action` values are checked against the actions the processor
   accepts, and file modes against what RWR will accept
 * **Imports**: Each `import` path must exist and must parse as the expected
-  blueprint type; a circular import is an error
+  blueprint type. A circular import is an error
 * **Package Managers**: A `package_manager` named by a blueprint must have a
   provider available on this system
 
 ### Provider Validation
 
-Provider validation checks your provider configuration files for structural and compatibility issues.
+Provider validation checks your provider configuration files for structural and compatibility errors.
 
 The provider validation process includes:
 
@@ -86,7 +87,7 @@ The provider validation process includes:
 
 ## Error Reporting
 
-Each issue is logged as it is found, with the file it came from and a suggested
+RWR logs each issue when it finds it, with the source file and a suggested
 fix:
 
 ```text
@@ -159,10 +160,10 @@ rwr validate path/to/file --providers
 
 ## Best Practices
 
-* Run validation before attempting to run your configurations
-* Fix all errors and warnings before proceeding with deployment
+* Validate your configurations before you run them
+* Fix all errors and warnings before you deploy
 * Validate both blueprints and providers, in two runs, to cover both
-* Use `--debug` when a message is not enough to locate the problem
+* Use `--debug` when a message is not enough to locate the error
 
 ## See Also
 

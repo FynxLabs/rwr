@@ -1,27 +1,27 @@
 # Init File - The Entrypoint
 
-The Init file is the main entry point for your RWR blueprints. It defines the configuration settings for RWR and specifies the order of execution for the blueprints. This page describes the structure and options available in the Init file.
+The init file is the main entry point for your RWR blueprints. It gives the configuration for RWR and the order of execution for the blueprints. This page describes the structure and settings available in the init file.
 
 ## File Format
 
-The Init file is typically named `init.yaml`, but `init.yml`, `init.json` and
-`init.toml` work as well. RWR supports YAML, JSON, and TOML formats for the Init
-file.
+The usual name for the init file is `init.yaml`. The names `init.yml`,
+`init.json`, and `init.toml` also work. RWR supports YAML, JSON, and TOML
+formats for the init file.
 
 ## File Location
 
-RWR finds the Init file in this order:
+RWR finds the init file in this order:
 
 1. The path given to `--init-file` / `-i`.
 2. The `repository.init-file` key in the [configuration file](cli/configuration.md).
 3. `init.yaml`, `init.yml`, `init.json`, then `init.toml` in the current
    directory.
 
-For 1 and 2 the path may be a **directory**, in which case RWR looks inside it
-for those four names in that order. It may also be an `https://` URL, including a
-GitHub `/blob/` URL, which RWR rewrites to the raw address. An `http://` URL is
-refused: the Init file decides everything RWR runs, so it is not fetched in
-cleartext.
+For 1 and 2 the path can be a **directory**. RWR then looks inside it for those
+four names, in that order. The path can also be an `https://` URL, including a
+GitHub `/blob/` URL, which RWR rewrites to the raw address. RWR refuses an
+`http://` URL. The init file decides everything that RWR runs, so RWR does not
+fetch it in cleartext.
 
 A **GitHub shorthand** also works: `owner/repo` fetches the init file from the
 repository root on the default branch, `owner/repo@ref` pins a branch, tag or
@@ -39,7 +39,7 @@ directory literally named `owner/repo` keeps working.
 
 ## Init File Structure
 
-The Init file consists of the following main sections:
+The init file consists of the following main sections:
 
 ### `blueprints`
 
@@ -103,7 +103,7 @@ The `variables` section holds the custom variables that your blueprints can read
 
 | Field | Description | Required |
 |-------|-------------|----------|
-| `userDefined` | A map of your own variables. Each key becomes `{{ .UserDefined.<key> }}` in a blueprint. The values may be strings, numbers, lists or nested maps | No |
+| `userDefined` | A map of your own variables. Each key becomes `{{ .UserDefined.<key> }}` in a blueprint. The values can be strings, numbers, lists or nested maps | No |
 
 ```yaml
 variables:
@@ -115,15 +115,14 @@ variables:
 ```
 
 `userDefined` is the only field you write here. The `{{ .User }}`,
-`{{ .System }}` and `{{ .Flags }}` groups are also available to blueprints, but
-RWR fills them in from the machine and from the flags you passed; they cannot be
-set from the init file, so that a blueprint cannot claim to be running as a
-different user or with different flags than it is. See
-[Variables and Templating](variables.md).
+`{{ .System }}` and `{{ .Flags }}` groups are also available to blueprints.
+RWR fills them from the machine and from the flags that you passed. You cannot
+set them from the init file. A blueprint therefore cannot claim a different user
+or different flags. Read [Variables and Templating](variables.md).
 
 ## Example Init File
 
-Here's an example `init.yaml` file:
+Here is an example `init.yaml` file:
 
 ```yaml
 blueprints:
@@ -154,14 +153,14 @@ variables:
     api_key: abc123
 ```
 
-In this example, the Init file specifies the format and location of the blueprint
-files and the order of execution. It also configures package managers,
-repositories, and defines custom variables. A blueprint in this tree reads them
+In this example, the init file gives the format and location of the blueprint
+files and the order of execution. It also configures package managers and
+repositories. It defines custom variables. A blueprint in this tree reads them
 as `{{ .UserDefined.app_version }}` and `{{ .UserDefined.api_key }}`.
 
 ### Package Manager Installation
 
-The Init Process includes the ability to install and configure various package managers. This is particularly useful for setting up a consistent environment across different systems. Supported package managers include:
+The init process can install and configure package managers. This gives the same environment on each system. The supported package managers are:
 
 #### Homebrew (brew)
 
@@ -270,13 +269,13 @@ name = "gnome-extensions"
 action = "install"
 ```
 
-These configurations can be included in your init file to ensure that the necessary package managers are installed during the initial setup process.
+Add these configurations to your init file. RWR then installs the package managers during the first run.
 
 ## Best Practices
 
-- Keep your Init file concise and organized
+- Keep your init file short and organized
 - Use meaningful names for your variables
-- Store sensitive information (e.g., API keys) in environment variables or secure vaults
+- Store sensitive information (for example, API keys) in environment variables or secure vaults
 - Use the `order` field to define the execution order of your blueprints explicitly
 
-For more information on the specific blueprint types and their configuration options, please refer to the respective blueprint type documentation pages.
+For more information on the blueprint types and their settings, read the blueprint type pages.

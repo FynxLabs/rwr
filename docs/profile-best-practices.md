@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides practical tips and examples for using profiles effectively in RWR configurations. These are suggestions based on common use cases, not rules you must follow.
+This guide gives practical tips and examples for profiles in RWR configurations. These are suggestions from common use cases. They are not rules that you must obey.
 
 ## Common Use Cases
 
@@ -97,7 +97,7 @@ packages:
 
 ### Technology Stacks
 
-Group tools by the technologies you're working with.
+Group the tools by technology.
 
 ```yaml
 packages:
@@ -136,7 +136,7 @@ packages:
 
 ## Multiple Profiles
 
-Items can belong to multiple profiles, which is useful for shared tools.
+An item can belong to more than one profile. This is useful for shared tools.
 
 ```yaml
 packages:
@@ -162,7 +162,7 @@ packages:
 
 ## Profile Discovery
 
-Use the profiles command to understand what's available in your configuration.
+Use the `rwr profiles` command to see the profiles in your configuration.
 
 ```bash
 # See all available profiles
@@ -177,7 +177,7 @@ rwr profiles --stats
 
 ## Testing Configurations
 
-Test your profile configurations before running them.
+Test your profile configurations before you run them.
 
 ```bash
 # Dry run to see what would happen
@@ -191,7 +191,7 @@ rwr all --profile frontend --profile development --dry-run
 
 ### Start Simple
 
-Begin with basic profiles and add complexity as needed.
+Begin with basic profiles. Add more profiles when you need them.
 
 ```yaml
 # Start with this
@@ -241,7 +241,7 @@ packages:
 
 ### Additive Approach
 
-Remember that base items (no profile) are always installed, and profiles add to that.
+RWR always installs the base items (items with no profile). Profiles add items to this base.
 
 ```yaml
 packages:
@@ -262,7 +262,7 @@ packages:
 
 ### Profile Inheritance
 
-You can simulate inheritance by using multiple profiles.
+You can simulate inheritance with multiple profiles.
 
 ```yaml
 packages:
@@ -300,19 +300,19 @@ files:
 
 ### Profile Not Working
 
-If a profile doesn't seem to be working:
+If a profile has no effect:
 
-1. Check the profile name matches exactly (case-sensitive)
-2. Verify the profile exists in your configuration
-3. Use `rwr profiles --show <profile-name>` to see what should be included
+1. Make sure that the profile name is an exact match (names are case-sensitive)
+2. Make sure that the profile exists in your configuration
+3. Use `rwr profiles --show <profile-name>` to see the items that the profile includes
 
 ### Unexpected Installations
 
-If you're getting unexpected packages:
+If RWR installs packages that you did not expect:
 
-1. Remember base items (no profile) are always installed
-2. Check if items belong to multiple profiles
-3. Use `--dry-run` to preview what will be installed
+1. RWR always installs the base items (items with no profile)
+2. Find the items that belong to more than one profile
+3. Use `--dry-run` to see what RWR installs
 
 ## Performance Considerations
 
@@ -330,7 +330,7 @@ rwr all --profile profile1 --profile profile2 --profile profile3
 
 ### Profile Combinations
 
-Be mindful of profile combinations that might install conflicting software.
+Some profile combinations can install software that conflicts. Think about this before you combine profiles.
 
 ```yaml
 packages:
@@ -346,4 +346,4 @@ packages:
   # Note: Don't use 'legacy' and 'modern' profiles together
 ```
 
-This guide provides practical examples without telling you how you must organize your profiles. Use what works for your specific needs and context.
+This guide gives practical examples. It does not tell you how you must organize your profiles. Use what works for your needs and context.

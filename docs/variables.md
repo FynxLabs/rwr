@@ -1,17 +1,17 @@
 # Variables and Templating
 
-Rinse, Wash, Repeat (RWR) supports the use of variables and templating in blueprints to make them more dynamic and reusable. This page explains how to use variables and templating in your RWR blueprints.
+You can use variables and templates in RWR blueprints. One blueprint can then serve many machines. This page explains how to use variables and templates in your RWR blueprints.
 
 ## Variables
 
-Variables allow you to parameterize your blueprints and make them more flexible. RWR supports two types of variables:
+With variables, you can change values without an edit to the blueprint. RWR supports two types of variables:
 
 1. User-defined variables
 2. Built-in variables
 
 ### User-defined Variables
 
-User-defined variables are specified in the init file under `variables.userDefined`.
+Give user-defined variables in the init file under `variables.userDefined`.
 Read them in a blueprint as `{{ .UserDefined.<key> }}`.
 
 Example `init.yaml` file:
@@ -34,8 +34,8 @@ packages:
     package_manager: pacman
 ```
 
-`userDefined` is the only part of `variables` you write. `User`, `System` and
-`Flags` are filled in by RWR and cannot be set from the init file.
+`userDefined` is the only part of `variables` you write. RWR fills `User`,
+`System`, and `Flags`. You cannot set them from the init file.
 
 #### From the environment
 
@@ -54,7 +54,7 @@ environment overwrites a key of exactly the same name from `userDefined`.
 
 ### Built-in Variables
 
-RWR provides a set of built-in variables that can be used in your blueprints. These variables are automatically populated based on the current system and configuration.
+RWR provides a set of built-in variables that you can use in your blueprints. RWR fills these variables from the system and the configuration.
 
 | Variable | Description |
 |----------|-------------|
@@ -68,7 +68,7 @@ RWR provides a set of built-in variables that can be used in your blueprints. Th
 | `{{ .User.fullName }}` | The current user's full name |
 | `{{ .User.groupName }}` | The current user's Group Name (Linux/macOS Only) |
 | `{{ .User.home }}` | The current user's home directory |
-| `{{ .User.shell }}` | The current user's shell (e.g.; bash, zsh) |
+| `{{ .User.shell }}` | The current user's shell (for example, bash or zsh) |
 | `{{ .Flags.debug }}` | Current Debug Flag Setting |
 | `{{ .Flags.logLevel }}` | Current Log Level Setting |
 | `{{ .Flags.interactive }}` | Current Interactive Mode setting |
@@ -80,15 +80,14 @@ RWR provides a set of built-in variables that can be used in your blueprints. Th
 | `{{ .Flags.runOnceLocation }}` | The path of the run-once directory |
 
 > [!NOTE]
-> `{{ .Flags.ghAPIToken }}` and `{{ .Flags.sshKey }}` are withheld unless the init
-> file opts into them, because a template is written to a path the blueprint
-> itself chooses — so exposing a credential by default let any blueprint copy it
-> anywhere. If a blueprint genuinely needs one, name it under
-> `exposeCredentials`; see [credentials](credentials.md).
+> RWR withholds `{{ .Flags.ghAPIToken }}` and `{{ .Flags.sshKey }}` by default.
+> A template writes to a path that the blueprint selects. An exposed credential
+> can therefore go to any path. If a blueprint needs one, name it under
+> `exposeCredentials`. Read [credentials](credentials.md).
 
 ## Templating
 
-RWR uses the Go template syntax for templating. You can use templating to conditionally include or exclude sections of your blueprints based on variable values or to generate dynamic content.
+RWR uses the Go template syntax. You can use templates to conditionally include or exclude sections of your blueprints, or to generate dynamic content.
 
 ### Conditional Sections
 
@@ -163,6 +162,6 @@ For the full list of standard functions, read the
 - Keep your templates simple and readable.
 - Use variables to avoid hardcoding values in your blueprints.
 - Use conditional sections to handle differences between operating systems or configurations.
-- Test your templates thoroughly to ensure they work as expected.
+- Test your templates. Make sure that they give the output that you expect.
 
-By leveraging variables and templating in your RWR blueprints, you can create more flexible and reusable configurations that adapt to different environments and requirements.
+With variables and templates, one set of blueprints serves many environments.

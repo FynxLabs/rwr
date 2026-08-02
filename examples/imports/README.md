@@ -1,6 +1,6 @@
 # Blueprint Import Examples
 
-This directory demonstrates the new **import** feature for RWR blueprints. The import directive allows you to reference and include blueprint definitions from other files, making it easy to share common configurations across multiple systems or projects.
+This directory demonstrates the **import** feature for RWR blueprints. With the import directive, a blueprint includes definitions from another file. You can share common definitions across systems and projects.
 
 ## How Imports Work
 
@@ -16,10 +16,10 @@ packages:
 
 ### Key Features
 
-- **Relative Paths**: Import paths are resolved relative to the blueprint directory
-- **Circular Detection**: Automatically detects and skips circular imports
-- **Merge Behavior**: Imported items are merged with local definitions
-- **All Blueprint Types**: Works with packages, files, services, git repos, scripts, SSH keys, users, and more
+- **Relative Paths**: RWR resolves import paths relative to the blueprint directory
+- **Circular Detection**: RWR detects circular imports and skips them
+- **Merge Behavior**: RWR merges imported items with local definitions
+- **All Blueprint Types**: The import directive works with packages, files, services, git repos, scripts, SSH keys, users, and more
 
 ## Example Structure
 
@@ -69,25 +69,25 @@ packages:
 
 The import directive works with all blueprint types:
 
-- **Packages**: Share package lists across configurations
-- **Files**: Reuse file definitions and templates
-- **Services**: Import common service configurations
-- **Git**: Share repository lists
-- **Scripts**: Reuse script definitions
-- **Repositories**: Import package repository configurations
-- **SSH Keys**: Share SSH key configurations
-- **Users/Groups**: Import user and group definitions
+- **Packages**: You can share package definitions across systems
+- **Files**: You can reuse file definitions and templates
+- **Services**: You can import common service definitions
+- **Git**: You can share repository definitions
+- **Scripts**: You can reuse script definitions
+- **Repositories**: You can import package repository definitions
+- **SSH Keys**: You can share SSH key definitions
+- **Users/Groups**: You can import user and group definitions
 
 ## Best Practices
 
-1. **Organize by Purpose**: Group shared configurations in a Common directory
+1. **Organize by Purpose**: Group shared definitions in a Common directory
 2. **Use Clear Paths**: Make import paths descriptive and easy to understand
-3. **Document Imports**: Add comments explaining what each import provides
+3. **Document Imports**: Add comments that explain what each import provides
 4. **Avoid Deep Nesting**: Keep import chains shallow for maintainability
-5. **Profile Filtering**: Imports respect profile filtering just like regular entries
+5. **Profile Filtering**: Imports respect profile filtering, the same as regular entries
 
 ## Error Handling
 
-- **Missing Files**: Import fails if the referenced file doesn't exist
-- **Circular Imports**: Automatically detected and skipped with a warning
-- **Invalid Format**: Import fails if the file cannot be parsed
+- **Missing Files**: If the referenced file does not exist, the import fails
+- **Circular Imports**: RWR detects them, skips them, and logs a warning
+- **Invalid Format**: If RWR cannot parse the file, the import fails

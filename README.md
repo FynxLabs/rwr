@@ -2,24 +2,24 @@
 
 ![RWR Logo](img/rwr_128.gif)
 
-Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines.
+Rinse, Wash, Repeat (RWR) is a configuration management tool for users who reinstall their systems frequently. It works on Linux, macOS, and Windows. It rebuilds and reproduces configurations across many machines.
 
 ## Features
 
-- **Blueprint-based Configuration**: Uses configuration files called blueprints to define and manage your system's configuration
-- **Blueprint Imports**: Share and reuse blueprint configurations across multiple files and projects
-- **Profile System**: Additive profile model for managing different environments (dev, staging, production) or use cases (work, personal)
-- **Multi-format Support**: Blueprints can be written in YAML, JSON, or TOML format
-- **Cross-platform Package Management**: Integrates with various package managers across Linux, macOS, and Windows
-- **File & Directory Management**: Copy, move, delete, create, and manage permissions with URL source support
-- **Service Management**: Start, stop, enable, and disable system services
-- **Repository Management**: Manage package repositories for apt, brew, dnf, zypper, and more
-- **User & Group Management**: Create and manage user accounts and groups
-- **Template Rendering**: Dynamic configurations with variable substitution
-- **Git Repository Management**: Clone and manage Git repositories
-- **Script Execution**: Execute scripts with multiple interpreter support
-- **SSH Key Management**: Generate and manage SSH keys with GitHub integration
-- **Extensible Architecture**: Add new package managers through TOML-based provider configurations
+- **Blueprint-based Configuration**: RWR uses configuration files, named blueprints, to define the configuration of your system
+- **Blueprint Imports**: You can share and reuse blueprint configurations across many files and projects
+- **Profile System**: An additive profile model manages different environments (dev, staging, production) or use cases (work, personal)
+- **Multi-format Support**: You can write blueprints in YAML, JSON, or TOML format
+- **Cross-platform Package Management**: RWR integrates with many package managers on Linux, macOS, and Windows
+- **File & Directory Management**: RWR copies, moves, deletes, and creates files, and manages permissions, with URL source support
+- **Service Management**: RWR starts, stops, enables, and disables system services
+- **Repository Management**: RWR manages package repositories for apt, brew, dnf, zypper, and more
+- **User & Group Management**: RWR creates and manages user accounts and groups
+- **Template Rendering**: Variable substitution gives dynamic configurations
+- **Git Repository Management**: RWR clones and manages Git repositories
+- **Script Execution**: RWR runs scripts with the interpreter that you select
+- **SSH Key Management**: RWR generates and manages SSH keys, with GitHub integration
+- **Extensible Architecture**: You can add new package managers through TOML-based provider configurations
 
 ## Table of Contents<!-- omit in toc -->
 
@@ -53,7 +53,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 
 ## Quick Install
 
-For a quick installation of RWR, you can use the following one-liners:
+To install RWR quickly, use one of these commands:
 
 ### Unix-based Systems (Linux and macOS)
 
@@ -69,9 +69,9 @@ Open PowerShell as an administrator and run:
 Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.ps1'))
 ```
 
-Each script picks the build for your machine from the latest release, verifies it
+Each script picks the build for your machine from the latest release, compares it
 against the release's `checksums.txt` and refuses to install on a mismatch.
-`install.sh` installs to `/usr/local/bin`; `install.ps1` installs to
+`install.sh` installs to `/usr/local/bin`. `install.ps1` installs to
 `%ProgramFiles%\rwr` and adds it to the machine `PATH`.
 
 To install the rolling [nightly prerelease](https://github.com/FynxLabs/rwr/releases/tag/nightly)
@@ -86,7 +86,7 @@ curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/insta
 parameters, or wrap the one-liner in `& ([scriptblock]::Create(...))`).
 
 > [!NOTE]
-> Always review scripts before running them with elevated privileges. The install scripts are available for inspection in the RWR repository.
+> Always review scripts before you run them with elevated privileges. The install scripts are available for inspection in the RWR repository.
 
 ## Installation
 
@@ -137,7 +137,7 @@ Read [Install](docs/install.md) for the full description.
 3. **Set up the system**: Run [`rwr all`](docs/cli/command-and-flags.md). RWR
    applies the blueprints.
 
-For detailed setup instructions, see the [Quick Start Guide](docs/quick-start.md).
+For detailed setup instructions, read the [Quick Start Guide](docs/quick-start.md).
 
 ## Configuration
 
@@ -154,14 +154,14 @@ log:
   level: info
 ```
 
-`init-file` may be a local path, a directory to look in, or an `https://` URL.
-Where the blueprints themselves come from — a git remote or a local directory —
-is decided by the init file, under `blueprints.location` and `blueprints.git`.
+`init-file` can be a local path, a directory to look in, or an `https://` URL.
+The init file decides where the blueprints themselves come from — a git remote
+or a local directory — under `blueprints.location` and `blueprints.git`.
 
 Point RWR at a different configuration with `--config`, which takes either a file
 or a directory holding `config.yaml`.
 
-See the [Configuration documentation](docs/cli/configuration.md) for complete setup details.
+Read the [Configuration documentation](docs/cli/configuration.md) for the complete setup details.
 
 ## Profile System
 
@@ -186,11 +186,11 @@ rwr all --profile dev --profile work
 > The profile filter runs only when you name at least one profile. `rwr all` on
 > its own applies profile items too.
 
-For detailed information, see the [Profile System documentation](docs/profiles.md).
+For detailed information, read the [Profile System documentation](docs/profiles.md).
 
 ## Blueprint Imports
 
-RWR supports importing blueprint definitions from other files, enabling you to share common configurations across multiple systems:
+RWR can import blueprint definitions from other files. You can share common configurations across many systems:
 
 ```yaml
 packages:
@@ -217,7 +217,7 @@ Import features:
 > file. Files, templates, directories and scripts resolve the path against the
 > directory of the blueprint file. Use a path that is correct for the type.
 
-See the [examples/imports/](examples/imports/) directory for detailed examples.
+Read the [examples/imports/](examples/imports/) directory for detailed examples.
 
 ## Blueprint Types
 
@@ -236,11 +236,11 @@ RWR supports these blueprint types:
 - **fonts** — Install fonts
 - **bootstrap** — Prepare the system before the other types run
 
-For detailed blueprint documentation, see the [Blueprint Types](docs/index.md#blueprints) section.
+For detailed blueprint documentation, read the [Blueprint Types](docs/index.md#blueprints) section.
 
 ## Documentation
 
-For detailed documentation on how to use RWR, please refer to the `docs/` directory. Here's an overview of the topics covered:
+Read the `docs/` directory for the full documentation. This is an overview of the topics:
 
 ### Documentation Index
 
@@ -283,13 +283,11 @@ For detailed documentation on how to use RWR, please refer to the `docs/` direct
 - [Credentials](docs/credentials.md)
 - [Schema versioning](docs/schema-versioning.md)
 
-For more detailed information on each topic, please refer to the corresponding documentation file.
-
 ## Development
 
 ### Prerequisites
 
-RWR uses [mise](https://mise.jdx.dev/) to manage development tools. Install mise following their documentation.
+RWR uses [mise](https://mise.jdx.dev/) to manage development tools. Install mise. The mise documentation gives the procedure.
 
 ### Setting Up Development Environment
 
@@ -310,11 +308,15 @@ RWR uses [mise](https://mise.jdx.dev/) to manage development tools. Install mise
     the OpenSpec CLI.
 
     `mise install` also runs a postinstall hook that does the rest of the setup:
-    it installs the git hooks defined in `hk.pkl` (`hk install --mise`, which
-    gives you the pre-commit and pre-push checks), initializes or updates the
-    OpenSpec scaffold under `openspec/`, runs `go mod download`, and installs
-    `govulncheck` if it is missing. Run it once after cloning and the tree is
-    ready to build.
+
+    - It installs the git hooks defined in `hk.pkl` (`hk install --mise`). This
+      gives you the pre-commit and pre-push checks.
+    - It initializes or updates the OpenSpec scaffold under `openspec/`.
+    - It runs `go mod download`.
+    - It installs `govulncheck` if it is missing.
+
+    Run it one time after you clone the repository. The tree is then ready to
+    build.
 
 ### Development Commands
 
@@ -360,8 +362,8 @@ Run the full check before you push:
 mise run ci         # test, lint, and security together
 ```
 
-`mise run ci` is not the same set of checks as the CI workflow: it runs the tests
-without `-race`, on this machine only, and it does not run gosec, the installer
+`mise run ci` is not the same set of checks as the CI workflow. It runs the tests
+without `-race`, on this machine only. It does not run gosec, the installer
 checks, or the example validation. Read the [CI/CD Pipeline](#cicd-pipeline)
 section for what the workflow actually does. The git hooks installed by
 `mise install` cover part of the gap: `pre-commit` runs golangci-lint with
@@ -377,21 +379,21 @@ mise run update     # go get -u ./... and go mod tidy
 
 GitHub Actions runs the pipeline. There are three workflows.
 
-`Go Build & Test` runs at each push to `master` and at each pull request —
-every pull request, not only those targeting `master`, so a branch stacked on
-another branch is still checked. It has five jobs:
+`Go Build & Test` runs at each push to `master` and at each pull request. This
+includes pull requests that do not target `master`. As a result, a branch
+stacked on another branch is also checked. It has five jobs:
 
 - `build` runs on `ubuntu-latest`, `macos-latest` and `windows-latest`. Each
-  runs `go build ./...` and `go vet ./...`; vet type-checks the test files, so
-  this is also the guarantee that the whole tree compiles on that platform.
-  `go test -race -v ./...` gates on Linux. It also runs on macOS and Windows,
-  but with `continue-on-error`, because much of the suite still assumes POSIX
-  behaviour.
+  platform runs `go build ./...` and `go vet ./...`. Vet type-checks the test
+  files. Thus this job also makes sure that the whole tree compiles on that
+  platform. `go test -race -v ./...` gates on Linux. It also runs on macOS and
+  Windows, but with `continue-on-error`, because much of the suite still assumes
+  POSIX behavior.
 - `lint` runs golangci-lint against the repository's own `.golangci.yml`, so it
   is the same set of rules as `mise run lint`.
 - `installers` runs shellcheck over `install.sh` and parses `install.ps1` with
   the PowerShell parser. Both gate. PSScriptAnalyzer also runs, reporting only
-  for now. The scripts are analysed, never executed.
+  for now. The scripts are analyzed, never executed.
 - `examples` checks each file in `examples/`: the file parses in its format, the
   template variables exist, the fields decode strictly into the blueprint structs
   with no unknown keys, and the YAML, JSON and TOML copies describe the same
@@ -418,7 +420,7 @@ The release workflow needs these secrets:
 
 ## Contributing
 
-Contributions to RWR are welcome! If you'd like to contribute, please follow these steps:
+Contributions to RWR are welcome. To contribute, do these steps:
 
 1. Fork the repository on GitHub.
 2. Create a new branch for your feature or bug fix.
@@ -426,7 +428,7 @@ Contributions to RWR are welcome! If you'd like to contribute, please follow the
 4. Push your changes to your forked repository.
 5. Submit a pull request to the main repository.
 
-Please ensure that your code follows the project's coding style and includes appropriate tests.
+Make sure that your code uses the coding style of the project and includes tests.
 
 ### Specs
 
@@ -441,8 +443,8 @@ pull request.** A spec that describes behavior the code no longer has is worse
 than no spec. If a requirement is not implemented yet, record it under a "Known
 Gaps" heading rather than writing intent as if it shipped.
 
-`mise install` sets up the OpenSpec tooling; `openspec --help` lists what it can
-do.
+`mise install` installs the OpenSpec tooling. `openspec --help` lists what it
+can do.
 
 ## License
 

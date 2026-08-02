@@ -1,16 +1,16 @@
 # Profile System
 
-The Profile System is a powerful feature in RWR that allows you to organize and selectively install packages and configurations based on different use cases, environments, or contexts. This page provides a comprehensive guide to understanding and using profiles effectively.
+With profiles, you group packages and configurations by context. RWR then installs only the groups that you select. This page tells you how profiles work and how to use them.
 
 ## Introduction
 
-The RWR Profile System enables you to create flexible, context-aware configurations that can be selectively applied based on your current needs. Whether you're setting up a work environment, gaming setup, or development workstation, profiles let you organize your blueprints for maximum efficiency and reusability.
+You can apply a different set of blueprints for each context. Profiles work equally for a work, gaming, or development configuration.
 
 ### Key Benefits
 
 - **Selective Installation**: Install only what you need for specific contexts
 - **Configuration Reuse**: Share common base configurations across different setups
-- **Environment Management**: Easily switch between work, personal, and gaming configurations
+- **Environment Management**: Switch between work, personal, and gaming configurations
 - **Backward Compatibility**: Existing configurations work without modification
 
 ## Core Concepts
@@ -34,7 +34,7 @@ Items with no profiles field    →  Always installed (the "base" concept)
 
 #### Base Items (No Profiles Field)
 
-Items without a `profiles` field are considered "base" items and are **always installed**, regardless of which profiles are active.
+RWR **always installs** an item that has no `profiles` field. These are the base items.
 
 ```yaml
 # Base items - always installed
@@ -49,7 +49,7 @@ packages:
 
 #### Profile Items
 
-Items with a `profiles` field are **conditionally installed** when their profiles are active.
+RWR installs an item with a `profiles` field **only when one of its profiles is active**.
 
 ```yaml
 # Profile items - conditionally installed
@@ -64,7 +64,7 @@ packages:
 
 ### User-Defined Profile Names
 
-**Profile names are completely user-defined** - there are no predefined or required profile names. You have complete freedom to name profiles whatever makes sense for your setup.
+**You define the profile names.** RWR has no required or predefined names.
 
 #### Popular Profile Naming Strategies
 
@@ -98,7 +98,7 @@ Only **one** keyword is reserved:
 
 - `all` - Installs everything regardless of profiles
 
-**Important**: "base" is NOT a profile name - it's just the conceptual term for items without a `profiles` field.
+**Important**: "base" is NOT a profile name. It is the conceptual term for an item without a `profiles` field.
 
 ## CLI Usage
 
@@ -114,8 +114,8 @@ applies nothing, so `rwr --profile work` does nothing at all.
 rwr all
 ```
 
-With no profile named, no filtering happens: every item applies, whether it
-carries a `profiles` field or not.
+With no profile named, no filtering happens. RWR installs every item, whether
+it carries a `profiles` field or not.
 
 #### Install Base + Specific Profile
 
@@ -124,7 +124,7 @@ rwr all --profile work
 rwr all -p work
 ```
 
-Installs base items + items with the "work" profile.
+RWR installs the base items and the items with the "work" profile.
 
 #### Install Multiple Profiles
 
@@ -133,7 +133,7 @@ rwr all --profile work,gaming
 rwr all -p work -p gaming
 ```
 
-Installs base items + work profile items + gaming profile items.
+RWR installs the base items, the work profile items, and the gaming profile items.
 
 #### Install Everything Explicitly
 
@@ -141,7 +141,7 @@ Installs base items + work profile items + gaming profile items.
 rwr all --profile all
 ```
 
-`all` is the reserved profile name; it matches every item regardless of profiles.
+`all` is the reserved profile name. It matches every item regardless of profiles.
 
 ### Profile Discovery
 
@@ -151,8 +151,9 @@ rwr all --profile all
 rwr profiles
 ```
 
-Reads your blueprint tree and lists the profile names it declares, with the
-number of items carrying each. See [Profile CLI Commands](cli/profiles.md).
+The command reads your blueprint tree and lists the profile names that it
+declares, with the number of items that carry each name. Read
+[Profile CLI Commands](cli/profiles.md).
 
 ### Run Specific Processors with Profiles
 
@@ -176,7 +177,7 @@ directories, services, users, groups, git repositories, scripts and SSH keys.
 > field profiles not found in type types.Font
 > ```
 
-Here are examples for the types that do support it:
+These are examples for the types that support it:
 
 ### Packages Blueprint
 
@@ -352,7 +353,7 @@ git:
 
 ## Multi-Format Examples
 
-RWR supports YAML, JSON, and TOML formats for all configurations. Here are the same profile examples in different formats:
+RWR supports YAML, JSON, and TOML formats for all configurations. These are the same profile examples in different formats:
 
 ### YAML Format
 
@@ -544,7 +545,7 @@ packages:
 
 ### Multi-Profile Items
 
-Items can belong to multiple profiles, making them flexible for overlapping use cases:
+An item can belong to more than one profile. This is useful for overlapping use cases:
 
 ```yaml
 packages:
@@ -566,7 +567,7 @@ packages:
 
 ### Profile Hierarchies (Conceptual)
 
-While RWR doesn't have built-in profile inheritance, you can achieve similar results with thoughtful profile design:
+RWR has no profile inheritance. A shared profile name on each item gives the same result:
 
 ```yaml
 # Base development tools
@@ -613,7 +614,7 @@ rwr all --profile backend,dev-base
    - Role-based: `work`, `personal`, `gaming`
    - Environment-based: `desktop`, `laptop`, `server`
 
-3. **Avoid Conflicts**: Don't use reserved words or system terms
+3. **Avoid Conflicts**: Do not use reserved words or system terms
    - Avoid: `all`, `base`, `default`
 
 ### Profile Organization
@@ -621,7 +622,7 @@ rwr all --profile backend,dev-base
 1. **Start with Base Items**: Identify truly universal packages/configs
 2. **Group Related Items**: Keep related packages in the same profile
 3. **Use Multi-Profile Items**: For packages that serve multiple purposes
-4. **Test Profile Combinations**: Verify that profile combinations work correctly
+4. **Test Profile Combinations**: Make sure that profile combinations work correctly
 
 ## Troubleshooting
 
@@ -630,25 +631,25 @@ rwr all --profile backend,dev-base
 #### A Misspelled Profile Is Silent
 
 RWR does not check the names you pass against the ones your blueprints declare.
-`rwr all --profile worx` produces no error and no warning: nothing matches
-`worx`, so only the base items are applied.
+`rwr all --profile worx` produces no error and no warning. Nothing matches
+`worx`, so RWR installs only the base items.
 
 **Solution**: Compare against `rwr profiles`. Names are case-sensitive — `Work`
 and `work` are different profiles.
 
 #### Fewer Items Than Expected
 
-1. Verify profile names match exactly (case-sensitive)
-2. Check that the items carry the `profiles` field you think they do
-3. Confirm the blueprint type supports `profiles` at all — fonts and
+1. Make sure that the profile names are an exact match (names are case-sensitive)
+2. Make sure that the items carry the `profiles` field that you think they do
+3. Make sure that the blueprint type supports `profiles`. Fonts and
    configuration blueprints do not
 
 #### More Items Than Expected
 
 1. If you passed no `--profile`, that is the cause: no filtering happens
-2. Check for items without a `profiles` field — they are base items and always
-   apply
-3. Verify multi-profile items aren't matching a profile you did not intend
+2. Items without a `profiles` field are base items. RWR always installs them
+3. Make sure that a multi-profile item does not match a profile that you did
+   not intend
 
 ### Profile Debugging Tips
 
@@ -677,7 +678,7 @@ DEBU Filtering packages: 3 total, 3 matching active profiles [work]
 DEBU Filtering services: 1 total, 1 matching active profiles [work]
 ```
 
-There is no per-item line explaining an individual decision.
+There is no per-item line that explains an individual decision.
 
 ## Migration Guide
 
@@ -688,7 +689,7 @@ Existing configurations work without modification. To add profiles:
 1. **Identify Base Items**: Items everyone needs regardless of context
 2. **Group Similar Items**: Identify packages that belong together
 3. **Add Profile Fields**: Add `profiles: ["profile-name"]` to appropriate items
-4. **Test Combinations**: Verify different profile combinations work correctly
+4. **Test Combinations**: Make sure that different profile combinations work correctly
 
 ### Example Migration
 
@@ -727,13 +728,13 @@ packages:
 
 ### Can I use any profile names?
 
-Yes! Profile names are completely user-defined. Use whatever makes sense for your setup.
+Yes. You define the profile names. Use the names that make sense for your setup.
 
-### What happens if I don't specify any profiles?
+### What happens if I do not specify any profiles?
 
-Everything is installed. With no active profiles RWR skips the filter entirely,
-so profile items are applied along with the base items. To install the base items
-and one profile, name that profile: `rwr all --profile work`.
+RWR installs everything. With no active profiles, RWR skips the filter
+entirely. It installs the profile items along with the base items. To install
+the base items and one profile, name that profile: `rwr all --profile work`.
 
 ### Can an item belong to multiple profiles?
 
@@ -751,12 +752,12 @@ Run `rwr profiles` to see all available profiles in your configuration.
 
 Almost. Packages, repositories, files, templates, directories, services, users,
 groups, git repositories, scripts and SSH keys all support `profiles`. Fonts and
-configuration blueprints do not, and because blueprints decode strictly, adding
-the key there is an error rather than a no-op.
+configuration blueprints do not. Blueprints decode strictly, so the key there is
+an error, not a no-op.
 
 ### Does RWR warn me about a profile name that does not exist?
 
-No. An unknown name simply matches nothing. Use `rwr profiles` to check.
+No. An unknown name matches nothing. Use `rwr profiles` to make sure that the name exists.
 
 ## Related Documentation
 
@@ -765,4 +766,4 @@ No. An unknown name simply matches nothing. Use `rwr profiles` to check.
 - [General Best Practices](best-practices.md) - Overall RWR best practices
 - [Template Variables](variables.md) - Using variables with profiles
 
-For specific blueprint types, see the respective blueprint documentation pages which include profile examples.
+For specific blueprint types, read the respective blueprint pages. They include profile examples.

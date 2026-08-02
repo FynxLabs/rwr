@@ -1,13 +1,13 @@
 # Git Blueprint
 
-The Git blueprint in Rinse, Wash, Repeat (RWR) allows you to clone and manage Git repositories as part of your system configuration. This page describes how to define and use the Git blueprint.
+With the Git blueprint in Rinse, Wash, Repeat (RWR), you clone and manage Git repositories as part of your system configuration. This page describes how to define and use the Git blueprint.
 
 See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `import`, `interactive`, and the rule that an unknown key is an error.
 
 ## Blueprint Structure
 
-The Git blueprint follows a specific structure to define the repositories to be cloned and managed. Here's an example of a Git blueprint in YAML format:
+The Git blueprint defines the repositories to clone and manage. Here is an example of a Git blueprint in YAML format:
 
 ```yaml
 git:
@@ -33,10 +33,10 @@ The following settings are available for each repository in the Git blueprint:
 |---------|----------|-------------|
 | `name` | Yes, if `import` is not provided | A unique name for the repository |
 | `import` | Yes, if `name` is not provided | Path to import git repository definitions from another file (relative to blueprint directory) |
-| `action` | No | Accepted by the schema but **not read**. Each entry is cloned if `path` does not exist and pulled if it does |
+| `action` | No | Accepted by the schema but **not read**. RWR clones each entry if `path` does not exist and pulls it if it does |
 | `url` | Yes | The URL of the Git repository to clone |
 | `branch` | No | The branch to clone (defaults to the repository's default branch) |
-| `path` | Yes | The local path where the repository should be cloned |
+| `path` | Yes | The local path where RWR clones the repository |
 | `private` | No | Indicates whether the repository is private (defaults to `false`) |
 | `profiles` | No | List of profiles this repository belongs to. If empty, repository is always cloned (base item) |
 | `interactive` | No | Override global interactive mode for this git repository (`true`/`false`). If omitted, uses the global `--interactive` flag |
@@ -59,18 +59,18 @@ git:
       - dev
 ```
 
-This allows you to maintain common repository lists separately from project-specific ones.
+You can then keep common repository lists separate from project-specific ones.
 
 ## Private Repositories
 
 To clone private repositories, you need to provide authentication details. RWR supports two authentication methods:
 
 1. GitHub API Key: Set the `--gh-api-key` flag or configure the `repository.gh_api_token` setting in the configuration file.
-2. SSH Key: Set the `--ssh-key` flag or configure the `repository.ssh_private_key` setting in the configuration file. The SSH key should be base64 encoded.
+2. SSH Key: Set the `--ssh-key` flag or configure the `repository.ssh_private_key` setting in the configuration file. The SSH key must be base64 encoded.
 
 ## Examples
 
-Here are a few examples of using the Git blueprint in different formats:
+Examples in YAML, JSON, and TOML:
 
 ### YAML
 
@@ -109,10 +109,10 @@ path = "/path/to/clone/my-repo"
 
 ## Troubleshooting
 
-If you encounter issues while using the Git blueprint, consider the following:
+If the Git blueprint fails, make these checks:
 
-- Ensure that the repository URL is correct and accessible.
-- Verify that you have provided the necessary authentication details for private repositories.
-- Check that the specified local path for cloning the repository is valid and has the required permissions.
+- Make sure that the repository URL is correct and accessible.
+- Make sure that you gave the authentication details for private repositories.
+- Make sure that the local path for the clone is valid and has the required permissions.
 
-If the issue persists, open an issue at [github.com/fynxlabs/rwr/issues](https://github.com/fynxlabs/rwr/issues).
+If the error persists, open an issue at [github.com/fynxlabs/rwr/issues](https://github.com/fynxlabs/rwr/issues).

@@ -1,13 +1,13 @@
 # Services Blueprint
 
-The Services Blueprint in Rinse, Wash, Repeat (RWR) allows you to manage system services, including starting, stopping, enabling, and disabling services across different operating systems.
+With the Services Blueprint in Rinse, Wash, Repeat (RWR), you start, stop, enable, and disable services on different operating systems.
 
 See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `import`, `interactive`, and the rule that an unknown key is an error.
 
 ## Blueprint Structure
 
-The Services Blueprint is defined in a YAML, JSON, or TOML file and consists of an array of service objects. Each service object represents a system service and its associated properties.
+A Services Blueprint is an array of service objects in a YAML, JSON, or TOML file. Each object represents one system service.
 
 ```yaml
 services:
@@ -19,11 +19,11 @@ services:
     elevated: true
 ```
 
-## Service Object Properties
+## Blueprint Settings
 
-Each service object in the Services Blueprint can have the following properties:
+The following settings are available for each service object:
 
-| Property | Required | Description |
+| Setting | Required | Description |
 |----------|----------|-------------|
 | `name` | Yes, if `import` is not provided | The name of the service |
 | `import` | Yes, if `name` is not provided | Path to import service definitions from another file (relative to blueprint directory) |
@@ -53,7 +53,7 @@ services:
       - production
 ```
 
-This allows you to maintain common service configurations separately from system-specific ones.
+You can then keep common service configurations separate from system-specific ones.
 
 ## Supported Actions
 
@@ -77,7 +77,7 @@ The Services Blueprint supports the following actions:
 
 ## Platform-Specific Considerations
 
-The Services Blueprint handles service management differently depending on the operating system:
+The Services Blueprint manages services differently on each operating system:
 
 ### Linux (systemd)
 
@@ -93,7 +93,7 @@ On Windows, the Services Blueprint uses the `sc` command to manage services. The
 
 ## Examples
 
-Here are a few examples of using the Services Blueprint in different formats:
+Examples in YAML, JSON, and TOML:
 
 ### YAML
 
@@ -219,4 +219,4 @@ action = "enable"
 elevated = true
 ```
 
-For more information on using the Services Blueprint in your RWR configuration, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Commands and Flags](../cli/command-and-flags.md) pages.
+For more information, see the [Blueprints Overview](../blueprints-general.md) and the [Commands and Flags](../cli/command-and-flags.md) pages.

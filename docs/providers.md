@@ -1,10 +1,10 @@
 # Package Manager Providers
 
-The Providers system is a flexible and extensible way to manage package managers across different platforms. It uses TOML configuration files to define how package managers work, making it easy for anyone to add support for new package managers without needing to write Go code.
+The Providers system manages package managers on different platforms. TOML files define how each package manager works. You can add a new package manager without Go code.
 
 ## Provider Configuration
 
-Providers are configured using TOML files in the `internal/system/definitions/providers/` directory. For example, `internal/system/definitions/providers/apt.toml` defines the configuration for the APT package manager.
+You configure a provider with a TOML file in the `internal/system/definitions/providers/` directory. For example, `internal/system/definitions/providers/apt.toml` defines the configuration for the APT package manager.
 
 ### Basic Structure
 
@@ -61,7 +61,7 @@ gives the correct default package manager on a derivative that no list contains.
 
 ### Core Packages
 
-Define packages required by the provider:
+Define the packages that the provider requires:
 
 ```toml
 [provider.corePackages]
@@ -214,7 +214,7 @@ To add support for a new package manager:
 1. Copy `internal/system/definitions/provider_template.toml` to `internal/system/definitions/providers/<name>.toml`
 2. Configure the provider sections:
    - Basic information (name, elevation)
-   - Detection rules (binary, files, distros)
+   - Detection rules (binary, files, distributions)
    - Standard commands
    - Core package requirements
    - Repository management
@@ -229,16 +229,16 @@ To add support for a new package manager:
 - Use consistent repository paths
 - Break complex operations into clear steps
 - Validate repository configurations
-- Handle errors gracefully
+- Stop with a clear error message when a step fails
 - Test on supported platforms
 
 ## Distribution-Specific Alternatives
 
-Some package managers are used across multiple distributions but may have different package names for the same functionality. RWR supports distribution-specific alternatives to handle these differences without requiring separate provider files.
+Multiple distributions use the same package manager, but the package names can be different. Alternatives handle these differences. You do not need a separate provider file for each distribution.
 
 ### How Alternatives Work
 
-The alternatives system allows a single provider to specify different package names for different distributions:
+With alternatives, one provider gives different package names for different distributions:
 
 ```toml
 [provider.alternatives.distribution_name]
@@ -250,7 +250,7 @@ The alternatives system allows a single provider to specify different package na
   ]
 ```
 
-When RWR detects the specified distribution, it will use the alternative package names instead of the default ones.
+When RWR detects the specified distribution, it uses the alternative package names instead of the default ones.
 
 ### Example: OpenMandriva Support
 
@@ -271,14 +271,14 @@ OpenMandriva uses DNF as its package manager but has different package naming co
   ]
 ```
 
-This allows OpenMandriva users to use RWR with the DNF provider while automatically getting the correct package names for their distribution.
+OpenMandriva users can use RWR with the DNF provider. RWR selects the correct package names automatically.
 
 ### Benefits
 
-- Single provider file for related distributions
-- Automatic package name resolution based on detected distribution
-- Easy to extend for new distributions with naming variations
-- Maintains backward compatibility
+- One provider file serves related distributions.
+- RWR selects the package names for the detected distribution.
+- You can add a distribution with different names.
+- Existing provider files continue to work.
 
 ## Future Enhancements
 

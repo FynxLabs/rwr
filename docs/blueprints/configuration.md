@@ -1,6 +1,6 @@
 # Configuration Blueprint
 
-The Configuration Processor in Rinse, Wash, Repeat (RWR) allows you to manage system configurations across different operating systems. It supports various configuration tools including dconf and gsettings for Linux, defaults for macOS, and registry settings for Windows.
+With the Configuration Processor in Rinse, Wash, Repeat (RWR), you manage system configurations on Linux (dconf, gsettings), macOS (defaults), and Windows (the registry).
 
 See [Fields Common to Every Blueprint](common-fields.md) for the rule that an
 unknown key is an error.
@@ -30,15 +30,15 @@ The following settings are available for every entry, whichever tool it uses:
 | `profiles` | No | Profiles this entry belongs to. Empty means it is always applied |
 | `elevated` | No | Whether to run the configuration with elevated privileges (default: false) |
 | `run_once` | No | dconf only: create a marker file and skip the entry on later runs (default: false) |
-| `action` | No | Accepted by the schema but **not read**. The `tool` decides what happens; there is nothing to select |
+| `action` | No | Accepted by the schema but **not read**. The `tool` decides what happens. There is nothing to select |
 | `names` | No | Accepted by the schema but **not read**. One entry is one operation |
 
 The tool-specific settings are `file`, `schema`, `key`, `settings`, `value`,
 `path`, `domain`, `kind` and `type`, described per tool below.
 
 > [!NOTE]
-> Profiles work for configuration entries as of this release — the type had no
-> `profiles` field before, so every entry was applied on every machine. The
+> Profiles work for configuration entries as of this release. Before, the type
+> had no `profiles` field, and RWR applied every entry on every machine. The
 > configuration blueprint has **no `import` field** and no `interactive` field;
 > writing either one is now a decode error.
 
@@ -48,8 +48,8 @@ The tool-specific settings are `file`, `schema`, `key`, `settings`, `value`,
 
 The dconf tool loads a dconf dump from a file (`dconf load /`).
 
-| Option | Required | Description |
-|--------|----------|-------------|
+| Setting | Required | Description |
+|---------|----------|-------------|
 | `file` | Yes | Path to the dconf configuration file, resolved relative to the blueprint directory |
 
 `run_once` applies to this tool: with it set, RWR writes a marker file named
@@ -71,18 +71,19 @@ configurations:
 
 The gsettings tool sets individual keys in one schema.
 
-| Option | Required | Description |
-|--------|----------|-------------|
+| Setting | Required | Description |
+|---------|----------|-------------|
 | `schema` | Yes | The gsettings schema |
 | `settings` | Yes | A map of key to value. This is where the keys go — `key` and `value` are **not** read by this tool |
 
-Each key is checked with `gsettings writable` first. A key that is not writable,
-or that fails to apply, is recorded as a failure and reported at the end of the
-run; the remaining keys are still attempted.
+RWR checks each key with `gsettings writable` first. RWR records a key that is
+not writable, or that fails to apply, as a failure. It reports the failures at
+the end of the run and still attempts the remaining keys.
 
-Values are formatted for gsettings automatically: a string is quoted, a list
-becomes `[…]`, booleans become `true`/`false`. A string that already starts with
-`[` or `(` is passed through unchanged, so pre-formatted values keep working.
+RWR formats values for gsettings automatically. It quotes a string, writes a
+list as `[…]`, and writes booleans as `true`/`false`. RWR passes a string that
+starts with `[` or `(` through unchanged. Thus pre-formatted values continue to
+work.
 
 Example:
 
@@ -101,8 +102,8 @@ configurations:
 
 The macos_defaults tool runs `defaults write`.
 
-| Option | Required | Description |
-|--------|----------|-------------|
+| Setting | Required | Description |
+|---------|----------|-------------|
 | `domain` | No | The defaults domain. Omit for `NSGlobalDomain` |
 | `key` | Yes | The key to set |
 | `kind` | Yes | The `defaults` type flag, without the dash: `string`, `bool`, `int`, `float`, … |
@@ -124,15 +125,15 @@ configurations:
 
 The windows_registry tool writes a single value under `HKLM:`.
 
-| Option | Required | Description |
-|--------|----------|-------------|
+| Setting | Required | Description |
+|---------|----------|-------------|
 | `path` | Yes | The registry key path. `HKLM:\` is prefixed for you, so give the path from there |
 | `key` | Yes | The registry value name |
 | `type` | Yes | `string`, `expandstring`, `binary`, `dword` or `qword`. Any other value is an error |
 | `value` | Yes | The value to write |
 
-`dword` and `qword` values must be whole numbers (a numeric string is accepted);
-`binary` takes a list of byte values 0–255; `string` and `expandstring` take a
+`dword` and `qword` values must be whole numbers (a numeric string is accepted).
+`binary` takes a list of byte values 0–255. `string` and `expandstring` take a
 string. A value of the wrong shape is a named error rather than garbage in the
 registry.
 
@@ -140,9 +141,9 @@ registry.
 > `elevated: true` raises a UAC prompt, so the run is not unattended: someone has
 > to approve it. Run rwr from an already-elevated shell to avoid the prompt.
 
-The path, name and value are passed to PowerShell as environment variables, not
-interpolated into the command, so nothing a blueprint supplies is parsed as
-PowerShell.
+RWR passes the path, name, and value to PowerShell as environment variables. It
+does not interpolate them into the command. Thus PowerShell does not parse
+anything that a blueprint supplies.
 
 Example:
 
@@ -159,8 +160,8 @@ configurations:
 
 ## Notes
 
-* `run_once` is honoured by the dconf tool only. The other three tools apply their setting on every run; each of them is idempotent.
-* The `elevated` option runs the command through sudo on Unix-like systems. On Windows it does not raise privileges — see the note above.
-* A gsettings entry that cannot apply a key does not stop the run; the failures are collected and reported at the end. The other tools return their error immediately.
+* Only the dconf tool honors `run_once`. The other three tools apply their setting on every run. Each of them is idempotent.
+* The `elevated` setting runs the command through sudo on Unix-like systems. On Windows it does not raise privileges — see the note above.
+* A gsettings entry that cannot apply a key does not stop the run. RWR collects the failures and reports them at the end. The other tools return their error immediately.
 
-For more information on using the Configuration Processor in your RWR setup, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Best Practices](../best-practices.md) sections of the documentation.
+For more information, see the [Blueprints Overview](../blueprints-general.md) and [Best Practices](../best-practices.md).

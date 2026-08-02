@@ -1,12 +1,12 @@
 # Alternative Blueprint Layouts
 
-This directory demonstrates simplified approaches to organizing RWR blueprints, proving that the complex nested directory structure is **not required**.
+This directory shows simplified layouts for RWR blueprints. RWR does **not require** the nested directory structure.
 
 ## Directory Overview
 
 ### [`minimal_files/`](./minimal_files/)
 
-The absolute simplest approach - just 2 files per format, organized by format:
+The simplest layout is 2 files per format, organized by format:
 
 - `yaml/` - `init.yaml` + `all_in_one.yaml`
 - `json/` - `init.json` + `all_in_one.json`
@@ -14,7 +14,7 @@ The absolute simplest approach - just 2 files per format, organized by format:
 
 ### [`flattened/`](./flattened/)
 
-Individual blueprint files with clear separation, organized by format:
+Each blueprint type is in its own file, organized by format:
 
 - `yaml/` - Individual YAML files per blueprint type
 - `json/` - Individual JSON files per blueprint type
@@ -59,7 +59,7 @@ git:
     url: "https://github.com/user/dotfiles.git"
 ```
 
-### 3. Flexible File Organization
+### 3. Flexible File Layout
 
 These are all equivalent and valid:
 
@@ -86,7 +86,7 @@ cd minimal_files/toml
 rwr run
 ```
 
-### Run with flattened structure
+### Run with the flattened layout
 
 ```bash
 # Choose your preferred format
@@ -104,20 +104,20 @@ cd minimal_files/json && rwr run   # Will process all_in_one.json
 cd minimal_files/toml && rwr run   # Will process all_in_one.toml
 ```
 
-## Benefits of Simplified Structures
+## Benefits of Simplified Layouts
 
-- **Faster setup** - fewer files to create
-- **Easier maintenance** - less complex file organization
-- **Better for small projects** - no over-engineering
-- **Clearer dependencies** - everything visible in fewer files
-- **Reduced cognitive load** - simpler mental model
+- **Faster setup** - you create fewer files
+- **Easier maintenance** - the file layout is less complex
+- **Better for small projects** - a small project stays simple
+- **Clearer dependencies** - everything is visible in fewer files
+- **Reduced cognitive load** - the mental model is simpler
 
-## When to Use Each Approach
+## When to Use Each Layout
 
-| Approach             | Best For                                              |
+| Layout               | Best For                                              |
 | -------------------- | ----------------------------------------------------- |
 | **minimal_files**    | Quick setups, personal configs, learning RWR          |
 | **flattened**        | Small-medium projects, clear separation of concerns   |
-| **nested structure** | Large projects, multiple environments, shared configs |
+| **nested layout**    | Large projects, multiple environments, shared configs |
 
-The nested structure in the main examples is great for organization and learning, but these simplified approaches prove that RWR is flexible enough to work however you prefer to organize your files.
+The nested layout in the main examples helps with organization and learning. These simplified layouts show that RWR accepts any file layout.

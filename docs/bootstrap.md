@@ -1,10 +1,10 @@
 # Bootstrap Process
 
-The Bootstrap Process in Rinse, Wash, Repeat (RWR) is responsible for setting up the initial system configuration. It ensures that the necessary prerequisites and dependencies are in place before executing the main blueprints. This page explains how the Bootstrap Process works and how to define the bootstrap file.
+The bootstrap process in Rinse, Wash, Repeat (RWR) sets the initial system configuration. It puts the prerequisites in place before RWR runs the main blueprints. This page explains how the bootstrap process works and how to define the bootstrap file.
 
 ## Overview
 
-The Bootstrap Process is executed before any other blueprints are processed. It typically includes tasks such as:
+RWR runs the bootstrap process before the other blueprints. It typically includes tasks such as:
 
 - Installing essential packages and tools
 - Setting up package managers
@@ -12,22 +12,22 @@ The Bootstrap Process is executed before any other blueprints are processed. It 
 - Configuring system settings and permissions
 - Setting up SSH keys
 
-The Bootstrap Process is defined in a separate blueprint file named `bootstrap.yaml` (or `bootstrap.json` or `bootstrap.toml`, depending on the chosen format).
+You define the bootstrap process in a separate blueprint file named `bootstrap.yaml` (or `bootstrap.json` or `bootstrap.toml`, in the format that you selected).
 
 ## Bootstrap File Structure
 
 The structure of the bootstrap file is similar to other blueprint files in RWR. It can include the following sections:
 
-- `packages`: Defines the packages to be installed during the bootstrap process.
-- `files`: Specifies the files to be created or modified during the bootstrap process.
-- `directories`: Defines the directories to be created during the bootstrap process.
-- `git`: Specifies the Git repositories to be cloned during the bootstrap process.
-- `services`: Defines the services to be managed (started, stopped, enabled, disabled) during the bootstrap process.
-- `users`: Specifies the user accounts to be created during the bootstrap process.
-- `groups`: Defines the groups to be created during the bootstrap process.
-- `ssh_keys`: Specifies the SSH keys to be generated during the bootstrap process.
+- `packages`: Defines the packages that RWR installs during bootstrap.
+- `files`: Defines the files that RWR creates or modifies during bootstrap.
+- `directories`: Defines the directories that RWR creates during bootstrap.
+- `git`: Defines the Git repositories that RWR clones during bootstrap.
+- `services`: Defines the services that RWR manages (starts, stops, enables, disables) during bootstrap.
+- `users`: Defines the user accounts that RWR creates during bootstrap.
+- `groups`: Defines the groups that RWR creates during bootstrap.
+- `ssh_keys`: Defines the SSH keys that RWR generates during bootstrap.
 
-Here's an example of a `bootstrap.yaml` file:
+Here is an example of a `bootstrap.yaml` file:
 
 ```yaml
 packages:
@@ -92,7 +92,7 @@ ssh_keys:
 
 ## Execution Order
 
-The Bootstrap Process executes the sections in the following order:
+The bootstrap process runs the sections in this order:
 
 1. `packages`
 2. `directories`
@@ -103,48 +103,46 @@ The Bootstrap Process executes the sections in the following order:
 7. `groups`
 8. `users`
 
-This order ensures that the necessary dependencies and prerequisites are in place before proceeding with other tasks.
+This order puts the dependencies in place before the tasks that need them.
 
 ## Conditional Execution
 
-By default, the Bootstrap Process is only executed once during the initial setup. Subsequent runs of RWR will skip the Bootstrap Process unless explicitly specified.
+By default, RWR runs the bootstrap process one time, during the initial setup. Later runs skip it.
 
-To force the execution of the Bootstrap Process on every run, you can use the `--force-bootstrap` flag:
+To run the bootstrap process on every run, use the `--force-bootstrap` flag:
 
 ```bash
 rwr all --force-bootstrap
 ```
 
-This flag will ensure that the Bootstrap Process is executed even if it has been run previously.
+With this flag, RWR runs the bootstrap process again on each run.
 
 ## New Features and Enhancements
 
 ### Package Management
 
-- The `packages` section now supports the `names` field for installing multiple packages with the same configuration.
-- Additional arguments can be specified for package installation using the `args` field.
+- The `packages` section now supports the `names` field. You can install many packages with the same configuration.
+- You can give additional arguments for package installation with the `args` field.
 
 ### File Management
 
-- The `files` section now supports URL sources. RWR will download files from the specified URL before processing them.
-- Intelligent renaming is implemented for file operations. If the target path doesn't end with a '/', it's considered a rename operation.
+- The `files` section now supports URL sources. RWR downloads the file from the URL before it processes the file.
+- If the target path does not end with '/', RWR renames the file.
 
 ### SSH Key Management
 
-- The `ssh_keys` section has been added to generate and manage SSH keys during the bootstrap process.
-- The `set_as_rwr_ssh_key` option allows setting a generated key as the default RWR SSH key for operations.
+- The `ssh_keys` section generates and manages SSH keys during bootstrap.
+- With the `set_as_rwr_ssh_key` option, RWR uses the generated key as its default SSH key.
 
 ## Best Practices
 
-When defining your bootstrap file, consider the following best practices:
+When you define your bootstrap file, use these practices:
 
-- Keep the bootstrap file minimal and only include the essential tasks required for the initial setup.
-- Use variables and templating to make the bootstrap file more flexible and reusable across different environments.
-- Leverage the new features like URL sources and intelligent renaming for more flexible file management.
-- Use the `ssh_keys` section to set up necessary SSH keys, including the default RWR SSH key.
-- Test the bootstrap file thoroughly to ensure it works as expected on the target systems.
-- Document any manual steps or prerequisites that are not covered by the bootstrap file.
+- Keep the bootstrap file minimal. Include only the essential tasks for the initial setup.
+- Use variables and templates to make the bootstrap file flexible and reusable across different environments.
+- Use URL sources and renaming for file management.
+- Use the `ssh_keys` section to generate the necessary SSH keys, with the default RWR SSH key.
+- Test the bootstrap file on the target systems. Make sure that it does what you expect.
+- Document the manual steps or prerequisites that the bootstrap file does not cover.
 
-By following these best practices, you can create a reliable and maintainable bootstrap process for your RWR-managed systems.
-
-For more information on specific blueprint types and their options, please refer to the respective documentation pages.
+For more information on the blueprint types and their settings, read the documentation page for each type.

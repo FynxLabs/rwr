@@ -43,8 +43,8 @@ These names are correct:
 | `gh_api_token` | `repository.gh_api_token` |
 | `ssh_private_key` | `repository.ssh_private_key` |
 
-RWR gives a warning at start when a credential is available. The change is
-always visible.
+When a credential is available, RWR gives a warning at start. This warning
+makes the exposure visible.
 
 ## What a permitted credential gives you
 

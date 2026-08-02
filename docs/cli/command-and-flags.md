@@ -15,7 +15,7 @@ The following flags are available for all commands:
 | `--gh-api-key` | Specify the GitHub API key for accessing private repositories |
 | `--ssh-key` | Path to an SSH key file, or a Base64-encoded SSH key, for Git authentication |
 | `--skip-version-check` | Do not check GitHub for a newer release at startup |
-| `--show-secrets` | Print credential values in logs instead of redacting them. Off by default; use it only to confirm RWR is reading the token or key you expect |
+| `--show-secrets` | Print credential values in logs instead of redacting them. Off by default. Use it only to see that RWR reads the token or key you expect |
 | `--dry-run` | Simulate operations without making changes (no-op mode) |
 | `--no-op` | Alias for `--dry-run` |
 | `--interactive`, `-I` | Enable interactive mode (default: true). Use `--interactive=false` to disable |
@@ -27,20 +27,20 @@ The following flags are available for all commands:
 
 ### The startup version check
 
-Unless `--skip-version-check` is given, RWR asks the GitHub releases API for the
-latest release when a command starts, and prints one line to stderr if the
-binary is older:
+If you do not give `--skip-version-check`, RWR asks the GitHub releases API for
+the latest release when a command starts. If the binary is older, RWR prints one
+line to stderr:
 
 ```text
 rwr: a newer version is available: 0.6.0 (you have 0.5.2)
 rwr: https://github.com/fynxlabs/rwr/releases/latest (silence with --skip-version-check)
 ```
 
-The check is advisory and never fails the run: a two-second timeout, and every
-error — no network, a rate limit, an unexpected response — is a debug log and
-nothing more. It is also skipped for a development build (one built with plain
-`go build`, or from a modified tree), and for `rwr help`, `rwr config`,
-`rwr version` and `rwr validate`, which do no version check at all.
+The check is advisory and never fails the run. It has a two-second timeout. Each
+error (no network, a rate limit, an unexpected response) becomes a debug log
+entry. RWR also skips the check for a development build (one built with plain
+`go build`, or from a modified tree). The commands `rwr help`, `rwr config`,
+`rwr version` and `rwr validate` do no version check.
 
 > [!NOTE]
 > Only the flag turns the check off. There is no configuration-file or
@@ -69,8 +69,8 @@ tree state: dirty
 go:         go1.26.5 linux/amd64
 ```
 
-The `commit`, `built`, `built by` and `tree state` lines are printed only when
-the binary carries that information; the `go` line is always printed. A release
+RWR prints the `commit`, `built`, `built by` and `tree state` lines only when
+the binary carries that information. RWR always prints the `go` line. A release
 or nightly binary carries the commit it was built from, so a binary on disk can
 be traced back to its source.
 
@@ -95,7 +95,7 @@ Manage RWR configuration settings.
 
 ### `rwr all`
 
-Run all blueprints and set up the system.
+Apply every blueprint and configure the system.
 
 `--force-bootstrap` is a global flag. It also applies to this command.
 
@@ -173,7 +173,7 @@ Run the fonts processor.
 > files blueprint. Use `rwr run files` to process it.
 >
 > There is no `rwr run all`, and `rwr run` takes one processor, not a list. Use
-> `rwr all` to run everything.
+> `rwr all` to apply everything.
 
 ### `rwr completion`
 
@@ -201,4 +201,4 @@ rwr all --force-bootstrap
 rwr all --config ~/rwr-work --profile work --profile dev
 ```
 
-For more detailed information on each command and its usage, please refer to the specific blueprint type documentation or the [Configuration File](configuration.md) page.
+For more information on each command, read the blueprint type documentation or the [Configuration File](configuration.md) page.

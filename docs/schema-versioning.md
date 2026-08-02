@@ -50,10 +50,10 @@ RWR reads a blueprint that gives no version as the latest version for that type.
 A new blueprint then uses the current schema, and you do not write a version. Add
 a version when you want RWR to hold the blueprint at that version.
 
-There is a result to know. A blueprint with no version moves to a new schema when
-you upgrade RWR. Give a version if the tree must stay at one version. Two
-examples are a tree that is not ready for a new format, and a tree that must
-operate in the same way on each machine.
+A blueprint with no version moves to a new schema when you upgrade RWR. Give a
+version if the tree must stay at one version. One example is a tree that is not
+ready for a new format. Another is a tree that must operate in the same way on
+each machine.
 
 ```yaml
 blueprints:

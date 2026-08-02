@@ -1,6 +1,6 @@
 # Users and Groups Blueprint
 
-The Users and Groups blueprint allows you to manage user accounts and groups on your system. You can create, modify, and remove users, assign them to groups, and set their properties such as password, shell, and home directory.
+With the Users and Groups blueprint, you manage user accounts and groups on your system. You can create, modify, and remove users, assign them to groups, and set their properties such as password, shell, and home directory.
 
 ## Blueprint Structure
 
@@ -53,11 +53,11 @@ See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 accepted alias for `remove`.
 
 `create` is idempotent. If the account or group already exists, RWR does not
-fail: it converges the existing one to the attributes the entry declares
-(`usermod` on Linux, `dscl -create` on macOS) and sets the password if one is
-given. A declared `home` on an existing account is treated as the intended home,
-not as a request to relocate the current one — use `modify` with `new_home` for
-that.
+fail. It converges the existing one to the attributes that the entry declares
+(`usermod` on Linux, `dscl -create` on macOS). If a password is given, RWR sets
+it. RWR treats a declared `home` on an existing account as the intended home,
+not as a request to relocate the current one. To relocate, use `modify` with
+`new_home`.
 
 `remove` on an account or group that does not exist succeeds and does nothing.
 
@@ -100,25 +100,25 @@ Groups have no `interactive` field.
 
 ## Passwords
 
-**On Linux**, the password is handed to `chpasswd` on standard input, never as a
-command argument, so it does not appear in `ps` or in rwr's debug output. The
-value may be either:
+**On Linux**, RWR hands the password to `chpasswd` on standard input, never as a
+command argument. Thus it does not appear in `ps` or in rwr's debug output. The
+value can be either:
 
 - **Cleartext**, which `chpasswd` hashes itself, or
 - **A crypt(3) hash** — `$6$…`, `$y$…`, a 13-character DES hash, or one of the
-  locked markers `!`, `!!`, `*`, `*LK*` — which is passed through with
+  locked markers `!`, `!!`, `*`, `*LK*` — which RWR passes through with
   `chpasswd -e`.
 
-RWR detects which of the two you wrote; there is no field to declare it.
+RWR detects which of the two you wrote. There is no field to declare it.
 
 > [!WARNING]
-> **On macOS**, the password is passed to `dscl . -passwd` as a command-line
-> argument, because macOS computes its own salted blob and there is no hash to
-> pre-compute. It is therefore briefly visible in `ps` to every local user on
+> **On macOS**, RWR passes the password to `dscl . -passwd` as a command-line
+> argument. macOS computes its own salted blob, and there is no hash to
+> pre-compute. The password is therefore briefly visible in `ps` to every local user on
 > the machine, and lands in sudo's syslog record. RWR logs a warning each time
 > it does this. Prefer setting macOS passwords out of band.
 
-A `password` is applied by both `create` and `modify`.
+Both `create` and `modify` apply a `password`.
 
 ## Supported Platforms
 
@@ -126,21 +126,21 @@ A `password` is applied by both `create` and `modify`.
 |----------|---------|
 | Linux | Full, via shadow-utils: `useradd`, `usermod`, `userdel`, `groupadd`, `groupmod`, `groupdel`, `gpasswd`, `chpasswd` |
 | macOS | Full, via Open Directory: `sysadminctl` when present, otherwise `dscl`, plus `dseditgroup`, `createhomedir` and `pwpolicy` |
-| Windows | Not implemented. Each entry logs a warning and is skipped |
+| Windows | Not implemented. RWR logs a warning for each entry and skips it |
 
 ### What differs on macOS
 
-macOS is genuinely supported, but Open Directory has no equivalent for some of
-the fields, and RWR warns rather than pretending it applied them:
+macOS is supported. Open Directory has no equivalent for some of the fields.
+RWR warns and does not report a false success:
 
 | Field | On macOS |
 |-------|----------|
 | `system` | **Ignored, with a warning.** UIDs and GIDs below 501 are reserved by Apple and RWR does not allocate them |
 | `expire` | **Ignored, with a warning.** A local Open Directory account has no expiration field |
-| `new_home` | The `NFSHomeDirectory` record is rewritten, but the directory's **contents are not moved**. RWR warns when it does this |
-| `remove_home` | Honoured through `sysadminctl -deleteUser` (which is also why RWR passes `-keepHome` when the flag is false). If `sysadminctl` is not available, the `dscl` fallback deletes the record only and warns that the home directory was left in place |
+| `new_home` | RWR rewrites the `NFSHomeDirectory` record, but it does **not move the contents** of the directory. RWR warns when it does this |
+| `remove_home` | Honored through `sysadminctl -deleteUser` (which is also why RWR passes `-keepHome` when the flag is false). If `sysadminctl` is not available, the `dscl` fallback deletes the record only and warns that the home directory was left in place |
 | `lock` / `unlock` | Applied with `pwpolicy -disableuser` / `-enableuser` |
-| primary group | New accounts land in `staff` (GID 20); there is no field to choose another |
+| primary group | New accounts land in `staff` (GID 20). There is no field to choose another |
 | `uid` / `gid` | Allocated from 501 upwards when not declared |
 
 Other fields map straight across: `shell` to `UserShell`, `comment` to
@@ -150,7 +150,7 @@ other edit).
 
 ## Examples
 
-Here are a few examples of using the Users and Groups blueprint in different formats:
+Examples in YAML, JSON, and TOML:
 
 ### YAML
 
@@ -263,7 +263,7 @@ action = "modify"
 new_name = "design_team"
 ```
 
-These examples demonstrate how to define users and groups using the Users and Groups blueprint in YAML, JSON, and TOML formats, including the new options for modifying and removing users and groups.
+These examples define users and groups in YAML, JSON, and TOML.
 
 ## Blueprint Imports
 
@@ -293,6 +293,6 @@ groups:
     action: create
 ```
 
-This allows you to maintain common user and group configurations separately from environment-specific ones.
+You can then keep common user and group configurations separate from environment-specific ones.
 
-For more information on managing users and groups in RWR, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Best Practices](../best-practices.md) sections of the documentation.
+For more information, see the [Blueprints Overview](../blueprints-general.md) and [Best Practices](../best-practices.md).

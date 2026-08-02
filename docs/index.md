@@ -1,46 +1,46 @@
 # Rinse, Wash, Repeat (RWR) Documentation
 
-Welcome to the Rinse, Wash, Repeat (RWR) documentation! This guide aims to provide comprehensive information about using and extending the RWR configuration management tool.
+Welcome to the Rinse, Wash, Repeat (RWR) documentation. This guide tells you how to use and how to extend RWR.
 
 ## Introduction
 
-RWR is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It simplifies the process of setting up and maintaining your system by using blueprint-based configurations with an advanced profile system for selective installation.
+RWR is a configuration management tool for users who reinstall their systems frequently. It works on Linux, macOS, and Windows. Blueprints configure the system. Profiles select what RWR installs.
 
 ## Install and Quick Start
 
 - [Install](install.md): The supported platforms, the install scripts, and the
   builds of the master branch.
-- [Quick Start Guide](quick-start.md): Get up and running with RWR quickly by following this concise guide.
+- [Quick Start Guide](quick-start.md): This guide tells you how to install RWR and run your first blueprint.
 
 ## Profile System
 
-RWR's profile system allows you to organize and selectively install packages and configurations based on different contexts, environments, or use cases.
+With the profile system, you can install different packages for different contexts, environments, or use cases.
 
-- [Profile System Overview](profiles.md): Complete guide to understanding and using profiles
-- [Profile CLI Commands](cli/profiles.md): Command-line reference for profile usage
-- [Profile Best Practices](profile-best-practices.md): Practical organizational tips and examples
+- [Profile System Overview](profiles.md): How profiles work and how to use them
+- [Profile CLI Commands](cli/profiles.md): The command-line reference for profiles
+- [Profile Best Practices](profile-best-practices.md): Practical tips and examples for profile organization
 
 ## How the CLI Works
 
-- [Commands and Flags](cli/command-and-flags.md): Learn about the available commands in the RWR CLI and their respective flags.
-- [Configuration File](cli/configuration.md): Understand how to configure RWR through the configuration file.
+- [Commands and Flags](cli/command-and-flags.md): The available commands in the RWR CLI and their flags.
+- [Configuration File](cli/configuration.md): How to configure RWR through the configuration file.
 - [Profile Commands](cli/profiles.md): Profile-specific CLI commands and flags.
 
 ## The Init File
 
-The [Init File](init-file.md) is the main entry point for your blueprints and defines the order of execution. This section will cover its structure and functionality.
+The [init file](init-file.md) is the main entry point for your blueprints and defines the order of execution. This section describes its structure and function.
 
 ## The Bootstrap Process
 
-The [Bootstrap Process](bootstrap.md) is responsible for setting up the initial system configuration. Learn how it works and how to define the bootstrap file.
+The [bootstrap process](bootstrap.md) sets the initial system configuration. The page tells you how it works and how to define the bootstrap file.
 
 ## Blueprints Overview
 
-Get a [general overview of Blueprints](blueprints-general.md) and how they are used to manage your system's configuration.
+A [general overview of Blueprints](blueprints-general.md), and how they manage the configuration of your system.
 
 ## Blueprint Types
 
-RWR supports various blueprint types for managing different aspects of your system. Each blueprint type has its own page with detailed information:
+RWR supports many blueprint types. Each blueprint type manages one part of your system and has its own page with detailed information:
 
 - [Packages Blueprint](blueprints/packages.md)
 - [Repositories Blueprint](blueprints/repositories.md)
@@ -57,7 +57,7 @@ RWR supports various blueprint types for managing different aspects of your syst
 
 ## Variables and Templating
 
-- [Variables and Templating](variables.md): Learn how to use variables and templating in blueprints to make them more dynamic and reusable.
+- [Variables and Templating](variables.md): How to use variables and templates in blueprints.
 
 ## Credentials and Schema Versions
 
@@ -68,7 +68,7 @@ RWR supports various blueprint types for managing different aspects of your syst
 
 ## Best Practices
 
-- [Best Practices](best-practices.md): Discover best practices and recommendations for organizing blueprints and managing configurations.
+- [Best Practices](best-practices.md): The best practices for blueprint organization and configuration management.
 
 ## Extending RWR
 

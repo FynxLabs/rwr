@@ -1,6 +1,6 @@
-# Flattened Structure Approach
+# Flattened Layout
 
-This directory demonstrates organizing blueprint files individually with clear separation of concerns, organized by format.
+This directory shows one file per blueprint type, organized by format.
 
 ## Structure
 
@@ -65,35 +65,35 @@ cd flattened/toml
 rwr run
 ```
 
-RWR will automatically discover and process all files with the specified format extension in the directory, regardless of their names.
+RWR finds and processes all files in the directory that have the specified format extension. The file names have no effect.
 
 ## What This Demonstrates
 
-- **Blueprint discovery**: RWR finds blueprints by scanning for files with the correct format extension
-- **Content-based typing**: File names don't matter - `packages.yaml`, `my-packages.yaml`, or `stuff.yaml` all work if they contain `packages:`
-- **Flat organization**: No subdirectories needed - everything at root level
-- **Clear separation**: Each blueprint type in its own file for easy maintenance
+- **Blueprint discovery**: RWR scans for files with the correct format extension to find blueprints
+- **Content-based detection**: File names have no effect. `packages.yaml`, `my-packages.yaml`, and `stuff.yaml` all work if they contain `packages:`
+- **Flat layout**: No subdirectories are needed. Everything is at the root level
+- **Clear separation**: Each blueprint type is in its own file for easy maintenance
 
 ## Benefits
 
 ✅ **Advantages:**
 
-- **Simple structure** - no nested directories
-- **Easy to navigate** - everything at one level
+- **Simple layout** - there are no nested directories
+- **Easy to navigate** - everything is at one level
 - **Clear separation** - each blueprint type has its own file
-- **Maintainable** - easy to find and edit specific blueprint types
-- **Version control friendly** - clear file-level changes
+- **Maintainable** - you can find and edit each blueprint type easily
+- **Version control friendly** - changes are visible at the file level
 
 ✅ **Good for:**
 
 - Small to medium projects
 - Clear separation of concerns
-- Teams that prefer organized but simple structures
+- Teams that prefer organized but simple layouts
 - When you want dedicated files per blueprint type
 
-## Comparison with Other Approaches
+## Comparison with Other Layouts
 
-| Aspect                   | Flattened | Minimal Files | Nested Structure |
+| Aspect                   | Flattened | Minimal Files | Nested Layout    |
 | ------------------------ | --------- | ------------- | ---------------- |
 | Files per blueprint type | 1         | All in 1      | 1+ (in subdirs)  |
 | Directory depth          | 1 level   | 1 level       | 3+ levels        |
@@ -103,7 +103,7 @@ RWR will automatically discover and process all files with the specified format 
 
 ## File Naming Flexibility
 
-These are all equivalent ways to organize the same functionality:
+These file names are all equivalent:
 
 ```bash
 # Current approach
@@ -124,4 +124,4 @@ configs.yaml     # Contains files:
 
 **The key is the content, not the filename!**
 
-This approach strikes a balance between simplicity and organization, making it perfect for projects that need clear structure without excessive complexity.
+This layout balances simplicity and organization. It is good for projects that need clear structure without complexity.

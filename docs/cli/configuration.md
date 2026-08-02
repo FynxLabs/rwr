@@ -1,6 +1,6 @@
 # Configuration File
 
-The Rinse, Wash, Repeat (RWR) configuration file (`config.yaml`) is used to store settings and preferences for the RWR tool. This page describes the structure and options available in the configuration file.
+The Rinse, Wash, Repeat (RWR) configuration file (`config.yaml`) stores the settings for the RWR tool. This page describes the structure of the configuration file and the settings that are available in it.
 
 ## File Location
 
@@ -30,16 +30,16 @@ an error: RWR logs it at debug level and continues with the defaults.
 
 The configuration file uses the YAML format. It consists of key-value pairs and nested sections to organize the settings.
 
-## Configuration Options
+## Configuration Settings
 
-The following options are available in the `config.yaml` file:
+The following settings are available in the `config.yaml` file:
 
 ### `rwr` Section
 
 The `rwr` section contains general settings for the RWR tool.
 
-| Option | Description |
-|--------|-------------|
+| Setting | Description |
+|---------|-------------|
 | `configdir` | The directory that `rwr config --create` writes `config.yaml` to, and the directory that holds the `bootstrap` marker file. The default is `$HOME/.config/rwr`. It does **not** change where RWR reads `config.yaml` from — use `--config` for that |
 
 > [!NOTE]
@@ -51,8 +51,8 @@ The `rwr` section contains general settings for the RWR tool.
 
 The `repository` section contains settings related to Git repositories.
 
-| Option | Description |
-|--------|-------------|
+| Setting | Description |
+|---------|-------------|
 | `gh_api_token` | Specifies the GitHub API token for accessing private repositories |
 | `ssh_private_key` | Specifies the SSH private key (file path or base64 encoded) for accessing private repositories |
 | `init-file` | Specifies the location of the init file (local path or `https://` URL) |
@@ -61,13 +61,13 @@ The `repository` section contains settings related to Git repositories.
 
 The `log` section contains settings related to logging.
 
-| Option | Description |
-|--------|-------------|
+| Setting | Description |
+|---------|-------------|
 | `level` | Specifies the log level (debug, info, warn, error) |
 
 ## Example Configuration File
 
-Here's an example `config.yaml` file:
+Here is an example `config.yaml` file:
 
 ```yaml
 rwr:
@@ -87,24 +87,24 @@ RWR reads only the keys listed above. `rwr config --create` also writes
 
 ## Modifying the Configuration File
 
-You can modify the `config.yaml` file directly using a text editor. Alternatively, you can use the `rwr config` command to interactively create or update the configuration file.
+You can modify the `config.yaml` file directly with a text editor. You can also use the `rwr config` command to interactively create or update the configuration file.
 
 ```bash
 rwr config --create
 ```
 
-This command will prompt you for the necessary settings and generate the `config.yaml` file based on your input.
+This command prompts you for the settings. Then it writes the `config.yaml` file.
 
 ## Precedence
 
-The settings in the `config.yaml` file have precedence over the default values used by RWR. However, command-line flags, when provided, will override the corresponding settings in the configuration file.
+The settings in the `config.yaml` file have precedence over the default values used by RWR. However, a command-line flag overrides the corresponding setting in the configuration file.
 
 ## Environment Variables
 
-RWR reads the same options from the environment. An environment variable takes
-precedence over `config.yaml` but is overridden by a command-line flag.
+RWR reads the same settings from the environment. An environment variable takes
+precedence over `config.yaml`, but a command-line flag overrides it.
 
-The name is `RWR_` followed by the option's full key in upper case, with each dot
+The name is `RWR_` followed by the full key of the setting in upper case, with each dot
 replaced by an underscore. **A hyphen in the key is kept as a hyphen** — it is
 not turned into an underscore.
 
@@ -134,7 +134,7 @@ RWR_REPOSITORY_GH_API_TOKEN=your_token rwr all
 
 ## Notes
 
-- The `ssh_private_key` in the `repository` section is used as the default SSH key for RWR operations, including private git clones. This key is set when an SSH key is generated with the `set_as_rwr_ssh_key: true` option in the SSH Keys blueprint.
-- When using URL sources for files or init files, RWR will download the file from the specified URL before processing it.
+- The `ssh_private_key` in the `repository` section is used as the default SSH key for RWR operations, including private git clones. RWR sets this key when it generates an SSH key with the `set_as_rwr_ssh_key: true` setting in the SSH Keys blueprint.
+- When a file source or init file is a URL, RWR downloads the file before it processes it.
 
-For more information on using the configuration file and its options, please refer to the [Commands and Flags](command-and-flags.md) and [Best Practices](../best-practices.md) guides.
+For more information on the configuration file and its settings, read the [Commands and Flags](command-and-flags.md) and [Best Practices](../best-practices.md) guides.

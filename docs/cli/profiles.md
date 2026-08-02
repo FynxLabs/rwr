@@ -31,7 +31,7 @@ rwr all --profile PROFILE1,PROFILE2
 rwr all -p PROFILE1 -p PROFILE2
 ```
 
-Both forms may be mixed; the values accumulate.
+You can mix both forms. The values accumulate.
 
 ### Single profile
 
@@ -76,8 +76,7 @@ rwr all
 
 > [!IMPORTANT]
 > This applies **everything**, not only the items without a `profiles` field.
-> With no active profiles the filter is skipped entirely, so profile items apply
-> too. Filtering starts as soon as you name at least one profile. If you want
+> With no active profiles, RWR skips the filter, so profile items apply too. Filtering starts as soon as you name at least one profile. If you want
 > only the base items, there is no flag for that today.
 
 ### Commands that ignore the flag
@@ -88,8 +87,8 @@ rwr all
 
 ## `rwr profiles`
 
-`rwr profiles` walks the blueprint tree named by your init file and reports every
-profile its entries declare, with a count of the entries carrying each one.
+`rwr profiles` walks the blueprint tree that your init file names. It reports
+each declared profile with a count of the entries that carry it.
 
 ```bash
 rwr profiles
@@ -128,10 +127,10 @@ All 12 item(s) are base items and always apply.
 * Entries written inline in the init file are counted as well as the ones in the
   blueprint tree.
 
-The command finds a blueprint's type from the directory it sits in, the same way
-a run does, so a file has to be under `packages/`, `services/`, `files/` and so
-on to be read. It only reads files whose extension matches the `format` declared
-in the init file.
+The command finds the type of a blueprint from its directory, the same way a run
+does. A file must be under `packages/`, `services/`, `files/` or a similar
+directory to be read. The command only reads files whose extension matches the
+`format` declared in the init file.
 
 ## Debugging profile selection
 
@@ -146,10 +145,11 @@ DEBU Filtering packages: 3 total, 3 matching active profiles [work]
 DEBU Filtering services: 1 total, 1 matching active profiles [work]
 ```
 
-There is no per-item log line saying why one entry was kept and another dropped.
+There is no per-item log line that shows why RWR kept one entry and dropped
+another.
 
-Combine with `--dry-run` to see exactly which commands a profile combination
-would run, without running them:
+Add `--dry-run` to see the commands that a profile combination runs. RWR does
+not run them:
 
 ```bash
 rwr all --dry-run --profile work,gaming
@@ -158,9 +158,9 @@ rwr all --dry-run --profile work,gaming
 ## Error handling
 
 RWR does **not** check the names you pass against the ones your blueprints
-declare. A misspelled profile is not an error and produces no warning — it simply
-matches nothing, and the run applies the base items only. If a run installs less
-than you expected, check the spelling against `rwr profiles`; the names are
+declare. A misspelled profile is not an error and produces no warning — it matches
+nothing, and the run applies the base items only. If a run installs less than
+you expected, check the spelling against `rwr profiles`. The names are
 case-sensitive.
 
 ## Command reference
@@ -168,7 +168,7 @@ case-sensitive.
 | Flag | Description | Example |
 |------|-------------|---------|
 | `--profile PROFILES` | Comma-separated list of profiles to activate | `--profile work,gaming` |
-| `-p PROFILE` | Short form; repeat it for more than one | `-p work -p gaming` |
+| `-p PROFILE` | Short form. Repeat it for more than one | `-p work -p gaming` |
 
 | Command | Description |
 |---------|-------------|
@@ -211,7 +211,7 @@ rwr run files --profile work,dev
 ```
 
 `rwr run` takes exactly one processor name. There is no `rwr run all` and no
-comma-separated list of processors; use `rwr all` to run everything.
+comma-separated list of processors. Use `rwr all` to apply everything.
 
 ## Best practices
 
@@ -219,8 +219,8 @@ comma-separated list of processors; use `rwr all` to run everything.
    better in automation.
 2. **Group related profiles in one run**: `rwr all --profile work,dev` rather
    than two commands.
-3. **Check with `--dry-run` first.** Nothing validates a profile name for you,
-   so a dry run is how a typo gets caught.
+3. **Check with `--dry-run` first.** Nothing validates a profile name for you.
+   A dry run catches a typo.
 4. **Run `rwr profiles` in a tree you did not write** before you run anything
    else.
 
