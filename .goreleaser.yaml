@@ -67,6 +67,36 @@ universal_binaries:
 checksum:
   name_template: "checksums.txt"
 
+# An SPDX SBOM per archive, so what went into a build is inspectable without
+# rebuilding it. Requires syft on the PATH (installed in the workflows).
+sboms:
+  - artifacts: archive
+
+# Keyless cosign signature over checksums.txt. The installers verify artifacts
+# against the checksums file, but that file was served from the same release it
+# protects — integrity without authenticity. Signing the checksums file
+# transitively covers every artifact it lists.
+#
+# Keyless: the signature is bound to this repository's GitHub Actions OIDC
+# identity (no key to store or leak), verifiable with:
+#
+#   cosign verify-blob checksums.txt \
+#     --signature checksums.txt.sig --certificate checksums.txt.pem \
+#     --certificate-identity-regexp 'github.com/FynxLabs/rwr' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+signs:
+  - cmd: cosign
+    certificate: "${artifact}.pem"
+    signature: "${artifact}.sig"
+    args:
+      - sign-blob
+      - --output-certificate=${certificate}
+      - --output-signature=${signature}
+      - ${artifact}
+      - --yes
+    artifacts: checksum
+    output: true
+
 changelog:
   sort: asc
   use: github

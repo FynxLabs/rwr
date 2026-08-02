@@ -9,6 +9,9 @@ on:
       - "v*"
 permissions:
   contents: write
+  # Keyless cosign signing exchanges the job's OIDC token for a short-lived
+  # certificate; no signing key is stored anywhere.
+  id-token: write
 
 jobs:
   goreleaser:
@@ -25,6 +28,13 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: ">=1.26.5"
+
+      # cosign signs checksums.txt, syft writes the SBOMs — both invoked by
+      # goreleaser (signs: / sboms: in .goreleaser.yaml).
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+      - name: Install syft
+        uses: anchore/sbom-action/download-syft@v0
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
