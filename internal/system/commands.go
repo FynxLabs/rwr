@@ -37,18 +37,18 @@ import (
 func buildCommand(cmd types.Command) *exec.Cmd {
 	if runtime.GOOS != "windows" {
 		if cmd.Elevated {
-			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.Args)
+			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.LogArgs())
 			return exec.Command("sudo", append([]string{"--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
 		if cmd.AsUser != "" {
-			log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.Args)
+			log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.LogArgs())
 			return exec.Command("sudo", append([]string{"-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
 	} else if cmd.Elevated {
-		log.Debugf("Elevated requested on Windows; running in-process (no sudo equivalent): %v %v", cmd.Exec, cmd.Args)
+		log.Debugf("Elevated requested on Windows; running in-process (no sudo equivalent): %v %v", cmd.Exec, cmd.LogArgs())
 	}
 
-	log.Debugf("Running command: %v %v", cmd.Exec, cmd.Args)
+	log.Debugf("Running command: %v %v", cmd.Exec, cmd.LogArgs())
 	return exec.Command(cmd.Exec, cmd.Args...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 }
 
@@ -99,7 +99,7 @@ func RunCommand(cmd types.Command, debug bool) error {
 // runCommand is the real implementation behind osExecutor.Run.
 func runCommand(cmd types.Command, debug bool) error {
 	if dryRunMode {
-		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.Args, " "))
+		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.LogArgs(), " "))
 		return nil
 	}
 
@@ -108,11 +108,20 @@ func runCommand(cmd types.Command, debug bool) error {
 
 	var stderr bytes.Buffer
 
+	if cmd.Stdin != "" {
+		// Supplied input wins over the terminal even for an interactive command:
+		// the caller is feeding the tool something specific, and inheriting
+		// os.Stdin instead would hang waiting for a human.
+		command.Stdin = strings.NewReader(cmd.Stdin)
+	}
+
 	if cmd.Interactive {
 		// Interactive commands must reach the terminal directly. Capturing stderr
 		// here would swallow sudo's password prompt and hang the run with no
 		// indication of what it was waiting for.
-		command.Stdin = os.Stdin
+		if cmd.Stdin == "" {
+			command.Stdin = os.Stdin
+		}
 		command.Stdout = os.Stdout
 		command.Stderr = os.Stderr
 	} else {
@@ -151,7 +160,7 @@ func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
 // runCommandOutput is the real implementation behind osExecutor.Output.
 func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 	if dryRunMode {
-		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.Args, " "))
+		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.LogArgs(), " "))
 		return "", nil
 	}
 
@@ -160,6 +169,9 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
+	if cmd.Stdin != "" {
+		command.Stdin = strings.NewReader(cmd.Stdin)
+	}
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 
@@ -191,7 +203,17 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 		return nil, nil
 	}
 
-	file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // #nosec G302 G304 -- TODO(PR8): create with target mode instead of chmod-after; path is operator-supplied blueprint/config input; containment added in PR8
+	// The log path comes from the blueprint (`log:` on a script), so it is
+	// attacker-influenced whenever the blueprint is. Appending through a symlink
+	// would let command output be written into ~/.ssh/authorized_keys or ~/.bashrc
+	// without the blueprint containing anything that looks like it writes a file.
+	// Refuse to follow a symlink, and create at 0600 — command output routinely
+	// contains more than the operator expects.
+	if info, err := os.Lstat(logName); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("refusing to write command log through symlink %q", logName)
+	}
+
+	file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600) // #nosec G304 -- path is operator-supplied blueprint input; symlinks refused above
 	if err != nil {
 		log.Errorf("Error opening log file: %v", err)
 		return nil, fmt.Errorf("error opening log file %q: %w", logName, err)

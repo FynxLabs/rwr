@@ -84,11 +84,6 @@ func SetShowSecrets(enabled bool) {
 	showSecrets = enabled
 }
 
-// ShowSecrets reports whether secret values may be printed.
-func ShowSecrets() bool {
-	return showSecrets
-}
-
 // Redact returns value unless the operator asked to see secrets.
 //
 // The escape hatch exists because "is rwr even reading my token?" is a real

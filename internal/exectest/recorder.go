@@ -19,6 +19,7 @@ type Call struct {
 	AsUser   string
 	LogName  string
 	Vars     map[string]string
+	Stdin    string
 }
 
 // Argv is the full argument vector as the target program would receive it:
@@ -67,6 +68,7 @@ func (r *Recorder) record(cmd types.Command) {
 		AsUser:   cmd.AsUser,
 		LogName:  cmd.LogName,
 		Vars:     cmd.Variables,
+		Stdin:    cmd.Stdin,
 	})
 }
 
