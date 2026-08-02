@@ -79,10 +79,17 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 	if err != nil {
 		return nil, fmt.Errorf("error processing init file as a template: %w", err)
 	}
-	// Convert TOML to YAML if necessary (the registry decides what counts as
-	// TOML rather than a literal extension compare).
-	if format, formatErr := helpers.FormatForPath(tempInitFile); formatErr == nil && format == types.FormatTOML {
+	// Viper does not read TOML the way rwr's decoders do, and cannot read CUE
+	// at all: both are pre-converted (the registry decides the format rather
+	// than a literal extension compare).
+	switch format, formatErr := helpers.FormatForPath(tempInitFile); {
+	case formatErr == nil && format == types.FormatTOML:
 		processedInit, fileExt, err = convertTomlToYaml(processedInit)
+		if err != nil {
+			return nil, err
+		}
+	case formatErr == nil && format == types.FormatCUE:
+		processedInit, fileExt, err = convertCueToJSON(processedInit, tempInitFile)
 		if err != nil {
 			return nil, err
 		}
@@ -155,6 +162,17 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 // both render blueprints against the same variables.
 func setDefaultVariables() (types.Variables, error) {
 	return helpers.DefaultVariables()
+}
+
+// convertCueToJSON evaluates a CUE init file to concrete JSON for viper, the
+// same shape as the TOML→YAML pre-conversion below.
+func convertCueToJSON(data []byte, filename string) ([]byte, string, error) {
+	log.Debugf("CUE format detected, evaluating to JSON for viper")
+	jsonData, err := helpers.EvalCUEToJSON(data, filename)
+	if err != nil {
+		return nil, "", err
+	}
+	return jsonData, ".json", nil
 }
 
 func convertTomlToYaml(data []byte) ([]byte, string, error) {

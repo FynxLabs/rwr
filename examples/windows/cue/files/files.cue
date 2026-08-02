@@ -1,0 +1,18 @@
+{
+  "files": [
+    {
+      "name": ".gitignore",
+      "action": "copy",
+      "source": "./src/.gitignore",
+      "target": "{{ .User.home }}",
+      "mode": 420
+    },
+    {
+      "name": "testFile.txt",
+      "action": "copy",
+      "source": "./src/.config",
+      "target": "{{ .User.home }}/.config",
+      "mode": 420
+    }
+  ]
+}

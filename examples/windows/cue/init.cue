@@ -1,0 +1,29 @@
+{
+  "blueprints": {
+    "format": "cue",
+    "schema_version": 1,
+    "location": ".",
+    "order": [
+      "repositories",
+      "packages",
+      "files",
+      "fonts",
+      "services",
+      "git",
+      "scripts",
+      "users",
+      "ssh_keys",
+      "configuration"
+    ]
+  },
+  "packageManagers": [
+    {
+      "name": "cargo",
+      "action": "install"
+    },
+    {
+      "name": "chocolatey",
+      "action": "install"
+    }
+  ]
+}

@@ -104,9 +104,8 @@ func isBootstrapFileName(name string) bool {
 
 // findInitFile searches for an init file in the specified directory (non-recursive).
 func findInitFile(dir string) string {
-	// Check for init files with common extensions
-	for _, ext := range []string{types.FormatExtJSON, types.FormatExtYAML, types.FormatExtYAMLAlt, types.FormatExtTOML} {
-		initFile := filepath.Join(dir, "init"+ext)
+	for _, name := range helpers.CandidateFilenames("init") {
+		initFile := filepath.Join(dir, name)
 		if _, err := os.Stat(initFile); err == nil {
 			return initFile
 		}

@@ -47,7 +47,7 @@ func TestIsBlueprintFile(t *testing.T) {
 
 func TestCandidateFilenames(t *testing.T) {
 	got := CandidateFilenames("init")
-	want := []string{"init.yaml", "init.yml", "init.json", "init.toml"}
+	want := []string{"init.yaml", "init.yml", "init.json", "init.toml", "init.cue"}
 	if len(got) != len(want) {
 		t.Fatalf("CandidateFilenames = %v, want %v", got, want)
 	}

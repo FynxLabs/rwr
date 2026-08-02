@@ -1,0 +1,27 @@
+{
+  "scripts": [
+    {
+      "name": "update_system",
+      "action": "run",
+      "elevated": true,
+      "content": "#!/bin/bash\ndnf update -y\necho \"System updated successfully\"\n"
+    },
+    {
+      "name": "setup_dev_environment",
+      "profiles": [
+        "dev"
+      ],
+      "action": "run",
+      "content": "#!/bin/bash\nmkdir -p \"{{ .User.home }}/Projects\"\necho 'alias ll=\"ls -alF\"' >> \"{{ .User.home }}/.bashrc\"\necho \"Development environment setup complete\"\n"
+    },
+    {
+      "name": "docker_user_setup",
+      "profiles": [
+        "docker"
+      ],
+      "action": "run",
+      "elevated": true,
+      "content": "#!/bin/bash\nusermod -a -G docker \"{{ .User.username }}\"\nsystemctl enable docker\nsystemctl start docker\necho \"Docker setup complete\"\n"
+    }
+  ]
+}

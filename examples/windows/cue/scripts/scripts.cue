@@ -1,0 +1,32 @@
+{
+  "scripts": [
+    {
+      "name": "update-system",
+      "content": "@echo off\nchoco upgrade all -y\nwinget upgrade --all\n"
+    },
+    {
+      "name": "setup-chocolatey",
+      "content": "@echo off\npowershell -Command \"Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))\"\n"
+    },
+    {
+      "name": "setup-wsl",
+      "content": "@echo off\ndism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart\ndism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart\nwsl --set-default-version 2\n",
+      "profiles": ["dev"]
+    },
+    {
+      "name": "configure-rdp",
+      "content": "@echo off\nreg add \"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\" /v fDenyTSConnections /t REG_DWORD /d 0 /f\nnetsh advfirewall firewall set rule group=\"remote desktop\" new enable=Yes\n",
+      "profiles": ["work"]
+    },
+    {
+      "name": "optimize-gaming",
+      "content": "@echo off\npowercfg -setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c\nbcdedit /set useplatformclock true\nbcdedit /set disabledynamictick yes\n",
+      "profiles": ["gaming"]
+    },
+    {
+      "name": "cleanup-system",
+      "content": "@echo off\ncleanmgr /sagerun:1\ndism /online /cleanup-image /startcomponentcleanup\n",
+      "profiles": ["minimal"]
+    }
+  ]
+}

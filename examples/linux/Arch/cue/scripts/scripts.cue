@@ -1,0 +1,100 @@
+{
+  "scripts": [
+    {
+      "name": "system_info",
+      "action": "run",
+      "content": "#!/bin/bash\necho \"System Information:\"\necho \"Hostname: $(hostname)\"\necho \"User: $USER\"\necho \"Distribution: $(lsb_release -d | cut -f2)\"\necho \"Kernel: $(uname -r)\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/system_info.log"
+    },
+    {
+      "name": "update_system",
+      "action": "run",
+      "elevated": true,
+      "content": "#!/bin/bash\necho \"Updating package database...\"\npacman -Sy --noconfirm\necho \"System updated successfully\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/system_update.log"
+    },
+    {
+      "name": "setup_dev_environment",
+      "profiles": [
+        "dev",
+        "work"
+      ],
+      "action": "run",
+      "content": "#!/bin/bash\n# Create development directories\nmkdir -p \"{{ .User.home }}/Projects\"\nmkdir -p \"{{ .User.home }}/Projects/personal\"\nmkdir -p \"{{ .User.home }}/Projects/work\"\nmkdir -p \"{{ .User.home }}/.local/bin\"\n\n# Set up development aliases\necho 'alias ll=\"ls -alF\"' >> \"{{ .User.home }}/.bashrc\"\necho 'alias la=\"ls -A\"' >> \"{{ .User.home }}/.bashrc\"\necho 'alias l=\"ls -CF\"' >> \"{{ .User.home }}/.bashrc\"\n\necho \"Development environment setup complete\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/dev_setup.log"
+    },
+    {
+      "name": "install_nvm",
+      "profiles": [
+        "dev",
+        "nodejs"
+      ],
+      "action": "run",
+      "content": "#!/bin/bash\ncurl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash\nexport NVM_DIR=\"$HOME/.nvm\"\n[ -s \"$NVM_DIR/nvm.sh\" ] && \\. \"$NVM_DIR/nvm.sh\"\nnvm install --lts\nnvm use --lts\necho \"NVM and latest LTS Node.js installed\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/nvm_install.log"
+    },
+    {
+      "name": "gaming_optimizations",
+      "profiles": [
+        "gaming"
+      ],
+      "action": "run",
+      "elevated": true,
+      "content": "#!/bin/bash\n# Enable multilib repository\nsed -i '/^#\\[multilib\\]/,/^#Include = \\/etc\\/pacman.d\\/mirrorlist/ { s/^#//; }' /etc/pacman.conf\n\n# Update package database\npacman -Sy --noconfirm\n\n# Set up gaming group\ngroupadd -f gaming\nusermod -a -G gaming \"{{ .User.username }}\"\n\necho \"Gaming optimizations applied\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/gaming_setup.log"
+    },
+    {
+      "name": "security_setup",
+      "profiles": [
+        "security",
+        "work"
+      ],
+      "action": "run",
+      "elevated": true,
+      "content": "#!/bin/bash\n# Configure firewall\nsystemctl enable ufw\nufw --force enable\nufw default deny incoming\nufw default allow outgoing\nufw allow ssh\n\n# Set up fail2ban\nsystemctl enable fail2ban\nsystemctl start fail2ban\n\necho \"Basic security setup complete\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/security_setup.log"
+    },
+    {
+      "name": "setup_postgresql_user",
+      "profiles": [
+        "database",
+        "dev"
+      ],
+      "action": "run",
+      "elevated": true,
+      "content": "#!/bin/bash\n# Create PostgreSQL user\nsudo -u postgres createuser -s \"{{ .User.username }}\"\nsudo -u postgres createdb \"{{ .User.username }}\"\n\necho \"PostgreSQL user setup complete\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/postgresql_setup.log"
+    },
+    {
+      "name": "run_custom_setup",
+      "profiles": [
+        "personal"
+      ],
+      "action": "run",
+      "source": "{{ .User.home }}/Scripts/personal_setup.sh",
+      "args": "--user {{ .User.username }} --home {{ .User.home }}",
+      "log": "{{ .User.home }}/.config/rwr/logs/custom_setup.log"
+    },
+    {
+      "name": "docker_user_setup",
+      "profiles": [
+        "dev",
+        "docker"
+      ],
+      "action": "run",
+      "elevated": true,
+      "content": "#!/bin/bash\n# Add user to docker group\nusermod -a -G docker \"{{ .User.username }}\"\n\n# Enable and start Docker service\nsystemctl enable docker\nsystemctl start docker\n\necho \"Docker user setup complete. Please log out and back in for group changes to take effect.\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/docker_setup.log"
+    },
+    {
+      "name": "system_cleanup",
+      "profiles": [
+        "maintenance"
+      ],
+      "action": "run",
+      "elevated": true,
+      "content": "#!/bin/bash\n# Clean package cache\npacman -Sc --noconfirm\n\n# Clean orphaned packages\npacman -Rns $(pacman -Qtdq) --noconfirm 2>/dev/null || echo \"No orphaned packages found\"\n\n# Clear systemd journal logs older than 30 days\njournalctl --vacuum-time=30d\n\necho \"System cleanup complete\"\n",
+      "log": "{{ .User.home }}/.config/rwr/logs/system_cleanup.log"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "name": "{{ .User.username }}",
+      "action": "modify",
+      "add_groups": [
+        "docker"
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "developers",
+      "action": "create"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "configurations": [
+    {
+      "name": "dock-autohide",
+      "action": "set",
+      "tool": "macos_defaults",
+      "domain": "com.apple.dock",
+      "key": "autohide",
+      "kind": "bool",
+      "value": true
+    },
+    {
+      "name": "show-hidden-files",
+      "action": "set",
+      "tool": "macos_defaults",
+      "domain": "com.apple.finder",
+      "key": "AppleShowAllFiles",
+      "kind": "bool",
+      "value": true
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "scripts": [
+    {
+      "name": "update_homebrew",
+      "action": "run",
+      "content": "#!/bin/bash\nbrew update && brew upgrade\necho \"Homebrew updated successfully\"\n"
+    },
+    {
+      "name": "setup_dev_environment",
+      "profiles": [
+        "dev"
+      ],
+      "action": "run",
+      "content": "#!/bin/bash\nmkdir -p \"{{ .User.home }}/Projects\"\necho 'alias ll=\"ls -alF\"' >> \"{{ .User.home }}/.zshrc\"\necho \"Development environment setup complete\"\n"
+    },
+    {
+      "name": "docker_setup",
+      "profiles": [
+        "docker"
+      ],
+      "action": "run",
+      "content": "#!/bin/bash\nopen /Applications/Docker.app\necho \"Docker Desktop starting...\"\n"
+    }
+  ]
+}
