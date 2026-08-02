@@ -1,6 +1,21 @@
 #Requires -Version 5.1
+# By default the latest stable release is installed. GitHub's /releases/latest
+# endpoint never returns prereleases, so the rolling `nightly` build (and any
+# pinned tag) is reached through /releases/tags/<tag> instead — same response
+# shape, same assets, same checksums.txt.
+param(
+    [switch]$Nightly,
+    [string]$Tag
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ($Nightly -and $Tag) {
+    Write-Host "-Nightly and -Tag are two ways to pick one release; use one or the other."
+    exit 1
+}
+if ($Nightly) { $Tag = 'nightly' }
 
 $REPO = "FynxLabs/rwr"
 $BINARY_PATH = "$env:ProgramFiles\rwr"
@@ -36,11 +51,22 @@ switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
 
 Write-Host "Installing RWR for $OS $ARCH"
 
+if ($Tag) {
+    $release_api = "https://api.github.com/repos/$REPO/releases/tags/$Tag"
+    $release_desc = "release $Tag"
+    if ($Tag -eq 'nightly') {
+        Write-Host "Installing the nightly prerelease: an unvetted build of whatever master last was."
+    }
+} else {
+    $release_api = "https://api.github.com/repos/$REPO/releases/latest"
+    $release_desc = "latest release"
+}
+
 $headers = @{ 'User-Agent' = 'rwr-installer' }
 try {
-    $latest_release = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers $headers
+    $latest_release = Invoke-RestMethod -Uri $release_api -Headers $headers
 } catch {
-    Write-Host "Failed to query the latest release: $_"
+    Write-Host "Failed to query the ${release_desc}: $_"
     exit 1
 }
 
@@ -50,7 +76,7 @@ $download_url = $latest_release.assets |
     Select-Object -First 1 -ExpandProperty browser_download_url
 
 if (-not $download_url) {
-    Write-Host "Could not find $asset_name in the latest release. Exiting."
+    Write-Host "Could not find $asset_name in the $release_desc. Exiting."
     exit 1
 }
 

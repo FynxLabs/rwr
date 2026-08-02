@@ -13,6 +13,38 @@ fail() {
     exit 1
 }
 
+# By default the latest stable release is installed. GitHub's /releases/latest
+# endpoint never returns prereleases, so the rolling `nightly` build (and any
+# pinned tag) is reached through /releases/tags/<tag> instead — same response
+# shape, same assets, same checksums.txt.
+RELEASE_TAG=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --nightly)
+            RELEASE_TAG="nightly"
+            ;;
+        --tag)
+            [ $# -ge 2 ] || fail "--tag needs a value, e.g. --tag v0.5.1 or --tag nightly."
+            RELEASE_TAG="$2"
+            shift
+            ;;
+        --tag=*)
+            RELEASE_TAG="${1#--tag=}"
+            [ -n "$RELEASE_TAG" ] || fail "--tag needs a value, e.g. --tag v0.5.1 or --tag nightly."
+            ;;
+        -h|--help)
+            echo "Usage: install.sh [--nightly | --tag <tag>]"
+            echo "  --nightly     install the rolling prerelease built from master"
+            echo "  --tag <tag>   install a specific release tag (e.g. v0.5.1)"
+            exit 0
+            ;;
+        *)
+            fail "Unknown option: $1. Supported options: --nightly, --tag <tag>."
+            ;;
+    esac
+    shift
+done
+
 OS=$(uname -s)
 case "$OS" in
     Linux*)     OS="Linux";;
@@ -81,10 +113,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
+if [ -n "$RELEASE_TAG" ]; then
+    RELEASE_API="https://api.github.com/repos/$REPO/releases/tags/$RELEASE_TAG"
+    RELEASE_DESC="release $RELEASE_TAG"
+    if [ "$RELEASE_TAG" = "nightly" ]; then
+        echo "Installing the nightly prerelease: an unvetted build of whatever master last was."
+    fi
+else
+    RELEASE_API="https://api.github.com/repos/$REPO/releases/latest"
+    RELEASE_DESC="latest release"
+fi
+
 echo "Installing RWR for $OS $ARCH"
 
-if ! latest_release=$(curl -fsSL -H "User-Agent: $USER_AGENT" "https://api.github.com/repos/$REPO/releases/latest"); then
-    fail "Failed to query the latest release from the GitHub API. The API may be unreachable or rate limiting this host (unauthenticated requests are limited per IP). Try again later."
+if ! latest_release=$(curl -fsSL -H "User-Agent: $USER_AGENT" "$RELEASE_API"); then
+    fail "Failed to query the $RELEASE_DESC from the GitHub API. The tag may not exist, the API may be unreachable, or it is rate limiting this host (unauthenticated requests are limited per IP)."
 fi
 
 asset_urls=$(printf '%s' "$latest_release" |
@@ -104,12 +147,12 @@ url_for_asset() {
 
 download_url=$(url_for_asset "$ASSET")
 if [ -z "$download_url" ]; then
-    fail "The latest release does not contain $ASSET, so there is no build for $OS $ARCH. Exiting."
+    fail "The $RELEASE_DESC does not contain $ASSET, so there is no build for $OS $ARCH. Exiting."
 fi
 
 checksums_url=$(url_for_asset "$CHECKSUMS")
 if [ -z "$checksums_url" ]; then
-    fail "The latest release does not publish $CHECKSUMS, so the download cannot be verified. Exiting."
+    fail "The $RELEASE_DESC does not publish $CHECKSUMS, so the download cannot be verified. Exiting."
 fi
 
 echo "Downloading $ASSET"

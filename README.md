@@ -74,6 +74,17 @@ against the release's `checksums.txt` and refuses to install on a mismatch.
 `install.sh` installs to `/usr/local/bin`; `install.ps1` installs to
 `%ProgramFiles%\rwr` and adds it to the machine `PATH`.
 
+To install the rolling [nightly prerelease](https://github.com/FynxLabs/rwr/releases/tag/nightly)
+(an unvetted build of master) or pin a specific version, pass a flag through:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.sh | sudo bash -s -- --nightly
+```
+
+`--tag v0.5.1` pins a release by tag. On Windows the same options are
+`-Nightly` and `-Tag v0.5.1` (download the script to a file to pass
+parameters, or wrap the one-liner in `& ([scriptblock]::Create(...))`).
+
 > [!NOTE]
 > Always review scripts before running them with elevated privileges. The install scripts are available for inspection in the RWR repository.
 
