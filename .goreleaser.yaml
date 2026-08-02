@@ -57,7 +57,9 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }} -X main.builtBy=goreleaser -X main.treeState={{ .IsGitDirty }}
+      # treeState is rendered as a word rather than {{ .IsGitDirty }}'s bare
+      # boolean, which made `rwr version` report "tree state: false".
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }} -X main.builtBy=goreleaser -X main.treeState={{ if .IsGitDirty }}dirty{{ else }}clean{{ end }}
 
 universal_binaries:
   - replace: false
@@ -143,8 +145,9 @@ homebrew_casks:
       git:
         url: "ssh://git@github.com/FynxLabs/brew-tap.git"
         private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
-    directory: Formula
-    binary: rwr
+    # Casks live in Casks/, not Formula/ — a cask written into a Formula directory
+    # is not what `brew install rwr` looks for.
+    directory: Casks
     homepage: "https://github.com/fynxlabs/rwr"
     description: "Rinse, Wash, Repeat (RWR) - Configuration Management Tool"
     # "auto" skips prereleases, which keeps the nightly master builds out of the
