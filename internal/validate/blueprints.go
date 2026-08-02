@@ -53,7 +53,7 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 
 	for _, diag := range plan.Diags {
 		severity := types.ValidationError
-		if diag.Severity == processors.SeverityWarning {
+		if diag.Severity == types.SeverityWarning {
 			severity = types.ValidationWarning
 		}
 		AddIssue(results, severity, diag.Msg, diag.File, diag.Line, "")

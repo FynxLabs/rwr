@@ -4,7 +4,7 @@ Steps 1–5 are prerequisites and carry the risk; 6+ are additive.
 
 - [x] 1. `Plan` struct + stage 1 resolve; wire `rwr validate` to it. Parity test
       against current validate output (fails if outputs diverge).
-- [ ] 2. `Reporter` interface + `LogReporter` wired into `All()` and
+- [x] 2. `Reporter` interface + `LogReporter` wired into `All()` and
       `commands.go`. Byte-identical-output test vs master (the safety net).
 - [ ] 3. Store, views, slog handler; test processor attribution of records.
 - [ ] 4. Stage 2 resolve: provider grouping, lane counts.
