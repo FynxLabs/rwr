@@ -30,7 +30,7 @@ The following settings are available for every entry, whichever tool it uses:
 | `profiles` | No | Profiles this entry belongs to. Empty means it is always applied |
 | `elevated` | No | Whether to run the configuration with elevated privileges (default: false) |
 | `run_once` | No | dconf only: create a marker file and skip the entry on later runs (default: false) |
-| `action` | No | Accepted by the schema but **not read**. The `tool` decides what happens; there is nothing to select |
+| `action` | No | `set` is the only supported action; leaving it out means the same thing. Any other value is recorded as a failure for that entry |
 | `names` | No | Accepted by the schema but **not read**. One entry is one operation |
 
 The tool-specific settings are `file`, `schema`, `key`, `settings`, `value`,

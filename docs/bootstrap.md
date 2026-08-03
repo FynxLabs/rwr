@@ -100,8 +100,8 @@ The Bootstrap Process executes the sections in the following order:
 4. `ssh_keys`
 5. `git`
 6. `services`
-7. `groups`
-8. `users`
+7. `users`
+8. `groups`
 
 This order ensures that the necessary dependencies and prerequisites are in place before proceeding with other tasks.
 
@@ -116,6 +116,14 @@ rwr all --force-bootstrap
 ```
 
 This flag will ensure that the Bootstrap Process is executed even if it has been run previously.
+
+The "has run" state is a marker file in the RWR configuration directory. A
+`--dry-run` execution does **not** write the marker, so a real run after a
+dry-run still performs the bootstrap.
+
+Like every other blueprint file, the bootstrap file may declare a
+`schema_version` at the top level to override the tree-wide version from the
+init file.
 
 ## New Features and Enhancements
 
@@ -133,6 +141,7 @@ This flag will ensure that the Bootstrap Process is executed even if it has been
 
 - The `ssh_keys` section has been added to generate and manage SSH keys during the bootstrap process.
 - The `set_as_rwr_ssh_key` option allows setting a generated key as the default RWR SSH key for operations.
+- With `copy_to_github: true`, the optional `github_title` field names the key on GitHub; without it, the machine's hostname is used.
 
 ## Best Practices
 

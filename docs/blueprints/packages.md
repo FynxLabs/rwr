@@ -47,12 +47,12 @@ The Packages Blueprint supports the following settings:
 | `import` | Yes, if `name` or `names` is not provided | Path to import package definitions from another file (relative to blueprint directory) |
 | `action` | Yes | `install` or `remove`. See [Actions](#actions) |
 | `package_manager` | No | The package manager to use (e.g., `apt`, `brew`, `chocolatey`) |
-| `elevated` | No | Accepted by the schema but **not read**. Whether the package manager is run with elevation comes from the provider definition, not from the entry |
+| `elevated` | No | Ask for elevation on top of what the provider declares. The provider decides whether its package manager needs elevation; an entry may add it (a user-scoped manager invoked against a system path) but may not take it away |
 | `args` | No | Additional arguments to pass to the package manager (as a list of strings), appended after the package name |
 | `profiles` | No | List of profiles this package belongs to. If empty, package is always installed (base item) |
 | `interactive` | No | Override global interactive mode for this package (`true`/`false`). If omitted, uses the global `--interactive` flag |
 
-Note that you must provide either `name`, `names`, or `import` for each package entry. If both `name` and `names` are given, `name` wins and `names` is ignored.
+Note that you must provide either `name`, `names`, or `import` for each package entry. If both `name` and `names` are given, the `names` list is processed and `name` is ignored (with a warning), matching how `files` and `fonts` behave.
 
 ### Package names may not begin with `-`
 
@@ -65,12 +65,10 @@ elevated package manager does.
 
 ### Actions
 
-`install` and `remove` are implemented.
-
-`update` is accepted by `rwr validate` but **not implemented by the packages
-processor**: an entry declaring it is recorded as a failure with "unknown
-action" at run time. To refresh package lists, run a repositories blueprint —
-RWR runs each available provider's update command after processing it.
+`install` and `remove` are implemented. Any other value — including `update` —
+is reported by `rwr validate` and recorded as a failure with "unknown action"
+at run time. To refresh package lists, run a repositories blueprint — RWR runs
+each available provider's update command after processing it.
 
 ## Blueprint Imports
 

@@ -19,7 +19,7 @@ The following flags are available for all commands:
 | `--dry-run` | Simulate operations without making changes (no-op mode) |
 | `--no-op` | Alias for `--dry-run` |
 | `--interactive`, `-I` | Enable interactive mode (default: true). Use `--interactive=false` to disable |
-| `--gh-key` | Another name for `--gh-api-key` |
+| `--gh-key` | Deprecated alias for `--gh-api-key`; use `--gh-api-key` |
 | `--gh-auth` | Get a GitHub token with the OAuth device flow. Only `rwr all` and `rwr run ssh_keys` act on it |
 | `--profile`, `-p` | Make a profile active. Repeat the flag, or give a comma-separated list |
 | `--force-bootstrap` | Run the bootstrap process again |

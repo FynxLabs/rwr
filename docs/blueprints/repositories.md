@@ -30,6 +30,7 @@ blueprint did not supply is an error naming the repository, not a blank.
 | `action` | Yes | `add` or `remove` |
 | `url` | Yes for `add` | The repository URL. A value with no scheme, or a `file://` URL, is treated as a local path — that is what selects the sideload steps for `snap` and `gnome-extensions` |
 | `key_url` | No | URL of the repository's signing key, downloaded to the provider's key directory (apt, dnf, zypper, apk, xbps, eopkg, slackpkg) |
+| `key_sha256` | No | SHA-256 digest of the signing key at `key_url`; the key download is verified against it |
 | `key_id` | No | Key ID to import or delete rather than a URL (pacman family, and the `rpm --erase gpg-pubkey-<id>` step in dnf/zypper removal) |
 | `arch` | No | Architecture written into an apt source line |
 | `channel` | No | Suite/channel written into an apt source line |
@@ -42,6 +43,9 @@ blueprint did not supply is an error naming the repository, not a blank.
 | `proxy_url` | No | Proxy snapd should route through; setting it adds the `snap set system proxy.*` steps |
 | `uuid` | No | GNOME extension UUID, used to enable, disable and uninstall the extension |
 | `extension_id` | No | GNOME extension ID, used when installing from extensions.gnome.org |
+| `interface` | No | Snap interface to connect after install (`snap connect <name>:<interface> <slot>`) |
+| `slot` | No | The slot the snap interface plugs into |
+| `reset_settings` | No | GNOME extensions only: also reset the extension's settings when removing it (default `false`) |
 | `username` | No | Username for a private source (chocolatey). See the warning below |
 | `password` | No | Password for a private source (chocolatey). See the warning below |
 | `token` | No | Registry token (`cargo login`). See the warning below |
@@ -64,17 +68,14 @@ rendered, so the settings above take effect.
 
 ## Actions and what actually works
 
-Every shipped provider defines both `add` and `remove` steps. Two of them do not
-work, and are documented here rather than left to fail on your machine:
-
-| Provider | State |
-|----------|-------|
-| `snap`, `action: add` | **Broken.** The provider's last add step is gated on a `HasInterfaces` predicate RWR does not derive, and an unknown predicate is an error rather than a silent skip, so every snap repository add fails. Snap removal works |
-| `gnome-extensions`, `action: remove` | **Broken.** The final step is gated on a `ResetSettings` predicate RWR does not derive, so removal fails after the disable and uninstall steps have already run. Installing works |
-
-Everything else — apt, dnf, zypper, pacman/yay/paru/aura/pamac/trizen, apk,
-xbps, eopkg, emerge, slackpkg, brew, macports, nix, flatpak, cargo, chocolatey,
-scoop, winget, mas — supports both `add` and `remove`.
+Every shipped provider — apt, dnf, zypper, pacman/yay/paru/aura/pamac/trizen,
+apk, xbps, eopkg, emerge, slackpkg, brew, macports, nix, flatpak, snap, cargo,
+chocolatey, scoop, winget, mas, gnome-extensions — defines both `add` and
+`remove` steps, and both work. Provider steps may be gated on predicates RWR
+derives from the entry (`HasKey`, `HasInterfaces`, `ResetSettings`, …), so a
+step for a feature you did not ask for is simply skipped: a snap add without
+`interface` does not run `snap connect`, and a GNOME extension remove resets
+the extension's settings only when `reset_settings: true`.
 
 Two more things worth knowing:
 

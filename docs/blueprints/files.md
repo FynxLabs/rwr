@@ -53,7 +53,7 @@ The following settings are available for the Files Blueprint:
 | `mode` | No | The permission mode. Applied by `create` and `chmod` only. See [File modes](#file-modes). |
 | `elevated` | No | Only the `copy` action reads this. With `true`, the copy is staged through a temporary file and installed with elevation. Every other file action is performed by rwr's own process and ignores the field. Defaults to `false`. |
 | `variables` | No | A map of variables and their values to be used for template rendering. Only applicable to the `templates` section. |
-| `interactive` | No | Override global interactive mode for this file (`true`/`false`). If omitted, uses the global `--interactive` flag. Controls whether diffs are shown before overwriting existing files. |
+| `interactive` | No | Accepted by the schema but **not read** by the files processor: file operations run the same way whatever it is set to. Only the global `--interactive` flag has any effect here. |
 
 ## Blueprint Imports
 

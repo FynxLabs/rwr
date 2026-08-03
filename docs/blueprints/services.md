@@ -69,11 +69,7 @@ The Services Blueprint supports the following actions:
 - `create`: Create a new service file
 - `delete`: Delete an existing service file
 
-> [!NOTE]
-> `rwr validate` currently accepts only `enable`, `disable`, `start`, `stop` and
-> `restart`, and reports the other four as invalid. The processor runs all nine.
-> If you use `reload`, `status`, `create` or `delete`, expect a validation error
-> you can ignore.
+`rwr validate` accepts all nine actions.
 
 ## Platform-Specific Considerations
 

@@ -41,11 +41,7 @@ The `rwr` section contains general settings for the RWR tool.
 | Option | Description |
 |--------|-------------|
 | `configdir` | The config directory: where `config.yaml` is looked up, where `rwr config --create` writes it, and where the `bootstrap` marker lives. The default is `$HOME/.config/rwr`. Because it decides where the config file is, it only takes effect from the environment (`RWR_RWR_CONFIGDIR`) — a config file cannot name its own directory. `--config` overrides it |
-
-> [!NOTE]
-> There is no working `rwr.skipVersionCheck` option. The key is written by
-> `rwr config --create`, but nothing reads it back: only the
-> `--skip-version-check` flag turns the version check off.
+| `skipVersionCheck` | Set to `true` to turn off the startup check for a newer release. The `--skip-version-check` flag does the same for a single run |
 
 ### `repository` Section
 
@@ -82,8 +78,7 @@ log:
   level: info
 ```
 
-RWR reads only the keys listed above. `rwr config --create` also writes
-`rwr.skipVersionCheck`, which nothing reads.
+RWR reads only the keys listed above.
 
 ## Modifying the Configuration File
 
@@ -104,9 +99,8 @@ The settings in the `config.yaml` file have precedence over the default values u
 RWR reads the same options from the environment. An environment variable takes
 precedence over `config.yaml` but is overridden by a command-line flag.
 
-The name is `RWR_` followed by the option's full key in upper case, with each dot
-replaced by an underscore. **A hyphen in the key is kept as a hyphen** — it is
-not turned into an underscore.
+The name is `RWR_` followed by the option's full key in upper case, with each
+dot **and each hyphen** replaced by an underscore.
 
 | Config key | Environment variable |
 |---|---|
@@ -115,22 +109,18 @@ not turned into an underscore.
 | `repository.ssh_private_key` | `RWR_REPOSITORY_SSH_PRIVATE_KEY` |
 | `repository.init-file` | `RWR_REPOSITORY_INIT_FILE` |
 | `rwr.configdir` | `RWR_RWR_CONFIGDIR` |
+| `rwr.skipVersionCheck` | `RWR_RWR_SKIPVERSIONCHECK` |
 
 ```bash
 RWR_LOG_LEVEL=debug rwr all
 RWR_REPOSITORY_GH_API_TOKEN=your_token rwr all
+RWR_REPOSITORY_INIT_FILE=/path/to/init.yaml rwr all
 ```
 
 > [!NOTE]
-> `RWR_REPOSITORY_INIT-FILE` contains a hyphen, so most shells will not accept it
-> in the `NAME=value command` form. Use `env` instead, or pass `--init-file`:
->
-> ```bash
-> env "RWR_REPOSITORY_INIT-FILE=/path/to/init.yaml" rwr all
-> ```
->
-> `RWR_REPOSITORY_INIT_FILE`, with an underscore, is a different name and is
-> ignored.
+> The hyphen in `repository.init-file` becomes an underscore in the environment
+> name. `RWR_REPOSITORY_INIT-FILE`, with a literal hyphen, is a different name
+> and is ignored.
 
 ## Notes
 
