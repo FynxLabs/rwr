@@ -8,6 +8,7 @@ import (
 
 	"charm.land/log/v2"
 	"github.com/BurntSushi/toml"
+	"github.com/fynxlabs/rwr/internal/credentials"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -18,7 +19,9 @@ import (
 // Initialize loads and parses the init configuration file from a local path or URL.
 // It resolves template variables, sets up system paths, and returns the fully
 // populated InitConfig used to drive all subsequent blueprint processing.
-func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, error) {
+// selectedProcessors names the blueprint types this run will execute (empty means
+// all); a declared credential scoped to none of them is not resolved.
+func Initialize(initFilePath string, flags types.Flags, selectedProcessors ...string) (*types.InitConfig, error) {
 	var initConfig types.InitConfig
 	var err error
 	var fileExt string
@@ -160,6 +163,26 @@ func Initialize(initFilePath string, flags types.Flags) (*types.InitConfig, erro
 			types.ExposedCredentials())
 	}
 
+	// Resolve the declared credentials before anything renders a template or
+	// spawns a command, so the export gate below sees the full credential set
+	// and a credential that resolves nowhere fails the run up front. Viper's
+	// Unmarshal ignores unknown keys, so the section is re-decoded strictly: a
+	// typo inside a credential declaration must be an error, not a silently
+	// different source order.
+	specs, err := types.DecodeCredentialSpecs(viper.Get("credentials"))
+	if err != nil {
+		return nil, fmt.Errorf("error in %s: %w", initFilePath, err)
+	}
+	initConfig.Credentials = specs
+	types.RegisterCredentials(specs)
+	credentials.ResolveBuiltins(&initConfig.Variables.Flags)
+	if err := credentials.Resolve(specs, credentials.Options{
+		Interactive: initConfig.Variables.Flags.Interactive,
+		Selected:    selectedProcessors,
+	}); err != nil {
+		return nil, err
+	}
+
 	// Set user-defined variables and environment variables
 	if err := setUserDefinedAndEnvVariables(&initConfig); err != nil {
 		return nil, fmt.Errorf("error setting variables: %w", err)
@@ -246,6 +269,15 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 
 		value := viper.GetString(key)
 		envKey := fmt.Sprintf("RWR_VAR_%s", strings.ToUpper(strings.ReplaceAll(key, ".", "_")))
+		if err := os.Setenv(envKey, value); err != nil {
+			return fmt.Errorf("error setting environment variable %s: %w", envKey, err)
+		}
+	}
+
+	// Managed credentials export as RWR_CRED_<NAME>, and only the ones the
+	// operator opted into with exposeCredentials whose scope admits scripts —
+	// the same gate that keeps the two built-ins out of RWR_VAR_*.
+	for envKey, value := range types.ExportedCredentialEnv() {
 		if err := os.Setenv(envKey, value); err != nil {
 			return fmt.Errorf("error setting environment variable %s: %w", envKey, err)
 		}

@@ -9,6 +9,7 @@ import (
 
 	"charm.land/huh/v2"
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/credentials"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
@@ -100,18 +101,23 @@ func PromptAndSaveGitHubToken(initConfig *types.InitConfig) (string, error) {
 		log.Warnf("Failed to save token to config: %v", err)
 		log.Infof("Token obtained but could not be saved to config. Re-run with --gh-api-key to supply it directly.")
 	} else {
-		log.Debugf("Token saved to config")
+		log.Debugf("Token saved")
 	}
 
 	return token, nil
 }
 
-// SaveGitHubTokenToConfig writes a GitHub token to the rwr config file.
-// If a different token already exists and interactive mode is on, it prompts
-// the user to confirm the replacement.
+// SaveGitHubTokenToConfig persists a GitHub token: to the OS keyring when a
+// backend is available, falling back to the rwr config file (plaintext at
+// 0600) with a warning naming the file. If a different token already exists
+// and interactive mode is on, it prompts the user to confirm the replacement.
 func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
-	// Check if token already exists in config
+	// Check for an existing token: the config file (the grandfathered plaintext
+	// store, still readable) and the keyring (where new tokens land).
 	existingToken := viper.GetString("repository.gh_api_token")
+	if existingToken == "" {
+		existingToken, _ = credentials.FromKeyring("gh_api_token")
+	}
 
 	// If token exists and is different, prompt to confirm replacement (if interactive)
 	if existingToken != "" && existingToken != token && initConfig.Variables.Flags.Interactive {
@@ -123,6 +129,22 @@ func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 			return fmt.Errorf("user declined to replace existing token")
 		}
 	}
+
+	// The registry holds the value for this run either way; persistence below
+	// only decides where the next run reads it from.
+	types.SetCredentialValue("gh_api_token", token)
+
+	// Keyring first: it is the only store that keeps the token off disk in
+	// plaintext. The config file is the fallback, not a second copy — when the
+	// keyring save succeeds, no file gains the token value.
+	saveErr := credentials.SaveToKeyring("gh_api_token", token)
+	if saveErr == nil {
+		log.Debugf("Token saved to the OS keyring")
+		return nil
+	}
+	log.Warnf("OS keyring unavailable (%v); saving the token to %s instead — "+
+		"it is stored in plaintext, readable only by your user (0600)",
+		saveErr, viper.ConfigFileUsed())
 
 	// Set the new token
 	viper.Set("repository.gh_api_token", token)

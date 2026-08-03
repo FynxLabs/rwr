@@ -62,6 +62,10 @@ Credentials (the GitHub token, the SSH private key) are **not** exported unless
 the init file names them under `exposeCredentials`; see
 [credentials](credentials.md).
 
+A credential declared in the init file's `credentials:` section is exported as
+`RWR_CRED_<NAME>` — again only when `exposeCredentials` names it — and appears
+in templates as `{{ .Credentials.<name> }}` under the same opt-in.
+
 ### Built-in Variables
 
 RWR provides a set of built-in variables that can be used in your blueprints. These variables are automatically populated based on the current system and configuration.

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/credentials"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/prompts"
 	"github.com/fynxlabs/rwr/internal/system"
@@ -317,7 +318,7 @@ func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 		log.Warnf("Failed to save token to config: %v", err)
 		log.Infof("Token obtained but could not be saved to config. Re-run with --gh-api-key to supply it directly.")
 	} else {
-		log.Infof("✓ Authentication successful! Token saved to config.")
+		log.Infof("✓ Authentication successful! Token saved.")
 	}
 
 	return token, nil
@@ -452,7 +453,13 @@ func getGitHubToken(initConfig *types.InitConfig) (string, string, error) {
 		return token, "GITHUB_TOKEN", nil
 	}
 
-	// Priority 3: Prompt user for authentication method
+	// Priority 3: OS keyring — where the device flow saves new tokens
+	if token, ok := credentials.FromKeyring("gh_api_token"); ok {
+		log.Debugf("Using GitHub token from the OS keyring")
+		return token, "keyring", nil
+	}
+
+	// Priority 4: Prompt user for authentication method
 	return prompts.PromptForGitHubAuth(initConfig, AuthenticateWithGitHub)
 }
 

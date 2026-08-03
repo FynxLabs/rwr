@@ -79,7 +79,7 @@ git checkouts, scripts, and desktop configuration.`,
 
 			checkForNewVersion(app)
 
-			return initializeSystemInfo(app)
+			return initializeSystemInfo(app, selectedProcessorsFor(cmd, args)...)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Processor names work straight off the root, task-runner style:
@@ -198,7 +198,7 @@ func registerRootFlags(rootCmd *cobra.Command, app *AppConfig) {
 // It searches for init files in the configured location or current directory,
 // sets up system paths, processes the initialization configuration, retrieves
 // blueprints from Git if configured, and detects the operating system.
-func initializeSystemInfo(app *AppConfig) error {
+func initializeSystemInfo(app *AppConfig, selectedProcessors ...string) error {
 	var err error
 
 	// If no init file is specified via flag, check config
@@ -252,7 +252,7 @@ func initializeSystemInfo(app *AppConfig) error {
 	}
 
 	log.Debugf("Initializing system information with init file: %s", app.InitFilePath)
-	app.InitConfig, err = processors.Initialize(app.InitFilePath, flags)
+	app.InitConfig, err = processors.Initialize(app.InitFilePath, flags, selectedProcessors...)
 	if err != nil {
 		return fmt.Errorf("error initializing system information: %w", err)
 	}

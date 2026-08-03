@@ -51,8 +51,11 @@ func resolveTemplate(templateData []byte, variables types.Variables, missingKey 
 	data["UserDefined"] = variables.UserDefined
 
 	// data["Flags"] no longer carries credentials (see types.Flags.ToMap), so this
-	// dump is safe; it is the reason they must stay out of that map.
-	log.Debugf("Template variables: %+v", data)
+	// dump is safe; it is the reason they must stay out of that map. Credentials
+	// is added after the dump: it holds the exposeCredentials-gated values, so
+	// only the names may reach the log.
+	log.Debugf("Template variables: %+v (credentials in scope: %v)", data, types.TemplateCredentialNames())
+	data["Credentials"] = types.TemplateCredentials()
 
 	// Execute with the same option the template was parsed with.
 	//

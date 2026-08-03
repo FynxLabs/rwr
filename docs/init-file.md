@@ -75,6 +75,24 @@ exposeCredentials:
 
 See [Credentials](credentials.md) for the full description.
 
+### `credentials`
+
+The `credentials` section declares the named credentials that the blueprints in
+this tree need. RWR resolves each one at the start of the run, from the first
+source that has a value.
+
+```yaml
+credentials:
+  - name: cachix_token
+    description: "Cachix auth token for the nix cache"
+    sources: [env:CACHIX_AUTH_TOKEN, keyring, prompt]
+    scope: [scripts]
+```
+
+Declaring a credential does not give it to blueprints — for that, also name it
+under `exposeCredentials`. See [Credentials](credentials.md) for the fields,
+the source order, and where values are stored.
+
 ### `packageManagers`
 
 The `packageManagers` section defines the configuration settings for package managers.
