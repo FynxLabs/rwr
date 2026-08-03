@@ -1,0 +1,4 @@
+blueprints:
+  format: yaml
+  location: .
+packageManagers: []
