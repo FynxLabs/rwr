@@ -193,19 +193,27 @@ var DownloadClient = &http.Client{
 	},
 }
 
-// verifyFileSHA256 compares the file's digest against the expected hex string.
-func verifyFileSHA256(path, wantHex string) error {
-	f, err := os.Open(path) // #nosec G304 -- staging file created by this package
+// HashFileSHA256 returns the hex sha256 of a file's content.
+func HashFileSHA256(path string) (string, error) {
+	f, err := os.Open(path) // #nosec G304 -- callers hash paths they already manage
 	if err != nil {
-		return fmt.Errorf("error opening downloaded file for verification: %v", err)
+		return "", err
 	}
 	defer f.Close() //nolint:errcheck
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// verifyFileSHA256 compares the file's digest against the expected hex string.
+func verifyFileSHA256(path, wantHex string) error {
+	got, err := HashFileSHA256(path)
+	if err != nil {
 		return fmt.Errorf("error hashing downloaded file: %v", err)
 	}
-	got := hex.EncodeToString(h.Sum(nil))
 	if !strings.EqualFold(got, strings.TrimSpace(wantHex)) {
 		return fmt.Errorf("sha256 mismatch: expected %s, got %s", wantHex, got)
 	}

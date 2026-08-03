@@ -44,6 +44,13 @@ func (p *progress) expect(provider string, n int) {
 // total (imports, entries resolved at run time) grows the total: the lane
 // never shows 7/5.
 func (p *progress) item(provider, name, action string, status types.Status, detail string, dur time.Duration) {
+	p.itemIdentity(provider, name, action, status, detail, dur, nil)
+}
+
+// itemIdentity is item with extra journal identity — the fields a later
+// uninstall needs to find the thing again (a file's dest and sha256, a git
+// checkout's target). provider+name always land in the identity.
+func (p *progress) itemIdentity(provider, name, action string, status types.Status, detail string, dur time.Duration, identity map[string]string) {
 	p.done[provider]++
 	if p.done[provider] > p.total[provider] {
 		p.total[provider] = p.done[provider]
@@ -61,6 +68,7 @@ func (p *progress) item(provider, name, action string, status types.Status, deta
 		Dur:       dur,
 	}})
 	p.emitLane(provider)
+	journalAppend(p.processor, provider, name, action, status, detail, identity)
 }
 
 func (p *progress) emitLane(provider string) {

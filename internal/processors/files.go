@@ -120,7 +120,7 @@ func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo,
 		case system.IsDryRun():
 			track.item("", file.Name, file.Action, types.StatusPlanned, "dry-run", 0)
 		default:
-			track.item("", file.Name, file.Action, types.StatusOK, "", time.Since(started))
+			track.itemIdentity("", file.Name, file.Action, types.StatusOK, "", time.Since(started), fileJournalIdentity(file, blueprintDir))
 		}
 	}
 
@@ -281,7 +281,7 @@ func processTemplates(templates []types.File, blueprintDir string, osInfo *types
 			// skip rather than a success.
 			track.item("", tmpl.Name, "template", types.StatusSkipped, "missing required fields", 0)
 		default:
-			track.item("", tmpl.Name, "template", types.StatusOK, "", time.Since(started))
+			track.itemIdentity("", tmpl.Name, "template", types.StatusOK, "", time.Since(started), fileJournalIdentity(tmpl, blueprintDir))
 		}
 	}
 
@@ -388,7 +388,7 @@ func processDirectories(directories []types.Directory, blueprintDir string, init
 			track.item("", dir.Name, dir.Action, types.StatusFailed, err.Error(), time.Since(started))
 			continue
 		}
-		track.item("", dir.Name, dir.Action, types.StatusOK, "", time.Since(started))
+		track.itemIdentity("", dir.Name, dir.Action, types.StatusOK, "", time.Since(started), map[string]string{"dest": system.ExpandPath(resolveTargetPath(dir.Target, dir.Name))})
 	}
 	return nil
 }

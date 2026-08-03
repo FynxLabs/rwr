@@ -97,7 +97,7 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 				continue
 			}
 			log.Infof("Git repository %s updated successfully", repo.Name)
-			track.item("", repo.Name, repo.Action, types.StatusOK, "", time.Since(started))
+			track.itemIdentity("", repo.Name, repo.Action, types.StatusOK, "", time.Since(started), map[string]string{"target": gitOpts.Target})
 		} else if os.IsNotExist(err) {
 			if repo.Action == types.GitActionPull {
 				recordFailure("git", repo.Name,
@@ -113,7 +113,7 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 				continue
 			}
 			log.Infof("Git repository %s cloned successfully", repo.Name)
-			track.item("", repo.Name, repo.Action, types.StatusOK, "", time.Since(started))
+			track.itemIdentity("", repo.Name, repo.Action, types.StatusOK, "", time.Since(started), map[string]string{"target": gitOpts.Target})
 		} else {
 			// Some other error occurred
 			recordFailure("git", repo.Name, fmt.Errorf("checking repository path: %w", err))

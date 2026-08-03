@@ -38,6 +38,8 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	var stepErrs []types.StepError
 
 	resetFailures()
+	openJournal(initConfig.Init.Location)
+	defer closeJournal()
 
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
