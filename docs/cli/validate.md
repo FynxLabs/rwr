@@ -77,12 +77,17 @@ Provider validation checks your provider configuration files for structural and 
 
 The provider validation process includes:
 
-* **File Type**: A provider configuration must be a `.toml` file
-* **Required Fields**: `provider.name`, the detection `binary` and
-  `distributions`, and the `install`, `update` and `remove` commands must all be
-  present
-* **Steps**: Each install step must name an action
-* **Paths**: A declared repository sources path must exist
+* **File Type**: A provider configuration must be a `.toml` or `.json` file
+  (an error otherwise)
+* **Required Fields**: A missing `provider.name` is an **error**. A missing
+  detection `binary` or `distributions` list, or a missing `install`, `update`
+  or `remove` command, is a **warning**
+* **Steps**: Each install, remove and repository step must name an action the
+  processor implements, and carry the fields that action needs (`exec` for
+  `command`, `source`/`dest` for `download` and `copy`, and so on) — errors.
+  Empty `content` on a `write` or `append` step is a warning
+* **Paths**: A declared repository sources path that does not exist on this
+  system is a warning
 
 ## Error Reporting
 
@@ -148,14 +153,19 @@ rwr validate path/to/file --providers
 
 ### Provider Errors
 
-| Message | Meaning |
-|---------|---------|
-| `Not a TOML file` | Provider configurations must be `.toml` |
-| `Missing required field 'provider.name'` | The `[provider]` section has no `name` |
-| `Missing binary in detection section` | The provider does not say which binary to look for |
-| `No distributions specified in detection section` | The provider does not say which distributions it supports |
-| `Missing install command` / `Missing update command` / `Missing remove command` | A required command is absent from `[commands]` |
-| `No providers available for the current system` | Nothing was detected on this machine |
+| Message | Severity | Meaning |
+|---------|----------|---------|
+| `Not a provider file` | Error | Provider configurations must be `.toml` or `.json` |
+| `Missing required field 'provider.name'` | Error | The `[provider]` section has no `name` |
+| `Missing binary in detection section` | Warning | The provider does not say which binary to look for |
+| `No distributions specified in detection section` | Warning | The provider does not say which distributions it supports |
+| `Missing install command` / `Missing update command` / `Missing remove command` | Warning | A command is absent from `[commands]` |
+| `Unsupported action "…" in … step` | Error | A step names an action the processor does not implement |
+| `Missing exec/source/dest/path/… in … step` | Error | A step lacks a field its action needs |
+| `No providers available for the current system` | Warning | Nothing was detected on this machine |
+
+Only errors make the exit code non-zero; a run that produces warnings alone
+still exits `0`.
 
 ## Best Practices
 

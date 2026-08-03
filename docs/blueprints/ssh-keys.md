@@ -79,7 +79,7 @@ If `copy_to_github` is set to `true`, RWR will attempt to copy the public key to
 
 RWR supports three methods for GitHub authentication (in priority order):
 
-1. **`--gh-api-key` / `--gh-key` flag** - Provide an explicit GitHub token
+1. **`--gh-api-key` flag** - Provide an explicit GitHub token (`--gh-key` is a deprecated alias)
 2. **`--gh-auth` flag** - Authenticate using OAuth device flow (recommended for first-time setup)
 3. **`GITHUB_TOKEN` environment variable** - For CI/CD environments
 
@@ -99,12 +99,6 @@ This will:
 After this initial setup, future runs won't require `--gh-auth` as the token is saved in your config.
 
 #### Using an Explicit Token
-
-```bash
-rwr run ssh_keys --gh-key ghp_your_token_here
-```
-
-Or use the longer form:
 
 ```bash
 rwr run ssh_keys --gh-api-key ghp_your_token_here
@@ -130,7 +124,7 @@ If `github_title` is provided, it will be used as the title for the SSH key on G
 #### GitHub token not found
 
 - Use `--gh-auth` to authenticate via OAuth
-- Or use `--gh-key` flag with your token
+- Or use the `--gh-api-key` flag with your token
 - Or set `GITHUB_TOKEN` environment variable
 
 #### Authentication timeout

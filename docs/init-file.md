@@ -168,23 +168,8 @@ For Arch Linux:
 - Yay (yay)
 - Paru (paru)
 - Trizen (trizen)
-- Yaourt (yaourt)
 - Pamac (pamac)
 - Aura (aura)
-
-#### Node.js Package Managers
-
-- npm (npm)
-- pnpm (pnpm)
-- Yarn (yarn)
-
-#### Pip (pip)
-
-Python package manager.
-
-#### RubyGems (gem)
-
-Ruby package manager.
 
 #### Cargo (cargo)
 

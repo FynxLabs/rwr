@@ -52,6 +52,16 @@ environment overwrites a key of exactly the same name from `userDefined`.
 > options](cli/configuration.md), so `RWR_LOG_LEVEL=debug` both sets the log
 > level and appears as `{{ .UserDefined.LOG_LEVEL }}`.
 
+#### To the environment
+
+The flow also works in the other direction: RWR exports its resolved
+configuration values into the environment of every command it spawns, as
+`RWR_VAR_<KEY>` with dots turned into underscores — `log.level` becomes
+`RWR_VAR_LOG_LEVEL`. A script run by a `scripts` blueprint can read them.
+Credentials (the GitHub token, the SSH private key) are **not** exported unless
+the init file names them under `exposeCredentials`; see
+[credentials](credentials.md).
+
 ### Built-in Variables
 
 RWR provides a set of built-in variables that can be used in your blueprints. These variables are automatically populated based on the current system and configuration.
@@ -156,6 +166,27 @@ CAUTION: RWR registers no additional functions. A template that calls `default`,
 
 For the full list of standard functions, read the
 [Go template documentation](https://golang.org/pkg/text/template/).
+
+### Missing variables: strict at run time, lenient at validate
+
+At **run time** a reference to a variable that does not exist is an error that
+stops the run. Nothing is ever rendered as `<no value>` and then used as a file
+path or a package name.
+
+`rwr validate` is more lenient about `UserDefined`: it cannot know which
+`RWR_*` variables you will export when you actually run, so a reference to a
+missing user-defined key renders empty and is not reported. References into the
+fixed `User`, `System` and `Flags` namespaces have no such excuse — their keys
+are known — so a typo like `{{ .User.hoem }}` is reported by `validate`.
+
+### Provider steps are a different namespace
+
+The four groups above (`UserDefined`, `User`, `System`, `Flags`) are the
+template scope for **blueprint files**. The steps inside a provider definition
+render against a different namespace — the fields of the repository entry being
+processed (`{{ .URL }}`, `{{ .KeyURL }}`, `{{ .Name }}`, …) or, for install
+steps, `{{ .TempDir }}`. Blueprint variables are not visible from provider
+steps, and vice versa. See [Providers](providers.md#template-variables).
 
 ## Best Practices
 

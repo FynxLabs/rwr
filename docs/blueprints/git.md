@@ -33,13 +33,13 @@ The following settings are available for each repository in the Git blueprint:
 |---------|----------|-------------|
 | `name` | Yes, if `import` is not provided | A unique name for the repository |
 | `import` | Yes, if `name` is not provided | Path to import git repository definitions from another file (relative to blueprint directory) |
-| `action` | No | Accepted by the schema but **not read**. Each entry is cloned if `path` does not exist and pulled if it does |
+| `action` | No | `clone` or `pull`. Empty or `clone` clones when `path` does not exist and pulls when it does; `pull` requires something to already be checked out at `path`. Any other value is an error |
 | `url` | Yes | The URL of the Git repository to clone |
 | `branch` | No | The branch to clone (defaults to the repository's default branch) |
 | `path` | Yes | The local path where the repository should be cloned |
 | `private` | No | Indicates whether the repository is private (defaults to `false`) |
 | `profiles` | No | List of profiles this repository belongs to. If empty, repository is always cloned (base item) |
-| `interactive` | No | Override global interactive mode for this git repository (`true`/`false`). If omitted, uses the global `--interactive` flag |
+| `interactive` | No | Accepted by the schema but **not read** by the git processor: clones and pulls run the same way whatever it is set to |
 
 ## Blueprint Imports
 

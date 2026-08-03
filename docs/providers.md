@@ -1,12 +1,50 @@
 # Package Manager Providers
 
-The Providers system is a flexible and extensible way to manage package managers across different platforms. It uses TOML configuration files to define how package managers work, making it easy for anyone to add support for new package managers without needing to write Go code.
+The Providers system is a flexible and extensible way to manage package managers across different platforms. A provider is a declarative description of a package manager: the binary that identifies it, the files that prove it is in use, the command templates for install/remove/update, and the steps that add or remove a repository. Blueprints say `action: install`; the provider decides what that means on this machine.
+
+## Where providers live
+
+The providers shipped with RWR are authored in **CUE** under `providers/cue/` in
+the source tree. At build time they are exported to JSON
+(`mise run providers:export`), the JSON is committed under
+`internal/system/definitions/providers/`, and that JSON is embedded into the
+binary. The CUE toolchain never ships in RWR: it is a build-time check that
+rejects an invalid provider at export time (wrong action name, missing
+`commands.install`, a `/tmp/` staging path) instead of at runtime on a user's
+machine. CI fails when the committed JSON differs from a fresh export of the
+CUE sources.
+
+You do **not** need CUE to override a provider. RWR also loads provider
+definitions from the filesystem, as either **TOML** (the historical
+`[provider]` layout) or **JSON** (the same shape as the exported files — copy
+one from `internal/system/definitions/providers/` and edit it). A filesystem
+provider replaces an embedded provider of the same name.
+
+### Search paths
+
+RWR looks for a `providers/` directory in these locations, in order, and uses
+the first one that exists:
+
+1. Next to the `rwr` executable
+2. `/usr/local/share/rwr/providers`
+3. `/usr/share/rwr/providers`
+4. `~/.config/rwr/providers`
+5. macOS only: `/opt/homebrew/share/rwr/providers`,
+   `/usr/local/Cellar/rwr/providers`, `/Applications/rwr/providers`
+
+The current working directory is deliberately **not** searched. A provider file
+declares `exec`, `args` and `elevated = true` and those run verbatim, so
+honouring `./providers` would hand root-level execution to any directory rwr
+happens to be run from — a cloned blueprint repo, `/tmp`, a shared downloads
+folder.
+
+For the same reason, a provider file (or its directory) that is group- or
+world-writable is skipped with a warning; the rest of the directory still
+loads.
 
 ## Provider Configuration
 
-Providers are configured using TOML files in the `internal/system/definitions/providers/` directory. For example, `internal/system/definitions/providers/apt.toml` defines the configuration for the APT package manager.
-
-### Basic Structure
+A filesystem override in TOML looks like this:
 
 ```toml
 [provider]
@@ -25,12 +63,23 @@ distributions = [      # Where this provider is available
 ]
 
 [provider.commands]
-install = "install"   # Package installation command
+install = "install"   # Package installation command (required)
 update = "update"    # System update command
 remove = "remove"    # Package removal command
 list = "list"       # List installed packages
 search = "search"    # Search for packages
 clean = "clean"     # Clean package cache
+```
+
+`install` is the only required command. A provider that declares no `clean`
+command is simply not invoked during end-of-run cache cleaning.
+
+`environment` is an optional table of environment variables set for every
+package command the provider runs:
+
+```toml
+[provider.environment]
+SOME_FLAG = "1"
 ```
 
 ## How RWR finds a provider
@@ -89,74 +138,122 @@ config = "/etc/apt/apt.conf.d"       # Configuration
 action = "download"              # Download GPG key
 source = "{{ .KeyURL }}"
 dest = "{{ .KeyPath }}"
+sha256 = "{{ .KeySha256 }}"
+condition = "{{ .HasKey }}"
 
 [[provider.repository.add.steps]]
 action = "command"              # Import GPG key
 exec = "gpg"
 args = ["--import", "{{ .KeyPath }}"]
+condition = "{{ .HasKey }}"
 ```
+
+`remove` steps are declared the same way under
+`[[provider.repository.remove.steps]]`. A `remove` step that deletes a file is
+confined to the directories the provider declares as its repository paths.
 
 ### Installation Steps
 
-Define how to install the provider itself:
+Define how to install (or remove) the provider itself:
 
 ```toml
 [[provider.install.steps]]
-action = "command"              # Install dependencies
-exec = "package-manager"
-args = ["install", "dependency1"]
+action = "download"             # Download an installer
+source = "https://example.com/provider-install.sh"
+dest = "{{ .TempDir }}/provider-install.sh"
 
 [[provider.install.steps]]
-action = "mkdir"                # Create directories
-path = "/path/to/create"
-mode = "0755"
-
-[[provider.install.steps]]
-action = "download"             # Download provider
-source = "https://example.com/provider.tar.gz"
-dest = "/tmp/provider.tar.gz"
+action = "command"              # Run it
+exec = "sh"
+args = ["{{ .TempDir }}/provider-install.sh"]
 ```
+
+`[[provider.remove.steps]]` uses the same three actions to uninstall the
+provider.
+
+Do not stage files at fixed `/tmp/` paths — any local user can pre-create or
+rewrite such a path between the download and the elevated step that executes
+it. `{{ .TempDir }}` renders to a per-run `0700` directory other users cannot
+reach, and the CUE schema refuses to export a shipped provider whose install
+steps mention `/tmp/`.
 
 ## Available Actions
 
-RWR reads these actions in the installation steps of a provider:
+Install and remove steps of a provider accept these actions:
 
-- `command` - Run a command
-- `download` - Get a file from a URL
-- `write` - Write content to a file
+- `command` - Run a command (`exec` + `args`)
+- `download` - Get a file from a URL (`source` → `dest`, optional `sha256`)
+- `write` - Write `content` to a file at `dest`
 
-RWR reads these actions in the repository steps of a provider:
+Repository `add`/`remove` steps accept these actions:
 
-- `command` - Run a command
-- `write` - Write content to a file
-- `copy` - Copy a file
+- `command` (or `exec`) - Run a command
+- `download` - Get a file from a URL, verified against `sha256` when given
+- `write` - Write `content` to a file at `dest`
+- `copy` - Copy a file from `source` to `dest`
+- `append` - Append `content` to the file at `path`
+- `remove` - Delete the file at `path` (confined to the provider's repository
+  paths)
+- `remove_line` - Delete the lines matching `match` from the file at `path`
+- `remove_section` - Delete the named `section` from the file at `path`
 
-CAUTION: Use only the actions in these two lists. RWR stops with an error when a
-step gives a different action. Some provider files in this repository contain
-other actions, and those steps do not operate.
+A step with any other action stops the run with an error, and `rwr validate
+--providers` reports it beforehand.
+
+### Step fields
+
+Each step may carry: `action`, `exec`, `args`, `source`, `dest`, `content`,
+`path`, `match`, `section`, `sha256` and `condition`.
+
+`condition` is a template that gates the step: only a step whose condition
+renders truthy runs. Conditions may reference the derived predicates —
+`HasKey`, `HasInterfaces`, `HasSlot`, `HasProxy`, `HasToken`,
+`HasAuthentication`, `RequiresAuth`, `IsCustomRegistry`, `IsOverlay`,
+`IsMainRepo`, `IsLocalFile`, `IsLocalSnap`, `IsSnapStore`, `UserMode` — plus
+the step-data fields `ResetSettings` and `URL`. A condition naming anything
+else is an error at the point the step would have run.
 
 ## Template Variables
 
-These variables are in the repository steps of the provider files:
+Every templated field of a step is rendered — `source`, `dest`, `exec`,
+`content`, `path`, `match`, `section`, `sha256` and each entry of `args` — with
+`missingkey=error`, so a placeholder rwr cannot fill is reported rather than
+written to disk as literal text.
 
-- `{{ .Name }}` - Name of the repository or package
+Repository steps render against the repository entry being processed:
+
+- `{{ .Name }}` - Name of the repository (also used to derive
+  `{{ .KeyPath }}` = `<keys dir>/<name>.gpg`)
 - `{{ .URL }}` - URL of the repository
-- `{{ .KeyURL }}` - URL of the GPG key
+- `{{ .KeyURL }}` / `{{ .KeyID }}` / `{{ .KeySha256 }}` - The signing key: its
+  URL, its ID, and the digest the key download is verified against
 - `{{ .KeyPath }}` - Path of the key on the machine
-- `{{ .SourcesPath }}` - Path of the repository configuration
-- `{{ .Arch }}` - Architecture of the system
-- `{{ .Channel }}` - Channel of the repository
-- `{{ .Component }}` - Component of the repository
+- `{{ .TempKeyPath }}` - Per-run private staging path for the key
+- `{{ .SourcesPath }}` / `{{ .KeysPath }}` / `{{ .ConfigPath }}` - The
+  provider's declared repository paths
+- `{{ .Arch }}`, `{{ .Channel }}`, `{{ .Component }}`, `{{ .Repository }}`,
+  `{{ .Description }}` - Fields written into source lines and `.repo` files
+- `{{ .PackageManager }}`, `{{ .Action }}` - The entry's own manager and action
+- `{{ .OverlayPath }}`, `{{ .SyncType }}`, `{{ .SHA256 }}` - Portage/nix
+  overlay fields
+- `{{ .ProxyURL }}` - Proxy snapd should route through
+- `{{ .UUID }}`, `{{ .ExtensionID }}` - GNOME extension identifiers
+- `{{ .Interface }}`, `{{ .Slot }}`, `{{ .ResetSettings }}` - Snap interface
+  wiring and GNOME extension settings reset
+- `{{ .Path }}` - The local file a sideloaded snap or extension is installed
+  from
+- `{{ .Username }}`, `{{ .Password }}`, `{{ .Token }}` - Credentials for a
+  private source (kept out of rwr's own logs)
 
-CAUTION: RWR replaces only `{{ .URL }}`, and only in the `args` of a step. RWR
-does not replace the other variables. RWR does not replace a variable in the
-`dest` or `content` of a step. A step that uses one of those variables writes the
-text of the variable to the file.
-
-This is a known fault. Do not write a new provider that depends on these
-variables until the fault is corrected.
+Install and remove steps render against a single variable: `{{ .TempDir }}`,
+the run's private staging directory. Blueprint variables (`.UserDefined`,
+`.System`, …) are **not** in scope inside provider steps — provider steps
+describe the machine's package manager, not the blueprint.
 
 ## Supported Providers
+
+These are the definitions shipped in the binary (one per file under
+`providers/cue/`):
 
 ### Linux Package Managers
 
@@ -199,27 +296,34 @@ variables until the fault is corrected.
 ### Language Package Managers
 
 - cargo - Rust packages
-- npm/pnpm/yarn - Node.js packages
-- pip - Python packages
-- gem - Ruby packages
 
 ### Desktop Environment
 
 - gnome-extensions - GNOME Shell extensions
 
+There are no shipped definitions for npm, pnpm, yarn, pip or gem. To manage
+packages from those ecosystems today, install them with a `scripts` blueprint
+or add your own provider definition.
+
 ## Creating New Providers
 
-To add support for a new package manager:
+To change a shipped provider or add support for a new package manager without
+touching the source tree:
 
-1. Copy `internal/system/definitions/provider_template.toml` to `internal/system/definitions/providers/<name>.toml`
-2. Configure the provider sections:
-   - Basic information (name, elevation)
-   - Detection rules (binary, files, distros)
-   - Standard commands
-   - Core package requirements
-   - Repository management
-   - Installation/removal steps
-3. Test the provider with example blueprints
+1. Copy an exported JSON definition from
+   `internal/system/definitions/providers/` (or write a TOML file in the shape
+   shown above) into one of the search paths — `~/.config/rwr/providers/` for
+   a per-user override.
+2. Make sure the file is not group- or world-writable, or it will be skipped.
+3. Configure the provider sections: basic information, detection rules,
+   commands, core packages, repository management, install/remove steps.
+4. Check it with `rwr validate <file> --providers` and test with example
+   blueprints.
+
+To contribute a provider to RWR itself, author it in CUE under
+`providers/cue/` (the schema in `providers/cue/schema.cue` documents every
+field and rejects invalid definitions at export time) and run
+`mise run providers:export` to regenerate the committed JSON.
 
 ## Best Practices
 
@@ -228,8 +332,9 @@ To add support for a new package manager:
 - Document command flags in comments
 - Use consistent repository paths
 - Break complex operations into clear steps
+- Stage downloads under `{{ .TempDir }}`, never at fixed `/tmp` paths
+- Pin downloaded content with `sha256` where the upstream publishes digests
 - Validate repository configurations
-- Handle errors gracefully
 - Test on supported platforms
 
 ## Distribution-Specific Alternatives
@@ -284,7 +389,6 @@ This allows OpenMandriva users to use RWR with the DNF provider while automatica
 
 - Support for more package managers
 - Better dependency resolution
-- Package verification/signing
 - Repository mirroring
 - Version pinning
 - Rollback support

@@ -59,9 +59,27 @@ silently ignored one.
 `interactive: true` or `interactive: false` overrides the global `--interactive`
 flag for a single entry. Omit it to follow the flag.
 
-Supported by `files`, `templates`, `directories`, `packages`, `repositories`,
-`git`, `scripts`, `services`, `ssh_keys` and `users`. Not supported by `fonts`,
-`groups` or `configurations`.
+Read per entry by `directories`, `packages`, `repositories`, `scripts`,
+`services`, `ssh_keys` and `users`. `files`, `templates` and `git` accept the
+key but do **not** read it — those processors follow only the global flag. Not
+supported at all by `fonts`, `groups` or `configurations`.
+
+## `schema_version`
+
+Every blueprint file may declare a `schema_version` at the top level, next to
+its entry list:
+
+```yaml
+schema_version: 1
+packages:
+  - name: git
+    action: install
+```
+
+A file's declaration overrides the tree-wide version from the init file, which
+is how a single blueprint can move to a newer schema while the rest of the tree
+stays put. Today every blueprint type supports only version `1`; declaring a
+version a type does not support is an error.
 
 ## `name` and `names`
 
