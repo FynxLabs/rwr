@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -66,14 +67,15 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 
 	log.Debugf("Found %d font entries to process", len(fontsData.Fonts))
 
+	track := newProgress(types.BlueprintTypeFonts)
+
 	if system.IsDryRun() {
 		for _, font := range fontsData.Fonts {
-			if len(font.Names) > 0 {
-				for _, name := range font.Names {
-					log.Infof("[DRY-RUN] Would install font: %s", name)
-				}
-			} else if font.Name != "" {
-				log.Infof("[DRY-RUN] Would install font: %s", font.Name)
+			names := fontEntryNames(font)
+			track.expect(font.Provider, len(names))
+			for _, name := range names {
+				log.Infof("[DRY-RUN] Would install font: %s", name)
+				track.item(font.Provider, name, font.Action, types.StatusPlanned, "dry-run", 0)
 			}
 		}
 		return nil
@@ -81,6 +83,10 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 
 	if len(fontsData.Fonts) == 0 {
 		return nil
+	}
+
+	for _, font := range fontsData.Fonts {
+		track.expect(font.Provider, len(fontEntryNames(font)))
 	}
 
 	// Resolved after the dry-run and empty-blueprint exits: this is a network call,
@@ -91,27 +97,42 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 	releaseURL, err := getLatestReleaseURL()
 	if err != nil {
 		recordFailure("fonts", "nerd-fonts release lookup", err)
+		for _, font := range fontsData.Fonts {
+			for _, name := range fontEntryNames(font) {
+				track.item(font.Provider, name, font.Action, types.StatusFailed, "nerd-fonts release lookup failed", 0)
+			}
+		}
 		return nil
 	}
 
 	// One font failing does not stop the rest: the failure goes to the ledger,
 	// which puts it in the run's exit code, and processing continues.
 	for _, font := range fontsData.Fonts {
-		if len(font.Names) > 0 {
-			for _, name := range font.Names {
-				fontWithName := font
-				fontWithName.Name = name
-				if err := processFont(fontWithName, osInfo, releaseURL); err != nil {
-					recordFailure("fonts", name, err)
-				}
+		for _, name := range fontEntryNames(font) {
+			fontWithName := font
+			fontWithName.Name = name
+			started := time.Now()
+			if err := processFont(fontWithName, osInfo, releaseURL); err != nil {
+				recordFailure("fonts", name, err)
+				track.item(font.Provider, name, font.Action, types.StatusFailed, err.Error(), time.Since(started))
+				continue
 			}
-		} else if font.Name != "" {
-			if err := processFont(font, osInfo, releaseURL); err != nil {
-				recordFailure("fonts", font.Name, err)
-			}
+			track.item(font.Provider, name, font.Action, types.StatusOK, "", time.Since(started))
 		}
 	}
 
+	return nil
+}
+
+// fontEntryNames lists the font names one blueprint entry declares: `names`
+// wins over `name`, matching the processing loops and the planner.
+func fontEntryNames(font types.Font) []string {
+	if len(font.Names) > 0 {
+		return font.Names
+	}
+	if font.Name != "" {
+		return []string{font.Name}
+	}
 	return nil
 }
 

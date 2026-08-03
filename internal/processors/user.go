@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -75,15 +76,19 @@ func ProcessUsers(blueprintData []byte, blueprintDir string, format string, init
 	log.Debugf("Filtering users: %d total, %d matching active profiles %v",
 		len(usersData.Users), len(filteredUsers), initConfig.Variables.Flags.Profiles)
 
+	// One tracker across both loops: users and groups share the processor's
+	// single lane, and a second tracker would reset its done/total counts.
+	track := newProgress(types.BlueprintTypeUsers)
+
 	// Process the filtered groups
-	err = processGroups(filteredGroups, initConfig)
+	err = processGroups(filteredGroups, initConfig, track)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return fmt.Errorf("error processing groups: %w", err)
 	}
 
 	// Process the filtered users
-	err = processUsers(filteredUsers, initConfig)
+	err = processUsers(filteredUsers, initConfig, track)
 	if err != nil {
 		log.Errorf("Error processing users: %v", err)
 		return fmt.Errorf("error processing users: %w", err)
@@ -92,17 +97,21 @@ func ProcessUsers(blueprintData []byte, blueprintDir string, format string, init
 	return nil
 }
 
-func processGroups(groups []types.Group, initConfig *types.InitConfig) error {
+func processGroups(groups []types.Group, initConfig *types.InitConfig, track *progress) error {
+	track.expect("", len(groups))
 	for _, group := range groups {
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would %s group: %s", group.Action, group.Name)
+			track.item("", group.Name, group.Action, types.StatusPlanned, "dry-run", 0)
 			continue
 		}
+		started := time.Now()
 		switch group.Action {
 		case types.UserActionCreate:
 			err := createGroup(group, initConfig)
 			if err != nil {
 				log.Errorf("Error creating group %s: %v", group.Name, err)
+				track.item("", group.Name, group.Action, types.StatusFailed, err.Error(), time.Since(started))
 				return fmt.Errorf("error creating group %s: %w", group.Name, err)
 			}
 			log.Infof("Group %s processed successfully", group.Name)
@@ -110,6 +119,7 @@ func processGroups(groups []types.Group, initConfig *types.InitConfig) error {
 			err := modifyGroup(group, initConfig)
 			if err != nil {
 				log.Errorf("Error modifying group %s: %v", group.Name, err)
+				track.item("", group.Name, group.Action, types.StatusFailed, err.Error(), time.Since(started))
 				return fmt.Errorf("error modifying group %s: %w", group.Name, err)
 			}
 			log.Infof("Group %s modified successfully", group.Name)
@@ -117,28 +127,40 @@ func processGroups(groups []types.Group, initConfig *types.InitConfig) error {
 			err := removeGroup(group, initConfig)
 			if err != nil {
 				log.Errorf("Error removing group %s: %v", group.Name, err)
+				track.item("", group.Name, group.Action, types.StatusFailed, err.Error(), time.Since(started))
 				return fmt.Errorf("error removing group %s: %w", group.Name, err)
 			}
 			log.Infof("Group %s removed successfully", group.Name)
 		default:
 			log.Errorf("Unsupported action for group %s: %s", group.Name, group.Action)
+			track.item("", group.Name, group.Action, types.StatusFailed, "unsupported action", 0)
 			return fmt.Errorf("unsupported action for group %s: %s", group.Name, group.Action)
+		}
+		if userGOOS == "windows" {
+			// The per-action helpers warn and no-op on Windows.
+			track.item("", group.Name, group.Action, types.StatusSkipped, "not supported on Windows", 0)
+		} else {
+			track.item("", group.Name, group.Action, types.StatusOK, "", time.Since(started))
 		}
 	}
 	return nil
 }
 
-func processUsers(users []types.User, initConfig *types.InitConfig) error {
+func processUsers(users []types.User, initConfig *types.InitConfig, track *progress) error {
+	track.expect("", len(users))
 	for _, user := range users {
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would %s user: %s", user.Action, user.Name)
+			track.item("", user.Name, user.Action, types.StatusPlanned, "dry-run", 0)
 			continue
 		}
+		started := time.Now()
 		switch user.Action {
 		case types.UserActionCreate:
 			err := createUser(user, initConfig)
 			if err != nil {
 				log.Errorf("Error creating user %s: %v", user.Name, err)
+				track.item("", user.Name, user.Action, types.StatusFailed, err.Error(), time.Since(started))
 				return fmt.Errorf("error creating user %s: %w", user.Name, err)
 			}
 			log.Infof("User %s created successfully", user.Name)
@@ -146,6 +168,7 @@ func processUsers(users []types.User, initConfig *types.InitConfig) error {
 			err := modifyUser(user, initConfig)
 			if err != nil {
 				log.Errorf("Error modifying user %s: %v", user.Name, err)
+				track.item("", user.Name, user.Action, types.StatusFailed, err.Error(), time.Since(started))
 				return fmt.Errorf("error modifying user %s: %w", user.Name, err)
 			}
 			log.Infof("User %s modified successfully", user.Name)
@@ -153,12 +176,20 @@ func processUsers(users []types.User, initConfig *types.InitConfig) error {
 			err := removeUser(user, initConfig)
 			if err != nil {
 				log.Errorf("Error removing user %s: %v", user.Name, err)
+				track.item("", user.Name, user.Action, types.StatusFailed, err.Error(), time.Since(started))
 				return fmt.Errorf("error removing user %s: %w", user.Name, err)
 			}
 			log.Infof("User %s removed successfully", user.Name)
 		default:
 			log.Errorf("Unsupported action for user %s: %s", user.Name, user.Action)
+			track.item("", user.Name, user.Action, types.StatusFailed, "unsupported action", 0)
 			return fmt.Errorf("unsupported action for user %s: %s", user.Name, user.Action)
+		}
+		if userGOOS == "windows" {
+			// The per-action helpers warn and no-op on Windows.
+			track.item("", user.Name, user.Action, types.StatusSkipped, "not supported on Windows", 0)
+		} else {
+			track.item("", user.Name, user.Action, types.StatusOK, "", time.Since(started))
 		}
 	}
 	return nil

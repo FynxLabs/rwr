@@ -507,7 +507,7 @@ func TestProcessGroups_UnsupportedAction(t *testing.T) {
 		{Name: "badgroup", Action: "destroy"},
 	}
 
-	err := processGroups(groups, newTestInitConfig())
+	err := processGroups(groups, newTestInitConfig(), newProgress(types.BlueprintTypeUsers))
 	if err == nil {
 		t.Error("Expected error for unsupported group action 'destroy'")
 	}
@@ -524,21 +524,21 @@ func TestProcessUsers_UnsupportedAction(t *testing.T) {
 		{Name: "baduser", Action: "destroy"},
 	}
 
-	err := processUsers(users, newTestInitConfig())
+	err := processUsers(users, newTestInitConfig(), newProgress(types.BlueprintTypeUsers))
 	if err == nil {
 		t.Error("Expected error for unsupported user action 'destroy'")
 	}
 }
 
 func TestProcessGroups_EmptySlice(t *testing.T) {
-	err := processGroups([]types.Group{}, newTestInitConfig())
+	err := processGroups([]types.Group{}, newTestInitConfig(), newProgress(types.BlueprintTypeUsers))
 	if err != nil {
 		t.Errorf("Expected no error for empty groups, got: %v", err)
 	}
 }
 
 func TestProcessUsers_EmptySlice(t *testing.T) {
-	err := processUsers([]types.User{}, newTestInitConfig())
+	err := processUsers([]types.User{}, newTestInitConfig(), newProgress(types.BlueprintTypeUsers))
 	if err != nil {
 		t.Errorf("Expected no error for empty users, got: %v", err)
 	}
@@ -657,7 +657,7 @@ func TestProcessGroups_DryRunSkipsExecution(t *testing.T) {
 		{Name: "testgroup2", Action: "modify", NewName: "renamed"},
 	}
 
-	err := processGroups(groups, newTestInitConfig())
+	err := processGroups(groups, newTestInitConfig(), newProgress(types.BlueprintTypeUsers))
 	if err != nil {
 		t.Errorf("processGroups should succeed in dry-run mode, got: %v", err)
 	}
@@ -673,7 +673,7 @@ func TestProcessUsers_DryRunSkipsExecution(t *testing.T) {
 		{Name: "user3", Action: "remove"},
 	}
 
-	err := processUsers(users, newTestInitConfig())
+	err := processUsers(users, newTestInitConfig(), newProgress(types.BlueprintTypeUsers))
 	if err != nil {
 		t.Errorf("processUsers should succeed in dry-run mode, got: %v", err)
 	}
@@ -1179,7 +1179,7 @@ func TestProcessUsers_SecondRunDoesNotAbort(t *testing.T) {
 	rec := platform(t, "linux", true, false, "")
 
 	users := []types.User{{Name: "alice", Shell: "/bin/zsh", Action: "create"}}
-	if err := processUsers(users, newTestInitConfig()); err != nil {
+	if err := processUsers(users, newTestInitConfig(), newProgress(types.BlueprintTypeUsers)); err != nil {
 		t.Fatalf("second run aborted: %v", err)
 	}
 	if len(rec.Calls) == 0 || isProbeCall(rec.Calls[len(rec.Calls)-1]) {
@@ -1227,7 +1227,7 @@ func TestLinuxPasswordNeverReachesArgv(t *testing.T) {
 			rec := platform(t, "linux", false, false, "")
 
 			users := []types.User{{Name: "alice", Password: secret, Action: action}}
-			if err := processUsers(users, newTestInitConfig()); err != nil {
+			if err := processUsers(users, newTestInitConfig(), newProgress(types.BlueprintTypeUsers)); err != nil {
 				t.Fatalf("processUsers: %v", err)
 			}
 
@@ -1256,7 +1256,7 @@ func TestLinuxHashedPasswordUsesEncryptedFlag(t *testing.T) {
 	rec := platform(t, "linux", false, false, "")
 
 	users := []types.User{{Name: "alice", Password: testCryptHash, Action: "create"}}
-	if err := processUsers(users, newTestInitConfig()); err != nil {
+	if err := processUsers(users, newTestInitConfig(), newProgress(types.BlueprintTypeUsers)); err != nil {
 		t.Fatalf("processUsers: %v", err)
 	}
 

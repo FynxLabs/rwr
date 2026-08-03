@@ -72,9 +72,14 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
+	// Bootstrap runs the shared per-type loops, so it carries its own progress
+	// trackers keyed to the lanes those loops fill.
+	filesTrack := newProgress(types.BlueprintTypeFiles)
+	usersTrack := newProgress(types.BlueprintTypeUsers)
+
 	// Process directories
 	log.Debugf("Processing directories from %s", blueprintFile)
-	err = processDirectories(bootstrapData.Directories, blueprintDir, initConfig)
+	err = processDirectories(bootstrapData.Directories, blueprintDir, initConfig, filesTrack)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err
@@ -82,7 +87,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process Files
 	log.Debugf("Processing files from %s", blueprintFile)
-	err = processFiles(bootstrapData.Files, blueprintDir, osInfo)
+	err = processFiles(bootstrapData.Files, blueprintDir, osInfo, filesTrack)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err
@@ -114,7 +119,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process users/groups
 	log.Debugf("Processing users/groups from %s", blueprintFile)
-	err = processUsers(bootstrapData.Users, initConfig)
+	err = processUsers(bootstrapData.Users, initConfig, usersTrack)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return err
@@ -122,7 +127,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process groups
 	log.Debugf("Processing groups from %s", blueprintFile)
-	err = processGroups(bootstrapData.Groups, initConfig)
+	err = processGroups(bootstrapData.Groups, initConfig, usersTrack)
 	if err != nil {
 		log.Errorf("Error processing groups: %v", err)
 		return err

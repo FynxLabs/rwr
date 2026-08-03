@@ -113,6 +113,8 @@ func ProcessSSHKeys(blueprintData []byte, blueprintDir string, format string, os
 }
 
 func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	track := newProgress(types.BlueprintTypeSSHKeys)
+	track.expect("", len(sshKeys))
 	// Process the SSH keys
 	for _, sshKey := range sshKeys {
 		if system.IsDryRun() {
@@ -123,12 +125,16 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 			if sshKey.SetAsRWRSSHKey {
 				log.Infof("[DRY-RUN] Would set as RWR SSH key")
 			}
+			track.item("", sshKey.Name, "ssh_key", types.StatusPlanned, "dry-run", 0)
 			continue
 		}
+
+		started := time.Now()
 
 		// Ensure required packages are installed
 		err := ensureSSHPackages(osInfo, initConfig)
 		if err != nil {
+			track.item("", sshKey.Name, "ssh_key", types.StatusFailed, err.Error(), time.Since(started))
 			return fmt.Errorf("error ensuring SSH packages: %v", err)
 		}
 
@@ -136,6 +142,7 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 		keyPath, err := generateSSHKey(sshKey, initConfig)
 		if err != nil {
 			recordFailure("ssh_keys", sshKey.Name, fmt.Errorf("generating key: %w", err))
+			track.item("", sshKey.Name, "ssh_key", types.StatusFailed, err.Error(), time.Since(started))
 			continue
 		}
 
@@ -144,6 +151,7 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 			err = copySSHKeyToGitHub(sshKey, initConfig)
 			if err != nil {
 				recordFailure("ssh_keys", sshKey.Name, fmt.Errorf("copying public key to GitHub: %w", err))
+				track.item("", sshKey.Name, "ssh_key", types.StatusFailed, err.Error(), time.Since(started))
 				continue
 			}
 		}
@@ -153,9 +161,12 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 			err = setAsRWRSSHKey(keyPath)
 			if err != nil {
 				recordFailure("ssh_keys", sshKey.Name, fmt.Errorf("setting as RWR SSH key: %w", err))
+				track.item("", sshKey.Name, "ssh_key", types.StatusFailed, err.Error(), time.Since(started))
 				continue
 			}
 		}
+
+		track.item("", sshKey.Name, "ssh_key", types.StatusOK, "", time.Since(started))
 	}
 
 	return nil

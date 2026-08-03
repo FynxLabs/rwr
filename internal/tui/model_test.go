@@ -28,7 +28,7 @@ func testModel(t *testing.T) *Model {
 		},
 	}
 	store := reporting.NewStore(100)
-	model := New(ResolveTheme("rwr", "", false, false), plan, store, false, "")
+	model := New(mustTheme("rwr"), plan, store, false, "")
 	model.width, model.height = 100, 30
 	return model
 }
@@ -112,7 +112,7 @@ func TestModel_PinningFollowsDesign(t *testing.T) {
 // The ASCII theme renders every frame without unicode glyphs.
 func TestModel_ASCIITheme(t *testing.T) {
 	m := testModel(t)
-	m.theme = ResolveTheme("rwr", "", true, false)
+	m.theme = mustThemeASCII("rwr")
 	m.apply(reporting.ProcFinished{Processor: "packages", Dur: time.Second})
 	out := plain(m.render())
 	for _, glyph := range []string{"✓", "✗", "▰"} {

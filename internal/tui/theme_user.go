@@ -3,6 +3,7 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -13,8 +14,13 @@ func LoadUserTheme(configDir, name string) (Theme, bool) {
 	if configDir == "" || name == "" {
 		return Theme{}, false
 	}
+	// The name reaches us from a flag or environment variable; a theme name
+	// is a bare filename, never a path — anything else stays out of ReadFile.
+	if name != filepath.Base(name) || strings.ContainsAny(name, `/\`) || name == ".." {
+		return Theme{}, false
+	}
 	path := filepath.Join(configDir, "themes", name+".toml")
-	data, err := os.ReadFile(path) // #nosec G304 -- rwr's own config dir
+	data, err := os.ReadFile(path) // #nosec G304 G703 -- rwr's own config dir; name validated as a bare filename above
 	if err != nil {
 		return Theme{}, false
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -74,7 +75,15 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 	log.Debugf("Filtering packages: %d total, %d matching active profiles %v",
 		len(packages.Packages), len(filteredPackages), initConfig.Variables.Flags.Profiles)
 
-	// Process each filtered package
+	// Resolve each package's provider and names up front so the lanes know
+	// their denominators before the first install runs.
+	type packageUnit struct {
+		pkg      types.Package
+		provider *types.Provider
+		names    []string
+	}
+	var units []packageUnit
+	track := newProgress(types.BlueprintTypePackages)
 	for _, pkg := range filteredPackages {
 		// Get provider
 		var provider *types.Provider
@@ -85,12 +94,14 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 			provider, exists = system.GetProvider(pkg.PackageManager)
 			if !exists {
 				log.Warnf("Specified package manager %s not available, skipping package %s", pkg.PackageManager, pkg.Name)
+				track.item(pkg.PackageManager, pkg.Name, pkg.Action, types.StatusSkipped, "package manager not available", 0)
 				continue
 			}
 		} else {
 			provider, exists = defaultProviderFor(osInfo, available)
 			if !exists {
 				log.Warnf("No package manager available for package %s, skipping", pkg.Name)
+				track.item("", pkg.Name, pkg.Action, types.StatusSkipped, "no package manager available", 0)
 				continue
 			}
 		}
@@ -108,8 +119,15 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 			names = []string{pkg.Name}
 		}
 
+		units = append(units, packageUnit{pkg: pkg, provider: provider, names: names})
+		track.expect(provider.Name, len(names))
+	}
+
+	for _, unit := range units {
+		pkg, provider := unit.pkg, unit.provider
+
 		// Process each package
-		for _, name := range names {
+		for _, name := range unit.names {
 			// Build command arguments
 			var args []string
 			switch pkg.Action {
@@ -119,6 +137,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				args = append(args, strings.Fields(provider.Commands.Remove)...)
 			default:
 				recordFailure("packages", name, fmt.Errorf("unknown action %q", pkg.Action))
+				track.item(provider.Name, name, pkg.Action, types.StatusFailed, "unknown action", 0)
 				continue
 			}
 
@@ -128,6 +147,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 			// blueprint change what the elevated package manager does.
 			if strings.HasPrefix(name, "-") {
 				recordFailure("packages", name, errors.New("package name may not begin with '-'; it would be read as an option by the package manager"))
+				track.item(provider.Name, name, pkg.Action, types.StatusFailed, "name begins with '-'", 0)
 				continue
 			}
 
@@ -149,11 +169,14 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				Variables:   provider.Environment,
 				Interactive: helpers.ResolveInteractive(pkg.Interactive, initConfig.Variables.Flags.Interactive),
 			}
+			started := time.Now()
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
 				recordFailure("packages", name, fmt.Errorf("%s failed: %w", pkg.Action, err))
+				track.item(provider.Name, name, pkg.Action, types.StatusFailed, err.Error(), time.Since(started))
 				continue
 			}
 
+			track.item(provider.Name, name, pkg.Action, types.StatusOK, "", time.Since(started))
 			log.Infof("Successfully %s package %s via %s", pastTense(pkg.Action), name, provider.Name)
 		}
 	}

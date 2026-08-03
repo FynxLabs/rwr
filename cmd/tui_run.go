@@ -47,7 +47,10 @@ func runWithTUI(app *AppConfig, order []string) error {
 		}
 	}
 
-	theme := tui.ResolveTheme(app.Theme, viper.GetString("rwr.theme"), app.ASCII, app.Unicode)
+	theme, unknownTheme := tui.ResolveTheme(app.ConfigLocation, app.Theme, viper.GetString("rwr.theme"), app.ASCII, app.Unicode)
+	if unknownTheme != "" {
+		log.Warnf("Unknown theme %q (no built-in and no %s/themes/%s.toml); using %q", unknownTheme, app.ConfigLocation, unknownTheme, theme.Name)
+	}
 	model := tui.New(theme, plan, store, system.IsDryRun(), runLogPath)
 	program := tea.NewProgram(model)
 

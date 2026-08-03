@@ -131,7 +131,10 @@ func unicodeSafe() bool {
 // ResolveTheme picks the theme: --theme flag, config key, $RWR_THEME, then
 // the default. NO_COLOR overrides all of it (colors drop; glyphs stay per
 // capability). forceASCII/forceUnicode come from --ascii/--unicode.
-func ResolveTheme(flagTheme, configTheme string, forceASCII, forceUnicode bool) Theme {
+// A TOML theme in <configDir>/themes/ overrides a built-in of the same name —
+// the providers pattern. unknown names the requested theme when nothing
+// matched and the default was substituted, so the caller can warn.
+func ResolveTheme(configDir, flagTheme, configTheme string, forceASCII, forceUnicode bool) (resolved Theme, unknown string) {
 	name := flagTheme
 	if name == "" {
 		name = configTheme
@@ -139,10 +142,15 @@ func ResolveTheme(flagTheme, configTheme string, forceASCII, forceUnicode bool) 
 	if name == "" {
 		name = os.Getenv("RWR_THEME")
 	}
-	themes := builtinThemes()
-	theme, ok := themes[name]
+	theme, ok := LoadUserTheme(configDir, name)
 	if !ok {
-		theme = themes["rwr"]
+		theme, ok = builtinThemes()[name]
+	}
+	if !ok {
+		if name != "" {
+			unknown = name
+		}
+		theme = builtinThemes()["rwr"]
 	}
 
 	switch {
@@ -156,9 +164,9 @@ func ResolveTheme(flagTheme, configTheme string, forceASCII, forceUnicode bool) 
 
 	if os.Getenv("NO_COLOR") != "" {
 		blank := Theme{Name: theme.Name + "+no-color", Glyphs: theme.Glyphs}
-		return blank
+		return blank, unknown
 	}
-	return theme
+	return theme, unknown
 }
 
 // style returns a foreground style for a role color; empty color renders
