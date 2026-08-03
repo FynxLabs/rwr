@@ -6,6 +6,7 @@ package status
 import (
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -120,10 +121,15 @@ func PathPresent(path string) Presence {
 	return Present
 }
 
+// validUnitName accepts systemd unit-name characters only. The query is
+// argv-exec'd so a shell never sees the name, but a name starting with "-"
+// would be read as a systemctl option — refused here.
+var validUnitName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.@:\\-]*$`)
+
 // ServiceState queries a service read-only on the current platform; other
 // platforms and query failures are Unknown.
 func ServiceState(name string) Presence {
-	if name == "" || runtime.GOOS != "linux" {
+	if name == "" || runtime.GOOS != "linux" || !validUnitName.MatchString(name) {
 		return Unknown
 	}
 	if _, err := exec.LookPath("systemctl"); err != nil {
@@ -131,7 +137,8 @@ func ServiceState(name string) Presence {
 	}
 	// is-enabled exits non-zero for disabled AND for unknown units; the
 	// output tells them apart.
-	out, _ := exec.Command("systemctl", "is-enabled", name).CombinedOutput() //nolint:errcheck // exit code is part of the answer
+	query := exec.Command("systemctl", "is-enabled", name) // #nosec G204 -- argv-exec'd read-only query; name validated against the unit-name pattern above
+	out, _ := query.CombinedOutput()                       //nolint:errcheck // exit code is part of the answer
 	answer := strings.TrimSpace(string(out))
 	switch answer {
 	case "enabled", "enabled-runtime", "static", "alias", "linked":
