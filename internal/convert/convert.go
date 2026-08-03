@@ -17,12 +17,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// say writes progress lines; a broken stdout must not abort a conversion
-// midway through a tree.
-func say(w io.Writer, format string, args ...interface{}) {
-	fmt.Fprintf(w, format, args...) //nolint:errcheck
-}
-
 // Run walks root and converts every blueprint, init, bootstrap, and manifest
 // file: to toFormat when set (and different from the file's own), and through
 // the migration rules when migrate is set. Comments are not preserved across
@@ -52,18 +46,18 @@ func Run(out io.Writer, root, toFormat string, migrate, write bool) error {
 
 		data, err := os.ReadFile(path) // #nosec G304 G122 -- operator's own tree, walked read-only
 		if err != nil {
-			say(out, "  ! %s: %v\n", path, err)
+			helpers.Say(out, "  ! %s: %v\n", path, err)
 			return nil
 		}
 
 		var doc map[string]interface{}
 		if err := helpers.UnmarshalBlueprint(data, format, &doc); err != nil {
-			say(out, "  ! %s: cannot parse (%v) — skipped, not mangled\n", path, err)
+			helpers.Say(out, "  ! %s: cannot parse (%v) — skipped, not mangled\n", path, err)
 			return nil
 		}
 
 		if hasComments(data, format) {
-			say(out, "  ~ %s carries comments; they are NOT preserved across formats\n", path)
+			helpers.Say(out, "  ~ %s carries comments; they are NOT preserved across formats\n", path)
 		}
 
 		if migrate {
@@ -81,7 +75,7 @@ func Run(out io.Writer, root, toFormat string, migrate, write bool) error {
 			target := strings.TrimSuffix(path, filepath.Ext(path)) + extensionFor(toFormat)
 			encoded, encErr := encodeAs(doc, toFormat)
 			if encErr != nil {
-				say(out, "  ! %s: cannot encode as %s: %v\n", path, toFormat, encErr)
+				helpers.Say(out, "  ! %s: cannot encode as %s: %v\n", path, toFormat, encErr)
 				return nil
 			}
 			if write {
@@ -92,7 +86,7 @@ func Run(out io.Writer, root, toFormat string, migrate, write bool) error {
 					return rmErr
 				}
 			}
-			say(out, "  → %s => %s\n", path, target)
+			helpers.Say(out, "  → %s => %s\n", path, target)
 			changed++
 		}
 		return nil
@@ -102,9 +96,9 @@ func Run(out io.Writer, root, toFormat string, migrate, write bool) error {
 	}
 
 	if changed == 0 {
-		say(out, "nothing to change\n")
+		helpers.Say(out, "nothing to change\n")
 	} else if !write {
-		say(out, "%d change(s); re-run with --write to apply\n", changed)
+		helpers.Say(out, "%d change(s); re-run with --write to apply\n", changed)
 	}
 	return nil
 }
@@ -125,7 +119,7 @@ func migrateInitInlineSections(out io.Writer, initPath string, doc map[string]in
 		}
 		targetDir := filepath.Join(root, dir)
 		target := filepath.Join(targetDir, "from-init"+extensionFor(format))
-		say(out, "  → %s: move %q into %s\n", initPath, key, target)
+		helpers.Say(out, "  → %s: move %q into %s\n", initPath, key, target)
 		if write {
 			if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G301 -- operator's own blueprint tree
 				return moved, err

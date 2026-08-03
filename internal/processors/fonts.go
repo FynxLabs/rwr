@@ -117,7 +117,8 @@ func ProcessFonts(blueprintData []byte, blueprintDir string, format string, osIn
 				track.item(font.Provider, name, font.Action, types.StatusFailed, err.Error(), time.Since(started))
 				continue
 			}
-			track.item(font.Provider, name, font.Action, types.StatusOK, "", time.Since(started))
+			track.itemIdentity(font.Provider, name, font.Action, types.StatusOK, "", time.Since(started),
+				map[string]string{"dir": getFontDirectory(fontWithName.Location, osInfo)})
 		}
 	}
 

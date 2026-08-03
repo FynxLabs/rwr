@@ -1,0 +1,181 @@
+package status
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/fynxlabs/rwr/internal/state"
+	"github.com/fynxlabs/rwr/internal/system"
+	"github.com/fynxlabs/rwr/internal/types"
+)
+
+// Class is one drift verdict.
+type Class string
+
+const (
+	InSync       Class = "in-sync"
+	Missing      Class = "missing"
+	ModifiedItem Class = "modified"
+	UnknownItem  Class = "unknown"
+	Stale        Class = "stale" // recorded, no longer in the tree
+)
+
+// Row is one desired-or-recorded unit with its verdict.
+type Row struct {
+	Processor string
+	Name      string
+	Class     Class
+	Note      string
+}
+
+// Rows joins the plan's desired resources with the journal and the queries.
+// The record enriches identity (a plan resource has no dest path; its record
+// entry does); without a record, classes the queries cannot honestly decide
+// are unknown.
+func Rows(plan *types.Plan, records []*state.RecordFile, querier *Querier) []Row {
+	// Identity enrichment uses every recorded apply — a reversal does not
+	// erase where an identity lives on disk; stale detection uses only the
+	// unreversed ones — deliberately removed work is not stale.
+	recorded := map[string]*state.Entry{}
+	for _, ref := range state.LatestApplies(records) {
+		entry := ref.Entry()
+		recorded[entry.Processor+"\x00"+entry.Identity["name"]] = entry
+	}
+	unreversed := map[string]*state.Entry{}
+	for _, ref := range state.UnreversedApplies(records) {
+		entry := ref.Entry()
+		unreversed[entry.Processor+"\x00"+entry.Identity["name"]] = entry
+	}
+
+	var rows []Row
+	seen := map[string]bool{}
+	for _, resource := range plan.Resources {
+		key := resource.Processor + "\x00" + resource.Name
+		seen[key] = true
+		rows = append(rows, classify(resource, recorded[key], querier))
+	}
+
+	// Recorded but no longer desired: stale, the class only a record makes
+	// possible.
+	staleKeys := make([]string, 0, len(unreversed))
+	for key := range unreversed {
+		if !seen[key] {
+			staleKeys = append(staleKeys, key)
+		}
+	}
+	sort.Strings(staleKeys)
+	for _, key := range staleKeys {
+		entry := unreversed[key]
+		rows = append(rows, Row{
+			Processor: entry.Processor,
+			Name:      entry.Identity["name"],
+			Class:     Stale,
+			Note:      "recorded by a past run, absent from the tree",
+		})
+	}
+	return rows
+}
+
+// classify decides one desired resource's verdict.
+func classify(resource types.Resource, entry *state.Entry, querier *Querier) Row {
+	row := Row{Processor: resource.Processor, Name: resource.Name}
+
+	switch resource.Processor {
+	case types.BlueprintTypePackages:
+		provider, ok := system.GetProvider(providerFor(resource, entry))
+		if !ok {
+			row.Class, row.Note = UnknownItem, "provider not available"
+			return row
+		}
+		switch querier.PackagePresent(provider, resource.Name) {
+		case Present:
+			row.Class = InSync
+		case Absent:
+			row.Class = Missing
+		default:
+			row.Class, row.Note = UnknownItem, "no usable list query"
+		}
+	case types.BlueprintTypeFiles:
+		if entry == nil || entry.Identity["dest"] == "" {
+			row.Class, row.Note = UnknownItem, "no recorded destination"
+			return row
+		}
+		switch FileState(entry.Identity["dest"], entry.Identity["sha256"]) {
+		case Present:
+			row.Class = InSync
+		case Absent:
+			row.Class = Missing
+		case Modified:
+			row.Class, row.Note = ModifiedItem, "content differs from the recorded apply"
+		default:
+			row.Class = UnknownItem
+		}
+	case types.BlueprintTypeServices:
+		switch ServiceState(resource.Name) {
+		case Present:
+			row.Class = InSync
+		case Absent:
+			row.Class = Missing
+		default:
+			row.Class, row.Note = UnknownItem, "no platform query"
+		}
+	case types.BlueprintTypeGit:
+		if entry == nil || entry.Identity["target"] == "" {
+			row.Class, row.Note = UnknownItem, "no recorded checkout target"
+			return row
+		}
+		if PathPresent(entry.Identity["target"]) == Present {
+			row.Class = InSync
+		} else {
+			row.Class = Missing
+		}
+	default:
+		// scripts, configuration, users, ssh_keys, repositories, fonts: a
+		// query that cannot be honest is worse than none.
+		row.Class, row.Note = UnknownItem, "not queryable"
+	}
+	return row
+}
+
+func providerFor(resource types.Resource, entry *state.Entry) string {
+	if resource.Provider != "" {
+		return resource.Provider
+	}
+	if entry != nil {
+		return entry.Identity["provider"]
+	}
+	return ""
+}
+
+// Render formats rows as the drift table; hasRecord toggles the stale
+// explanation footer.
+func Render(rows []Row, hasRecord bool) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%-14s %-40s %-10s %s\n", "PROCESSOR", "NAME", "STATE", "NOTE")
+	for _, row := range rows {
+		fmt.Fprintf(&b, "%-14s %-40s %-10s %s\n", row.Processor, truncate(row.Name, 40), row.Class, row.Note)
+	}
+	if !hasRecord {
+		b.WriteString("\n(no run record: recorded-identity checks unavailable — run `rwr all` once to establish one)\n")
+	}
+	return b.String()
+}
+
+// Drifted reports whether any row demands attention (exit code 1).
+func Drifted(rows []Row) bool {
+	for _, row := range rows {
+		switch row.Class {
+		case Missing, ModifiedItem, Stale:
+			return true
+		}
+	}
+	return false
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n-1] + "…"
+}
