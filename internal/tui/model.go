@@ -197,12 +197,34 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 		}
 	case reporting.LaneUpdate:
 		if i, ok := m.order[ev.Processor]; ok {
-			lane, ok := m.procs[i].Lanes[ev.Provider]
+			name := ev.Provider
+			if name == "" {
+				name = "items"
+			}
+			lane, ok := m.procs[i].Lanes[name]
 			if !ok {
-				lane = &Lane{Provider: ev.Provider, spring: harmonica.NewSpring(harmonica.FPS(8), 6.0, 0.9)}
-				m.procs[i].Lanes[ev.Provider] = lane
+				lane = &Lane{Provider: name, spring: harmonica.NewSpring(harmonica.FPS(8), 6.0, 0.9)}
+				m.procs[i].Lanes[name] = lane
 			}
 			lane.Done, lane.Total, lane.Status = ev.Done, ev.Total, ev.Status
+		}
+	case reporting.ResourceDone:
+		// Move the matching planned resource to its outcome so Summary
+		// renders results, not the plan; unplanned work (imports, entries
+		// resolved at run time) is appended.
+		res := ev.Resource
+		matched := false
+		for i := range m.plan.Resources {
+			planned := &m.plan.Resources[i]
+			if planned.Status != types.StatusPlanned || planned.Processor != res.Processor || planned.Name != res.Name {
+				continue
+			}
+			planned.Provider, planned.Status, planned.Detail, planned.Dur = res.Provider, res.Status, res.Detail, res.Dur
+			matched = true
+			break
+		}
+		if !matched {
+			m.plan.Resources = append(m.plan.Resources, res)
 		}
 	case reporting.TerminalReq:
 		m.state = Suspended
