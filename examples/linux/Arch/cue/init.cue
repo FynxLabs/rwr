@@ -33,5 +33,14 @@
       "editor_theme": "dracula",
       "editor_plugins": "basic"
     }
-  }
+  },
+  "credentials": [
+    {
+      "name": "example_api_token",
+      "description": "Example API token used by scripts in this tree",
+      "sources": ["env:EXAMPLE_API_TOKEN", "keyring", "prompt"],
+      "scope": ["scripts"]
+    }
+  ],
+  "exposeCredentials": ["example_api_token"]
 }

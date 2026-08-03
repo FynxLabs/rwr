@@ -3,6 +3,12 @@ packageManagers = [
     { name = "chocolatey", action = "install" },
 ]
 
+exposeCredentials = ["example_api_token"]
+
+credentials = [
+    { name = "example_api_token", description = "Example API token used by scripts in this tree", sources = ["env:EXAMPLE_API_TOKEN", "keyring", "prompt"], scope = ["scripts"] },
+]
+
 [blueprints]
 format = "toml"
 schema_version = 1
