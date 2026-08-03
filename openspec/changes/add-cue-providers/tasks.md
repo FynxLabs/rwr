@@ -8,7 +8,7 @@ Three PRs, each independently green.
       Gate: strict round-trip test — every exported provider decodes into
       `types.Provider` with no unknown keys and equals the TOML-derived value
       (fails on any semantic drift).
-- [ ] 2. **Families**: `#PacmanFamily`, `#ArchAURHelper`, `#DebianFamily`;
+- [x] 2. **Families**: `#PacmanFamily`, `#ArchAURHelper`, `#DebianFamily`;
       collapse members. Gate: exported JSON byte-identical to PR 1's.
 - [ ] 3. **Contracts**: move `validate/providers.go` checks into the schema;
       delete superseded Go; predicate-name cross-check test (CUE `or` list ==
