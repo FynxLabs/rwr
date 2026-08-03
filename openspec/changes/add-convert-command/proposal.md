@@ -2,8 +2,23 @@
 
 Depends on: `add-format-registry` (decode/encode dispatch),
 `unify-blueprint-semantics` (defines the "current state" trees migrate to).
-Status: stub — requested alongside the decision to drop init-file inline
-sections; needs fleshing out before implementation.
+Status: fleshed out (task 1). Decisions:
+
+- **Comments are not preserved.** Cross-format conversion goes through a
+  decode/encode cycle and no format's comment model maps onto another's;
+  promising partial preservation invites silent loss. The command WARNS when
+  a source file carries comments so the operator knows to port them by hand.
+- **Template placeholders round-trip as strings.** `{{ .User.home }}` inside
+  a quoted scalar decodes and re-encodes byte-preserved. A file whose
+  templates make it unparseable raw (unquoted `{{` at value start in YAML)
+  cannot be converted and is reported per file, not silently mangled.
+- **CUE export style is JSON-form CUE** — valid CUE, lossless, and
+  mechanical. Idiomatic CUE (constraints, unification) is authoring work a
+  converter should not guess at.
+- **Migration rules are a registry** (`migrateRules`), one entry per
+  deprecation, each: detect(tree) → describe → apply. First rule:
+  init-file inline resource sections move into blueprint files
+  (`packages:` → `packages/from-init.<fmt>`, …).
 
 ## Why
 

@@ -57,6 +57,7 @@ git checkouts, scripts, and desktop configuration.`,
 				"config":   true,
 				"version":  true,
 				"validate": true,
+				"convert":  true,
 			}
 
 			// Check if the current command or any of its parents should skip init
@@ -111,6 +112,7 @@ git checkouts, scripts, and desktop configuration.`,
 	rootCmd.AddCommand(newValidateCmd(app))
 	rootCmd.AddCommand(newVersionCmd(app))
 	rootCmd.AddCommand(newProfilesCmd(app))
+	rootCmd.AddCommand(newConvertCmd())
 
 	return rootCmd
 }
