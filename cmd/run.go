@@ -83,6 +83,9 @@ func runOneProcessor(app *AppConfig, p runProcessorSpec) error {
 			return err
 		}
 	}
+	if p.bootstrap {
+		return processors.RunBootstrap(app.InitConfig, app.OSInfo)
+	}
 	// Same TUI, one strip block: the panel takes the freed vertical space.
 	if tui.Active(app.NoTUI) {
 		return runWithTUI(app, []string{p.blueprint})
@@ -110,9 +113,14 @@ type runProcessorSpec struct {
 	// ssh_keys is the one processor with pre-work: --gh-auth runs the GitHub
 	// device flow before the processor needs the token.
 	githubAuth bool
+	// bootstrap dispatches to the standalone bootstrap entry: the generic
+	// processors.All path never runs bootstrap, and an explicit invocation
+	// bypasses the run-once marker.
+	bootstrap bool
 }
 
 var runProcessors = []runProcessorSpec{
+	{use: "bootstrap", short: "Run the bootstrap processor (ignores the run-once marker)", bootstrap: true},
 	{use: "packages", short: "Run packages processor", blueprint: "packages"},
 	{use: "repository", short: "Run repository processor", blueprint: "repositories"},
 	{use: "services", short: "Run services processor", blueprint: "services"},

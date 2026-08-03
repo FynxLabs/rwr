@@ -99,6 +99,14 @@ Run all blueprints and set up the system.
 
 `--force-bootstrap` is a global flag. It also applies to this command.
 
+### `rwr bootstrap`
+
+Run just the bootstrap processor (`rwr run bootstrap` works too). Asking for
+bootstrap by name implies wanting it to run, so this ignores the run-once
+marker that keeps `rwr all` idempotent — no `--force-bootstrap` needed. The
+marker is refreshed on success, `--dry-run` is honored, and a tree without a
+bootstrap file is an error naming the filenames searched.
+
 ### `rwr validate`
 
 Check the RWR blueprints and the provider configurations.
