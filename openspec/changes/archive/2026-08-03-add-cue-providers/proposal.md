@@ -40,6 +40,18 @@ Resolved open questions: overrides accept TOML **and** JSON; `cue` pinned in
 mise from PR 1; source lives at `providers/cue/` (repo root — it is source,
 not an embedded asset).
 
+## What Changes
+
+- Provider definitions move from 25 TOML files to CUE sources at
+  `providers/cue/` with a schema mirroring `types.Provider`; `cue export`
+  produces the committed JSON the binary embeds.
+- Family templates (`#PacmanFamily`, `#ArchAURHelper`, `#DebianFamily`)
+  deduplicate proven clusters.
+- Provider contracts (required fields, action enum, condition predicate
+  names, no literal `/tmp/` staging) move into the CUE schema; Go validation
+  remains only for filesystem overrides, which accept TOML and JSON.
+- CI gains `cue vet` and an export-freshness gate.
+
 ## Breakage
 
 Nothing breaks for existing blueprints or filesystem provider overrides. The

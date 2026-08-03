@@ -4,8 +4,8 @@
 
 ### Requirement: A repo-root manifest declares multiple configurations
 
-When the init location (local dir or cloned git repo) contains no init file
-but a `manifest.*` at its root, the system SHALL read the manifest: a list of
+The system SHALL read a root `manifest.*` when the init location (local dir
+or cloned git repo) contains no init file — the manifest is a list of
 named configurations, each with an `init` path relative to the repo root and
 optional matchers `os`, `distro`, `family`, `arch`, plus optional `default`.
 The manifest SHALL decode strictly through the format registry.

@@ -1,11 +1,11 @@
 # Blueprint Validation — Deltas
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Embedded provider contracts live in the CUE schema
 
-The contracts currently checked by `internal/validate/providers.go` for
-embedded providers SHALL be expressed in the CUE schema: required `name`,
+Embedded provider contracts SHALL be expressed in the CUE schema — the checks
+currently hand-rolled in `internal/validate/providers.go`: required `name`,
 `detection.binary`, `commands.install`; step `action` constrained to the enum
 the processors implement; `condition` restricted to derivable predicate names;
 no literal `/tmp/` paths in steps. Go validation SHALL remain only for
