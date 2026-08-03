@@ -1,0 +1,22 @@
+{
+  "scripts": [
+    {
+      "name": "setup-dev-env",
+      "action": "inline",
+      "content": "#!/bin/bash\necho \"Setting up development environment for {{ .User.username }}\"\n\n# Create common directories\nmkdir -p {{ .User.home }}/projects\nmkdir -p {{ .User.home }}/.local/bin\n\n# Set permissions\nchmod 755 {{ .User.home }}/.local/bin\n\necho \"Development environment ready!\"\n",
+      "asUser": "{{ .User.username }}"
+    },
+    {
+      "name": "install-node",
+      "action": "inline",
+      "content": "#!/bin/bash\n# Install Node.js using package manager\nif command -v apt &> /dev/null; then\n    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -\n    sudo apt-get install -y nodejs\nelif command -v brew &> /dev/null; then\n    brew install node\nelse\n    echo \"No supported package manager found\"\n    exit 1\nfi\n\necho \"Node.js installed successfully\"\nnode --version\nnpm --version\n",
+      "asUser": "root"
+    },
+    {
+      "name": "update-system",
+      "action": "inline",
+      "content": "#!/bin/bash\necho \"Updating system packages...\"\n\nif command -v apt &> /dev/null; then\n    sudo apt update && sudo apt upgrade -y\nelif command -v dnf &> /dev/null; then\n    sudo dnf update -y\nelif command -v pacman &> /dev/null; then\n    sudo pacman -Syu --noconfirm\nelif command -v brew &> /dev/null; then\n    brew update && brew upgrade\nelse\n    echo \"No supported package manager found\"\n    exit 1\nfi\n\necho \"System update complete!\"\n",
+      "asUser": "{{ .User.username }}"
+    }
+  ]
+}

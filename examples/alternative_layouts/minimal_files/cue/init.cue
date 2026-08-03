@@ -1,0 +1,23 @@
+{
+  "blueprints": {
+    "format": "cue",
+    "schema_version": 1,
+    "location": ".",
+    "order": ["packages", "git", "files", "scripts"]
+  },
+  "variables": {
+    "userDefined": {
+      "project_name": "minimal-setup",
+      "repo_url": "https://github.com/user/dotfiles.git"
+    }
+  },
+  "credentials": [
+    {
+      "name": "example_api_token",
+      "description": "Example API token used by scripts in this tree",
+      "sources": ["env:EXAMPLE_API_TOKEN", "keyring", "prompt"],
+      "scope": ["scripts"]
+    }
+  ],
+  "exposeCredentials": ["example_api_token"]
+}

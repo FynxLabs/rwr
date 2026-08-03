@@ -1,0 +1,22 @@
+{
+  "files": [
+    {
+      "name": ".bashrc",
+      "action": "create",
+      "target": "{{ .User.home }}/",
+      "content": "# Custom .bashrc for {{ .UserDefined.project_name }}\nalias ll='ls -alF'\nalias la='ls -A'\nalias l='ls -CF'\nalias grep='grep --color=auto'\nexport PATH=$PATH:$HOME/.local/bin\nexport EDITOR=vim\n"
+    },
+    {
+      "name": ".gitconfig",
+      "action": "create",
+      "target": "{{ .User.home }}/",
+      "content": "[user]\n    name = {{ .User.fullName }}\n    email = {{ .User.username }}@example.com\n[core]\n    editor = vim\n[init]\n    defaultBranch = main\n[pull]\n    rebase = false\n"
+    },
+    {
+      "name": ".vimrc",
+      "action": "create",
+      "target": "{{ .User.home }}/",
+      "content": "\" Basic vim configuration for {{ .User.username }}\nset number\nset relativenumber\nset tabstop=4\nset shiftwidth=4\nset expandtab\nsyntax on\nset hlsearch\nset incsearch\n"
+    }
+  ]
+}

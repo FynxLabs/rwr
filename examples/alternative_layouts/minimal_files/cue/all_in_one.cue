@@ -1,0 +1,47 @@
+{
+  "packages": [
+    {
+      "name": "git",
+      "action": "install"
+    },
+    {
+      "name": "curl",
+      "action": "install"
+    },
+    {
+      "name": "vim",
+      "action": "install"
+    }
+  ],
+  "git": [
+    {
+      "name": "dotfiles",
+      "action": "clone",
+      "url": "{{ .UserDefined.repo_url }}",
+      "path": "{{ .User.home }}/dotfiles",
+      "private": false
+    }
+  ],
+  "files": [
+    {
+      "name": ".bashrc",
+      "action": "create",
+      "target": "{{ .User.home }}/",
+      "content": "# Custom .bashrc for {{ .UserDefined.project_name }}\nalias ll='ls -alF'\nalias la='ls -A'\nalias l='ls -CF'\nexport PATH=$PATH:$HOME/.local/bin\n"
+    },
+    {
+      "name": ".gitconfig",
+      "action": "create",
+      "target": "{{ .User.home }}/",
+      "content": "[user]\n    name = {{ .User.fullName }}\n    email = {{ .User.username }}@example.com\n[core]\n    editor = vim\n[init]\n    defaultBranch = main\n"
+    }
+  ],
+  "scripts": [
+    {
+      "name": "setup-dev-env",
+      "action": "inline",
+      "content": "#!/bin/bash\necho \"Setting up development environment for {{ .User.username }}\"\nmkdir -p {{ .User.home }}/projects\necho \"Development environment ready!\"\n",
+      "asUser": "{{ .User.username }}"
+    }
+  ]
+}
