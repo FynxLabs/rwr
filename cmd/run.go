@@ -16,7 +16,7 @@ func newRunCmd(app *AppConfig) *cobra.Command {
 
 "rwr run" on its own lists the processors, like a task runner. Name one to
 run it — "rwr run packages" — or use the shorthand straight off the root:
-"rwr packages". To run everything, use "rwr all".`,
+"rwr packages". To run everything: "rwr run all", or "rwr all" from the root.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Bare `rwr run` lists the processors, like a bare `mise run`.
 			if err := cmd.Help(); err != nil {
@@ -28,6 +28,15 @@ run it — "rwr run packages" — or use the shorthand straight off the root:
 			return nil
 		},
 	}
+
+	// `rwr run all` runs everything — the same task `rwr all` names at the root.
+	runCmd.AddCommand(&cobra.Command{
+		Use:   "all",
+		Short: "Run all processors",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runEverything(app)
+		},
+	})
 
 	for _, p := range runProcessors {
 		runCmd.AddCommand(&cobra.Command{
