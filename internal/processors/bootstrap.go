@@ -1,8 +1,10 @@
 package processors
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -10,6 +12,26 @@ import (
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
 )
+
+// RunBootstrap is the standalone `rwr bootstrap` entry. Asking for bootstrap
+// by name implies wanting it to run, so an explicit invocation bypasses the
+// run-once marker — the marker exists to keep `rwr all` idempotent, not to
+// refuse an explicit request. The marker is still refreshed on success and
+// dry-run is still honored (no marker write, no mutations).
+func RunBootstrap(initConfig *types.InitConfig, osInfo *types.OSInfo) error {
+	location := initConfig.Init.Location
+	bootstrapFile := findBootstrapFile(location)
+	if bootstrapFile == "" {
+		return fmt.Errorf("no bootstrap file in %s (looked for %s)",
+			location, strings.Join(helpers.CandidateFilenames("bootstrap"), ", "))
+	}
+
+	previous := initConfig.Variables.Flags.ForceBootstrap
+	initConfig.Variables.Flags.ForceBootstrap = true
+	defer func() { initConfig.Variables.Flags.ForceBootstrap = previous }()
+
+	return ProcessBootstrap(bootstrapFile, initConfig, osInfo)
+}
 
 // ProcessBootstrap runs one-time system bootstrap operations including packages,
 // directories, files, SSH keys, Git repos, services, groups, and users.

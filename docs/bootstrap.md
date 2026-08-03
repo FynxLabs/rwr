@@ -117,6 +117,17 @@ rwr all --force-bootstrap
 
 This flag will ensure that the Bootstrap Process is executed even if it has been run previously.
 
+To re-run only the bootstrap — after editing `bootstrap.yaml`, say — use the
+standalone command instead of re-running everything:
+
+```bash
+rwr bootstrap
+```
+
+An explicit invocation ignores the run-once marker (the marker exists to keep
+`rwr all` idempotent, not to refuse a direct request) and refreshes it on
+success.
+
 The "has run" state is a marker file in the RWR configuration directory. A
 `--dry-run` execution does **not** write the marker, so a real run after a
 dry-run still performs the bootstrap.
