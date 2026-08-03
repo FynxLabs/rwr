@@ -1,14 +1,17 @@
 # Tasks
 
-- [ ] 1. `internal/state`: versioned run-record types, incremental writer
+- [x] 1. `internal/state`: versioned run-record types, incremental writer
       (`<configdir>/state/runs/`, user-only perms), append-only journal with
       `latest` pointer. Tests: crash-partial record is readable and marked
       unfinalized; dry-run writes nothing.
-- [ ] 2. Record emission from the per-item apply points in each processor
+- [x] 2. Record emission from the per-item apply points in each processor
       (ride the existing failure-ledger seams). Tests per processor: applied
       item appears with correct identity (package name+provider, file
       dest+sha256, service name, repo name, font name, git target); failed
-      item recorded as not-ok.
+      item recorded as not-ok. (Emission rides the single progress seam all
+      ten processors already use; the seam test covers provider+name and
+      dest+sha256 identity plus failed-not-ok, and files/git enrich with
+      dest+sha256 / checkout target.)
 - [ ] 3. Query capability: packages via provider `list` (parse fixtures per
       provider), files via dest+sha256, services via platform query,
       repositories via source-file presence, fonts/git via path existence;
