@@ -223,6 +223,11 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 						if err != nil {
 							return err
 						}
+						// Version-control and other dot directories hold no
+						// blueprints, and .git holds a great many files.
+						if info.IsDir() && path != fullPath && strings.HasPrefix(info.Name(), ".") {
+							return filepath.SkipDir
+						}
 						if !info.IsDir() && helpers.IsBlueprintFile(path) && !isReservedFile(path) {
 							relPath, err := filepath.Rel(blueprintDir, path)
 							if err != nil {
@@ -257,6 +262,10 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		err := filepath.Walk(blueprintDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
+			}
+			// Same dot-directory rule as the ordered walk above.
+			if info.IsDir() && path != blueprintDir && strings.HasPrefix(info.Name(), ".") {
+				return filepath.SkipDir
 			}
 			if !info.IsDir() && helpers.IsBlueprintFile(path) && !isReservedFile(path) {
 				relPath, err := filepath.Rel(blueprintDir, path)

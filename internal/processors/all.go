@@ -12,6 +12,7 @@ import (
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -34,6 +35,7 @@ func findBootstrapFile(dir string) string {
 func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
 	var err error
 	var blueprintRunOrder []string
+	var stepErrs []types.StepError
 
 	resetFailures()
 
@@ -170,44 +172,48 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 					return fmt.Errorf("error preparing %s for the %s processor: %w", blueprintFile, processor, err)
 				}
 
+				// One event instead of ten near-identical log lines; the
+				// LogReporter renders exactly what those lines printed. The
+				// processor stamp is what attributes every captured log line
+				// without touching the ten processor files.
+				reporting.SetCurrentProcessor(processor)
+				reporting.Emit(reporting.ProcStarted{Processor: processor, Files: len(files)})
+
 				switch processor {
 				case types.BlueprintTypeRepositories:
-					log.Infof("Processing repositories")
 					err = ProcessRepositories(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case types.BlueprintTypePackages:
-					log.Infof("Processing packages")
 					err = ProcessPackages(resolvedBlueprint, nil, blueprintDir, format, osInfo, initConfig)
 				case types.BlueprintTypeFiles:
-					log.Infof("Processing files")
 					err = ProcessFiles(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case types.BlueprintTypeServices:
-					log.Infof("Processing services")
 					err = ProcessServices(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case types.BlueprintTypeUsers:
-					log.Infof("Processing users")
 					err = ProcessUsers(resolvedBlueprint, blueprintDir, format, initConfig)
 				case types.BlueprintTypeGit:
-					log.Infof("Processing git repositories")
 					err = ProcessGitRepositories(resolvedBlueprint, blueprintDir, format, initConfig)
 				case types.BlueprintTypeScripts:
-					log.Infof("Processing scripts")
 					err = ProcessScripts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case types.BlueprintTypeSSHKeys:
-					log.Infof("Processing ssh keys")
 					err = ProcessSSHKeys(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case types.BlueprintTypeFonts:
-					log.Info("Processing fonts")
 					err = ProcessFonts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 				case types.BlueprintTypeConfiguration:
-					log.Infof("Processing configurations")
 					err = ProcessConfiguration(resolvedBlueprint, blueprintDir, format, initConfig)
 				default:
-					log.Warnf("Unknown processor: %s", processor)
+					reporting.Emit(reporting.ProcSkipped{Processor: processor, Reason: "unknown processor"})
 					continue
 				}
 
 				if err != nil {
-					return fmt.Errorf("error processing %s: %w", processor, err)
+					// Interactive runs halt so the operator can react; a
+					// headless run pushes through, collects, and exits
+					// nonzero — the first error aborting used to leave every
+					// later processor silently unrun in CI.
+					if initConfig.Variables.Flags.Interactive {
+						return fmt.Errorf("error processing %s: %w", processor, err)
+					}
+					stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
 				}
 			}
 		}
@@ -233,6 +239,17 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		log.Infof("=======================")
 		log.Infof("")
 		log.Infof("No changes were made to the system.")
+	}
+
+	reporting.Emit(reporting.RunFinished{Errs: stepErrs})
+
+	// Collected processor errors from a push-through run: each was reported
+	// when it happened; the run's exit code has to carry them too.
+	if len(stepErrs) > 0 {
+		for _, stepErr := range stepErrs {
+			log.Errorf("Processor %s failed: %v", stepErr.Processor, stepErr.Err)
+		}
+		return fmt.Errorf("%d processor(s) failed", len(stepErrs))
 	}
 
 	// Processors that skip a failed item and continue record it rather than

@@ -2,13 +2,13 @@ package validate
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/processors"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -38,48 +38,52 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 		return nil
 	}
 
-	// Walk the whole tree, not just the top directory.
-	//
-	// Blueprints are organised by type — packages/, files/, services/ — which is the
-	// layout the documentation recommends and every example uses. Reading only the
-	// top directory meant `rwr validate` on such a tree checked the init file and
-	// nothing else, and reported success. The command an operator runs to find out
-	// whether their configuration is sound was inspecting one file out of dozens.
-
-	err = filepath.WalkDir(path, func(filePath string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if entry.IsDir() {
-			// Skip version-control and other dot directories: nothing under them is
-			// a blueprint, and .git in particular holds a great many files.
-			if filePath != path && strings.HasPrefix(entry.Name(), ".") {
-				return fs.SkipDir
-			}
-			return nil
-		}
-
-		// Per-file via the registry: filtering on the init file's extension
-		// silently skipped every blueprint written in another format, so a
-		// mixed tree validated only the files that happened to match init.
-		if filePath == initFile || !helpers.IsBlueprintFile(filePath) {
-			return nil
-		}
-
-		// A nested init file belongs to its own subtree; validating it as a
-		// blueprint reports every one of its keys as unknown.
-		if isInitFileName(entry.Name()) {
-			return nil
-		}
-
-		if err := validateBlueprintFile(filePath, initConfig, results); err != nil {
-			AddIssue(results, types.ValidationError, fmt.Sprintf("Error validating blueprint file: %s", err), filePath, 0, "")
-		}
-		return nil
-	})
+	// Stage-1 resolve produces the routed, template-resolved tree once;
+	// validate consumes it instead of walking and rendering a second copy of
+	// the same logic (add-tui task 1). The resolver reports per-file problems
+	// as diagnostics, so one bad file does not hide the rest of the tree.
+	// The tree being validated is the path argument, always: the init file's
+	// own location ("." is common) is relative to a run's working directory,
+	// not to wherever validate happens to be invoked from.
+	initConfig.Init.Location = path
+	plan, err := processors.ResolveStage1(initConfig)
 	if err != nil {
-		return fmt.Errorf("error walking blueprint directory: %w", err)
+		return fmt.Errorf("error resolving blueprint tree: %w", err)
+	}
+
+	for _, diag := range plan.Diags {
+		severity := types.ValidationError
+		if diag.Severity == types.SeverityWarning {
+			severity = types.ValidationWarning
+		}
+		AddIssue(results, severity, diag.Msg, diag.File, diag.Line, "")
+	}
+
+	for processor, files := range plan.Files {
+		validator, known := blueprintValidators[processor]
+		for _, file := range files {
+			if !known {
+				// The run loop warns about these too; validate says it as well
+				// so the operator hears it before a run.
+				AddIssue(results, types.ValidationWarning, fmt.Sprintf("Unsupported blueprint type: %s", processor), file.Path, 0, "")
+				continue
+			}
+			if err := validator(file.Resolved, file.Format, file.Path, results); err != nil {
+				AddIssue(results, types.ValidationError, fmt.Sprintf("Error validating blueprint file: %s", err), file.Path, 0, "")
+			}
+		}
+	}
+
+	// Bootstrap is dispatched separately from the processor buckets (it is
+	// not a run-order blueprint), so validate covers it explicitly.
+	for _, name := range helpers.CandidateFilenames("bootstrap") {
+		bootstrapFile := filepath.Join(path, name)
+		if _, statErr := os.Stat(bootstrapFile); statErr != nil {
+			continue
+		}
+		if err := validateBlueprintFile(bootstrapFile, initConfig, results); err != nil {
+			AddIssue(results, types.ValidationError, fmt.Sprintf("Error validating blueprint file: %s", err), bootstrapFile, 0, "")
+		}
 	}
 
 	if verbose {
@@ -87,12 +91,6 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 	}
 
 	return nil
-}
-
-// isInitFileName reports whether a filename is an init file for some subtree.
-func isInitFileName(name string) bool {
-	base := strings.TrimSuffix(name, filepath.Ext(name))
-	return base == "init"
 }
 
 // isBootstrapFileName reports whether a filename is a bootstrap file, in any
@@ -138,12 +136,23 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 		return nil, nil
 	}
 
-	// Blueprints are rendered as templates before they are read, so validation has
-	// to render them against the same variables a run would.
+	// Blueprints are rendered as templates before they are read, so validation
+	// has to render them against the same variables a run would — including
+	// the userDefined block the init file declares. Assigning the whole
+	// struct used to throw that block away, which blanked every
+	// {{ .UserDefined.x }} and turned the values behind them into false
+	// "missing required field" errors.
+	declared := initConfig.Variables.UserDefined
 	if variables, err := helpers.DefaultVariables(); err != nil {
 		log.Warnf("Could not resolve template variables for validation: %v", err)
 	} else {
 		initConfig.Variables = variables
+	}
+	if initConfig.Variables.UserDefined == nil {
+		initConfig.Variables.UserDefined = map[string]interface{}{}
+	}
+	for key, value := range declared {
+		initConfig.Variables.UserDefined[key] = value
 	}
 
 	// A tree-wide schema version has to be readable for every blueprint type.

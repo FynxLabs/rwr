@@ -31,6 +31,15 @@ type AppConfig struct {
 	RunOnceLocation string
 	InitFilePath    string
 
+	// Display
+	NoTUI     bool
+	Theme     string
+	ASCII     bool
+	Unicode   bool
+	NoNotify  bool
+	TUIBuffer int
+	LogFile   string
+
 	// Resolved run state
 	InitConfig *types.InitConfig
 	OSInfo     *types.OSInfo

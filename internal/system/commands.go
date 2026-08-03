@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -116,15 +117,21 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if cmd.Interactive {
-		// Interactive commands must reach the terminal directly. Capturing stderr
-		// here would swallow sudo's password prompt and hang the run with no
-		// indication of what it was waiting for.
-		if cmd.Stdin == "" {
-			command.Stdin = os.Stdin
+		// Interactive commands must reach the terminal directly — capturing
+		// stderr would swallow sudo's password prompt and hang the run. The
+		// display layer owns the terminal, so the handoff goes through the
+		// reporter: LogReporter wires os.Std* exactly as this code used to;
+		// a TUI suspends itself around the child instead. This path also
+		// serves per-item `interactive: true` inside non-interactive runs.
+		done := make(chan error, 1)
+		reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done})
+		if err := <-done; err != nil {
+			log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
+			return err
 		}
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-	} else {
+		return nil
+	}
+	{
 		command.Stderr = &stderr
 		logFile, err := setOutputStreams(command, debug, cmd.LogName)
 		if err != nil {
