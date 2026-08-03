@@ -69,6 +69,21 @@ go mod tidy
 description = "Run rwr locally (pass args after --)"
 run = "go run . $@"
 
+[tasks."test:coverage:html"]
+description = "Open an HTML coverage report"
+run = """
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+"""
+
+[tasks."test:coverage:summary"]
+description = "Per-function coverage summary and the gated total"
+run = """
+go test -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out | tail -20
+./scripts/coverage-gate.sh coverage.out
+"""
+
 [tasks."providers:export"]
 description = "Export providers/cue sources to the committed JSON the binary embeds"
 run = "./scripts/providers-export.sh"

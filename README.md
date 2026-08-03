@@ -1,5 +1,8 @@
 # Rinse, Wash, Repeat (RWR)<!-- omit in toc -->
 
+[![Build](https://github.com/FynxLabs/rwr/actions/workflows/go.yml/badge.svg)](https://github.com/FynxLabs/rwr/actions/workflows/go.yml)
+[![Coverage gated ≥50%](https://img.shields.io/badge/coverage-gated%20%E2%89%A550%25-blue)](https://github.com/FynxLabs/rwr/blob/master/scripts/coverage-gate.sh)
+
 ![RWR Logo](img/rwr_128.gif)
 
 Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines.
