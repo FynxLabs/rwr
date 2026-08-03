@@ -256,7 +256,7 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 }
 
 func moveFile(source, target string) error {
-	if err := os.MkdirAll(filepath.Dir(target), defaultDirMode); err != nil {
+	if err := os.MkdirAll(filepath.Dir(target), defaultDirMode); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
