@@ -125,12 +125,12 @@ func registerRootFlags(rootCmd *cobra.Command, app *AppConfig) {
 	flags.StringVar(&app.ConfigPath, "config", "", "Path to the config file, or to a directory containing config.yaml (default ~/.config/rwr)")
 	flags.StringVar(&app.ConfigName, "config-name", "", "Manifest configuration to use in a multi-configuration blueprint repo")
 	flags.BoolVarP(&app.Debug, "debug", "d", false, "Enable debug mode")
-	flags.StringVar(&app.LogLevel, "log-level", "", "Set the log level (debug, info, warn, error)")
+	flags.StringVarP(&app.LogLevel, "log-level", "l", "", "Set the log level (debug, info, warn, error)")
 	flags.BoolVar(&app.ForceBootstrap, "force-bootstrap", false, "Force Bootstrap to be ran again")
-	flags.BoolVar(&app.DryRun, "dry-run", false, "Log operations without executing (no-op mode)")
+	flags.BoolVarP(&app.DryRun, "dry-run", "n", false, "Log operations without executing (no-op mode)")
 	flags.BoolVar(&app.DryRun, "no-op", false, "Alias for --dry-run")
 
-	flags.BoolVarP(&app.Interactive, "interactive", "I", true, "Enable interactive mode (use --interactive=false to disable)")
+	flags.BoolVarP(&app.Interactive, "interactive", "I", true, "Enable interactive mode (use --interactive=false to disable; per-item prompts, not -i)")
 
 	// Flag for the init file path. Bound to repository.init-file — the key the
 	// config file and docs have always used. It was bound to rwr.init-file,

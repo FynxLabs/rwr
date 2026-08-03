@@ -10,15 +10,15 @@ The following flags are available for all commands:
 |------|-------------|
 | `--config` | Path to the config file, or to a directory holding `config.yaml`. The default is `~/.config/rwr`. See [Configuration File](configuration.md) |
 | `--debug`, `-d` | Enable debug mode for verbose output |
-| `--log-level` | Set the log level (debug, info, warn, error) |
+| `--log-level`, `-l` | Set the log level (debug, info, warn, error) |
 | `--init-file`, `-i` | Path to the init file. A directory is accepted: RWR looks in it for `init.yaml`, `init.yml`, `init.json`, then `init.toml` |
 | `--gh-api-key` | Specify the GitHub API key for accessing private repositories |
 | `--ssh-key` | Path to an SSH key file, or a Base64-encoded SSH key, for Git authentication |
 | `--skip-version-check` | Do not check GitHub for a newer release at startup |
 | `--show-secrets` | Print credential values in logs instead of redacting them. Off by default; use it only to confirm RWR is reading the token or key you expect |
-| `--dry-run` | Simulate operations without making changes (no-op mode) |
+| `--dry-run`, `-n` | Simulate operations without making changes (no-op mode) |
 | `--no-op` | Alias for `--dry-run` |
-| `--interactive`, `-I` | Enable interactive mode (default: true). Use `--interactive=false` to disable |
+| `--interactive`, `-I` | Enable interactive per-item prompts (default: true). Use `--interactive=false` to disable. Capital `-I` — lowercase `-i` is `--init-file` |
 | `--gh-key` | Deprecated alias for `--gh-api-key`; use `--gh-api-key` |
 | `--gh-auth` | Get a GitHub token with the OAuth device flow. Only `rwr all` and `rwr run ssh_keys` act on it |
 | `--profile`, `-p` | Make a profile active. Repeat the flag, or give a comma-separated list |
@@ -87,11 +87,15 @@ a release version, for example
 
 ### `rwr config`
 
-Manage RWR configuration settings.
+View, edit, or create the RWR configuration.
 
-| Flag | Description |
-|------|-------------|
-| `--create`, `-c` | Create the configuration file |
+| Subcommand | Description |
+|------------|-------------|
+| `view` | Print the effective merged configuration with per-key sources. Secrets show as `[redacted]`; `--show-secrets` reveals them |
+| `edit` | Open the config file in `$VISUAL`/`$EDITOR` (created first if missing; re-parsed after, warning if broken) |
+| `create` | Create the configuration file, prompting for each setting |
+
+`--create`/`-c` is deprecated; use `rwr config create`.
 
 ### `rwr all`
 
