@@ -161,14 +161,16 @@ what a processor rejects is a missed one. Specifically:
 
 ### Requirement: Validation checks declared file modes
 
-`rwr validate` SHALL check the `mode` on every file and template entry:
+`rwr validate` SHALL check the `mode` on every file, directory, and template entry:
 
 - A `chmod` action with no mode SHALL be an error, because applying it would strip
   every permission off the target at run time.
 - A mode larger than `0o7777` SHALL be an error: it is not a permission mode.
-- A mode on an action that ignores it — `copy`, `move`, `delete`, `chown`, `chgrp`,
+- A mode on an action that ignores it — `move`, `delete`, `chown`, `chgrp`,
   `symlink` — SHALL be a warning, so an operator who expected it to be applied
-  finds out here.
+  finds out here. The mode-carrying actions are `create`, `chmod`, and `copy`:
+  the files processor applies a declared mode to a copied target, so a mode on
+  `copy` is meaningful, not ignored.
 - A world-writable mode SHALL be a warning.
 - A mode setting setuid or setgid SHALL be a warning.
 
@@ -202,6 +204,10 @@ A silently ignored key is a blueprint that looks applied and is not — a misspe
 `profiles` key means an entry runs on every machine instead of the one it was
 scoped to.
 
+The `schema_version` probe SHALL remain lenient: it reads a single key out of a
+full document to decide which schema to decode against, so the other keys are not
+its concern.
+
 #### Scenario: A misspelled key
 
 - **WHEN** a blueprint declares `packagess:` instead of `packages:`
@@ -217,8 +223,82 @@ scoped to.
 - **WHEN** a blueprint file contains no keys at all
 - **THEN** strict decoding accepts it as a section with nothing in it
 
-The `schema_version` probe is exempt: it reads a single key out of a full
-document to decide which schema to decode against, so it SHALL remain lenient.
+### Requirement: Template strictness at validate matches the run
+
+`rwr validate` SHALL resolve template references strictly for the `User`,
+`System`, and `Flags` namespaces — a reference that does not exist is a
+validation error — and leniently (`missingkey=zero`) only for `UserDefined`,
+whose values legitimately vary per machine.
+
+Why: validate resolved every namespace leniently, so a typo like
+`{{ .User.hoem }}` validated clean and failed at run time — the exact class of
+error validate exists to catch early.
+
+#### Scenario: Misspelled built-in reference
+
+- **WHEN** a blueprint references `{{ .User.hoem }}`
+- **THEN** `rwr validate` reports it as an error naming the reference
+- **AND** an undefined `{{ .UserDefined.anything }}` still validates
+
+### Requirement: Declaring both name and names is flagged
+
+An entry declaring both `name` and `names` SHALL produce a validation warning
+naming the entry, since only the `names` list will be processed.
+
+#### Scenario: Both declared
+
+- **WHEN** a packages entry declares both `name` and `names`
+- **THEN** validate warns that `name` is ignored
+
+### Requirement: Embedded provider contracts live in the CUE schema
+
+Embedded provider contracts SHALL be expressed in the CUE schema — the checks
+currently hand-rolled in `internal/validate/providers.go`: required `name`,
+`detection.binary`, `commands.install`; step `action` constrained to the enum
+the processors implement; `condition` restricted to derivable predicate names;
+no literal `/tmp/` paths in steps. Go validation SHALL remain only for
+filesystem overrides.
+
+Why: the hand-rolled Go checks have already drifted from the processors once
+(fictional actions, stale fields); a schema the export gate enforces cannot
+drift silently.
+
+#### Scenario: Invalid action rejected at export
+
+- **GIVEN** a CUE provider step with `action: "instal"`
+- **WHEN** the export runs
+- **THEN** it fails listing the allowed actions
+
+#### Scenario: Predicate list cannot drift
+
+- **GIVEN** the CUE `or` list of condition predicates and Go's
+  `repositoryPredicates` keys
+- **WHEN** the cross-check test runs
+- **THEN** it fails if the two sets differ in either direction
+
+### Requirement: CUE errors are validate diagnostics
+
+`rwr validate` SHALL evaluate `.cue` blueprints and report evaluation and
+unification failures as diagnostics with file and line, on the same surface
+as schema errors for the other formats.
+
+#### Scenario: Constraint violation reported
+
+- **GIVEN** a `.cue` blueprint violating one of its own constraints
+- **WHEN** `rwr validate` runs
+- **THEN** the diagnostic names the file, line, and failed constraint, and
+  validation exits nonzero
+
+### Requirement: Examples cover CUE
+
+`examples/` SHALL cover every blueprint type in CUE as a fourth format column,
+validated in CI, per the compatibility contract.
+
+#### Scenario: CI validates CUE examples
+
+- **GIVEN** the examples tree
+- **WHEN** CI runs
+- **THEN** every `.cue` example validates like its YAML/JSON/TOML siblings
 
 ### Requirement: Template strictness at validate matches the run
 
@@ -299,9 +379,6 @@ validated in CI, per the compatibility contract.
 
 ## Known Gaps
 
-- **Directory entries are not mode-checked.** `validateFileMode` runs over the
-  `files` and `templates` sections; the `directories` section carries a `mode` that
-  no validation rule inspects.
 - **A blueprint tree with no init file cannot be validated.** `rwr validate` looks
   for an init file at or above the path it is given and reports an error without
   one, so a directory of blueprint files on its own cannot be checked.
