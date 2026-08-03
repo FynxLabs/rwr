@@ -1,6 +1,6 @@
 # Initialization — Deltas
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Init file discovery uses the format registry
 

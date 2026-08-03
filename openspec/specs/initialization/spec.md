@@ -6,9 +6,7 @@ The init file is the entry point: it says where the blueprints are, what format 
 are in, what order to run them, which package managers to install first, and which
 credentials the tree may read. Making a new machine a one-shot operation means making
 that file easy to point at from anywhere.
-
 ## Requirements
-
 ### Requirement: The init file can be a path, a directory, or a URL
 
 RWR SHALL accept an init file given as:
@@ -179,6 +177,105 @@ configuration reader does not handle the TOML directly.
 - **WHEN** the init file is `init.toml`
 - **THEN** it is parsed correctly and produces the same configuration as the
   equivalent YAML
+
+### Requirement: Init files carry no inline resource sections
+
+An init file SHALL NOT declare inline resource sections (`repositories`,
+`packages`, `services`, `files`, `templates`, `directories`, `configuration`).
+Under strict decode, an init file carrying any of these keys SHALL fail with
+an error naming the key and pointing at blueprint files.
+
+Why: these sections were decoded, validated, and profile-counted but never
+applied at runtime — a declaration that silently did nothing. Blueprints are
+the single declaration path.
+
+Migration: move the entries into blueprint files under the tree; `rwr convert
+--migrate` automates this.
+
+#### Scenario: Init file with an inline packages section
+
+- **WHEN** an init file declares a top-level `packages:` list
+- **THEN** initialization fails with an error naming `packages` as an
+  unsupported init-file key and pointing at blueprint files
+
+### Requirement: A repo-root manifest declares multiple configurations
+
+The system SHALL read a root `manifest.*` when the init location (local dir
+or cloned git repo) contains no init file — the manifest is a list of
+named configurations, each with an `init` path relative to the repo root and
+optional matchers `os`, `distro`, `family`, `arch`, plus optional `default`.
+The manifest SHALL decode strictly through the format registry.
+
+Why: one blueprint repo commonly serves several machines (Arch/, macOS/,
+Windows/…); today the operator must hand-point at the right subdirectory.
+
+#### Scenario: Repo URL as init option
+
+- **GIVEN** `--init-file` pointing at a git repo whose root has `manifest.yaml`
+- **WHEN** `rwr all` runs
+- **THEN** the repo is cloned via the existing blueprint git machinery and the
+  manifest is read
+
+### Requirement: Configuration selection matches detected OS
+
+Manifest entries SHALL be filtered against detected OS info. Zero matches
+SHALL error listing every entry and its matchers. Exactly one match SHALL be
+used without prompting, logging which. Multiple matches SHALL present a TUI
+selection frame before resolve stage 1.
+
+#### Scenario: Single match auto-selected
+
+- **GIVEN** an Arch host and a manifest whose only `family: arch` entry is
+  `arch-desktop`
+- **WHEN** `rwr all` runs
+- **THEN** `arch-desktop` is used with no prompt and the choice is logged
+
+#### Scenario: Multiple matches prompt
+
+- **GIVEN** an Arch host and entries `arch-desktop` and `arch-server` both
+  matching
+- **WHEN** `rwr all` runs on a TTY
+- **THEN** a selection frame lists both, matched entries first
+
+### Requirement: Manifest paths cannot escape the repo
+
+An entry's `init` path SHALL resolve inside the repo root; a path escaping it
+SHALL be rejected before any file is read.
+
+Why: blueprints (and their manifests) are untrusted input.
+
+#### Scenario: Traversal rejected
+
+- **GIVEN** an entry with `init: ../../etc/init.yaml`
+- **WHEN** the manifest is validated
+- **THEN** the entry is rejected with an error naming the path
+
+### Requirement: Init file discovery uses the format registry
+
+Init and bootstrap file discovery SHALL derive candidate filenames
+(`init.<ext>`, `bootstrap.<ext>`) from the format registry rather than
+hardcoded lists.
+
+#### Scenario: New format is discoverable without touching discovery code
+
+- **GIVEN** a format is added to the registry
+- **WHEN** a directory contains `init.<newext>`
+- **THEN** init discovery finds it with no change to `cmd/` or `processors/`
+
+### Requirement: --init-file flag and config key agree
+
+The `--init-file` flag SHALL be bound to the same configuration key it is read
+from. Setting the value via config file SHALL behave identically to the flag.
+
+Why: today the flag binds to `rwr.init-file` but resolution reads
+`repository.init-file`, so the documented config key silently ignores the flag
+binding.
+
+#### Scenario: Config key resolves like the flag
+
+- **GIVEN** a config file setting the init-file key to `/tmp/x/init.yaml`
+- **WHEN** `rwr all` runs without `--init-file`
+- **THEN** `/tmp/x/init.yaml` is used, same as if passed via `--init-file`
 
 ## Known Gaps
 

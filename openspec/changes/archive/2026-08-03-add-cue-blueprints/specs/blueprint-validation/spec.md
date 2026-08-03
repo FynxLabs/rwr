@@ -1,6 +1,6 @@
 # Blueprint Validation — Deltas
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: CUE errors are validate diagnostics
 

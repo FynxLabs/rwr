@@ -1,6 +1,6 @@
 # Provider Detection — Deltas
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Embedded provider definitions are exported from CUE
 

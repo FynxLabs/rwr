@@ -1,6 +1,6 @@
 # Blueprint Validation — Deltas
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Template strictness at validate matches the run
 

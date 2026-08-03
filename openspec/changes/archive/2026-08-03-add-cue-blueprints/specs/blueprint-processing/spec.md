@@ -1,6 +1,6 @@
 # Blueprint Processing — Deltas
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: CUE is a supported blueprint format
 

@@ -5,9 +5,7 @@
 `rwr validate` is the check an operator runs before letting RWR touch a machine, and
 the check CI runs to catch a change that breaks trees already in the wild. This
 capability defines what validation inspects and what it reports.
-
 ## Requirements
-
 ### Requirement: Validation reports issues by severity and fails on errors
 
 RWR SHALL classify each validation issue as error, warning, or info, and SHALL report
@@ -221,6 +219,83 @@ scoped to.
 
 The `schema_version` probe is exempt: it reads a single key out of a full
 document to decide which schema to decode against, so it SHALL remain lenient.
+
+### Requirement: Template strictness at validate matches the run
+
+`rwr validate` SHALL resolve template references strictly for the `User`,
+`System`, and `Flags` namespaces — a reference that does not exist is a
+validation error — and leniently (`missingkey=zero`) only for `UserDefined`,
+whose values legitimately vary per machine.
+
+Why: validate resolved every namespace leniently, so a typo like
+`{{ .User.hoem }}` validated clean and failed at run time — the exact class of
+error validate exists to catch early.
+
+#### Scenario: Misspelled built-in reference
+
+- **WHEN** a blueprint references `{{ .User.hoem }}`
+- **THEN** `rwr validate` reports it as an error naming the reference
+- **AND** an undefined `{{ .UserDefined.anything }}` still validates
+
+### Requirement: Declaring both name and names is flagged
+
+An entry declaring both `name` and `names` SHALL produce a validation warning
+naming the entry, since only the `names` list will be processed.
+
+#### Scenario: Both declared
+
+- **WHEN** a packages entry declares both `name` and `names`
+- **THEN** validate warns that `name` is ignored
+
+### Requirement: Embedded provider contracts live in the CUE schema
+
+Embedded provider contracts SHALL be expressed in the CUE schema — the checks
+currently hand-rolled in `internal/validate/providers.go`: required `name`,
+`detection.binary`, `commands.install`; step `action` constrained to the enum
+the processors implement; `condition` restricted to derivable predicate names;
+no literal `/tmp/` paths in steps. Go validation SHALL remain only for
+filesystem overrides.
+
+Why: the hand-rolled Go checks have already drifted from the processors once
+(fictional actions, stale fields); a schema the export gate enforces cannot
+drift silently.
+
+#### Scenario: Invalid action rejected at export
+
+- **GIVEN** a CUE provider step with `action: "instal"`
+- **WHEN** the export runs
+- **THEN** it fails listing the allowed actions
+
+#### Scenario: Predicate list cannot drift
+
+- **GIVEN** the CUE `or` list of condition predicates and Go's
+  `repositoryPredicates` keys
+- **WHEN** the cross-check test runs
+- **THEN** it fails if the two sets differ in either direction
+
+### Requirement: CUE errors are validate diagnostics
+
+`rwr validate` SHALL evaluate `.cue` blueprints and report evaluation and
+unification failures as diagnostics with file and line, on the same surface
+as schema errors for the other formats.
+
+#### Scenario: Constraint violation reported
+
+- **GIVEN** a `.cue` blueprint violating one of its own constraints
+- **WHEN** `rwr validate` runs
+- **THEN** the diagnostic names the file, line, and failed constraint, and
+  validation exits nonzero
+
+### Requirement: Examples cover CUE
+
+`examples/` SHALL cover every blueprint type in CUE as a fourth format column,
+validated in CI, per the compatibility contract.
+
+#### Scenario: CI validates CUE examples
+
+- **GIVEN** the examples tree
+- **WHEN** CI runs
+- **THEN** every `.cue` example validates like its YAML/JSON/TOML siblings
 
 ## Known Gaps
 

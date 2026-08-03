@@ -5,9 +5,7 @@
 A blueprint declares what a machine should look like. This capability defines the
 blueprint types, how files are discovered and ordered, how imports and profiles
 narrow what applies, and how variables are resolved before anything runs.
-
 ## Requirements
-
 ### Requirement: Blueprints are written in YAML, JSON, or TOML
 
 RWR SHALL read blueprints in YAML, JSON, and TOML, and SHALL treat the three as
@@ -315,9 +313,14 @@ Template resolution SHALL apply to every blueprint type, including fonts.
 RWR SHALL accept an `import` field on a blueprint entry, naming another blueprint
 file whose definitions are merged in.
 
-Import paths SHALL resolve relative to the importing blueprint's directory. An
-imported file MAY be in any supported format. Imported entries SHALL be subject to
-profile filtering like any other entry. Import SHALL work for every blueprint type.
+Import paths SHALL resolve relative to the file that declares them, in every
+processor. (Previously six processors resolved top-level imports against the
+tree root while four resolved file-relative — the same `import:` string meant
+two different files depending on the blueprint type.) An imported file MAY be
+in any supported format, and its format SHALL be derived from its own
+extension, not the importing file's. Imported entries SHALL be subject to
+profile filtering like any other entry. Import SHALL work for every blueprint
+type.
 
 RWR SHALL detect a circular import and SHALL NOT loop.
 
@@ -336,6 +339,13 @@ RWR SHALL detect a circular import and SHALL NOT loop.
 
 - **WHEN** A imports B and B imports C
 - **THEN** the definitions from all three files are applied
+
+#### Scenario: Same relative import in two blueprint types
+
+- **GIVEN** `packages/base.yaml` and `files/base.yaml`, each declaring
+  `import: ../shared/common.yaml`
+- **WHEN** both are processed
+- **THEN** both resolve the same file, relative to each importing file
 
 ### Requirement: Profiles narrow what applies, permissively by default
 
@@ -474,9 +484,9 @@ RWR SHALL enforce the schema version of every file in the chain.
 
 ### Requirement: Downloads are validated on every hop, bounded, and pinnable
 
-Everything RWR downloads — package-signing keys, fonts, file sources, the init
-file — is installed with the operator's privileges, so a download URL SHALL be
-refused unless it is https (plain http is allowed only for loopback hosts), and
+A download URL SHALL be refused unless it is https (plain http is allowed only
+for loopback hosts) — everything RWR downloads (package-signing keys, fonts,
+file sources, the init file) is installed with the operator's privileges — and
 that check SHALL be re-applied to **every redirect hop**, not only the initial
 URL. Validating only the first URL is worthless the moment a server answers
 with a 302 to plain http.
@@ -487,6 +497,15 @@ Where a step or blueprint entry declares a `sha256` for downloaded content, RWR
 SHALL verify the download against it before the content is moved into place,
 and SHALL discard the download on a mismatch. This applies to repository action
 steps and package-manager install/remove steps alike.
+
+A repository MAY declare `key_sha256`, the sha256 of the signing key at
+`key_url`; when declared, the provider's key-download step SHALL verify it.
+A `files:` entry with a URL source MAY declare `sha256`; when declared, the
+download SHALL be verified before the file is installed.
+
+A repository with `key_url` and no `key_sha256`, and a files entry with a URL
+source and no `sha256`, SHALL produce a prominent warning naming the unpinned
+download. (A later major version refuses; the policy ratchets, never loosens.)
 
 #### Scenario: A redirect to plain http
 
@@ -501,6 +520,123 @@ steps and package-manager install/remove steps alike.
   content does not match it
 - **THEN** the step fails, the staged download is discarded, and nothing is
   written to the destination
+
+#### Scenario: Pinned signing key mismatch
+
+- **WHEN** a repository declares `key_url` and `key_sha256` and the downloaded
+  key does not match
+- **THEN** the repository is not added and the failure names the digest
+  mismatch
+
+#### Scenario: Unpinned signing key warns
+
+- **WHEN** a repository declares `key_url` without `key_sha256`
+- **THEN** the run proceeds with a prominent warning naming the repository
+
+### Requirement: `names` wins over `name` everywhere
+
+When an entry declares both `name` and `names`, the `names` list SHALL be
+processed and `name` ignored, for every blueprint type. (packages had it
+backwards relative to files/fonts.)
+
+#### Scenario: Both declared on a packages entry
+
+- **WHEN** a packages entry declares `name: git` and `names: [vim, tmux]`
+- **THEN** vim and tmux are installed and git is not
+
+### Requirement: Blueprint type is derived from content when the path names none
+
+A blueprint file whose path names no processor directory SHALL be typed by its
+top-level keys (`packages:` → packages, `repositories:` → repositories, …).
+A file whose content matches no type — or more than one — SHALL produce the
+loud unrouted-file warning and SHALL NOT execute.
+
+Why: the flattened and minimal_files layouts the examples ship were dead ends —
+path-only dispatch sent every file to a bucket the run loop never reads, and
+the run exited 0 having executed nothing.
+
+#### Scenario: Flattened layout executes
+
+- **GIVEN** a tree with `packages.yaml` at its root declaring packages
+- **WHEN** `rwr all` runs
+- **THEN** the file is dispatched to the packages processor and executes
+
+#### Scenario: Ambiguous content still warns
+
+- **GIVEN** a root-level file declaring both `packages:` and `services:`
+- **WHEN** the run order is computed
+- **THEN** the file is not executed and a warning names it and why
+
+### Requirement: Format registry is the single source of blueprint format knowledge
+
+The system SHALL resolve a blueprint file's format from its extension through a
+single registry. No other code SHALL enumerate blueprint extensions or map an
+extension to a decoder.
+
+Why: format knowledge is duplicated across ~15 sites today; each new format is
+N hand edits, and the copies have already diverged (see next requirement).
+
+#### Scenario: Unknown extension yields a diagnostic, not a panic
+
+- **GIVEN** a blueprint directory containing `packages.xml`
+- **WHEN** the run order is processed
+- **THEN** the file is reported as an unsupported format with its path
+- **AND** the run does not panic (today `all.go:148` panics on an extensionless file)
+
+### Requirement: Format is derived per file
+
+The system SHALL determine each blueprint file's format from that file's
+extension. `Init.Format` SHALL NOT cause a file with a recognized extension to
+be decoded as another format.
+
+Why: half the codebase assumes a tree-uniform format via `Init.Format`, half
+derives per file; a mixed tree behaves differently depending on which code path
+touches it.
+
+#### Scenario: Mixed-format tree
+
+- **GIVEN** a blueprint tree containing `packages.yaml` and `files.toml`
+- **WHEN** `rwr all` processes the tree
+- **THEN** each file is decoded according to its own extension
+- **AND** profile discovery and file ordering see both files
+
+### Requirement: CUE is a supported blueprint format
+
+`.cue` SHALL be a registered blueprint format alongside YAML, JSON, and TOML,
+valid for blueprints, imports, init files, bootstrap files, and the manifest.
+A `.cue` file SHALL be evaluated in-process (`cuelang.org/go`), exported to
+concrete values, and decoded through the existing strict path — semantics
+identical to the equivalent YAML.
+
+Why: CUE gives authors types, constraints, and composition at authoring time;
+errors surface before a run touches the machine. Evaluation is in-process
+because rwr bootstraps machines that do not have a `cue` binary.
+
+#### Scenario: CUE blueprint equals its YAML twin
+
+- **GIVEN** `packages.cue` and `packages.yaml` declaring the same packages
+- **WHEN** both are decoded
+- **THEN** the resulting blueprint values are identical
+
+#### Scenario: Non-concrete value is an error
+
+- **GIVEN** a `.cue` blueprint with an unresolved field (`version: string`)
+- **WHEN** it is evaluated
+- **THEN** decoding fails with the field name and file/line
+
+### Requirement: CUE evaluation is sandboxed to the blueprint tree
+
+CUE evaluation SHALL NOT resolve modules, imports, or embeds from the
+network or from filesystem paths outside the blueprint tree.
+
+Why: blueprints are untrusted input; evaluation must not become a way to read
+arbitrary files or phone home.
+
+#### Scenario: Escape rejected
+
+- **GIVEN** a `.cue` file importing a path outside the blueprint tree
+- **WHEN** it is evaluated
+- **THEN** evaluation fails with a containment error
 
 ## Known Gaps
 
