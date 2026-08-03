@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -39,15 +40,20 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 		return err
 	}
 
-	if err := processFiles(files, blueprintDir, osInfo); err != nil {
+	// One tracker across all three loops: files, directories, and templates
+	// share the processor's single lane, and a second tracker would reset its
+	// done/total counts.
+	track := newProgress(types.BlueprintTypeFiles)
+
+	if err := processFiles(files, blueprintDir, osInfo, track); err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
 
-	if err := processDirectories(dirs, blueprintDir, initConfig); err != nil {
+	if err := processDirectories(dirs, blueprintDir, initConfig, track); err != nil {
 		return fmt.Errorf("error processing directories: %w", err)
 	}
 
-	if err := processTemplates(templates, blueprintDir, osInfo, initConfig); err != nil {
+	if err := processTemplates(templates, blueprintDir, osInfo, initConfig, track); err != nil {
 		return fmt.Errorf("error processing templates: %w", err)
 	}
 
@@ -94,20 +100,39 @@ func resolveAndFilterFileData(blueprintData []byte, blueprintDir string, format 
 
 // One file failing does not stop the rest: the failure goes to the ledger,
 // which puts it in the run's exit code, and processing continues.
-func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo) error {
+func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo, track *progress) error {
+	total := 0
+	for _, file := range files {
+		if len(file.Names) > 0 {
+			total += len(file.Names)
+		} else {
+			total++
+		}
+	}
+	track.expect("", total)
+
+	run := func(file types.File) {
+		started := time.Now()
+		switch err := processFile(file, blueprintDir, osInfo); {
+		case err != nil:
+			recordFailure("files", file.Name, err)
+			track.item("", file.Name, file.Action, types.StatusFailed, err.Error(), time.Since(started))
+		case system.IsDryRun():
+			track.item("", file.Name, file.Action, types.StatusPlanned, "dry-run", 0)
+		default:
+			track.item("", file.Name, file.Action, types.StatusOK, "", time.Since(started))
+		}
+	}
+
 	for _, file := range files {
 		if len(file.Names) > 0 {
 			for _, name := range file.Names {
 				fileWithName := file
 				fileWithName.Name = name
-				if err := processFile(fileWithName, blueprintDir, osInfo); err != nil {
-					recordFailure("files", name, err)
-				}
+				run(fileWithName)
 			}
 		} else {
-			if err := processFile(file, blueprintDir, osInfo); err != nil {
-				recordFailure("files", file.Name, err)
-			}
+			run(file)
 		}
 	}
 	return nil
@@ -230,8 +255,36 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 	}
 }
 
-func processTemplates(templates []types.File, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+func processTemplates(templates []types.File, blueprintDir string, osInfo *types.OSInfo, initConfig *types.InitConfig, track *progress) error {
 	log.Info("Starting to process templates")
+
+	total := 0
+	for _, tmpl := range templates {
+		if len(tmpl.Names) > 0 {
+			total += len(tmpl.Names)
+		} else if tmpl.Name != "" {
+			total++
+		}
+	}
+	track.expect("", total)
+
+	run := func(tmpl types.File) {
+		started := time.Now()
+		switch err := processTemplate(tmpl, blueprintDir, osInfo, initConfig); {
+		case err != nil:
+			recordFailure("templates", tmpl.Name, err)
+			track.item("", tmpl.Name, "template", types.StatusFailed, err.Error(), time.Since(started))
+		case system.IsDryRun():
+			track.item("", tmpl.Name, "template", types.StatusPlanned, "dry-run", 0)
+		case tmpl.Source == "" || tmpl.Target == "":
+			// processTemplate warns and returns nil for these; mirror that as a
+			// skip rather than a success.
+			track.item("", tmpl.Name, "template", types.StatusSkipped, "missing required fields", 0)
+		default:
+			track.item("", tmpl.Name, "template", types.StatusOK, "", time.Since(started))
+		}
+	}
+
 	for i, tmpl := range templates {
 		log.Debugf("Processing template %d: %+v", i, tmpl)
 		if tmpl.Name == "" && len(tmpl.Names) == 0 {
@@ -244,17 +297,11 @@ func processTemplates(templates []types.File, blueprintDir string, osInfo *types
 				log.Infof("Processing template with name: %s", name)
 				fileWithName := tmpl
 				fileWithName.Name = name
-				err := processTemplate(fileWithName, blueprintDir, osInfo, initConfig)
-				if err != nil {
-					recordFailure("templates", fileWithName.Name, err)
-				}
+				run(fileWithName)
 			}
 		} else {
 			log.Infof("Processing single template: %s", tmpl.Name)
-			err := processTemplate(tmpl, blueprintDir, osInfo, initConfig)
-			if err != nil {
-				recordFailure("templates", tmpl.Name, err)
-			}
+			run(tmpl)
 		}
 	}
 	log.Info("Finished processing all templates")
@@ -327,15 +374,21 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 	return nil
 }
 
-func processDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig) error {
+func processDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig, track *progress) error {
+	track.expect("", len(directories))
 	for _, dir := range directories {
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would %s directory: %s (target: %s)", dir.Action, dir.Name, dir.Target)
+			track.item("", dir.Name, dir.Action, types.StatusPlanned, "dry-run", 0)
 			continue
 		}
+		started := time.Now()
 		if err := processDirectory(dir, blueprintDir, initConfig); err != nil {
 			recordFailure("directories", dir.Name, err)
+			track.item("", dir.Name, dir.Action, types.StatusFailed, err.Error(), time.Since(started))
+			continue
 		}
+		track.item("", dir.Name, dir.Action, types.StatusOK, "", time.Since(started))
 	}
 	return nil
 }

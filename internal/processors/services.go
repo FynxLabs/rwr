@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -50,7 +51,10 @@ func ProcessServices(blueprintData []byte, blueprintDir string, format string, o
 // One service failing does not stop the rest: the failure goes to the ledger,
 // which puts it in the run's exit code, and processing continues.
 func processServices(services []types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	track := newProgress(types.BlueprintTypeServices)
+	track.expect("", len(services))
 	for _, service := range services {
+		started := time.Now()
 		var err error
 		switch runtime.GOOS {
 		case "linux":
@@ -62,8 +66,14 @@ func processServices(services []types.Service, osInfo *types.OSInfo, initConfig 
 		default:
 			return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 		}
-		if err != nil {
+		switch {
+		case err != nil:
 			recordFailure("services", service.Name, err)
+			track.item("", service.Name, service.Action, types.StatusFailed, err.Error(), time.Since(started))
+		case system.IsDryRun():
+			track.item("", service.Name, service.Action, types.StatusPlanned, "dry-run", 0)
+		default:
+			track.item("", service.Name, service.Action, types.StatusOK, "", time.Since(started))
 		}
 	}
 	return nil

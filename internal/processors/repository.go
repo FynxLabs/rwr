@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -60,14 +61,25 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 
 	// One repository failing does not stop the rest: the failure goes to the
 	// ledger, which puts it in the run's exit code, and processing continues.
+	track := newProgress(types.BlueprintTypeRepositories)
+	for _, repo := range repositories {
+		track.expect(repo.PackageManager, 1)
+	}
 	declared := make(map[string]bool, len(repositories))
 	for _, repo := range repositories {
 		log.Infof("Processing repository %s", repo.Name)
 		log.Debugf("Repository definition: %s", repo.LogString())
 		declared[repo.PackageManager] = true
 
-		if err := processRepository(repo, osInfo, initConfig); err != nil {
+		started := time.Now()
+		switch err := processRepository(repo, osInfo, initConfig); {
+		case err != nil:
 			recordFailure("repositories", repo.Name, err)
+			track.item(repo.PackageManager, repo.Name, repo.Action, types.StatusFailed, err.Error(), time.Since(started))
+		case system.IsDryRun():
+			track.item(repo.PackageManager, repo.Name, repo.Action, types.StatusPlanned, "dry-run", 0)
+		default:
+			track.item(repo.PackageManager, repo.Name, repo.Action, types.StatusOK, "", time.Since(started))
 		}
 	}
 

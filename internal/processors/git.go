@@ -3,6 +3,7 @@ package processors
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -49,9 +50,13 @@ func ProcessGitRepositories(blueprintData []byte, blueprintDir string, format st
 }
 
 func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) error {
+	track := newProgress(types.BlueprintTypeGit)
+	track.expect("", len(gitRepos))
 	for _, repo := range gitRepos {
+		started := time.Now()
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would clone/update git repository: %s -> %s", repo.URL, repo.Path)
+			track.item("", repo.Name, repo.Action, types.StatusPlanned, "dry-run", 0)
 			continue
 		}
 		// The action field was decoded and never read, so `action: pull` cloned and
@@ -62,6 +67,7 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 		default:
 			recordFailure("git", repo.Name,
 				fmt.Errorf("unsupported action %q: use %q or %q", repo.Action, types.GitActionClone, types.GitActionPull))
+			track.item("", repo.Name, repo.Action, types.StatusFailed, "unsupported action", 0)
 			continue
 		}
 
@@ -79,6 +85,7 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 			err = helpers.CheckAndUpdateRemoteURL(gitOpts.Target, gitOpts.URL)
 			if err != nil {
 				recordFailure("git", repo.Name, fmt.Errorf("checking/updating remote URL: %w", err))
+				track.item("", repo.Name, repo.Action, types.StatusFailed, err.Error(), time.Since(started))
 				continue
 			}
 
@@ -86,25 +93,31 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 			err = helpers.HandleGitPull(gitOpts, initConfig)
 			if err != nil {
 				recordFailure("git", repo.Name, fmt.Errorf("pulling latest changes: %w", err))
+				track.item("", repo.Name, repo.Action, types.StatusFailed, err.Error(), time.Since(started))
 				continue
 			}
 			log.Infof("Git repository %s updated successfully", repo.Name)
+			track.item("", repo.Name, repo.Action, types.StatusOK, "", time.Since(started))
 		} else if os.IsNotExist(err) {
 			if repo.Action == types.GitActionPull {
 				recordFailure("git", repo.Name,
 					fmt.Errorf("action is %q but nothing is checked out at %s", types.GitActionPull, gitOpts.Target))
+				track.item("", repo.Name, repo.Action, types.StatusFailed, "nothing checked out at target", time.Since(started))
 				continue
 			}
 			// Repository doesn't exist, clone it
 			err = helpers.HandleGitClone(gitOpts, initConfig)
 			if err != nil {
 				recordFailure("git", repo.Name, fmt.Errorf("cloning: %w", err))
+				track.item("", repo.Name, repo.Action, types.StatusFailed, err.Error(), time.Since(started))
 				continue
 			}
 			log.Infof("Git repository %s cloned successfully", repo.Name)
+			track.item("", repo.Name, repo.Action, types.StatusOK, "", time.Since(started))
 		} else {
 			// Some other error occurred
 			recordFailure("git", repo.Name, fmt.Errorf("checking repository path: %w", err))
+			track.item("", repo.Name, repo.Action, types.StatusFailed, err.Error(), time.Since(started))
 			continue
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -51,23 +52,30 @@ func ProcessScripts(blueprintData []byte, blueprintDir string, format string, os
 }
 
 func processScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *types.InitConfig, blueprintDir string) error {
+	track := newProgress(types.BlueprintTypeScripts)
+	track.expect("", len(scripts))
 	for _, script := range scripts {
 		log.Debugf("Processing script: %+v", script)
 
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would run script: %s (exec: %s)", script.Name, script.Exec)
+			track.item("", script.Name, script.Action, types.StatusPlanned, "dry-run", 0)
 			continue
 		}
 
 		if script.Action == "run" {
+			started := time.Now()
 			err := runScript(script, osInfo, initConfig, blueprintDir)
 			if err != nil {
 				log.Errorf("Error running script %s: %v", script.Name, err)
+				track.item("", script.Name, script.Action, types.StatusFailed, err.Error(), time.Since(started))
 				return fmt.Errorf("error running script %s: %w", script.Name, err)
 			}
 			log.Infof("Script %s executed successfully", script.Name)
+			track.item("", script.Name, script.Action, types.StatusOK, "", time.Since(started))
 		} else {
 			log.Errorf("Unsupported action for script %s: %s", script.Name, script.Action)
+			track.item("", script.Name, script.Action, types.StatusFailed, "unsupported action", 0)
 			return fmt.Errorf("unsupported action for script %s: %s", script.Name, script.Action)
 		}
 	}

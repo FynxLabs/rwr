@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf16"
 
 	"charm.land/log/v2"
@@ -32,9 +33,13 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 
 	configurations := helpers.FilterByProfiles(configData.Configurations, initConfig.Variables.Flags.Profiles)
 
+	track := newProgress(types.BlueprintTypeConfiguration)
+	track.expect("", len(configurations))
+
 	for _, config := range configurations {
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would apply %s configuration: %s", config.Tool, config.Name)
+			track.item("", config.Name, "configure", types.StatusPlanned, "dry-run", 0)
 			continue
 		}
 		// `set` is the only action any of these tools implement. The field was
@@ -42,9 +47,11 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 		if config.Action != "" && config.Action != types.ConfigurationActionSet {
 			recordFailure("configuration", config.Name,
 				fmt.Errorf("unsupported action %q: the only supported action is %q", config.Action, types.ConfigurationActionSet))
+			track.item("", config.Name, "configure", types.StatusFailed, "unsupported action", 0)
 			continue
 		}
 
+		started := time.Now()
 		var err error
 		switch config.Tool {
 		case "dconf":
@@ -61,7 +68,15 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 
 		if err != nil {
 			log.Errorf("Error processing configuration %s: %v", config.Name, err)
+			track.item("", config.Name, "configure", types.StatusFailed, err.Error(), time.Since(started))
 			return fmt.Errorf("error processing configuration %s: %w", config.Name, err)
+		}
+		if config.Tool == "gsettings" {
+			// processGSettings records per-key failures in the ledger and still
+			// returns nil, so the entry's own outcome is not knowable here.
+			track.item("", config.Name, "configure", types.StatusUnknown, "per-key results recorded in the ledger", time.Since(started))
+		} else {
+			track.item("", config.Name, "configure", types.StatusOK, "", time.Since(started))
 		}
 	}
 
