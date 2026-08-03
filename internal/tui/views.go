@@ -13,7 +13,11 @@ import (
 // View implements tea.Model. Both layouts render from the same model, so a
 // live resize promotes or demotes with no state lost.
 func (m *Model) View() tea.View {
-	return tea.NewView(m.render())
+	// Scan registers the zone marks the renderers injected and strips their
+	// escape sequences; all-motion mouse mode is what delivers hover events.
+	view := tea.NewView(m.zones.Scan(m.render()))
+	view.MouseMode = tea.MouseModeAllMotion
+	return view
 }
 
 func (m *Model) render() string {
@@ -83,16 +87,24 @@ func (m *Model) viewHeader() string {
 	return left + strings.Repeat(" ", pad) + right
 }
 
-// strip: one block per processor, colored by state, one line total.
+// strip: one block per processor, colored by state, one line total. Each
+// cell is a mouse zone; the hovered cell renders reversed so the pointer's
+// target reads before the click.
 func (m *Model) viewStrip() string {
 	var b strings.Builder
-	for _, proc := range m.procs {
+	for i, proc := range m.procs {
 		glyph := m.theme.Glyphs.StripFilled
 		if m.dryRun || proc.State == ProcPending {
 			glyph = m.theme.Glyphs.StripEmpty
 		}
 		_, st := m.glyphFor(proc.State)
-		b.WriteString(st.Render(glyph))
+		if i == m.hovered {
+			st = st.Reverse(true)
+		}
+		b.WriteString(m.zones.Mark(stripZone(i), st.Render(glyph)))
+	}
+	if m.hovered >= 0 && m.hovered < len(m.procs) {
+		b.WriteString(" " + style(m.theme.Subtext).Render(m.procs[m.hovered].Name))
 	}
 	return b.String()
 }
@@ -103,12 +115,16 @@ func (m *Model) viewCollapsed() []string {
 	var lines []string
 	var done []string
 	var doneDur time.Duration
-	for _, proc := range m.procs {
+	for i, proc := range m.procs {
+		nameStyle := style(m.theme.Text)
+		if i == m.hovered {
+			nameStyle = nameStyle.Underline(true)
+		}
 		switch proc.State {
 		case ProcDone:
 			if m.expanded {
 				glyph, st := m.glyphFor(proc.State)
-				lines = append(lines, fmt.Sprintf(" %s %-16s %s", st.Render(glyph), proc.Name, style(m.theme.Muted).Render(proc.Dur.Round(time.Millisecond*100).String())))
+				lines = append(lines, m.zones.Mark(rowZone(i), fmt.Sprintf(" %s %s %s", st.Render(glyph), nameStyle.Render(fmt.Sprintf("%-16s", proc.Name)), style(m.theme.Muted).Render(proc.Dur.Round(time.Millisecond*100).String()))))
 			} else {
 				done = append(done, proc.Name)
 				doneDur += proc.Dur
@@ -119,7 +135,7 @@ func (m *Model) viewCollapsed() []string {
 			if proc.Err != nil {
 				reason = proc.Err.Error()
 			}
-			lines = append(lines, fmt.Sprintf(" %s %-16s %s", st.Render(glyph), proc.Name, style(m.theme.Danger).Render(truncate(reason, m.width-24))))
+			lines = append(lines, m.zones.Mark(rowZone(i), fmt.Sprintf(" %s %s %s", st.Render(glyph), nameStyle.Render(fmt.Sprintf("%-16s", proc.Name)), style(m.theme.Danger).Render(truncate(reason, m.width-24)))))
 		}
 	}
 	if len(done) > 0 && !m.expanded {

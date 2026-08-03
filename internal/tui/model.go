@@ -1,12 +1,14 @@
 package tui
 
 import (
+	"strconv"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/harmonica"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 // State is where the run is.
@@ -123,6 +125,11 @@ type Model struct {
 	runLogPath string
 	summaryTab int
 	expanded   bool // collapsed-success line expanded
+
+	// zones maps rendered strip cells and list rows back to processors, so
+	// mouse work survives layout changes instead of hardcoding coordinates.
+	zones   *zone.Manager
+	hovered int // strip index under the pointer; -1 when none
 }
 
 // event wraps a reporting.Event for the tea loop.
@@ -145,6 +152,8 @@ func New(theme Theme, plan *types.Plan, store *reporting.Store, dryRun bool, run
 		order:      map[string]int{},
 		focused:    true,
 		notifyMin:  30 * time.Second,
+		zones:      zone.New(),
+		hovered:    -1,
 	}
 	for i, name := range plan.Order {
 		proc := &Proc{Name: name, State: ProcPending, Lanes: map[string]*Lane{}}
@@ -245,6 +254,23 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 
 type execDone struct{}
 
+// stripZone and rowZone name a processor's strip cell and list row; the ids
+// differ because a Mark of the same id overwrites the earlier zone.
+func stripZone(i int) string { return "strip:" + strconv.Itoa(i) }
+func rowZone(i int) string   { return "row:" + strconv.Itoa(i) }
+
+// procAt maps a mouse message to the processor whose zone contains it, or -1.
+func (m *Model) procAt(msg tea.MouseMsg) int {
+	for i := range m.procs {
+		for _, id := range []string{stripZone(i), rowZone(i)} {
+			if info := m.zones.Get(id); info != nil && !info.IsZero() && info.InBounds(msg) {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -289,14 +315,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.MouseClickMsg:
-		// A click on the strip row selects that processor's block; any click
-		// pins. Native coordinate mapping — bubblezone targets bubbletea v1
-		// and cannot be wired against v2 (recorded in the change tasks).
+		// A click on a strip cell or a processor row selects that processor's
+		// block; any click pins. Zones map rendered cells back to processors,
+		// so selection survives layout changes.
 		m.pinned = true
-		mouse := msg.Mouse()
-		if mouse.Y == 1 && mouse.X < len(m.procs) {
-			m.cursor = mouse.X
+		if i := m.procAt(msg); i >= 0 {
+			m.cursor = i
 		}
+		return m, nil
+	case tea.MouseMotionMsg:
+		m.hovered = m.procAt(msg)
 		return m, nil
 	case tea.MouseWheelMsg:
 		m.pinned = true
