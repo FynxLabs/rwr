@@ -262,7 +262,7 @@ jobs:
             echo "::group::rwr validate $tree"
             ./rwr validate --blueprints "$tree" || status=1
             echo "::endgroup::"
-          done < <(find examples -name 'init.*' | sort)
+          done < <(find examples \( -name 'init.*' -o -name 'manifest.*' \) | sort)
           if [ "$found" -eq 0 ]; then
             echo "No init files found under examples/ — this loop validated nothing." >&2
             exit 1
@@ -282,7 +282,7 @@ jobs:
             d="$dir"
             covered=no
             while [ "$d" != "examples" ] && [ "$d" != "." ] && [ "$d" != "/" ]; do
-              if ls "$d"/init.* >/dev/null 2>&1; then covered=yes; break; fi
+              if ls "$d"/init.* "$d"/manifest.* >/dev/null 2>&1; then covered=yes; break; fi
               d="$(dirname "$d")"
             done
             [ "$covered" = yes ] || uncovered="${uncovered}${dir}"$'\n'
