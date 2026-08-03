@@ -10,11 +10,12 @@ import (
 // The --init-file flag is bound to repository.init-file, so config, env and
 // flag all meet at one key.
 func TestInitFileFlagBindsDocumentedKey(t *testing.T) {
-	if err := rootCmd.PersistentFlags().Set("init-file", "bound.yaml"); err != nil {
+	root := NewRootCmd(NewAppConfig())
+	if err := root.PersistentFlags().Set("init-file", "bound.yaml"); err != nil {
 		t.Fatalf("setting flag: %v", err)
 	}
 	defer func() {
-		_ = rootCmd.PersistentFlags().Set("init-file", "")
+		_ = root.PersistentFlags().Set("init-file", "")
 	}()
 	if got := viper.GetString("repository.init-file"); got != "bound.yaml" {
 		t.Errorf("repository.init-file = %q after setting --init-file, want bound.yaml", got)

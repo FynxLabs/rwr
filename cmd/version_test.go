@@ -46,8 +46,8 @@ func TestVersionCommandPrintsBuildInfo(t *testing.T) {
 	}
 
 	var out bytes.Buffer
+	versionCmd := newVersionCmd(NewAppConfig())
 	versionCmd.SetOut(&out)
-	t.Cleanup(func() { versionCmd.SetOut(nil) })
 	if err := versionCmd.RunE(versionCmd, nil); err != nil {
 		t.Fatalf("version command: %v", err)
 	}
@@ -61,10 +61,11 @@ func TestVersionCommandPrintsBuildInfo(t *testing.T) {
 }
 
 func TestVersionCheckSkipsDevBuildsAndFlag(t *testing.T) {
-	originalInfo, originalURL, originalSkip := buildInfo, latestReleaseURL, skipVersionCheck
+	originalInfo, originalURL := buildInfo, latestReleaseURL
 	t.Cleanup(func() {
-		buildInfo, latestReleaseURL, skipVersionCheck = originalInfo, originalURL, originalSkip
+		buildInfo, latestReleaseURL = originalInfo, originalURL
 	})
+	app := NewAppConfig()
 
 	called := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -74,39 +75,40 @@ func TestVersionCheckSkipsDevBuildsAndFlag(t *testing.T) {
 	t.Cleanup(server.Close)
 	latestReleaseURL = server.URL
 
-	skipVersionCheck = false
+	app.SkipVersionCheck = false
 	// "dev", and the pseudo-versions a local `go build` embeds, are all dev
 	// builds: none of them may reach the network.
 	for _, v := range []string{"dev", "0.5.2-0.20260801212055-24872aab978e", "0.5.2+dirty"} {
 		buildInfo = BuildInfo{Version: v}
-		checkForNewVersion()
+		checkForNewVersion(app)
 		if called {
 			t.Errorf("version check contacted the network for dev build %q", v)
 		}
 	}
 
 	buildInfo = BuildInfo{Version: "1.0.0"}
-	skipVersionCheck = true
-	checkForNewVersion()
+	app.SkipVersionCheck = true
+	checkForNewVersion(app)
 	if called {
 		t.Error("version check ran despite --skip-version-check")
 	}
 
-	skipVersionCheck = false
-	checkForNewVersion()
+	app.SkipVersionCheck = false
+	checkForNewVersion(app)
 	if !called {
 		t.Error("version check did not run for a release build")
 	}
 }
 
 func TestVersionCheckIgnoresFailures(t *testing.T) {
-	originalInfo, originalURL, originalSkip := buildInfo, latestReleaseURL, skipVersionCheck
+	originalInfo, originalURL := buildInfo, latestReleaseURL
 	t.Cleanup(func() {
-		buildInfo, latestReleaseURL, skipVersionCheck = originalInfo, originalURL, originalSkip
+		buildInfo, latestReleaseURL = originalInfo, originalURL
 	})
+	app := NewAppConfig()
 
 	buildInfo = BuildInfo{Version: "1.0.0"}
-	skipVersionCheck = false
+	app.SkipVersionCheck = false
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
@@ -115,9 +117,9 @@ func TestVersionCheckIgnoresFailures(t *testing.T) {
 
 	// Each of these must return without panicking or failing the run.
 	latestReleaseURL = server.URL
-	checkForNewVersion()
+	checkForNewVersion(app)
 	latestReleaseURL = "http://127.0.0.1:1/nope"
-	checkForNewVersion()
+	checkForNewVersion(app)
 	latestReleaseURL = "://malformed"
-	checkForNewVersion()
+	checkForNewVersion(app)
 }
