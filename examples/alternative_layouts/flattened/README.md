@@ -12,6 +12,12 @@ flattened/
 │   ├── git.yaml
 │   ├── files.yaml
 │   └── scripts.yaml
+├── cue/
+│   ├── init.cue
+│   ├── packages.cue
+│   ├── git.cue
+│   ├── files.cue
+│   └── scripts.cue
 ├── json/
 │   ├── init.json
 │   ├── packages.json

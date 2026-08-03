@@ -9,6 +9,9 @@ minimal_files/
 ├── yaml/
 │   ├── init.yaml
 │   └── all_in_one.yaml
+├── cue/
+│   ├── init.cue
+│   └── all_in_one.cue
 ├── json/
 │   ├── init.json
 │   └── all_in_one.json
