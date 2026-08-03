@@ -51,6 +51,14 @@ git checkouts, scripts, and desktop configuration.`,
 				return fmt.Errorf("configuration error: %w", err)
 			}
 
+			// Dry-run is global flag handling, not system initialization: it
+			// must hold for every command, including the ones that skip init
+			// (uninstall executes against the journal without a tree).
+			if app.DryRun {
+				system.SetDryRun(true)
+				log.Infof("Dry-run mode enabled - no changes will be made")
+			}
+
 			// Skip initialization for these commands
 			skipInit := map[string]bool{
 				"help":     true,
@@ -58,6 +66,9 @@ git checkouts, scripts, and desktop configuration.`,
 				"version":  true,
 				"validate": true,
 				"convert":  true,
+				// uninstall's input is the run record, never the blueprint
+				// tree — it must work after the tree is edited or deleted.
+				"uninstall": true,
 			}
 
 			// Check if the current command or any of its parents should skip init
@@ -113,6 +124,8 @@ git checkouts, scripts, and desktop configuration.`,
 	rootCmd.AddCommand(newVersionCmd(app))
 	rootCmd.AddCommand(newProfilesCmd(app))
 	rootCmd.AddCommand(newConvertCmd())
+	rootCmd.AddCommand(newStatusCmd(app))
+	rootCmd.AddCommand(newUninstallCmd(app))
 
 	return rootCmd
 }
@@ -240,11 +253,6 @@ func initializeSystemInfo(app *AppConfig) error {
 	types.SetShowSecrets(app.ShowSecrets)
 	if app.ShowSecrets {
 		log.Warnf("--show-secrets is set: credential values will appear in logs")
-	}
-
-	if app.DryRun {
-		system.SetDryRun(true)
-		log.Infof("Dry-run mode enabled - no changes will be made")
 	}
 
 	if err = system.SetPaths(); err != nil {

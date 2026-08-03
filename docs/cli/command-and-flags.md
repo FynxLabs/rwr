@@ -110,6 +110,20 @@ bootstrap by name implies wanting it to run, so this ignores the run-once
 marker that keeps `rwr all` idempotent — no `--force-bootstrap` needed. The
 marker is refreshed on success, `--dry-run` is honored, and a tree without a
 bootstrap file is an error naming the filenames searched.
+### `rwr status`
+
+Show desired-vs-actual drift without applying anything. Read-only, never
+elevates, exits 1 on drift. See [Run records](../state.md).
+
+### `rwr uninstall`
+
+Reverse what recorded runs applied — and only that. Refuses without a run
+record; prints the not-reversible list up front; `--yes` skips the prompt.
+See [Run records](../state.md).
+
+| Flag | Description |
+|------|-------------|
+| `--yes` | Skip the confirmation prompt |
 
 ### `rwr validate`
 
