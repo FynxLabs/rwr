@@ -93,6 +93,24 @@ func runOneProcessor(app *AppConfig, p runProcessorSpec) error {
 	return processors.All(app.InitConfig, app.OSInfo, []string{p.blueprint})
 }
 
+// selectedProcessorsFor maps the invoked command to the blueprint types this
+// run will execute, so credential resolution can skip credentials scoped to
+// processors that are not running. Nil means all.
+func selectedProcessorsFor(cmd *cobra.Command, args []string) []string {
+	name := cmd.Name()
+	// Root-level shorthand: `rwr packages` resolves at the root with args.
+	if cmd.Parent() == nil && len(args) > 0 {
+		name = args[0]
+	}
+	if p, ok := processorShorthand(name); ok {
+		if p.bootstrap {
+			return []string{"bootstrap"}
+		}
+		return []string{p.blueprint}
+	}
+	return nil
+}
+
 // processorShorthand resolves a root-level argument to a processor, so
 // `rwr packages` works like `rwr run packages` — the processor names are not
 // part of the prime command namespace, exactly like a task runner's tasks.

@@ -68,6 +68,11 @@ type InitConfig struct {
 	// to read, e.g. ["gh_api_token"]. Empty — the default — means blueprints get
 	// none of them. See docs/credentials.md.
 	ExposeCredentials []string `mapstructure:"exposeCredentials,omitempty" yaml:"exposeCredentials,omitempty" json:"exposeCredentials,omitempty" toml:"exposeCredentials,omitempty"`
+	// Credentials declares the named credentials this tree's blueprints need and
+	// where rwr should look for them. Declaring makes a credential managed
+	// (resolved up front, redacted, withheld); exposing it to blueprints still
+	// requires ExposeCredentials. See docs/credentials.md.
+	Credentials []CredentialSpec `mapstructure:"credentials,omitempty" yaml:"credentials,omitempty" json:"credentials,omitempty" toml:"credentials,omitempty"`
 }
 
 func (u UserInfo) ToMap() map[string]interface{} {
