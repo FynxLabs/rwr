@@ -2,7 +2,7 @@
 
 Three PRs, each independently green.
 
-- [ ] 1. **Schema + pipeline**: `providers/cue/schema.cue`, mechanical 1:1
+- [x] 1. **Schema + pipeline**: `providers/cue/schema.cue`, mechanical 1:1
       conversion of the 25 TOMLs, `mise run providers:export`, pinned `cue` in
       mise, CI job (`cue vet` + freshness diff), loader reads committed JSON.
       Gate: strict round-trip test — every exported provider decodes into

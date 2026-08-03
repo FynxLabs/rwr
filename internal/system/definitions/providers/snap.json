@@ -1,0 +1,119 @@
+{
+  "commands": {
+    "clean": "refresh",
+    "install": "install",
+    "list": "list",
+    "remove": "remove",
+    "search": "find",
+    "update": "refresh"
+  },
+  "detection": {
+    "binary": "snap",
+    "distributions": [
+      "linux"
+    ],
+    "files": [
+      "/usr/bin/snap",
+      "/var/lib/snapd",
+      "/snap"
+    ]
+  },
+  "elevated": true,
+  "name": "snap",
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "set",
+            "system",
+            "proxy.http={{ .ProxyURL }}"
+          ],
+          "condition": "{{ .HasProxy }}",
+          "exec": "snap"
+        },
+        {
+          "action": "command",
+          "args": [
+            "set",
+            "system",
+            "proxy.https={{ .ProxyURL }}"
+          ],
+          "condition": "{{ .HasProxy }}",
+          "exec": "snap"
+        },
+        {
+          "action": "command",
+          "args": [
+            "install",
+            "{{ .Name }}"
+          ],
+          "condition": "{{ .IsSnapStore }}",
+          "exec": "snap"
+        },
+        {
+          "action": "command",
+          "args": [
+            "install",
+            "{{ .Path }}",
+            "--dangerous"
+          ],
+          "condition": "{{ .IsLocalSnap }}",
+          "exec": "snap"
+        },
+        {
+          "action": "command",
+          "args": [
+            "connect",
+            "{{ .Name }}:{{ .Interface }}",
+            "{{ .Slot }}"
+          ],
+          "condition": "{{ and .HasInterfaces .HasSlot }}",
+          "exec": "snap"
+        },
+        {
+          "action": "command",
+          "args": [
+            "connect",
+            "{{ .Name }}:{{ .Interface }}"
+          ],
+          "condition": "{{ and .HasInterfaces (not .HasSlot) }}",
+          "exec": "snap"
+        }
+      ]
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "remove",
+            "{{ .Name }}"
+          ],
+          "exec": "snap"
+        },
+        {
+          "action": "command",
+          "args": [
+            "unset",
+            "system",
+            "proxy.http"
+          ],
+          "condition": "{{ .HasProxy }}",
+          "exec": "snap"
+        },
+        {
+          "action": "command",
+          "args": [
+            "unset",
+            "system",
+            "proxy.https"
+          ],
+          "condition": "{{ .HasProxy }}",
+          "exec": "snap"
+        }
+      ]
+    }
+  }
+}

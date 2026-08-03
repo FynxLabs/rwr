@@ -1,0 +1,138 @@
+{
+  "commands": {
+    "clean": "-Sc --noconfirm",
+    "install": "-S --noconfirm --noedit",
+    "list": "-Qm",
+    "remove": "-Rns --noconfirm",
+    "search": "-Ss",
+    "update": "-Syua --noconfirm --noedit"
+  },
+  "corePackages": {
+    "build-essentials": [
+      "base-devel",
+      "cmake",
+      "freetype2",
+      "fontconfig",
+      "pkg-config",
+      "libxcb",
+      "libxkbcommon",
+      "python"
+    ],
+    "openssl": [
+      "openssl"
+    ]
+  },
+  "detection": {
+    "binary": "trizen",
+    "distributions": [
+      "arch",
+      "cachyos",
+      "linux/cachyos",
+      "manjaro",
+      "linux/acreetion"
+    ],
+    "files": [
+      "/etc/pacman.conf",
+      "/var/lib/pacman"
+    ]
+  },
+  "elevated": true,
+  "install": {
+    "steps": [
+      {
+        "action": "command",
+        "args": [
+          "-S",
+          "--needed",
+          "--noconfirm",
+          "base-devel",
+          "git"
+        ],
+        "exec": "pacman"
+      },
+      {
+        "action": "command",
+        "args": [
+          "clone",
+          "https://aur.archlinux.org/trizen.git",
+          "{{ .TempDir }}/trizen"
+        ],
+        "exec": "git"
+      },
+      {
+        "action": "command",
+        "args": [
+          "-c",
+          "cd {{ .TempDir }}/trizen && makepkg -si --noconfirm"
+        ],
+        "exec": "sh"
+      }
+    ]
+  },
+  "name": "trizen",
+  "remove": {
+    "steps": [
+      {
+        "action": "command",
+        "args": [
+          "-Rns",
+          "--noconfirm",
+          "trizen"
+        ],
+        "exec": "pacman"
+      }
+    ]
+  },
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "append",
+          "content": "[{{ .Name }}]\nServer = {{ .URL }}\n",
+          "path": "{{ .ConfigPath }}"
+        },
+        {
+          "action": "command",
+          "args": [
+            "--recv-keys",
+            "{{ .KeyID }}"
+          ],
+          "condition": "{{ .HasKey }}",
+          "exec": "pacman-key"
+        },
+        {
+          "action": "command",
+          "args": [
+            "--lsign-key",
+            "{{ .KeyID }}"
+          ],
+          "condition": "{{ .HasKey }}",
+          "exec": "pacman-key"
+        }
+      ]
+    },
+    "paths": {
+      "config": "/etc/pacman.conf",
+      "keys": "/etc/pacman.d/gnupg",
+      "sources": "/etc/pacman.d"
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "--delete",
+            "{{ .KeyID }}"
+          ],
+          "condition": "{{ .HasKey }}",
+          "exec": "pacman-key"
+        },
+        {
+          "action": "remove_section",
+          "path": "{{ .ConfigPath }}",
+          "section": "{{ .Name }}"
+        }
+      ]
+    }
+  }
+}

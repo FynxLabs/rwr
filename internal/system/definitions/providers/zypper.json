@@ -1,0 +1,96 @@
+{
+  "commands": {
+    "clean": "clean",
+    "install": "install -y",
+    "list": "packages --installed-only",
+    "remove": "remove -y",
+    "search": "search",
+    "update": "update -y"
+  },
+  "corePackages": {
+    "build-essentials": [
+      "make",
+      "cmake",
+      "freetype-devel",
+      "fontconfig-devel",
+      "libxcb-devel",
+      "libxkbcommon-devel"
+    ],
+    "openssl": [
+      "openssl",
+      "libopenssl-devel"
+    ]
+  },
+  "detection": {
+    "binary": "zypper",
+    "distributions": [
+      "opensuse",
+      "suse"
+    ],
+    "files": [
+      "/etc/zypp",
+      "/var/lib/zypp"
+    ]
+  },
+  "elevated": true,
+  "name": "zypper",
+  "repository": {
+    "add": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "addrepo",
+            "{{ .URL }}",
+            "{{ .Name }}"
+          ],
+          "exec": "zypper"
+        },
+        {
+          "action": "download",
+          "dest": "{{ .KeyPath }}",
+          "source": "{{ .KeyURL }}"
+        },
+        {
+          "action": "command",
+          "args": [
+            "--import",
+            "{{ .KeyPath }}"
+          ],
+          "exec": "rpm"
+        },
+        {
+          "action": "command",
+          "args": [
+            "refresh"
+          ],
+          "exec": "zypper"
+        }
+      ]
+    },
+    "paths": {
+      "keys": "/etc/pki/rpm-gpg",
+      "sources": "/etc/zypp/repos.d"
+    },
+    "remove": {
+      "steps": [
+        {
+          "action": "command",
+          "args": [
+            "removerepo",
+            "{{ .Name }}"
+          ],
+          "exec": "zypper"
+        },
+        {
+          "action": "command",
+          "args": [
+            "--erase",
+            "gpg-pubkey-{{ .KeyID }}"
+          ],
+          "exec": "rpm"
+        }
+      ]
+    }
+  }
+}

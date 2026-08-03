@@ -1,10 +1,11 @@
 package system
 
 import (
+	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
-	"github.com/BurntSushi/toml"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -280,7 +281,7 @@ func TestGetEmbeddedProviderFiles(t *testing.T) {
 	t.Logf("Found %d embedded provider files", len(files))
 
 	// Verify expected files exist
-	expectedFiles := []string{"pacman.toml", "yay.toml", "paru.toml", "aura.toml", "trizen.toml", "pamac.toml"}
+	expectedFiles := []string{"pacman.json", "yay.json", "paru.json", "aura.json", "trizen.json", "pamac.json"}
 	for _, expected := range expectedFiles {
 		content, exists := files[expected]
 		if !exists {
@@ -293,9 +294,8 @@ func TestGetEmbeddedProviderFiles(t *testing.T) {
 			t.Errorf("File %s has empty content", expected)
 		}
 
-		// Verify it's valid TOML content (basic check)
-		contentStr := string(content)
-		if !strings.Contains(contentStr, "[provider]") {
+		// Verify it's a provider definition (basic check)
+		if !strings.Contains(string(content), "\"name\"") {
 			t.Errorf("File %s doesn't appear to contain provider configuration", expected)
 		}
 	}
@@ -307,28 +307,24 @@ func TestGetEmbeddedProviderFiles_ContentValidation(t *testing.T) {
 		t.Fatalf("GetEmbeddedProviderFiles() failed: %v", err)
 	}
 
-	// Test that each file can be parsed as TOML
+	// Every embedded file decodes strictly into types.Provider — an unknown
+	// key means the CUE schema and the Go structs drifted.
 	for filename, content := range files {
 		t.Run(filename, func(t *testing.T) {
-			var config struct {
-				Provider types.Provider `toml:"provider"`
+			var provider types.Provider
+			dec := json.NewDecoder(bytes.NewReader(content))
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(&provider); err != nil {
+				t.Errorf("Failed to parse %s: %v", filename, err)
 			}
 
-			// This should not fail for any embedded file
-			_, err := parseTomlConfig(string(content), &config)
-			if err != nil {
-				t.Errorf("Failed to parse %s as TOML: %v", filename, err)
-			}
-
-			// Verify provider name is set
-			if config.Provider.Name == "" {
+			if provider.Name == "" {
 				t.Errorf("Provider in %s has empty name", filename)
 			}
 
-			// Verify filename matches provider name
-			expectedName := strings.TrimSuffix(filename, ".toml")
-			if config.Provider.Name != expectedName {
-				t.Errorf("Provider name %s doesn't match filename %s", config.Provider.Name, expectedName)
+			expectedName := strings.TrimSuffix(filename, ".json")
+			if provider.Name != expectedName {
+				t.Errorf("Provider name %s doesn't match filename %s", provider.Name, expectedName)
 			}
 		})
 	}
@@ -353,7 +349,7 @@ func TestGetEmbeddedProviderFiles_ConsistencyWithLoadEmbeddedProviders(t *testin
 
 	// Verify that each provider has a corresponding file
 	for providerName := range providers {
-		expectedFilename := providerName + ".toml"
+		expectedFilename := providerName + ".json"
 		if _, exists := files[expectedFilename]; !exists {
 			t.Errorf("Provider %s doesn't have corresponding file %s", providerName, expectedFilename)
 		}
@@ -361,7 +357,7 @@ func TestGetEmbeddedProviderFiles_ConsistencyWithLoadEmbeddedProviders(t *testin
 
 	// Verify that each file has a corresponding provider
 	for filename := range files {
-		expectedProviderName := strings.TrimSuffix(filename, ".toml")
+		expectedProviderName := strings.TrimSuffix(filename, ".json")
 		if _, exists := providers[expectedProviderName]; !exists {
 			t.Errorf("File %s doesn't have corresponding provider %s", filename, expectedProviderName)
 		}
@@ -501,7 +497,3 @@ func containsValidTemplate(content string, validTemplates []string) bool {
 }
 
 // Helper function to parse TOML configuration.
-func parseTomlConfig(content string, config interface{}) (interface{}, error) {
-	_, err := toml.Decode(content, config)
-	return config, err
-}
