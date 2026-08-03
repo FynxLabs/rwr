@@ -247,6 +247,34 @@ the init file opted into them by name. See the credential-handling specification
 - **THEN** `RWR_VAR_REPOSITORY_GH_API_TOKEN` and `RWR_VAR_REPOSITORY_SSH_PRIVATE_KEY`
   are absent from the script's environment
 
+### Requirement: Installer steps stage in a private per-run directory
+
+RWR SHALL create one private staging directory per run — a `0700` temporary
+directory with an unpredictable name, reachable only by the invoking user — and
+SHALL render `{{ .TempDir }}` in package-manager install and remove steps to
+it. When the directory cannot be created, the run SHALL stop; there is no
+fallback path.
+
+Install steps historically staged at fixed, world-known `/tmp` names
+(`/tmp/brew-install.sh`, a clone into `/tmp/yay`), and the macports installer
+staged its download in the current working directory. Any local user can
+pre-create such a path — or rewrite it between the download and the elevated
+step that executes it — which is root code execution. A failed creation used to
+fall back to the predictable `<tmp>/rwr-pm-unavailable`, which is exactly the
+class of name `{{ .TempDir }}` exists to eliminate.
+
+#### Scenario: A provider step referencing the staging directory
+
+- **WHEN** an install step names `{{ .TempDir }}/installer.pkg` as its download destination
+- **THEN** the path renders inside the run's private staging directory
+- **AND** a later step in the same run renders the same directory
+
+#### Scenario: The staging directory cannot be created
+
+- **WHEN** creating the temporary directory fails
+- **THEN** the run stops with an error
+- **AND** no fixed fallback path is used
+
 ## Known Gaps
 
 - **The macOS account password is still passed in argv.** `dscl . -passwd` takes

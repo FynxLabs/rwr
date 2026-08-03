@@ -173,6 +173,49 @@ key onto the operator's terminal and into their scrollback.
 - **THEN** the prompt shows the redaction placeholder as the current value
 - **AND** pressing enter keeps the stored value
 
+### Requirement: GitHub authentication runs by OAuth device flow
+
+RWR SHALL authenticate to GitHub by the OAuth device flow when `--gh-auth` is
+given or the operator chooses OAuth at the interactive prompt: request a device
+code scoped to `write:public_key`, display the verification URL and user code,
+and poll for the token at the server-provided interval (default five seconds),
+continuing on `authorization_pending` and backing off when GitHub answers
+`slow_down`. Polling SHALL give up after five minutes.
+
+The token obtained SHALL be saved to RWR's config file. A failure to save
+SHALL NOT discard the token: the run continues with it and tells the operator
+how to supply it directly next time.
+
+When a different token is already stored and the run is interactive, RWR SHALL
+ask before replacing it, and declining SHALL keep the stored token. A manually
+entered token SHALL be read without echo and refused unless it carries a
+recognized GitHub prefix (`ghp_`, `gho_`, `ghu_`).
+
+In a non-interactive run needing a token none is configured for, RWR SHALL fail
+with an error listing the ways to supply one — `--gh-api-key`, `--gh-auth`, or
+`GITHUB_TOKEN` — rather than prompting.
+
+#### Scenario: A device-flow login
+
+- **WHEN** `--gh-auth` runs and the operator authorizes the code in a browser
+- **THEN** RWR obtains the token, saves it to the config file, and uses it
+
+#### Scenario: The operator never authorizes
+
+- **WHEN** five minutes pass without authorization
+- **THEN** the flow fails with a timeout error
+
+#### Scenario: A token already stored
+
+- **WHEN** a different token already exists in the config and the run is interactive
+- **THEN** RWR asks before replacing it
+- **AND** declining keeps the stored token
+
+#### Scenario: Non-interactive with no token
+
+- **WHEN** a run with `--interactive=false` needs a GitHub token and none is configured
+- **THEN** the run fails listing `--gh-api-key`, `--gh-auth`, and `GITHUB_TOKEN`
+
 ### Requirement: RWR does the credentialed work itself where it can
 
 Where RWR can perform a credentialed operation on the blueprint's behalf, it SHALL
