@@ -388,6 +388,33 @@ about profiles.
 - **WHEN** `rwr all --profile all` runs
 - **THEN** every entry applies
 
+### Requirement: An unknown profile name is refused
+
+RWR SHALL validate the names given to `--profile` against the profiles the
+blueprint tree declares, before processing begins. A name no blueprint declares
+SHALL stop the run with an error listing the available profiles.
+
+When the tree declares no profiles at all, RWR SHALL warn that every
+profile-scoped entry will be skipped and continue — an empty discovery is as
+likely to mean the walk missed something as that the operator mistyped. When
+profile discovery itself fails, RWR SHALL continue without validating; the
+processors will report why with better context.
+
+A misspelled profile name used to be silent: the filter matched nothing, every
+profile-scoped entry was skipped, and the run reported success having installed
+only the base items. A mistyped profile looked exactly like a working run.
+
+#### Scenario: A mistyped profile name
+
+- **WHEN** `rwr all --profile wrok` runs against a tree declaring `work` and `personal`
+- **THEN** the run stops with an error naming `wrok` and listing the available profiles
+
+#### Scenario: A profile flag against a profile-free tree
+
+- **WHEN** `--profile work` is given and no blueprint in the tree declares any profiles
+- **THEN** RWR warns that every profile-scoped entry will be skipped
+- **AND** the run continues
+
 ### Requirement: Blueprints may be cloned from a git repository
 
 When the init file declares git options, RWR SHALL clone the blueprint repository to
@@ -418,6 +445,28 @@ than through the command executor where dry-run is otherwise enforced.
 - **WHEN** the declared target exists and is not a git repository
 - **THEN** the run stops with an error naming the path
 - **AND** nothing at that path is removed
+
+### Requirement: A managed clone's origin follows the declared URL
+
+RWR SHALL compare a managed clone's `origin` remote URL against the URL the
+blueprint declares — for a `git` blueprint entry that already exists on disk,
+and for the blueprint repository itself — and SHALL re-point `origin` to the
+declared URL when they differ, before any pull.
+
+The blueprint is the source of truth for where a repository comes from; without
+the re-point, editing a URL in a blueprint changed nothing on machines that had
+already cloned.
+
+#### Scenario: A repository whose declared URL changed
+
+- **WHEN** a git entry's declared URL differs from the existing clone's `origin`
+- **THEN** `origin` is re-pointed to the declared URL
+- **AND** the subsequent pull uses the new URL
+
+#### Scenario: A matching origin
+
+- **WHEN** the declared URL and the existing `origin` already match
+- **THEN** the remote is left untouched
 
 ### Requirement: A missing blueprint file does not stop the run
 
@@ -649,6 +698,204 @@ arbitrary files or phone home.
 - **GIVEN** a `.cue` file importing a path outside the blueprint tree
 - **WHEN** it is evaluated
 - **THEN** evaluation fails with a containment error
+### Requirement: Configuration entries apply desktop settings through named tools
+
+RWR SHALL apply a `configuration` entry with the tool it names — `dconf`,
+`gsettings`, `macos_defaults`, or `windows_registry` — and SHALL stop the run
+with an error naming any other tool. A failure applying a `dconf`,
+`macos_defaults`, or `windows_registry` entry SHALL also stop the run.
+
+The only supported `action` is `set`. RWR SHALL record any other declared
+action as a ledger failure and skip the entry. The field used to be decoded and
+never read, so `action: banana` applied the setting anyway.
+
+For `dconf`, RWR SHALL resolve the entry's `file` relative to the blueprint
+directory and feed its content to `dconf load /` on standard input — commands
+run without a shell, so a `<` in argv is data, not a redirection. An entry with
+`run_once: true` SHALL be skipped when its bootstrap marker file exists, and
+the marker SHALL be written only after a successful apply.
+
+For `gsettings`, RWR SHALL check that each key is writable before setting it,
+and SHALL record a per-key ledger failure — and continue with the remaining
+keys — when the check or the set fails. Every failure here used to be
+discarded, so a run in which no setting applied still reported success.
+
+For `macos_defaults`, RWR SHALL write through `defaults write`, defaulting the
+domain to `NSGlobalDomain` when the entry declares none.
+
+In dry-run mode RWR SHALL report each configuration it would apply and run
+nothing.
+
+#### Scenario: An unsupported action
+
+- **WHEN** a configuration entry declares `action: unset`
+- **THEN** the entry is recorded as a ledger failure and skipped
+- **AND** the remaining configurations still apply
+
+#### Scenario: A dconf entry marked run-once
+
+- **WHEN** a dconf entry with `run_once: true` runs and its bootstrap marker exists
+- **THEN** the entry is skipped without touching dconf
+
+#### Scenario: A read-only gsettings key
+
+- **WHEN** one key in a gsettings entry is not writable
+- **THEN** that key is recorded as a ledger failure
+- **AND** the remaining keys are still applied
+
+### Requirement: Registry values are written as data, never parsed as code
+
+RWR SHALL write a `windows_registry` entry through PowerShell script bodies
+that are compile-time constants, and SHALL pass the blueprint-supplied path,
+name, and value in forms PowerShell never re-tokenizes: environment variables
+for an unelevated write, and a JSON payload file read with `ConvertFrom-Json`
+for an elevated one — a UAC-elevated child does not reliably inherit the
+parent's environment. The elevated command itself is a constant plus a
+base64-encoded script, whose alphabet contains no quote, space, or
+metacharacter.
+
+Supported value types are `string`, `expandstring`, `binary`, `dword`, and
+`qword`; any other type SHALL stop the run. Numeric and binary values SHALL be
+validated before the write, so a malformed value fails with a named error
+instead of reaching the registry as formatted garbage.
+
+Values used to be interpolated into the `-Command` string, so a value such as
+`a'; Remove-Item C:\ -Recurse; #` closed the surrounding quote and ran as a
+second statement — as administrator, for an elevated entry.
+
+#### Scenario: A value carrying PowerShell metacharacters
+
+- **WHEN** a registry entry's value contains quotes and semicolons
+- **THEN** the value is written to the registry verbatim
+- **AND** no part of it executes as PowerShell
+
+#### Scenario: A dword given a non-integer
+
+- **WHEN** a `dword` entry's value is not an integer
+- **THEN** the run stops with an error naming the value
+- **AND** nothing is written to the registry
+
+### Requirement: Fonts install from the latest Nerd Fonts release
+
+RWR SHALL resolve the latest `ryanoasis/nerd-fonts` release once per run and
+download each font as `<name>.tar.xz` from that release. The lookup SHALL
+happen only after the dry-run and empty-blueprint exits — it is a network call,
+and `--dry-run` is expected to work offline.
+
+A failed release lookup SHALL be recorded as a ledger failure and SHALL NOT
+abort the run; fonts are cosmetic, and the failure reaches the exit code
+through the ledger. One font failing SHALL NOT stop the rest: each failure is
+ledgered and processing continues.
+
+A font name SHALL be refused when it is empty or contains a path separator or
+`..` — the name is concatenated into the download URL and the local font path,
+so `../../owner/repo/x` would both redirect the download to another release and,
+on removal, glob outside the font directory.
+
+A download answering anything but HTTP 200 SHALL fail, rather than the error
+page being written out as an archive and surfacing later as an unintelligible
+decompression error.
+
+#### Scenario: GitHub unreachable
+
+- **WHEN** the release lookup fails
+- **THEN** the failure is recorded in the ledger
+- **AND** the rest of the run continues
+
+#### Scenario: A traversal in a font name
+
+- **WHEN** a font entry names `../../evil/repo/x`
+- **THEN** the entry is refused before any download
+
+### Requirement: Font archives are extracted defensively
+
+RWR SHALL extract only regular-file entries whose name ends in `.ttf` or `.otf`
+(case-insensitive) from a font archive, into the system font directory for
+`location: system` and the user font directory otherwise. The filter used to be
+`.ttf` alone, so an OTF-only archive — several Nerd Fonts ship only `.otf` —
+"installed successfully" with zero files written.
+
+Symlink and hardlink entries SHALL be skipped with a warning: links are never
+needed to install a font and are the cheapest way to make a later write land
+outside the destination. An entry whose path resolves outside the destination
+directory SHALL fail the extraction. A single entry decompressing past 64 MB
+SHALL fail as a suspected decompression bomb — archives arrive xz-compressed
+from the network, and real font faces are single-digit MB.
+
+An archive that produced zero font faces SHALL be a failure, not a success.
+After an install or removal RWR SHALL refresh the font cache, elevated only for
+a system-scoped install.
+
+Removal SHALL glob both `<name>*.ttf` and `<name>*.otf` in the font directory —
+removal was `.ttf`-blind too, so an installed OTF face survived its own
+removal.
+
+#### Scenario: An OTF-only archive
+
+- **WHEN** a font archive contains only `.otf` faces
+- **THEN** they are installed and counted
+
+#### Scenario: An archive with a traversal entry
+
+- **WHEN** an archive entry names `../../../etc/cron.d/x`
+- **THEN** the extraction fails
+- **AND** nothing is written outside the font directory
+
+#### Scenario: An archive that installs nothing
+
+- **WHEN** extraction writes zero font faces
+- **THEN** the font is recorded as a failure, not reported installed
+
+#### Scenario: Removing a font
+
+- **WHEN** a font entry declares `action: remove`
+- **THEN** both `.ttf` and `.otf` faces matching the name are removed
+- **AND** the font cache is refreshed
+
+### Requirement: An entry may override interactive mode
+
+RWR SHALL resolve whether an operation prompts by taking the entry's own
+`interactive` field when it is set, and the global `--interactive` flag when it
+is not. Packages, repositories, directories (in `files`), services, users,
+scripts, and `ssh_keys` entries read the field.
+
+This lets a mostly-interactive run declare a known-noisy entry non-interactive,
+and the reverse.
+
+#### Scenario: An entry that opts out
+
+- **WHEN** `--interactive` is on and an entry declares `interactive: false`
+- **THEN** that entry runs without prompting
+- **AND** other entries still prompt
+
+#### Scenario: An entry with no setting
+
+- **WHEN** an entry does not set `interactive`
+- **THEN** the global flag decides
+
+### Requirement: Interactive directory copies prompt before overwriting
+
+RWR SHALL show a diff and ask before overwriting when a directory copy runs
+interactively and a file already exists at the target. Declining SHALL skip
+that file and continue with the rest of the copy.
+
+A failed read of the confirmation — for example EOF on a piped stdin — SHALL
+fail the operation with an error naming `--interactive=false` as the way to
+skip prompts, and SHALL NOT terminate the process. It used to be a
+`log.Fatalf`, which bypassed the failure ledger and every deferred cleanup;
+interactive defaults to on, so a piped stdin killed the whole run mid-flight.
+
+#### Scenario: Declining an overwrite
+
+- **WHEN** an interactive copy finds an existing target file and the operator answers `n`
+- **THEN** the file is skipped
+- **AND** the copy continues with the remaining files
+
+#### Scenario: A prompt with no terminal
+
+- **WHEN** the confirmation read fails
+- **THEN** the operation fails with an error suggesting `--interactive=false`
+- **AND** the process is not terminated
 
 ## Known Gaps
 
