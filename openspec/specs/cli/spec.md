@@ -15,18 +15,38 @@ new-machine command.
 - **WHEN** `rwr all` runs with a valid init file
 - **THEN** package managers, then bootstrap, then each blueprint type run in order
 
-### Requirement: `rwr run <type>` applies one blueprint type
+### Requirement: `rwr run <processor>` applies one blueprint type
 
-`rwr run` SHALL provide a subcommand for each blueprint type: `packages`,
+`rwr run` SHALL provide a subcommand for each blueprint type — `packages`,
 `repository`, `services`, `files`, `configuration`, `users`, `git`, `scripts`,
-`ssh_keys`, and `fonts`.
+`ssh_keys`, and `fonts` — plus `all`, which runs everything exactly as `rwr all`
+does. The subcommands are generated from one processor table, so a new processor
+is one table entry, not a new hand-written command.
 
-Each SHALL apply only that type, using the same processing path as `rwr all`.
+Each processor subcommand SHALL apply only that type, using the same processing
+path as `rwr all`.
+
+A bare `rwr run` SHALL list the processors and exit zero, like a task runner
+listing its tasks; naming an unknown processor SHALL print the list and fail.
+
+Each processor name SHALL also work directly off the root — `rwr packages` is
+`rwr run packages` — without the processor names entering the primary command
+namespace, so they cannot collide with real subcommands.
 
 #### Scenario: Reapplying packages only
 
 - **WHEN** `rwr run packages` runs
 - **THEN** only the packages blueprints are processed
+
+#### Scenario: Listing the processors
+
+- **WHEN** `rwr run` runs with no processor named
+- **THEN** the processor list is printed and the exit code is zero
+
+#### Scenario: The root shorthand
+
+- **WHEN** `rwr packages` runs
+- **THEN** it behaves exactly as `rwr run packages`
 
 ### Requirement: `rwr validate` checks configuration without applying it
 
@@ -226,7 +246,5 @@ Why: scripts and CI must never block on a prompt.
 
 - **`--gh-api-key` and `--gh-key` bind the same configuration key.** Passing both
   silently lets one win rather than reporting the conflict.
-- **`rwr run` is ten near-identical subcommands.** One command taking the type as
-  an argument would do the same work.
 - **The version notice compares only dotted numeric versions.** A version string it
   cannot parse compares as equal, so no notice is shown rather than a wrong one.

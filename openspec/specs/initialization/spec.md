@@ -16,6 +16,13 @@ RWR SHALL accept an init file given as:
   `init.json`, then `init.toml` inside it
 - an `https://` URL to a raw file
 - a GitHub blob URL, which RWR SHALL rewrite to its raw form
+- a GitHub shorthand — `owner/repo`, `owner/repo@ref`, or
+  `owner/repo/path/to/file` with an optional `@ref` — resolved against
+  `raw.githubusercontent.com`; a bare `owner/repo` probes the repository root
+  for the init file names, and `@ref` defaults to the default branch
+
+An existing local path SHALL win over the shorthand interpretation, so a
+directory literally named `owner/repo` keeps working.
 
 RWR SHALL refuse an `http://` URL. The init file decides which repository the
 blueprints come from, which package managers are installed, and which scripts run
@@ -35,6 +42,12 @@ The init file location MAY also be set in RWR's own configuration.
 
 - **WHEN** the init file is given as a `github.com/.../blob/...` URL
 - **THEN** RWR downloads the corresponding `raw.githubusercontent.com` content
+
+#### Scenario: A GitHub shorthand
+
+- **WHEN** the init file is given as `owner/repo@main`
+- **THEN** RWR probes `raw.githubusercontent.com/owner/repo/main/` for the init
+  file names and downloads the first that exists
 
 #### Scenario: No init file given
 
@@ -281,15 +294,10 @@ binding.
 
 These are wanted and not yet implemented.
 
-- **GitHub repository shorthands.** `owner/repo`, `owner/repo@ref`, and
-  `owner/repo/path/to/init.yaml` are not accepted. Only a full URL, a local path, or
-  a directory works.
 - **Config keys containing a hyphen cannot be set from the environment.** The dot-
   to-underscore replacer makes `RWR_LOG_LEVEL` reach `log.level`, but `rwr.init-file`
   would need `RWR_RWR_INIT-FILE`, and a hyphen is not legal in an environment
   variable name. That key is only reachable by flag or config file.
-- **Init source resolution is not centralized.** The forms above are handled in two
-  places rather than by one resolver, which is what makes adding shorthands awkward.
 - **The installer does not take an init path.** A `curl | bash` one-liner cannot yet
   pass the init file through to a first run, which is what would make new-machine
   setup a single command.

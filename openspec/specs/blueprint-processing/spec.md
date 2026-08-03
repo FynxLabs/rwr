@@ -67,10 +67,12 @@ An init file that declares `blueprints.order` SHALL override this order.
 blueprint loop at all, and listing it only produced an "Unknown processor" warning.
 
 When an `order` entry is a mapping rather than a plain name, RWR SHALL run the named
-processors in sorted order and SHALL warn that it did so, naming them. A mapping
-cannot preserve the order it was written in, and Go randomizes map iteration, so
-such an entry previously produced a different sequence on every run — the one thing
-an explicit order is written to control.
+processors in sorted order, and when the mapping names more than one processor RWR
+SHALL warn that it did so, naming them. A mapping cannot preserve the order it was
+written in, and Go randomizes map iteration, so such an entry previously produced a
+different sequence on every run — the one thing an explicit order is written to
+control. A mapping naming a single processor has only one possible order, so it
+produces no warning.
 
 #### Scenario: A nested order mapping
 
@@ -192,7 +194,10 @@ Without the ledger those failures vanished: they were logged, the run printed
 "RWR Run Complete!" and exited 0, so a run in which every single package failed to
 install was indistinguishable from a clean one.
 
-The ledger is populated by the packages, git, and `ssh_keys` processors.
+The ledger is populated by the packages, repositories, services, files (including
+its templates and directories sections), configuration, git, `ssh_keys`, and fonts
+processors. The users and scripts processors do not use it; they return an error on
+the first failed entry instead (see Known Gaps).
 
 #### Scenario: A run where every package fails
 
@@ -264,6 +269,13 @@ The steps that edit or delete an existing file — `append`, `remove_line`,
 `remove_section`, and `remove` — SHALL resolve their path against the provider's
 declared repository directories and SHALL refuse a path that resolves outside them,
 including through a symlink.
+
+The steps that create a file — `download`, `write`, and `copy` — SHALL resolve
+their destination the same way, accepting only a destination inside the provider's
+declared repository paths or the run's private staging directory. These steps run
+with the provider's privileges — root, for every system package manager — and the
+destination is a template rendered against blueprint values, so an unchecked
+destination would be a root-privileged write to an arbitrary path.
 
 #### Scenario: Adding an apt repository
 
@@ -640,14 +652,18 @@ arbitrary files or phone home.
 
 ## Known Gaps
 
-- **The failure ledger covers four processors.** `packages`, `git`, `ssh_keys` and
-  `configuration` record their skipped items. The files, services, repositories and
-  fonts processors abort the whole run on a failure instead, which does reach the
-  exit code but gives up the remaining work rather than reporting it at the end.
-- **Path containment is only applied to repository steps that edit an existing
-  file.** The `download`, `write` and `copy` repository steps write to the
-  destination a provider names with no containment check, and the files processor's
-  own `target` is not contained either.
+- **The users and scripts processors do not use the failure ledger.** The other
+  eight processors — packages, repositories, services, files (with its templates
+  and directories sections), configuration, git, `ssh_keys`, and fonts — record a
+  failed item and keep going. The users and scripts processors return an error on
+  the first failed entry, which aborts the rest of the run: the failure does reach
+  the exit code, but the remaining work is given up rather than attempted and
+  reported at the end.
+- **The files processor's `target` is not contained.** Repository steps resolve
+  their paths against the provider's declared repository directories — the editing
+  and removing steps and, since the write-path containment landed, the `download`,
+  `write` and `copy` steps too. The files processor still writes to whatever
+  `target` a blueprint names, with no boundary check.
 - **Windows users are unimplemented.** `ProcessUsers` has Linux (shadow-utils) and
   macOS (Open Directory) implementations; on Windows it logs a warning per entry
   and does nothing.

@@ -161,14 +161,16 @@ what a processor rejects is a missed one. Specifically:
 
 ### Requirement: Validation checks declared file modes
 
-`rwr validate` SHALL check the `mode` on every file and template entry:
+`rwr validate` SHALL check the `mode` on every file, directory, and template entry:
 
 - A `chmod` action with no mode SHALL be an error, because applying it would strip
   every permission off the target at run time.
 - A mode larger than `0o7777` SHALL be an error: it is not a permission mode.
-- A mode on an action that ignores it — `copy`, `move`, `delete`, `chown`, `chgrp`,
+- A mode on an action that ignores it — `move`, `delete`, `chown`, `chgrp`,
   `symlink` — SHALL be a warning, so an operator who expected it to be applied
-  finds out here.
+  finds out here. The mode-carrying actions are `create`, `chmod`, and `copy`:
+  the files processor applies a declared mode to a copied target, so a mode on
+  `copy` is meaningful, not ignored.
 - A world-writable mode SHALL be a warning.
 - A mode setting setuid or setgid SHALL be a warning.
 
@@ -202,6 +204,10 @@ A silently ignored key is a blueprint that looks applied and is not — a misspe
 `profiles` key means an entry runs on every machine instead of the one it was
 scoped to.
 
+The `schema_version` probe SHALL remain lenient: it reads a single key out of a
+full document to decide which schema to decode against, so the other keys are not
+its concern.
+
 #### Scenario: A misspelled key
 
 - **WHEN** a blueprint declares `packagess:` instead of `packages:`
@@ -216,9 +222,6 @@ scoped to.
 
 - **WHEN** a blueprint file contains no keys at all
 - **THEN** strict decoding accepts it as a section with nothing in it
-
-The `schema_version` probe is exempt: it reads a single key out of a full
-document to decide which schema to decode against, so it SHALL remain lenient.
 
 ### Requirement: Template strictness at validate matches the run
 
@@ -299,9 +302,6 @@ validated in CI, per the compatibility contract.
 
 ## Known Gaps
 
-- **Directory entries are not mode-checked.** `validateFileMode` runs over the
-  `files` and `templates` sections; the `directories` section carries a `mode` that
-  no validation rule inspects.
 - **A blueprint tree with no init file cannot be validated.** `rwr validate` looks
   for an init file at or above the path it is given and reports an error without
   one, so a directory of blueprint files on its own cannot be checked.

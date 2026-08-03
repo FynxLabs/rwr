@@ -105,8 +105,9 @@ Every pull request SHALL run, as gating checks:
 - the test suite with `-race` on Linux, matching the pre-push hook;
 - `golangci-lint`, reading the repository's own `.golangci.yml` so there is no
   second copy of the configuration to drift;
-- `shellcheck` on `install.sh` and a PowerShell parse of `install.ps1`, without
-  executing either — running them would test the release rather than the script;
+- `shellcheck` on `install.sh`, and a PowerShell parse plus a gating
+  PSScriptAnalyzer run on `install.ps1`, without executing either — running them
+  would test the release rather than the script;
 - the example blueprint checks, including `rwr validate` over every example tree;
 - `gosec` and `govulncheck`.
 
@@ -150,7 +151,5 @@ and macOS.
   reasons unrelated to the change under review. The failures need triaging at their
   source before the escape hatch comes off — until then the platforms RWR
   provisions are built but not really tested.
-- **PSScriptAnalyzer on `install.ps1` is reporting only.** The script has never been
-  linted, so the first run is a findings list rather than a gate.
 - **Neither installer can pass an init file through to a first run.** See the
   initialization specification.
