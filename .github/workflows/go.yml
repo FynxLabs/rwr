@@ -282,7 +282,7 @@ jobs:
             d="$dir"
             covered=no
             while [ "$d" != "examples" ] && [ "$d" != "." ] && [ "$d" != "/" ]; do
-              if ls "$d"/init.* "$d"/manifest.* >/dev/null 2>&1; then covered=yes; break; fi
+              if ls "$d"/init.* >/dev/null 2>&1 || ls "$d"/manifest.* >/dev/null 2>&1; then covered=yes; break; fi
               d="$(dirname "$d")"
             done
             [ "$covered" = yes ] || uncovered="${uncovered}${dir}"$'\n'
