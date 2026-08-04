@@ -58,7 +58,7 @@ func Defaults(findings Findings) Selection {
 // has not captured anything.
 func Generate(out io.Writer, dir, format string, selection Selection, findings Findings, manifest bool, osInfo *types.OSInfo) error {
 	ext := helpers.BlueprintExtension(format)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- the operator-named output tree, world-readable like any source tree
 		return err
 	}
 
@@ -173,7 +173,7 @@ func writeDoc(path string, doc map[string]interface{}, format string) error {
 }
 
 func writeFile(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { // #nosec G301 -- generated blueprint tree, world-readable like the rest of it
 		return err
 	}
 	return os.WriteFile(path, data, 0o644) // #nosec G306 -- generated blueprint tree, world-readable config
@@ -190,10 +190,10 @@ func copyPath(source, dest string) error {
 		if err != nil {
 			return err
 		}
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil { // #nosec G301 -- generated blueprint tree, world-readable like the rest of it
 			return err
 		}
-		return os.WriteFile(dest, data, info.Mode().Perm()) // #nosec G306 -- preserves the source's own mode
+		return os.WriteFile(dest, data, info.Mode().Perm()) // #nosec G306 G703 -- operator-selected config copied into the tree they named; preserves the source's own mode
 	}
 	entries, err := os.ReadDir(source)
 	if err != nil {
