@@ -1,12 +1,8 @@
 package system
 
 import (
-	"bytes"
-	"encoding/json"
 	"strings"
 	"testing"
-
-	"github.com/fynxlabs/rwr/internal/types"
 )
 
 func TestLoadEmbeddedProviders(t *testing.T) {
@@ -254,103 +250,6 @@ func TestLoadEmbeddedProviders_AllProvidersValid(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestGetEmbeddedProviderFiles(t *testing.T) {
-	files, err := GetEmbeddedProviderFiles()
-	if err != nil {
-		t.Fatalf("GetEmbeddedProviderFiles() failed: %v", err)
-	}
-
-	// Verify we got some files
-	if len(files) == 0 {
-		t.Fatal("GetEmbeddedProviderFiles() returned no files")
-	}
-
-	t.Logf("Found %d embedded provider files", len(files))
-
-	// Verify expected files exist
-	expectedFiles := []string{"pacman.json", "yay.json", "paru.json", "aura.json", "trizen.json", "pamac.json"}
-	for _, expected := range expectedFiles {
-		content, exists := files[expected]
-		if !exists {
-			t.Errorf("Expected file %s not found", expected)
-			continue
-		}
-
-		// Verify file content is not empty
-		if len(content) == 0 {
-			t.Errorf("File %s has empty content", expected)
-		}
-
-		// Verify it's a provider definition (basic check)
-		if !strings.Contains(string(content), "\"name\"") {
-			t.Errorf("File %s doesn't appear to contain provider configuration", expected)
-		}
-	}
-}
-
-func TestGetEmbeddedProviderFiles_ContentValidation(t *testing.T) {
-	files, err := GetEmbeddedProviderFiles()
-	if err != nil {
-		t.Fatalf("GetEmbeddedProviderFiles() failed: %v", err)
-	}
-
-	// Every embedded file decodes strictly into types.Provider — an unknown
-	// key means the CUE schema and the Go structs drifted.
-	for filename, content := range files {
-		t.Run(filename, func(t *testing.T) {
-			var provider types.Provider
-			dec := json.NewDecoder(bytes.NewReader(content))
-			dec.DisallowUnknownFields()
-			if err := dec.Decode(&provider); err != nil {
-				t.Errorf("Failed to parse %s: %v", filename, err)
-			}
-
-			if provider.Name == "" {
-				t.Errorf("Provider in %s has empty name", filename)
-			}
-
-			expectedName := strings.TrimSuffix(filename, ".json")
-			if provider.Name != expectedName {
-				t.Errorf("Provider name %s doesn't match filename %s", provider.Name, expectedName)
-			}
-		})
-	}
-}
-
-func TestGetEmbeddedProviderFiles_ConsistencyWithLoadEmbeddedProviders(t *testing.T) {
-	// Load providers using both methods
-	providers, err := LoadEmbeddedProviders()
-	if err != nil {
-		t.Fatalf("LoadEmbeddedProviders() failed: %v", err)
-	}
-
-	files, err := GetEmbeddedProviderFiles()
-	if err != nil {
-		t.Fatalf("GetEmbeddedProviderFiles() failed: %v", err)
-	}
-
-	// Verify that the number of providers matches the number of files
-	if len(providers) != len(files) {
-		t.Errorf("Number of providers (%d) doesn't match number of files (%d)", len(providers), len(files))
-	}
-
-	// Verify that each provider has a corresponding file
-	for providerName := range providers {
-		expectedFilename := providerName + ".json"
-		if _, exists := files[expectedFilename]; !exists {
-			t.Errorf("Provider %s doesn't have corresponding file %s", providerName, expectedFilename)
-		}
-	}
-
-	// Verify that each file has a corresponding provider
-	for filename := range files {
-		expectedProviderName := strings.TrimSuffix(filename, ".json")
-		if _, exists := providers[expectedProviderName]; !exists {
-			t.Errorf("File %s doesn't have corresponding provider %s", filename, expectedProviderName)
-		}
 	}
 }
 

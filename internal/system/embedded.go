@@ -1,109 +1,70 @@
 package system
 
 import (
-	"bytes"
 	"embed"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strings"
 
 	"charm.land/log/v2"
+	"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/load"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-//go:embed definitions/providers/*.json
-var embeddedProviders embed.FS
+//go:embed definitions/*.cue
+var embeddedProviderCUE embed.FS
 
-// LoadEmbeddedProviders parses all TOML provider definitions from the embedded
-// filesystem and returns them as a map keyed by provider name.
+// LoadEmbeddedProviders evaluates the embedded CUE provider definitions —
+// schema, family templates, one file per provider — and returns them keyed
+// by provider name. Each call returns fresh values: callers own what they
+// get, exactly as they did with the per-call decode this replaced.
 func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
-	providers := make(map[string]*types.Provider)
-
-	log.Debug("LoadEmbeddedProviders: Loading embedded provider definitions")
-
-	// List root directory contents
-	root, err := embeddedProviders.ReadDir(".")
-	if err != nil {
-		log.Errorf("LoadEmbeddedProviders: Failed to read root directory: %v", err)
-	} else {
-		for _, f := range root {
-			log.Debugf("LoadEmbeddedProviders: Found in root: %s (dir: %v)", f.Name(), f.IsDir())
+	overlay := map[string]load.Source{}
+	err := fs.WalkDir(embeddedProviderCUE, "definitions", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil || d.IsDir() || !strings.HasSuffix(path, ".cue") {
+			return walkErr
 		}
-	}
-
-	// Read all .toml files from the embedded filesystem
-	entries, err := embeddedProviders.ReadDir("definitions/providers")
-	if err != nil {
-		log.Errorf("LoadEmbeddedProviders: Failed to read embedded provider definitions: %v", err)
-		return nil, fmt.Errorf("error reading embedded provider definitions: %w", err)
-	}
-
-	log.Debugf("LoadEmbeddedProviders: Found %d entries in embedded filesystem", len(entries))
-
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
-			path := filepath.Join("definitions/providers", entry.Name())
-
-			// Read the file content
-			data, err := embeddedProviders.ReadFile(path)
-			if err != nil {
-				log.Errorf("LoadEmbeddedProviders: Error reading %s: %v", path, err)
-				continue
-			}
-
-			// The embedded JSON is the committed export of providers/cue/
-			// (mise run providers:export). Decoded strictly: an unknown key
-			// here means the CUE schema and types.Provider have drifted, and
-			// silence is how the last drift happened.
-			var provider types.Provider
-			dec := json.NewDecoder(bytes.NewReader(data))
-			dec.DisallowUnknownFields()
-			if err := dec.Decode(&provider); err != nil {
-				log.Errorf("LoadEmbeddedProviders: Failed to decode %s: %v", path, err)
-				continue
-			}
-
-			// Ensure provider name is set
-			if provider.Name == "" {
-				log.Errorf("LoadEmbeddedProviders: Provider name not set in %s", path)
-				continue
-			}
-
-			log.Debugf("LoadEmbeddedProviders: Loaded provider %s with binary %s", provider.Name, provider.Detection.Binary)
-			providers[provider.Name] = &provider
+		data, readErr := embeddedProviderCUE.ReadFile(path)
+		if readErr != nil {
+			return readErr
 		}
-	}
-
-	log.Debugf("LoadEmbeddedProviders: Successfully loaded %d providers", len(providers))
-	return providers, nil
-}
-
-// GetEmbeddedProviderFiles returns a map of filename to raw JSON content
-// for all provider definitions in the embedded filesystem.
-func GetEmbeddedProviderFiles() (map[string][]byte, error) {
-	files := make(map[string][]byte)
-
-	err := fs.WalkDir(embeddedProviders, "definitions/providers", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !d.IsDir() && strings.HasSuffix(d.Name(), ".json") {
-			data, err := embeddedProviders.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			files[d.Name()] = data
-		}
-
+		overlay["/providers/"+filepath.Base(path)] = load.FromBytes(data)
 		return nil
 	})
+	if err != nil {
+		return nil, fmt.Errorf("reading embedded provider definitions: %w", err)
+	}
 
+	instances := load.Instances([]string{"/providers"}, &load.Config{Dir: "/", Overlay: overlay})
+	if len(instances) == 0 || instances[0].Err != nil {
+		return nil, fmt.Errorf("loading embedded provider definitions: %w", instances[0].Err)
+	}
+	value := cuecontext.New().BuildInstance(instances[0])
+	if value.Err() != nil {
+		return nil, fmt.Errorf("evaluating embedded provider definitions: %w", value.Err())
+	}
+	providersValue := value.LookupPath(cue.ParsePath("providers"))
+	if providersValue.Err() != nil {
+		return nil, fmt.Errorf("embedded definitions carry no providers struct: %w", providersValue.Err())
+	}
+
+	// The schema closes #Provider and unifies every entry against it, so
+	// evaluation already enforced the shape.
+	providers := map[string]*types.Provider{}
+	fields, err := providersValue.Fields()
 	if err != nil {
 		return nil, err
 	}
-
-	return files, nil
+	for fields.Next() {
+		var provider types.Provider
+		if err := fields.Value().Decode(&provider); err != nil {
+			return nil, fmt.Errorf("provider %s: %w", fields.Selector(), err)
+		}
+		providers[provider.Name] = &provider
+	}
+	log.Debugf("LoadEmbeddedProviders: evaluated %d providers from embedded CUE", len(providers))
+	return providers, nil
 }

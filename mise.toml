@@ -84,13 +84,9 @@ go tool cover -func=coverage.out | tail -20
 ./scripts/coverage-gate.sh coverage.out
 """
 
-[tasks."providers:export"]
-description = "Export providers/cue sources to the committed JSON the binary embeds"
-run = "./scripts/providers-export.sh"
-
 [tasks."providers:vet"]
 description = "Validate the CUE provider sources against their schema"
-run = "cue vet ./providers/cue/"
+run = "cue vet ./internal/system/definitions/"
 
 [tasks.security]
 description = "Scan for known vulnerabilities (govulncheck — staged by postinstall)"

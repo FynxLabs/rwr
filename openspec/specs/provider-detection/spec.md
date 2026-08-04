@@ -182,30 +182,22 @@ different tool on each run.
 - **AND** `flatpak` and `snap` are both available
 - **THEN** the default is `flatpak`, chosen by sorted name rather than at random
 
-### Requirement: Embedded provider definitions are exported from CUE
+### Requirement: Embedded provider definitions are CUE, and only CUE
 
-Embedded provider definitions SHALL be authored in CUE under `providers/cue/`
-and exported at build time to committed JSON under
-`internal/system/definitions/providers/`. The binary SHALL embed and decode
-the JSON; `cuelang.org/go` SHALL NOT be linked into the binary.
+Embedded provider definitions SHALL be authored in CUE under
+`internal/system/definitions/`, embedded in the binary, and evaluated at
+load; there SHALL be no second committed representation. The schema closes
+`#Provider` and unifies every entry against it, so an invalid definition
+fails evaluation naming the field.
 
-Why: the 25 TOMLs duplicate whole command blocks across families and are
-shape-unchecked; CUE unification rejects an invalid provider at export time
-instead of at runtime on a user's machine.
+Why: the export-and-commit pipeline made every provider change a
+multi-format edit — the disease the CUE migration existed to cure.
 
-#### Scenario: Provider missing a required field fails at build
+#### Scenario: Provider missing a required field fails at load
 
 - **GIVEN** a CUE provider definition lacking `commands.install`
-- **WHEN** `mise run providers:export` runs
-- **THEN** the export fails naming the provider and field
-- **AND** no JSON is produced
-
-#### Scenario: Exported providers decode identically
-
-- **GIVEN** the committed JSON exports
-- **WHEN** each is strictly decoded into `types.Provider`
-- **THEN** no unknown keys are present and values equal the pre-migration
-  TOML-derived values (round-trip test)
+- **WHEN** the embedded definitions are evaluated
+- **THEN** evaluation fails naming the provider and field
 
 ### Requirement: Filesystem overrides do not require CUE
 
@@ -214,19 +206,19 @@ Operators SHALL NOT need a CUE toolchain to override a provider.
 
 #### Scenario: JSON override
 
-- **GIVEN** `~/.config/rwr/providers/pacman.json` copied from the exported JSON
+- **GIVEN** `~/.config/rwr/providers/pacman.json` holding a full provider document
 - **WHEN** providers initialize
 - **THEN** the override replaces the embedded pacman definition, same as a
   TOML override does today
 
-### Requirement: Committed exports stay fresh
+### Requirement: CUE sources are vetted in CI
 
-CI SHALL fail when the committed JSON differs from a fresh `cue export` of the
-CUE sources, and SHALL run `cue vet` over them.
+CI SHALL run `cue vet` over the embedded CUE sources: a schema violation
+fails with CUE's own error naming the field.
 
-#### Scenario: Stale export
+#### Scenario: Schema violation fails CI
 
-- **GIVEN** a PR edits `providers/cue/yay.cue` without re-exporting
+- **GIVEN** a PR gives a provider step an action outside the enum
 - **WHEN** CI runs
-- **THEN** the `cue-providers` job fails with the diff
+- **THEN** the `cue-providers` job fails naming the field
 

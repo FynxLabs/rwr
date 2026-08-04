@@ -19,7 +19,6 @@ providers: "zypper": {
   "update": "update -y",
   "remove": "remove -y",
   "list": "packages --installed-only",
-  "listExplicit": "search -i --installed-only -t package",
   "search": "search",
   "clean": "clean"
  },
