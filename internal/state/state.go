@@ -7,7 +7,6 @@
 package state
 
 import (
-	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +15,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"charm.land/log/v2"
 )
 
 // Version marks the journal line format.
@@ -89,7 +90,9 @@ func NewWriter(configDir, location string, dryRun bool) (*Writer, error) {
 
 	short := make([]byte, 4)
 	if _, err := rand.Read(short); err != nil {
-		file.Close() //nolint:errcheck
+		if closeErr := file.Close(); closeErr != nil {
+			log.Debugf("closing the journal: %v", closeErr)
+		}
 		return nil, err
 	}
 	w := &Writer{file: file, run: time.Now().Format("20060102-150405") + "-" + hex.EncodeToString(short)}
@@ -143,15 +146,17 @@ func (w *Writer) append(event Event) {
 }
 
 // writeLocked appends one line. The journal observes the run; a failed
-// write must not abort the work being recorded.
+// write is logged and must not abort the work being recorded.
 func (w *Writer) writeLocked(event Event) {
 	line, err := json.Marshal(event)
 	if err != nil {
 		return
 	}
-	writer := bufio.NewWriter(w.file)
-	writer.Write(line)     //nolint:errcheck
-	writer.WriteByte('\n') //nolint:errcheck
-	_ = writer.Flush()     //nolint:errcheck
-	_ = w.file.Sync()      //nolint:errcheck
+	if _, err := w.file.Write(append(line, '\n')); err != nil {
+		log.Debugf("journal write: %v", err)
+		return
+	}
+	if err := w.file.Sync(); err != nil {
+		log.Debugf("journal sync: %v", err)
+	}
 }
