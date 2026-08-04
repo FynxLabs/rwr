@@ -120,3 +120,15 @@ Next, you can:
 - Review [Profile Best Practices](profile-best-practices.md) for practical organizational tips.
 
 If you encounter any issues or have questions, please refer to the troubleshooting section or reach out to the RWR community for support.
+
+## Starting from an existing machine
+
+Already have a machine set up the way you like? Capture it:
+
+```bash
+rwr capture --manifest ~/git/you/rwr-blueprints
+```
+
+Pick what to keep on the per-category form; the result is a validated
+blueprint tree (and manifest) ready to provision the next machine. See
+[rwr capture](cli/capture.md).
