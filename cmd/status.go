@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/processors"
 	"github.com/fynxlabs/rwr/internal/state"
 	"github.com/fynxlabs/rwr/internal/status"
@@ -30,7 +31,7 @@ mutates and never elevates. Exits 1 on drift.`,
 				return err
 			}
 			rows := status.Rows(plan, records, status.NewQuerier())
-			cmd.Print(status.Render(rows, len(records) > 0))
+			helpers.Say(cmd.OutOrStdout(), "%s", status.Render(rows, len(records) > 0))
 			if status.Drifted(rows) {
 				return fmt.Errorf("drift detected")
 			}
