@@ -27,6 +27,8 @@ RWR's profile system allows you to organize and selectively install packages and
 - [Profile Commands](cli/profiles.md): Profile-specific CLI commands and flags.
 - [Validate Command](cli/validate.md): Check blueprints and provider configurations before a run.
 - [Convert Command](cli/convert.md): Rewrite a blueprint tree between formats or migrate deprecated constructs.
+- [Diff Command](cli/diff.md): Machine drift as blueprint material — lists, paste-ready blocks, or routed tree edits.
+- [Capture Command](cli/capture.md): Turn a handcrafted machine into a validated blueprint tree.
 
 ## The Init File
 

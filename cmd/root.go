@@ -69,14 +69,17 @@ git checkouts, scripts, and desktop configuration.`,
 				// uninstall's input is the run record, never the blueprint
 				// tree — it must work after the tree is edited or deleted.
 				"uninstall": true,
+				// capture creates a tree from the machine; requiring one
+				// first would be backwards.
+				"capture": true,
 			}
 
 			// Check if the current command or any of its parents should skip init
 			current := cmd
 			for current != nil {
 				if skipInit[current.Name()] {
-					// For validate command, just detect OS
-					if current.Name() == "validate" {
+					// validate and capture still need the detected OS
+					if current.Name() == "validate" || current.Name() == "capture" {
 						if err := system.SetPaths(); err != nil {
 							return fmt.Errorf("error setting paths: %w", err)
 						}
@@ -127,6 +130,7 @@ git checkouts, scripts, and desktop configuration.`,
 	rootCmd.AddCommand(newStatusCmd(app))
 	rootCmd.AddCommand(newUninstallCmd(app))
 	rootCmd.AddCommand(newDiffCmd(app))
+	rootCmd.AddCommand(newCaptureCmd(app))
 
 	return rootCmd
 }

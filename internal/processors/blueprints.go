@@ -203,12 +203,15 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		return []string{processor}
 	}
 
-	// The init file configures the run and bootstrap is dispatched separately
-	// (findBootstrapFile); neither is a processor blueprint, so neither belongs
-	// in a processor bucket — nor in the unrouted warning above.
+	// The init file configures the run, bootstrap is dispatched separately
+	// (findBootstrapFile), and a root manifest names configurations — none is
+	// a processor blueprint, so none belongs in a processor bucket, nor in
+	// the unrouted warning above. The manifest matters doubly: its top-level
+	// configurations key would otherwise content-route it to the
+	// configuration processor.
 	isReservedFile := func(path string) bool {
 		base := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-		return base == "init" || base == "bootstrap"
+		return base == "init" || base == "bootstrap" || base == "manifest"
 	}
 
 	// Process ordered items first

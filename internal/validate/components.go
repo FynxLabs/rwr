@@ -40,6 +40,17 @@ func ValidatePackages(packages []types.Package, file string, results *types.Vali
 		validateEnum(pkg.Action, fmt.Sprintf("packages[%d].action", i),
 			[]string{types.ActionInstall, types.ActionRemove}, file, results)
 
+		// The processor refuses names beginning with '-': argv-exec'd, such a
+		// name reads as an option to the elevated package manager. What a
+		// processor rejects, validate flags.
+		for _, name := range append([]string{pkg.Name}, pkg.Names...) {
+			if strings.HasPrefix(name, "-") {
+				AddIssue(results, types.ValidationError,
+					fmt.Sprintf("packages[%d]: package name %q may not begin with '-'", i, name),
+					file, 0, "It would be read as an option by the package manager")
+			}
+		}
+
 		// package_manager is optional: without one, the package is installed by the
 		// default manager detected for this machine, which is the common case.
 		if pkg.PackageManager != "" {
