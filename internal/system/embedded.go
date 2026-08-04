@@ -68,3 +68,35 @@ func LoadEmbeddedProviders() (map[string]*types.Provider, error) {
 	log.Debugf("LoadEmbeddedProviders: evaluated %d providers from embedded CUE", len(providers))
 	return providers, nil
 }
+
+// decodeCUEOverride evaluates one filesystem override written in CUE,
+// unified against the embedded #Provider schema so an override gets exactly
+// the validation a shipped definition gets.
+func decodeCUEOverride(data []byte, path string) (*types.Provider, error) {
+	schema, err := embeddedProviderCUE.ReadFile("definitions/schema.cue")
+	if err != nil {
+		return nil, err
+	}
+	ctx := cuecontext.New()
+	schemaValue := ctx.CompileBytes(schema, cue.Filename("schema.cue"))
+	if schemaValue.Err() != nil {
+		return nil, schemaValue.Err()
+	}
+	providerDef := schemaValue.LookupPath(cue.ParsePath("#Provider"))
+	if providerDef.Err() != nil {
+		return nil, providerDef.Err()
+	}
+	value := ctx.CompileBytes(data, cue.Filename(path), cue.Scope(schemaValue))
+	if value.Err() != nil {
+		return nil, fmt.Errorf("%s does not parse: %w", path, value.Err())
+	}
+	unified := providerDef.Unify(value)
+	if err := unified.Validate(cue.Concrete(true)); err != nil {
+		return nil, fmt.Errorf("%s fails the provider schema: %w", path, err)
+	}
+	var provider types.Provider
+	if err := unified.Decode(&provider); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	return &provider, nil
+}
