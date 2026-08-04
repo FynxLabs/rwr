@@ -136,7 +136,8 @@ mode. `rwr validate` warns when a mode is set on an action that ignores it.
 ### How to write one
 
 **Write it as a quoted octal string.** `mode: "0644"` means the same thing in
-YAML, JSON and TOML, and needs no thought about how each format reads numbers.
+YAML, JSON, TOML and CUE, and needs no thought about how each format reads
+numbers.
 The `0` and `0o` prefixes are both accepted, as is no prefix at all: `"0644"`,
 `"0o644"` and `"644"` are the same mode.
 

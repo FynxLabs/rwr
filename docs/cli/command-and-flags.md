@@ -11,7 +11,7 @@ The following flags are available for all commands:
 | `--config` | Path to the config file, or to a directory holding `config.yaml`. The default is `~/.config/rwr`. See [Configuration File](configuration.md) |
 | `--debug`, `-d` | Enable debug mode for verbose output |
 | `--log-level`, `-l` | Set the log level (debug, info, warn, error) |
-| `--init-file`, `-i` | Path to the init file. A directory is accepted: RWR looks in it for `init.yaml`, `init.yml`, `init.json`, then `init.toml` |
+| `--init-file`, `-i` | Path to the init file. A directory is accepted: RWR looks in it for `init.yaml`, `init.yml`, `init.json`, `init.toml`, then `init.cue` |
 | `--gh-api-key` | Specify the GitHub API key for accessing private repositories |
 | `--ssh-key` | Path to an SSH key file, or a Base64-encoded SSH key, for Git authentication |
 | `--skip-version-check` | Do not check GitHub for a newer release at startup |
@@ -141,6 +141,11 @@ rwr validate path/to/blueprints
 | `--providers` | Check the path as provider configurations |
 | `--verbose` | Show more information about each check |
 
+### `rwr convert`
+
+Convert a blueprint tree between formats, or migrate deprecated constructs.
+See [Convert Command](convert.md).
+
 ### `rwr profiles`
 
 Read the blueprint tree and list every profile it declares, with the number of
@@ -198,8 +203,11 @@ Run the fonts processor.
 > There is no `rwr run directories` command. The `directories` key is part of a
 > files blueprint. Use `rwr run files` to process it.
 >
-> There is no `rwr run all`, and `rwr run` takes one processor, not a list. Use
-> `rwr all` to run everything.
+> `rwr run` takes one processor, not a list. `rwr run all` runs every
+> processor — it is the same run as `rwr all`.
+>
+> Every processor name also works straight off the root, task-runner style:
+> `rwr packages` is `rwr run packages`.
 
 ### `rwr completion`
 

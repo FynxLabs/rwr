@@ -40,7 +40,7 @@ The `rwr` section contains general settings for the RWR tool.
 
 | Option | Description |
 |--------|-------------|
-| `configdir` | The config directory: where `config.yaml` is looked up, where `rwr config --create` writes it, and where the `bootstrap` marker lives. The default is `$HOME/.config/rwr`. Because it decides where the config file is, it only takes effect from the environment (`RWR_RWR_CONFIGDIR`) — a config file cannot name its own directory. `--config` overrides it |
+| `configdir` | The config directory: where `config.yaml` is looked up, where `rwr config create` writes it, and where the `bootstrap` marker lives. The default is `$HOME/.config/rwr`. Because it decides where the config file is, it only takes effect from the environment (`RWR_RWR_CONFIGDIR`) — a config file cannot name its own directory. `--config` overrides it |
 | `skipVersionCheck` | Set to `true` to turn off the startup check for a newer release. The `--skip-version-check` flag does the same for a single run |
 
 ### `repository` Section
@@ -85,7 +85,7 @@ RWR reads only the keys listed above.
 You can modify the `config.yaml` file directly using a text editor. Alternatively, you can use the `rwr config` command to interactively create or update the configuration file.
 
 ```bash
-rwr config --create
+rwr config create
 ```
 
 This command will prompt you for the necessary settings and generate the `config.yaml` file based on your input.

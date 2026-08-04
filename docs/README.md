@@ -10,7 +10,7 @@ Map of the Rinse, Wash, Repeat (RWR) docs. Start here if you are new.
 
 ## CLI
 
-- [CLI docs](cli/README.md) — commands, flags, the configuration file, the profiles CLI, and `rwr validate`.
+- [CLI docs](cli/README.md) — commands, flags, the configuration file, the profiles CLI, `rwr validate`, and `rwr convert`.
 
 ## Blueprints
 
@@ -31,11 +31,15 @@ Map of the Rinse, Wash, Repeat (RWR) docs. Start here if you are new.
 
 ## Providers
 
-- [Package Manager Providers](providers.md) — TOML files that define each package manager, no Go code needed.
+- [Package Manager Providers](providers.md) — declarative definitions of each package manager, no Go code needed: authored in CUE, overridable with TOML or JSON files.
 
 ## Credentials and security
 
-- [Credentials in blueprints](credentials.md) — the GitHub token and SSH key RWR holds, and why blueprints cannot read them by default.
+- [Credentials in blueprints](credentials.md) — the credentials RWR holds (GitHub token, SSH key, and any you declare), where they are sourced from, and why blueprints cannot read them by default.
+
+## Run records
+
+- [Run records](state.md) — the journal each run writes, `rwr status` for drift, and `rwr uninstall` to reverse a run.
 
 ## General
 

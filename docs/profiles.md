@@ -352,7 +352,7 @@ git:
 
 ## Multi-Format Examples
 
-RWR supports YAML, JSON, and TOML formats for all configurations. Here are the same profile examples in different formats:
+RWR supports YAML, JSON, TOML, and CUE formats for all configurations. Here are the same profile examples in different formats:
 
 ### YAML Format
 

@@ -7,7 +7,7 @@ See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 
 ## Blueprint Structure
 
-The Services Blueprint is defined in a YAML, JSON, or TOML file and consists of an array of service objects. Each service object represents a system service and its associated properties.
+The Services Blueprint is defined in a YAML, JSON, TOML, or CUE file and consists of an array of service objects. Each service object represents a system service and its associated properties.
 
 ```yaml
 services:
