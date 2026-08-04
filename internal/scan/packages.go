@@ -73,11 +73,21 @@ func RunListCommand(provider *types.Provider, command string) []string {
 	var names []string
 	seen := map[string]bool{}
 	for _, line := range strings.Split(string(out), "\n") {
+		// Indented lines are detail under an entry (cargo lists each crate's
+		// binaries indented), not entries themselves.
+		if strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+			continue
+		}
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue
 		}
 		name := fields[0]
+		// snap (and friends) print a header row; "Name" first is a header,
+		// not a package.
+		if name == "Name" {
+			continue
+		}
 		// dpkg emits "name:arch"; cargo emits "name v1.2.3:"; strip both.
 		if i := strings.IndexByte(name, ':'); i > 0 {
 			name = name[:i]

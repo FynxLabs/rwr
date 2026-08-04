@@ -62,6 +62,22 @@ func TestPackages_OnlyListVerbsRun(t *testing.T) {
 	}
 }
 
+// Real-world list output: cargo indents each crate's binaries, snap prints
+// a header row. Neither is a package.
+func TestRunListCommand_SkipsDetailAndHeaders(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "fakelist")
+	script := "#!/bin/sh\nprintf 'Name  Version  Rev\\nripgrep v14.1.0:\\n    rg\\nzoxide v0.9.4:\\n    zoxide\\n'\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := &types.Provider{Name: "fake", BinPath: bin}
+	names := RunListCommand(p, "list")
+	if strings.Join(names, ",") != "ripgrep,zoxide" {
+		t.Fatalf("names = %v, want [ripgrep zoxide]", names)
+	}
+}
+
 func TestConfigs_KnownNoiseAndSecrets(t *testing.T) {
 	home := t.TempDir()
 	for _, p := range []string{".bashrc", ".config/helix/config.toml", ".config/pulse/cookie", ".config/gh-credentials/token"} {
