@@ -27,7 +27,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 - **Git Repository Management**: Clone and manage Git repositories
 - **Script Execution**: Execute scripts with multiple interpreter support
 - **SSH Key Management**: Generate and manage SSH keys with GitHub integration
-- **Extensible Architecture**: Package managers are declarative providers - authored in CUE and embedded in the binary, with filesystem overrides in TOML or JSON
+- **Extensible Architecture**: Package managers are declarative providers, authored in CUE and embedded in the binary; filesystem overrides in CUE, TOML, or JSON
 
 ## Table of Contents<!-- omit in toc -->
 

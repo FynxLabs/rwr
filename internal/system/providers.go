@@ -362,7 +362,7 @@ func LoadProviders(definitionsPath string) error {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() && (filepath.Ext(entry.Name()) == ".toml" || filepath.Ext(entry.Name()) == ".json") {
+		if !entry.IsDir() && (filepath.Ext(entry.Name()) == ".toml" || filepath.Ext(entry.Name()) == ".json" || filepath.Ext(entry.Name()) == ".cue") {
 			path := filepath.Join(definitionsPath, entry.Name())
 			if !isProviderFileTrusted(path) {
 				continue
@@ -449,11 +449,18 @@ func LoadProviderDefinition(path string) (*types.Provider, error) {
 		return nil, err
 	}
 
-	// Overrides come in two shapes: the historical TOML with a [provider]
-	// section, and bare-provider JSON - the same document the embedded
-	// definitions use, so an exported provider can be dropped in verbatim.
+	// Overrides come in three shapes: the historical TOML with a [provider]
+	// section, bare-provider JSON, and CUE - one provider document, checked
+	// against the same schema the embedded definitions use.
 	var provider types.Provider
-	if filepath.Ext(path) == ".json" {
+	if filepath.Ext(path) == ".cue" {
+		decoded, cueErr := decodeCUEOverride(data, path)
+		if cueErr != nil {
+			log.Errorf("LoadProviderDefinition: Failed to decode CUE %s: %v", path, cueErr)
+			return nil, cueErr
+		}
+		provider = *decoded
+	} else if filepath.Ext(path) == ".json" {
 		dec := json.NewDecoder(bytes.NewReader(data))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&provider); err != nil {

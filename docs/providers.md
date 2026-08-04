@@ -11,11 +11,11 @@ provider (wrong action name, missing `commands.install`, a `/tmp/` staging
 path) naming the field. There is no exported or committed second
 representation.
 
-You do **not** need CUE to override a provider. RWR also loads provider
-definitions from the filesystem, as either **TOML** (the historical
-`[provider]` layout) or **JSON** (one provider document, the same field
-names). A filesystem provider replaces an embedded provider of the same
-name.
+RWR loads provider overrides from the filesystem in three formats: **CUE**
+(one provider document, validated against the same schema the embedded
+definitions use), **JSON** (same shape), or **TOML** (the historical
+`[provider]` layout). A filesystem provider replaces an embedded provider
+of the same name.
 
 ### Search paths
 
