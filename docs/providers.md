@@ -4,21 +4,18 @@ The Providers system is a flexible and extensible way to manage package managers
 
 ## Where providers live
 
-The providers shipped with RWR are authored in **CUE** under `providers/cue/` in
-the source tree. At build time they are exported to JSON
-(`mise run providers:export`), the JSON is committed under
-`internal/system/definitions/providers/`, and that JSON is embedded into the
-binary. The CUE toolchain never ships in RWR: it is a build-time check that
-rejects an invalid provider at export time (wrong action name, missing
-`commands.install`, a `/tmp/` staging path) instead of at runtime on a user's
-machine. CI fails when the committed JSON differs from a fresh export of the
-CUE sources.
+The providers shipped with RWR are authored in **CUE** under
+`internal/system/definitions/` — the single source. The binary embeds
+those files and evaluates them at load; the schema rejects an invalid
+provider (wrong action name, missing `commands.install`, a `/tmp/` staging
+path) naming the field. There is no exported or committed second
+representation.
 
 You do **not** need CUE to override a provider. RWR also loads provider
 definitions from the filesystem, as either **TOML** (the historical
-`[provider]` layout) or **JSON** (the same shape as the exported files — copy
-one from `internal/system/definitions/providers/` and edit it). A filesystem
-provider replaces an embedded provider of the same name.
+`[provider]` layout) or **JSON** (one provider document, the same field
+names). A filesystem provider replaces an embedded provider of the same
+name.
 
 ### Search paths
 
@@ -321,9 +318,9 @@ touching the source tree:
    blueprints.
 
 To contribute a provider to RWR itself, author it in CUE under
-`providers/cue/` (the schema in `providers/cue/schema.cue` documents every
-field and rejects invalid definitions at export time) and run
-`mise run providers:export` to regenerate the committed JSON.
+`internal/system/definitions/` — the schema there documents every field
+and rejects invalid definitions. That's it: no export step, nothing else to
+regenerate.
 
 ## Best Practices
 

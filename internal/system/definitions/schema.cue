@@ -1,15 +1,9 @@
-// Package providers holds rwr's embedded provider definitions as CUE.
+// Package providers holds rwr's embedded provider definitions as CUE —
+// the single source. The binary embeds these files and evaluates them at
+// load; there is no exported or committed second representation.
 //
-// CUE is a build-time tool only: these sources are exported to JSON
-// (mise run providers:export), the JSON is committed under
-// internal/system/definitions/providers/ and embedded into the binary.
-// cuelang.org/go never ships in rwr for providers.
-//
-// This schema mirrors types.Provider 1:1; the strict round-trip test in
-// internal/system enforces that every exported provider decodes into
-// types.Provider with no unknown keys. Contracts (required fields, action
-// enums, predicate names) tighten here in the follow-up task; task 1 is the
-// mechanical shape.
+// This schema mirrors types.Provider 1:1 and closes it: an invalid
+// definition fails evaluation naming the field.
 package providers
 
 // #ConditionRef: what a step condition may reference — the predicates rwr
