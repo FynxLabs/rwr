@@ -1,4 +1,4 @@
-# Blueprint Validation — Deltas
+# Blueprint Validation - Deltas
 
 ## ADDED Requirements
 

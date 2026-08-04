@@ -32,19 +32,19 @@ var probeClient = &http.Client{Timeout: 10 * time.Second}
 // the one form Initialize consumes: an existing local file path, or an
 // https:// URL to download. One documented precedence, top wins:
 //
-//  1. "" — probe the current directory for init.{yaml,yml,json,toml}.
+//  1. "" - probe the current directory for init.{yaml,yml,json,toml}.
 //  2. An https:// URL. A GitHub /blob/ page URL is rewritten to its
 //     raw.githubusercontent.com form.
-//  3. An http:// URL — refused: the init file drives everything rwr runs.
+//  3. An http:// URL - refused: the init file drives everything rwr runs.
 //  4. An existing local file.
-//  5. An existing local directory — probed like the current directory.
+//  5. An existing local directory - probed like the current directory.
 //  6. A GitHub shorthand: owner/repo, owner/repo@ref, owner/repo/path/to/file
 //     (with optional @ref). Resolved against raw.githubusercontent.com; a bare
 //     owner/repo probes the repository root for the init file names, @ref
 //     defaults to HEAD (the default branch).
 //
 // The local-before-shorthand order means a directory literally named
-// "owner/repo" keeps working — existence on disk wins over interpretation.
+// "owner/repo" keeps working - existence on disk wins over interpretation.
 func ResolveInitSource(ref string) (string, error) {
 	if ref == "" {
 		return probeInitDir(".")
@@ -151,8 +151,8 @@ func resolveShorthand(ref string) (string, error) {
 	}
 
 	// No init file at the repo root: a manifest there marks a
-	// multi-configuration repo, which needs the whole tree locally — entry
-	// init files reference siblings — so it is cloned and probed as a local
+	// multi-configuration repo, which needs the whole tree locally - entry
+	// init files reference siblings - so it is cloned and probed as a local
 	// root. Only reached when no init file exists, same as the local rule.
 	for _, name := range CandidateFilenames("manifest") {
 		candidate := base + "/" + name

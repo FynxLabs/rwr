@@ -4,7 +4,7 @@
 
 RWR holds two credentials: a GitHub API token and an SSH private key. Blueprints are
 cloned from git repositories, and everything a blueprint can read, the author of that
-blueprint can read — a template writes its result to a path the same blueprint
+blueprint can read - a template writes its result to a path the same blueprint
 chooses, and a script inherits the environment RWR hands it. RWR cannot tell a
 blueprint the operator wrote from one they pulled in.
 
@@ -42,7 +42,7 @@ RWR SHALL warn at the start of the run when any credential is exposed, so the ch
 is visible rather than silent.
 
 This is opt-in rather than unavailable because some blueprints legitimately need a
-token — writing a `.netrc`, configuring `gh`, calling the GitHub API from a script.
+token - writing a `.netrc`, configuring `gh`, calling the GitHub API from a script.
 
 #### Scenario: Opting into the token only
 
@@ -147,7 +147,7 @@ the attacker in cleartext.
 
 RWR SHALL refuse an init file given as an `http://` URL.
 
-The init file drives everything RWR then runs — which repository the blueprints
+The init file drives everything RWR then runs - which repository the blueprints
 come from, which package managers are installed, which scripts execute elevated.
 Over `http://` that document can be rewritten by anyone on the path.
 
@@ -190,8 +190,8 @@ entered token SHALL be read without echo and refused unless it carries a
 recognized GitHub prefix (`ghp_`, `gho_`, `ghu_`).
 
 In a non-interactive run needing a token none is configured for, RWR SHALL fail
-with an error listing the ways to supply one — `--gh-api-key`, `--gh-auth`, or
-`GITHUB_TOKEN` — rather than prompting.
+with an error listing the ways to supply one - `--gh-api-key`, `--gh-auth`, or
+`GITHUB_TOKEN` - rather than prompting.
 
 #### Scenario: A device-flow login
 
@@ -260,7 +260,7 @@ unless named in `exposeCredentials`, and redacted in logs.
 RWR SHALL NOT write a managed credential's value to a plaintext file at rest.
 Persistence SHALL use the operating system keyring, and only with the
 operator's consent. When no keyring backend is available, RWR SHALL decline to
-persist and say so, rather than fall back to a plaintext file — except the
+persist and say so, rather than fall back to a plaintext file - except the
 pre-existing GitHub-token config-file path, which SHALL warn with the file
 path when used.
 

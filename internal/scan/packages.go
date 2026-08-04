@@ -1,4 +1,4 @@
-// Package scan answers "what did the operator put on this machine" — the
+// Package scan answers "what did the operator put on this machine" - the
 // shared harvest layer under `rwr diff` and `rwr capture`. Scanners are
 // read-only and never elevate: they execute only provider list verbs and
 // read files and unit states.
@@ -55,7 +55,7 @@ func Packages(providers map[string]*types.Provider) []PackageResult {
 // RunListCommand executes a provider's list-class verb read-only and returns
 // the first-column names, nil on failure. Some verbs name a different binary
 // entirely (apt's explicit query is `apt-mark showmanual`); the first field
-// decides what actually runs — the same dispatch the status querier uses.
+// decides what actually runs - the same dispatch the status querier uses.
 func RunListCommand(provider *types.Provider, command string) []string {
 	fields := strings.Fields(command)
 	bin := provider.BinPath

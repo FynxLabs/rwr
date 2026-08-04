@@ -59,7 +59,7 @@ func TestSupportsSystem_RejectsWrongDistro(t *testing.T) {
 	loaded := mustLoadEmbedded(t)
 
 	// Simulate running on a Debian-derived host. Its ID_LIKE must not leak into
-	// answers about other distributions — that is what made apt look available on
+	// answers about other distributions - that is what made apt look available on
 	// Arch when these ran on the Ubuntu CI runner.
 	restore := stubHost(t, "ubuntu", "debian")
 	defer restore()
@@ -134,7 +134,7 @@ func TestSetDefaultManager_FallsThroughMissingPreferences(t *testing.T) {
 }
 
 // Go randomizes map iteration, so an unsorted fallback could resolve a different
-// default on every run — and with it, a different package manager for any package
+// default on every run - and with it, a different package manager for any package
 // that did not name one.
 func TestSetDefaultManager_FallbackIsDeterministic(t *testing.T) {
 	managers := map[string]types.PackageManagerInfo{
@@ -226,7 +226,7 @@ func TestProviderFilter_LiteralLinuxMatchWouldDropRealPackageManagers(t *testing
 // End-to-end proof on a real machine: after OS detection, the distribution's own
 // package manager must appear in osInfo.PackageManager.Managers. That map is what
 // CleanPackageManagers and the core-package installers consume, and under the old
-// literal "linux" filter it never contained apt/dnf/pacman/zypper/apk — so a
+// literal "linux" filter it never contained apt/dnf/pacman/zypper/apk - so a
 // system running `rwr all` reported "Cleaning up package managers" while never
 // cleaning the one package manager it actually uses.
 //
@@ -462,7 +462,7 @@ func stubHost(t *testing.T, host, idLike string) func() {
 // ID_LIKE must only ever answer for the machine it describes. Asking whether
 // some unrelated distribution belongs to a family used to be answered from the
 // host's ID_LIKE, so on a Debian derivative every unknown distro looked like
-// debian — and apt looked available on Arch.
+// debian - and apt looked available on Arch.
 func TestIsDistroInFamily_IgnoresHostIDLikeForOtherDistros(t *testing.T) {
 	restore := stubHost(t, "ubuntu", "debian")
 	defer restore()

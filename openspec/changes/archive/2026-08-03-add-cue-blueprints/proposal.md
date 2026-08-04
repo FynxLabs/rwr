@@ -1,11 +1,11 @@
 # Change: CUE as a supported blueprint format
 
-Depends on: `add-format-registry`. Related: `add-cue-providers` (independent —
+Depends on: `add-format-registry`. Related: `add-cue-providers` (independent -
 that change is build-time only; this one is runtime).
 
 ## Why
 
-Blueprints today are YAML, JSON, or TOML — all shape-unchecked at authoring
+Blueprints today are YAML, JSON, or TOML - all shape-unchecked at authoring
 time; errors surface at run time on the target machine. CUE gives blueprint
 authors types, constraints, and composition (shared fragments unified across
 machines), and rwr already publishes strict schemas per blueprint type that

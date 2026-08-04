@@ -688,7 +688,7 @@ func TestRemoveUser_InteractiveOverride(t *testing.T) {
 //
 // These live in user_test.go rather than user_darwin_test.go on purpose: Go
 // applies an implicit build constraint to any file ending in _darwin_test.go, so
-// the macOS cases would never compile on the Linux CI runner — which is the only
+// the macOS cases would never compile on the Linux CI runner - which is the only
 // place they can run at all.
 // ---------------------------------------------------------------------------
 

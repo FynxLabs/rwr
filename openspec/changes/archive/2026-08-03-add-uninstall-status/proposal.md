@@ -14,29 +14,29 @@ logs. Concretely, today:
   packages honor `action: remove` (`internal/processors/packages.go:118`) and
   every provider defines a `remove` command (e.g.
   `internal/system/definitions/providers/apt.json` `"remove": "remove -y"`)
-  plus `repository.remove` step lists — but the operator must hand-edit
+  plus `repository.remove` step lists - but the operator must hand-edit
   blueprints to `remove` and re-run, which also loses the declaration.
 - Desired state is already resolvable without applying (the TUI's
   `ResolveStage1`, `internal/processors/plan.go:17`, and dry-run centralized
   in `system.RunCommand`), but nothing compares it to the actual machine.
 
 Without a record, "what did rwr do to this machine" and "take it back off"
-are both unanswerable — a real cost for the trying-it-out user and for anyone
+are both unanswerable - a real cost for the trying-it-out user and for anyone
 provisioning short-lived machines.
 
 ## What Changes
 
 - **Run record**: every non-dry-run applies get journaled to a state file
   (`<configdir>/state/`, one record per run): timestamp, blueprint tree
-  identity (URL/path + commit when git), and per-resource entries — what was
+  identity (URL/path + commit when git), and per-resource entries - what was
   applied, by which processor, with enough identity to check or reverse it
   (package name + provider, file dest + content hash, service name + action,
   repo name, font name, git target). Recording is best-effort observation:
   a failed run still records what it did apply.
 - **`rwr status`**: desired-vs-actual. Resolves the tree (reusing the plan
-  machinery), queries actuals per processor — package present via the
+  machinery), queries actuals per processor - package present via the
   provider's `list`/`search`, file dest exists and hash matches, service
-  enabled/running, repo file present — and prints a drift table: in-sync,
+  enabled/running, repo file present - and prints a drift table: in-sync,
   missing, modified, unmanaged-but-recorded. Requires new read-only query
   support per processor; processors that cannot be queried (scripts,
   configuration) report `unknown` honestly rather than guessing.

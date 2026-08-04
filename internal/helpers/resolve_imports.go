@@ -11,7 +11,7 @@ import (
 // ResolveImports expands `import:` entries into the items they name, following
 // imports that the imported files declare in turn.
 //
-// Every blueprint type carried its own copy of this loop — ten of them — and none
+// Every blueprint type carried its own copy of this loop - ten of them - and none
 // recursed: an imported file's own imports were decoded into a struct and then
 // dropped, so a shared file that imports a base file contributed nothing from the
 // base. Each copy also carried cycle detection that could never fire, because it

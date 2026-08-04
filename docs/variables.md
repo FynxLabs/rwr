@@ -56,14 +56,14 @@ environment overwrites a key of exactly the same name from `userDefined`.
 
 The flow also works in the other direction: RWR exports its resolved
 configuration values into the environment of every command it spawns, as
-`RWR_VAR_<KEY>` with dots turned into underscores — `log.level` becomes
+`RWR_VAR_<KEY>` with dots turned into underscores - `log.level` becomes
 `RWR_VAR_LOG_LEVEL`. A script run by a `scripts` blueprint can read them.
 Credentials (the GitHub token, the SSH private key) are **not** exported unless
 the init file names them under `exposeCredentials`; see
 [credentials](credentials.md).
 
 A credential declared in the init file's `credentials:` section is exported as
-`RWR_CRED_<NAME>` — again only when `exposeCredentials` names it — and appears
+`RWR_CRED_<NAME>` - again only when `exposeCredentials` names it - and appears
 in templates as `{{ .Credentials.<name> }}` under the same opt-in.
 
 ### Built-in Variables
@@ -96,7 +96,7 @@ RWR provides a set of built-in variables that can be used in your blueprints. Th
 > [!NOTE]
 > `{{ .Flags.ghAPIToken }}` and `{{ .Flags.sshKey }}` are withheld unless the init
 > file opts into them, because a template is written to a path the blueprint
-> itself chooses — so exposing a credential by default let any blueprint copy it
+> itself chooses - so exposing a credential by default let any blueprint copy it
 > anywhere. If a blueprint genuinely needs one, name it under
 > `exposeCredentials`; see [credentials](credentials.md).
 
@@ -180,14 +180,14 @@ path or a package name.
 `rwr validate` is more lenient about `UserDefined`: it cannot know which
 `RWR_*` variables you will export when you actually run, so a reference to a
 missing user-defined key renders empty and is not reported. References into the
-fixed `User`, `System` and `Flags` namespaces have no such excuse — their keys
-are known — so a typo like `{{ .User.hoem }}` is reported by `validate`.
+fixed `User`, `System` and `Flags` namespaces have no such excuse - their keys
+are known - so a typo like `{{ .User.hoem }}` is reported by `validate`.
 
 ### Provider steps are a different namespace
 
 The four groups above (`UserDefined`, `User`, `System`, `Flags`) are the
 template scope for **blueprint files**. The steps inside a provider definition
-render against a different namespace — the fields of the repository entry being
+render against a different namespace - the fields of the repository entry being
 processed (`{{ .URL }}`, `{{ .KeyURL }}`, `{{ .Name }}`, …) or, for install
 steps, `{{ .TempDir }}`. Blueprint variables are not visible from provider
 steps, and vice versa. See [Providers](providers.md#template-variables).

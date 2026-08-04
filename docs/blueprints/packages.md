@@ -57,7 +57,7 @@ Note that you must provide either `name`, `names`, or `import` for each package 
 ### Package names may not begin with `-`
 
 A name starting with `-` would be read as an **option** by every package
-manager — `--allow-downgrades`, `-U <url>` — rather than as a package. RWR
+manager - `--allow-downgrades`, `-U <url>` - rather than as a package. RWR
 refuses such a name and records it as a failure for that entry; the rest of the
 run continues. Commands are executed as argv rather than through a shell, so
 this is not shell injection, but it would still let a blueprint change what the
@@ -65,9 +65,9 @@ elevated package manager does.
 
 ### Actions
 
-`install` and `remove` are implemented. Any other value — including `update` —
+`install` and `remove` are implemented. Any other value - including `update` -
 is reported by `rwr validate` and recorded as a failure with "unknown action"
-at run time. To refresh package lists, run a repositories blueprint — RWR runs
+at run time. To refresh package lists, run a repositories blueprint - RWR runs
 each available provider's update command after processing it.
 
 ## Blueprint Imports

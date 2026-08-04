@@ -46,8 +46,8 @@ const (
 	// and the processor never implemented it, so `action: update` passed
 	// `rwr validate` and then failed the run. It cannot be implemented on top of
 	// the providers' `update` commands either: they disagree about what update
-	// means — apt's refreshes the package lists, while pacman's is a full system
-	// upgrade — so appending a package name would do something different, and in
+	// means - apt's refreshes the package lists, while pacman's is a full system
+	// upgrade - so appending a package name would do something different, and in
 	// pacman's case drastic, on each distribution.
 )
 
@@ -74,7 +74,7 @@ const (
 //
 // This is the set the files processor actually dispatches on. It previously
 // listed append and template, which no branch handles, and omitted copy, move,
-// chmod, chown, chgrp and symlink, which every one of them does — so validation
+// chmod, chown, chgrp and symlink, which every one of them does - so validation
 // rejected the actions the examples use and accepted two that do nothing.
 const (
 	FileActionCreate  = "create"

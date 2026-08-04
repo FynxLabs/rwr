@@ -211,7 +211,7 @@ func TestResolveTemplate_InvalidTemplate(t *testing.T) {
 // This used to render the literal string "<no value>" and continue, because the
 // template was parsed with missingkey=error and then executed with
 // missingkey=invalid. That string went on to become a file path, a package name or
-// a service name — rwr would write "<no value>/.vimrc" rather than say the
+// a service name - rwr would write "<no value>/.vimrc" rather than say the
 // variable was missing. Two fixtures in this repository had been rendering
 // "<no value>" for exactly this reason without anybody noticing.
 func TestResolveTemplate_MissingVariableIsAnError(t *testing.T) {

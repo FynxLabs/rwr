@@ -7,7 +7,7 @@ import (
 )
 
 // DefaultSchemaVersion is the version assumed for a blueprint type that has only
-// ever had one. It is not the fallback for an undeclared blueprint — see
+// ever had one. It is not the fallback for an undeclared blueprint - see
 // ResolveSchemaVersion, which falls back to the latest version instead.
 const DefaultSchemaVersion = 1
 
@@ -32,7 +32,7 @@ var supportedSchemaVersions = map[string][]int{
 	BlueprintTypeBootstrap:     {1},
 	// BlueprintTypePackageManagers is deliberately absent: package managers are
 	// declared in the init file's packageManagers section, not in a blueprint
-	// file — there is no decoder, no processor dispatch, and no schema variant
+	// file - there is no decoder, no processor dispatch, and no schema variant
 	// for one. Listing it here claimed a file type that NewSchemaVariant could
 	// only ever error on.
 }
@@ -66,7 +66,7 @@ func (s SchemaVersion) DeclaredVersion() int { return s.SchemaVersion }
 // without boilerplate, and the version field is what you add when you want to be
 // pinned rather than something you must add to get started. The consequence is
 // that an undeclared blueprint follows the schema forward across upgrades, so a
-// tree that needs to stay on a particular version has to say so — which is what
+// tree that needs to stay on a particular version has to say so - which is what
 // the declaration is for.
 func ResolveSchemaVersion(fileDeclared, treeDeclared int, blueprintType string) int {
 	if fileDeclared > 0 {
@@ -112,7 +112,7 @@ func ValidateSchemaVersion(blueprintType string, version int) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("%s: schema version %d is not supported by this build (supports %s) — "+
+	return fmt.Errorf("%s: schema version %d is not supported by this build (supports %s) - "+
 		"upgrade rwr, or write this blueprint in a supported version",
 		blueprintType, version, versionList(blueprintType))
 }
@@ -138,7 +138,7 @@ func ValidateTreeSchemaVersion(version int) error {
 	if len(unsupported) == 0 {
 		return nil
 	}
-	return fmt.Errorf("schema version %d is not supported for %s — "+
+	return fmt.Errorf("schema version %d is not supported for %s - "+
 		"declare it per blueprint file instead, or upgrade rwr",
 		version, strings.Join(unsupported, ", "))
 }

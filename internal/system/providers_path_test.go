@@ -7,7 +7,7 @@ import (
 )
 
 // With HOME unset, the user-config candidate must be dropped, not degrade to
-// the relative path ".config/rwr/providers" — which os.Stat would resolve
+// the relative path ".config/rwr/providers" - which os.Stat would resolve
 // against the CWD, honouring a providers directory planted in whatever
 // directory rwr is run from (a cloned repo, /tmp). GetProvidersPath's own doc
 // comment rules the CWD out of the search.
@@ -44,7 +44,7 @@ func TestGetProvidersPath_UnsetHomeNeverSearchesCWD(t *testing.T) {
 		return
 	}
 	if !filepath.IsAbs(got) {
-		t.Fatalf("GetProvidersPath returned a relative path %q — resolved against the CWD", got)
+		t.Fatalf("GetProvidersPath returned a relative path %q - resolved against the CWD", got)
 	}
 	if got == planted || got == ".config/rwr/providers" {
 		t.Fatalf("GetProvidersPath honoured a providers directory under the CWD: %q", got)

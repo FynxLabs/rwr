@@ -16,7 +16,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.We
 
 Each script finds the correct build for your machine, downloads `checksums.txt`
 from the same release, compares the SHA-256 of the archive against the entry for
-that file, and refuses to install if the two do not agree — or if the release
+that file, and refuses to install if the two do not agree - or if the release
 publishes no checksum for the archive at all.
 
 `install.sh` installs to `/usr/local/bin`, with `LICENSE` and the README under

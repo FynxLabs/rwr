@@ -1,7 +1,7 @@
 name: RWR - Release
 
-# Only version tags cut a release. "*" meant any tag — a typo, an experiment,
-# a manually pushed `nightly` — published to GitHub, the Homebrew tap and the
+# Only version tags cut a release. "*" meant any tag - a typo, an experiment,
+# a manually pushed `nightly` - published to GitHub, the Homebrew tap and the
 # naur dispatch. Release tags here have always been v-prefixed (v0.5.1).
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
         with:
           go-version: ">=1.26.5"
 
-      # cosign signs checksums.txt, syft writes the SBOMs — both invoked by
+      # cosign signs checksums.txt, syft writes the SBOMs - both invoked by
       # goreleaser (signs: / sboms: in .goreleaser.yaml).
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2

@@ -44,7 +44,7 @@ git checkouts, scripts, and desktop configuration.`,
 		// (`rwr packages`) needs the args to reach RunE.
 		Args: cobra.ArbitraryArgs,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// Logging, config directory, and the config file — previously a
+			// Logging, config directory, and the config file - previously a
 			// cobra.OnInitialize hook, which is process-global and appends per
 			// tree; a per-tree PreRun keeps instances isolated.
 			if err := loadConfig(app); err != nil {
@@ -67,7 +67,7 @@ git checkouts, scripts, and desktop configuration.`,
 				"validate": true,
 				"convert":  true,
 				// uninstall's input is the run record, never the blueprint
-				// tree — it must work after the tree is edited or deleted.
+				// tree - it must work after the tree is edited or deleted.
 				"uninstall": true,
 				// capture creates a tree from the machine; requiring one
 				// first would be backwards.
@@ -150,7 +150,7 @@ func registerRootFlags(rootCmd *cobra.Command, app *AppConfig) {
 
 	flags.BoolVarP(&app.Interactive, "interactive", "I", true, "Enable interactive mode (use --interactive=false to disable; per-item prompts, not -i)")
 
-	// Flag for the init file path. Bound to repository.init-file — the key the
+	// Flag for the init file path. Bound to repository.init-file - the key the
 	// config file and docs have always used. It was bound to rwr.init-file,
 	// which nothing read: a two-key split where the flag wrote one key and the
 	// config lookup read the other. rwr.init-file still works via a deprecation
@@ -222,7 +222,7 @@ func initializeSystemInfo(app *AppConfig, selectedProcessors ...string) error {
 	// If no init file is specified via flag, check config
 	app.InitFilePath = configuredInitFile(app.InitFilePath)
 
-	// One resolver for every accepted form — local path, directory, https URL,
+	// One resolver for every accepted form - local path, directory, https URL,
 	// GitHub blob URL, owner/repo[/path][@ref] shorthand. See its doc comment
 	// for the precedence.
 	resolved, err := helpers.ResolveInitSource(app.InitFilePath)
@@ -282,7 +282,7 @@ func initializeSystemInfo(app *AppConfig, selectedProcessors ...string) error {
 
 // configuredInitFile resolves where the init file comes from: the --init-file
 // flag, then the repository.init-file config key (which the flag is also bound
-// to), then the deprecated rwr.init-file key — honored with a warning so
+// to), then the deprecated rwr.init-file key - honored with a warning so
 // configs written against the old two-key split keep working.
 func configuredInitFile(flagValue string) string {
 	if flagValue != "" {
@@ -300,7 +300,7 @@ func configuredInitFile(flagValue string) string {
 
 // resolveConfigLocation decides the config directory and, when --config named
 // a file, the config file path. Precedence: the --config flag, then the
-// rwr.configdir key (env: RWR_RWR_CONFIGDIR — it has to come from the
+// rwr.configdir key (env: RWR_RWR_CONFIGDIR - it has to come from the
 // environment, since the config file cannot name its own directory), then
 // ~/.config/rwr. rwr.configdir used to be read and then unconditionally
 // overwritten, so documenting it was a lie.
@@ -361,7 +361,7 @@ func loadConfig(app *AppConfig) error {
 	// helpers.Bootstrap and the config creator resolve their paths from this key.
 	// Without it they fell back to ~/.config/rwr regardless of --config, so
 	// --config moved run_once but left the bootstrap marker behind in the default
-	// location — the two disagreed about where the config directory was.
+	// location - the two disagreed about where the config directory was.
 	viper.Set("rwr.configdir", app.ConfigLocation)
 
 	if err = helpers.EnsureConfigDir(app.ConfigLocation); err != nil {

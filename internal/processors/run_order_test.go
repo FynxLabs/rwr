@@ -9,7 +9,7 @@ import (
 
 // Every processor named in the default run order must have a dispatch case in
 // All. An entry without one falls through to `default:` and logs "Unknown
-// processor", so a blueprint of that type is silently skipped — which is what
+// processor", so a blueprint of that type is silently skipped - which is what
 // packageManagers did.
 func TestDefaultRunOrder_EveryEntryIsDispatched(t *testing.T) {
 	dispatched := []string{
@@ -34,7 +34,7 @@ func TestDefaultRunOrder_EveryEntryIsDispatched(t *testing.T) {
 }
 
 // users was missing from the default order, so `rwr all` never processed user
-// blueprints unless the init file hand-wrote its own order — even though
+// blueprints unless the init file hand-wrote its own order - even though
 // `rwr run users` worked, which made the gap easy to miss.
 func TestDefaultRunOrder_IncludesEveryDispatchableProcessor(t *testing.T) {
 	// Every type that has a dispatch case in All and can appear as a blueprint

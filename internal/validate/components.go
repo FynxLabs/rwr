@@ -115,7 +115,7 @@ func ValidateFiles(files []types.File, file string, results *types.ValidationRes
 
 // ValidateDirectories checks directory entries the same way ValidateFiles
 // checks files: they share the action vocabulary and the mode rules, and the
-// files processor dispatches both — validating only two of the three kinds a
+// files processor dispatches both - validating only two of the three kinds a
 // files blueprint carries let a bad directory mode through to run time.
 func ValidateDirectories(directories []types.Directory, file string, results *types.ValidationResults) {
 	blueprintDir := filepath.Dir(file)
@@ -145,7 +145,7 @@ var modeCarryingActions = map[string]bool{
 
 // validateFileMode reports the mode problems that survive decoding.
 //
-// A mode written ambiguously — `mode: 644`, which as a number is 0o1204 — is
+// A mode written ambiguously - `mode: 644`, which as a number is 0o1204 - is
 // already refused by types.FileMode while the blueprint is being read, so it
 // arrives here as a parse error naming the file. What is left is a mode that
 // parses but cannot do what the entry asks: a chmod with nothing to chmod to,

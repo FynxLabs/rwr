@@ -1,5 +1,5 @@
 // Package state is rwr's run journal: an append-only record of what each run
-// actually applied. Blueprints stay the source of desired state — the record
+// actually applied. Blueprints stay the source of desired state - the record
 // is evidence of past applies, never an input to `rwr all`. `rwr status`
 // reads it for drift and `rwr uninstall` for reversal.
 package state
@@ -32,7 +32,7 @@ type Record struct {
 
 // Entry is one applied unit of work. Identity carries enough to find the
 // thing again: provider+name for packages, dest+sha256 for files, target for
-// git checkouts. Reversed is set by uninstall runs — entries are never
+// git checkouts. Reversed is set by uninstall runs - entries are never
 // deleted, the journal is history.
 type Entry struct {
 	Processor string            `json:"processor"`
@@ -121,7 +121,7 @@ func (w *Writer) Finalize() error {
 	if err := w.flush(); err != nil {
 		return err
 	}
-	// latest is a plain file naming the newest record — a symlink breaks on
+	// latest is a plain file naming the newest record - a symlink breaks on
 	// Windows without privileges.
 	latest := filepath.Join(w.dir, "latest")
 	return os.WriteFile(latest, []byte(filepath.Base(w.path)+"\n"), 0o600)

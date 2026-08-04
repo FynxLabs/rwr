@@ -22,7 +22,7 @@ func FindManifest(root string) string {
 }
 
 // LoadManifest strictly decodes a manifest and refuses entries whose init
-// path escapes the repo root — the manifest is untrusted input, and its init
+// path escapes the repo root - the manifest is untrusted input, and its init
 // paths are about to be resolved and executed.
 func LoadManifest(path string) (*types.Manifest, error) {
 	data, err := os.ReadFile(path) // #nosec G304 -- operator-supplied repo root

@@ -38,7 +38,7 @@ func UnmarshalBlueprint(data []byte, format string, v interface{}) error {
 //
 // A silently ignored key is a blueprint that looks applied and is not: `pacakges:`
 // yields an empty section, every processor finds nothing to do, and the run
-// reports success having changed nothing. A misspelled `profiles` is worse — the
+// reports success having changed nothing. A misspelled `profiles` is worse - the
 // entry loses its scoping and runs on every machine. Both failures are invisible
 // at any log level, so they surface as "rwr didn't do anything" long after the
 // typo was written.

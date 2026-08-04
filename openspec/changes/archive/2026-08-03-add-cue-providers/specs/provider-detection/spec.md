@@ -1,4 +1,4 @@
-# Provider Detection — Deltas
+# Provider Detection - Deltas
 
 ## ADDED Requirements
 

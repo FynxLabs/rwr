@@ -210,7 +210,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				if err != nil {
 					// Interactive runs halt so the operator can react; a
 					// headless run pushes through, collects, and exits
-					// nonzero — the first error aborting used to leave every
+					// nonzero - the first error aborting used to leave every
 					// later processor silently unrun in CI.
 					if initConfig.Variables.Flags.Interactive {
 						return fmt.Errorf("error processing %s: %w", processor, err)

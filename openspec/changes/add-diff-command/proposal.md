@@ -1,4 +1,4 @@
-# Change: rwr diff — machine drift as blueprint updates
+# Change: rwr diff - machine drift as blueprint updates
 
 Depends on: add-system-scan (the harvest layer).
 
@@ -6,7 +6,7 @@ Depends on: add-system-scan (the harvest layer).
 
 A provisioned machine drifts: packages installed by hand, configs adjusted,
 services enabled. `rwr status` (state-tracking spec) answers "does the
-machine match the tree" — but its unit of report is drift, and its consumer
+machine match the tree" - but its unit of report is drift, and its consumer
 is an exit code. The operator's actual next step is "fold the drift I want
 to keep back into the blueprints", and today that is a manual diff of
 `pacman -Qe` against yaml by eyeball.
@@ -26,9 +26,9 @@ instead of guessed at.
     additions/removals, rendered by the scan emission layer;
   - `--packages` (and siblings) to scope to one category.
 - `--into <tree>`: interactive routing. For each change group a huh form
-  offers the destination candidates discovered from the tree itself — the
+  offers the destination candidates discovered from the tree itself - the
   matching machine tree's blueprint file, any Common file the tree imports
-  for that category, or skip — then writes the edit in the target file's
+  for that category, or skip - then writes the edit in the target file's
   own format. rwr cannot know whether a new package is an Archcraft thing
   or a Common thing; that is the operator's call, made once per group
   instead of once per hand-edit.

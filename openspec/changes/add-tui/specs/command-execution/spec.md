@@ -1,4 +1,4 @@
-# Command Execution — Deltas
+# Command Execution - Deltas
 
 ## MODIFIED Requirements
 

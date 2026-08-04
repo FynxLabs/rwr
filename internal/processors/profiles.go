@@ -27,7 +27,7 @@ type ProfileSummary struct {
 // CollectProfiles walks the blueprint tree and reports the profiles it declares.
 //
 // This reads the blueprints. `rwr profiles` used to read only the arrays written
-// inline in the init file, and profiles are declared on blueprint entries — so the
+// inline in the init file, and profiles are declared on blueprint entries - so the
 // command that exists to tell an operator what `--profile` accepts answered "No
 // profiles found" for every tree that uses profiles.
 func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {

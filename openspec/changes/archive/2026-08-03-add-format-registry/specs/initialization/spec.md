@@ -1,4 +1,4 @@
-# Initialization — Deltas
+# Initialization - Deltas
 
 ## ADDED Requirements
 

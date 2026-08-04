@@ -16,7 +16,7 @@ import (
 const keyringService = "rwr"
 
 // Keyring is the slice of the OS keyring rwr uses. It is an interface so tests
-// run keyring-less with a fake — CI has no Secret Service, and desktop keyring
+// run keyring-less with a fake - CI has no Secret Service, and desktop keyring
 // behavior varies too much to assert against.
 type Keyring interface {
 	// Get returns the stored value, or ErrKeyringNotFound when the entry does
@@ -49,7 +49,7 @@ func (osKeyring) Set(name, value string) error {
 
 // FromKeyring reads a credential from the keyring. A missing entry or an
 // unavailable backend both yield "not found": the keyring is never
-// load-bearing on read — precedence just moves to the next source.
+// load-bearing on read - precedence just moves to the next source.
 func FromKeyring(name string) (string, bool) {
 	value, err := Ring.Get(name)
 	if err != nil || value == "" {

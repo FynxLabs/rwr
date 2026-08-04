@@ -129,7 +129,7 @@ behaves as a directory.
 ## File modes
 
 `mode` is a permission mode, at most four octal digits (`0o7777`). It is applied
-by the `create` and `chmod` actions only — a copy takes the source's
+by the `create` and `chmod` actions only - a copy takes the source's
 permissions, a symlink has none, and delete, chown and chgrp do not touch the
 mode. `rwr validate` warns when a mode is set on an action that ignores it.
 
@@ -157,8 +157,8 @@ mode 0644 typed without quotes; write mode: "0644" for 0o644, or mode: "1204"
 for 0o1204
 ```
 
-This is the change to watch for. `mode: 644` used to decode to 0o1204 — a setuid
-mode nobody asked for — and apply it without complaint. It is now an error, and
+This is the change to watch for. `mode: 644` used to decode to 0o1204 - a setuid
+mode nobody asked for - and apply it without complaint. It is now an error, and
 the message tells you what to write instead. Anything above `0o7777`, or a
 negative number, is refused the same way.
 
@@ -187,8 +187,8 @@ When no `mode` is declared:
 | A plain file (`create`) | `0644` |
 | A directory | `0755` |
 
-Rendered templates are private because templates can render credentials — a
-`.netrc`, a `gh` config — and those must not exist world-readable even for an
+Rendered templates are private because templates can render credentials - a
+`.netrc`, a `gh` config - and those must not exist world-readable even for an
 instant. For the same reason, when a created file's mode gives nothing to group
 or other, any parent directory RWR has to create is made `0700` instead of
 `0755`.
@@ -204,7 +204,7 @@ set, and written to `target`.
 
 A template entry needs `name`, `source` and `target`; one missing any of them is
 skipped with a warning. Because the rendered result is written as content, a
-template is always **created** at its target whatever `action` says — an entry
+template is always **created** at its target whatever `action` says - an entry
 declaring `action: copy` renders and creates, and logs a warning saying so.
 
 Template files use the Go template syntax and can include variables, conditionals, and loops. The `variables` setting allows you to define a map of variables and their corresponding values, which can be used within the template files.

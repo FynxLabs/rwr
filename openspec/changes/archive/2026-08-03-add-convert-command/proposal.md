@@ -1,4 +1,4 @@
-# Change: `rwr convert` — format conversion and tree migration
+# Change: `rwr convert` - format conversion and tree migration
 
 Depends on: `add-format-registry` (decode/encode dispatch),
 `unify-blueprint-semantics` (defines the "current state" trees migrate to).
@@ -12,7 +12,7 @@ Status: fleshed out (task 1). Decisions:
   a quoted scalar decodes and re-encodes byte-preserved. A file whose
   templates make it unparseable raw (unquoted `{{` at value start in YAML)
   cannot be converted and is reported per file, not silently mangled.
-- **CUE export style is JSON-form CUE** — valid CUE, lossless, and
+- **CUE export style is JSON-form CUE** - valid CUE, lossless, and
   mechanical. Idiomatic CUE (constraints, unification) is authoring work a
   converter should not guess at.
 - **Migration rules are a registry** (`migrateRules`), one entry per
@@ -37,13 +37,13 @@ Two recurring needs with no tool today:
   bootstrap file in a tree to the target format, preserving comments where the
   target supports them and template placeholders byte-identical.
 - `rwr convert --migrate [path]`: rewrite deprecated constructs to their
-  current equivalents — starting with init-file inline resource sections moved
+  current equivalents - starting with init-file inline resource sections moved
   into blueprint files under the tree.
 - Dry-run by default with a diff; `--write` applies.
 
 ## Breakage
 
-None — a new command; it only writes with `--write`.
+None - a new command; it only writes with `--write`.
 
 ## Impact
 

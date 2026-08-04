@@ -15,7 +15,7 @@ import (
 
 // RunBootstrap is the standalone `rwr bootstrap` entry. Asking for bootstrap
 // by name implies wanting it to run, so an explicit invocation bypasses the
-// run-once marker — the marker exists to keep `rwr all` idempotent, not to
+// run-once marker - the marker exists to keep `rwr all` idempotent, not to
 // refuse an explicit request. The marker is still refreshed on success and
 // dry-run is still honored (no marker write, no mutations).
 func RunBootstrap(initConfig *types.InitConfig, osInfo *types.OSInfo) error {

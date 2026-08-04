@@ -30,7 +30,7 @@ func SetLinuxDetails(osInfo *types.OSInfo) error {
 //
 // Deriving the default from /etc/os-release directly does not work. That lookup
 // returned the first provider matching the distro, and flatpak, snap, nix and
-// cargo all declare the "linux" wildcard, so they match every distribution — on
+// cargo all declare the "linux" wildcard, so they match every distribution - on
 // this machine it selected flatpak as the default package manager for an
 // Arch-based system. Families map to their native managers explicitly instead.
 func linuxPreferredManagers(osInfo *types.OSInfo) []string {

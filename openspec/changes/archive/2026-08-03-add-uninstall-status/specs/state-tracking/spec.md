@@ -1,4 +1,4 @@
-# State Tracking — Deltas
+# State Tracking - Deltas
 
 ## ADDED Requirements
 

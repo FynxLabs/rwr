@@ -6,7 +6,7 @@ import (
 )
 
 // Some tools take a credential only as an argument, so it cannot always be moved
-// to Stdin — but it must still never reach a log file. buildCommand logs argv at
+// to Stdin - but it must still never reach a log file. buildCommand logs argv at
 // debug level and the dry-run path logs it at info.
 func TestCommandLogArgs_RedactsSecrets(t *testing.T) {
 	cmd := Command{

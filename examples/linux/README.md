@@ -4,9 +4,9 @@ Example blueprint sets for three Linux distributions. Each distribution director
 
 ## Distributions
 
-- [`Arch/`](./Arch/) — the most extensive example set. Uses `pacman` and `yay` (AUR), with profile-based packages, repositories, scripts, services, users, and more.
-- [`Fedora/`](./Fedora/) — uses `dnf`, with RPM Fusion and vendor repositories, systemd services, and profile-based package sets.
-- [`Ubuntu/`](./Ubuntu/) — uses `apt`, with GPG-keyed apt repositories, `ufw` scripts, and profile-based package sets.
+- [`Arch/`](./Arch/) - the most extensive example set. Uses `pacman` and `yay` (AUR), with profile-based packages, repositories, scripts, services, users, and more.
+- [`Fedora/`](./Fedora/) - uses `dnf`, with RPM Fusion and vendor repositories, systemd services, and profile-based package sets.
+- [`Ubuntu/`](./Ubuntu/) - uses `apt`, with GPG-keyed apt repositories, `ufw` scripts, and profile-based package sets.
 
 All three also include small `brew` (Homebrew on Linux) and `cargo` package examples.
 

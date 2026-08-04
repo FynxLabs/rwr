@@ -7,7 +7,7 @@ import (
 )
 
 // ResolveStage2 completes the Plan after init and bootstrap: provider states
-// and the resource enumeration the lanes count. It cannot run earlier —
+// and the resource enumeration the lanes count. It cannot run earlier -
 // bootstrap can install the package manager later blueprints depend on, so
 // detecting providers before it produces wrong lanes.
 func ResolveStage2(plan *types.Plan) {

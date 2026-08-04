@@ -34,9 +34,9 @@ type Row struct {
 // entry does); without a record, classes the queries cannot honestly decide
 // are unknown.
 func Rows(plan *types.Plan, records []*state.RecordFile, querier *Querier) []Row {
-	// Identity enrichment uses every recorded apply — a reversal does not
+	// Identity enrichment uses every recorded apply - a reversal does not
 	// erase where an identity lives on disk; stale detection uses only the
-	// unreversed ones — deliberately removed work is not stale.
+	// unreversed ones - deliberately removed work is not stale.
 	recorded := map[string]*state.Entry{}
 	for _, ref := range state.LatestApplies(records) {
 		entry := ref.Entry()
@@ -157,7 +157,7 @@ func Render(rows []Row, hasRecord bool) string {
 		fmt.Fprintf(&b, "%-14s %-40s %-10s %s\n", row.Processor, truncate(row.Name, 40), row.Class, row.Note)
 	}
 	if !hasRecord {
-		b.WriteString("\n(no run record: recorded-identity checks unavailable — run `rwr all` once to establish one)\n")
+		b.WriteString("\n(no run record: recorded-identity checks unavailable - run `rwr all` once to establish one)\n")
 	}
 	return b.String()
 }

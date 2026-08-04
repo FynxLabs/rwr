@@ -16,7 +16,7 @@ There are two pieces:
 ## The `--profile` / `-p` flag
 
 `--profile` is a global flag, so it is accepted by every command. It only
-changes what is applied when a command applies something — that is `rwr all` and
+changes what is applied when a command applies something - that is `rwr all` and
 `rwr run <processor>`.
 
 > [!IMPORTANT]
@@ -158,7 +158,7 @@ rwr all --dry-run --profile work,gaming
 ## Error handling
 
 RWR does **not** check the names you pass against the ones your blueprints
-declare. A misspelled profile is not an error and produces no warning — it simply
+declare. A misspelled profile is not an error and produces no warning - it simply
 matches nothing, and the run applies the base items only. If a run installs less
 than you expected, check the spelling against `rwr profiles`; the names are
 case-sensitive.

@@ -11,7 +11,7 @@ import (
 
 // Active reports whether the TUI should run. Anything short of a real,
 // capable, non-CI terminal falls back to the LogReporter, whose output is
-// byte-identical to the pre-TUI stream — `rwr all > install.log` already
+// byte-identical to the pre-TUI stream - `rwr all > install.log` already
 // fails the TTY check and behaves as today.
 func Active(noTUI bool) bool {
 	if noTUI {

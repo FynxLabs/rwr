@@ -1,4 +1,4 @@
-# Blueprint Processing — Deltas
+# Blueprint Processing - Deltas
 
 ## ADDED Requirements
 
@@ -7,7 +7,7 @@
 `.cue` SHALL be a registered blueprint format alongside YAML, JSON, and TOML,
 valid for blueprints, imports, init files, bootstrap files, and the manifest.
 A `.cue` file SHALL be evaluated in-process (`cuelang.org/go`), exported to
-concrete values, and decoded through the existing strict path — semantics
+concrete values, and decoded through the existing strict path - semantics
 identical to the equivalent YAML.
 
 Why: CUE gives authors types, constraints, and composition at authoring time;

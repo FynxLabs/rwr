@@ -106,7 +106,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	} else if script.Content != "" {
 		// Write the script content to a temporary file, named for the executor
 		// that will run it. The extension used to be .sh unconditionally, and
-		// `powershell -File` refuses any file not ending in .ps1 — so every
+		// `powershell -File` refuses any file not ending in .ps1 - so every
 		// inline script on Windows (where powershell is the default executor)
 		// failed before its first line ran.
 		tempFile, err := os.CreateTemp("", fmt.Sprintf("%s-*%s", script.Name, scriptTempExtension(script.Exec)))
@@ -180,7 +180,7 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 
 	// Append the script arguments. `args` is a single string in the blueprint, and
 	// the shell used to word-split it on the way to the script. Now that commands are
-	// argv, split it here — otherwise `args: "--verbose --out /tmp"` would arrive as
+	// argv, split it here - otherwise `args: "--verbose --out /tmp"` would arrive as
 	// one argument instead of three.
 	if script.Args != "" {
 		log.Debugf("Adding script arguments: %s", script.Args)

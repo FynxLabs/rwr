@@ -222,8 +222,8 @@ func TestCopySSHKeyToGitHub_Success(t *testing.T) {
 }
 
 // TestCopySSHKeyToGitHub_Errors drives the real upload against a local server.
-// The duplicate-key 422 is the converged state — the key already being on the
-// account is what copy_to_github asks for — so it succeeds; every other
+// The duplicate-key 422 is the converged state - the key already being on the
+// account is what copy_to_github asks for - so it succeeds; every other
 // failure still errors.
 func TestCopySSHKeyToGitHub_Errors(t *testing.T) {
 	duplicate := githubError{

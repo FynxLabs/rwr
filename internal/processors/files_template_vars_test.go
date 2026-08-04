@@ -66,7 +66,7 @@ templates:
 		t.Errorf("a.conf = %q, want its own override %q", got, "local")
 	}
 	if got := read("b.conf"); !strings.Contains(got, "greeting=global") {
-		t.Errorf("b.conf = %q, want the run-wide value %q — a.conf's override leaked", got, "global")
+		t.Errorf("b.conf = %q, want the run-wide value %q - a.conf's override leaked", got, "global")
 	}
 	if got := config.Variables.UserDefined["greeting"]; got != "global" {
 		t.Errorf("initConfig.Variables.UserDefined[greeting] = %v, want %q untouched", got, "global")

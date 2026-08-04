@@ -15,7 +15,7 @@ type Options struct {
 	Interactive bool
 	// Selected names the blueprint types this run executes; empty means all. A
 	// credential scoped to processors none of which are selected is not
-	// resolved — no point prompting for a value nothing will read.
+	// resolved - no point prompting for a value nothing will read.
 	Selected []string
 }
 
@@ -123,8 +123,8 @@ func scopeSelected(scope, selected []string) bool {
 
 // ResolveBuiltins records the two built-in credentials with the registry so
 // they get the same managed treatment as declared ones. Their sources are the
-// pre-existing ones — flag/config (already merged into Flags by cobra/viper
-// binding), GITHUB_TOKEN, and now the keyring — and unlike declared
+// pre-existing ones - flag/config (already merged into Flags by cobra/viper
+// binding), GITHUB_TOKEN, and now the keyring - and unlike declared
 // credentials they are optional: a run that never needs a GitHub token must
 // not fail, or prompt, because none is configured.
 func ResolveBuiltins(flags *types.Flags) {

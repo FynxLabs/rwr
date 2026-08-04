@@ -46,7 +46,7 @@ The following settings are available for the Directories Blueprint:
 | `target` | string | The parent directory. The entry's `name` is joined onto it, so `target: ~/` with `name: .config` manages `~/.config`. The one exception is `symlink`, where `target` is the link's own path |
 | `owner` | string | The owner of the directory (applied by `chown`, and after `create` and `copy`) |
 | `group` | string | The group of the directory (applied by `chown`/`chgrp`, and after `create` and `copy`) |
-| `mode` | string | The permissions of the directory. Write a quoted octal string: `mode: "0755"`. A bare `mode: 755` is an **error** — see [File modes](files.md#file-modes). Defaults to `0755` when omitted; required for `chmod` |
+| `mode` | string | The permissions of the directory. Write a quoted octal string: `mode: "0755"`. A bare `mode: 755` is an **error** - see [File modes](files.md#file-modes). Defaults to `0755` when omitted; required for `chmod` |
 | `elevated` | bool | Read by `copy` only; other directory actions are performed by rwr's own process (default: false) |
 | `interactive` | bool | Override global interactive mode for this directory (`true`/`false`). If omitted, uses the global `--interactive` flag. Controls whether diffs are shown before overwriting existing files during copy operations |
 

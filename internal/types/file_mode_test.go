@@ -11,8 +11,8 @@ import (
 )
 
 // modeCase is one way of writing a mode, in each of the three formats. A blank
-// literal means the format cannot express that form at all — JSON has no octal
-// literal — and is skipped rather than asserted.
+// literal means the format cannot express that form at all - JSON has no octal
+// literal - and is skipped rather than asserted.
 type modeCase struct {
 	name string
 	yaml string

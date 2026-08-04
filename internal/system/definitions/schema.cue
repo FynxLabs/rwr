@@ -1,4 +1,4 @@
-// Package providers holds rwr's embedded provider definitions as CUE —
+// Package providers holds rwr's embedded provider definitions as CUE -
 // the single source. The binary embeds these files and evaluates them at
 // load; there is no exported or committed second representation.
 //
@@ -6,7 +6,7 @@
 // definition fails evaluation naming the field.
 package providers
 
-// #ConditionRef: what a step condition may reference — the predicates rwr
+// #ConditionRef: what a step condition may reference - the predicates rwr
 // derives (repositoryPredicates; a Go test asserts this list equals its keys)
 // plus the two step-data fields shipped conditions use. A condition naming
 // anything else decoded into nothing historically, so every step ran.
@@ -35,7 +35,7 @@ package providers
 }
 
 // Install/remove steps: the package-manager processor implements only these
-// three actions — and staging at a literal /tmp/ path is the pre-creatable
+// three actions - and staging at a literal /tmp/ path is the pre-creatable
 // world-known name {{ .TempDir }} exists to eliminate, so it cannot export.
 #InstallStep: {
 	action:  "command" | "download" | "write"

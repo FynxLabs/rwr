@@ -11,7 +11,7 @@ import (
 // ResolveStage1 reads and resolves the blueprint tree without executing
 // anything: file routing (path- and content-based), template resolution, and
 // strict decode per blueprint type. Problems become Diagnostics rather than
-// errors — one bad file must not hide the rest of the tree from a validator
+// errors - one bad file must not hide the rest of the tree from a validator
 // or a progress display. The returned error is reserved for the tree being
 // unreadable at all.
 func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
@@ -48,7 +48,7 @@ func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
 				continue
 			}
 
-			// Strict for the fixed namespaces, lenient only for UserDefined —
+			// Strict for the fixed namespaces, lenient only for UserDefined -
 			// the same contract validate enforces.
 			for _, ref := range helpers.UnknownTemplateReferences(raw, initConfig.Variables) {
 				plan.Diags = append(plan.Diags, types.Diagnostic{

@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// routeInteractively asks, per change group, where the additions land — a
-// destination the tree itself offers, or skip — and writes the accepted
+// routeInteractively asks, per change group, where the additions land - a
+// destination the tree itself offers, or skip - and writes the accepted
 // edits. Machine-specific versus Common is the operator's call; rwr's job
 // is to make it once per group.
 func routeInteractively(cmd *cobra.Command, changes []diff.Change, tree string) error {

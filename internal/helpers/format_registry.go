@@ -11,7 +11,7 @@ import (
 // The format registry is the single source of blueprint format knowledge:
 // which extensions exist, which format a file is, and what candidate names
 // init/bootstrap discovery should try. Before it existed this knowledge was
-// duplicated across ~15 sites, each a hand edit for every new format — and the
+// duplicated across ~15 sites, each a hand edit for every new format - and the
 // copies had already diverged (half the tree assumed one format per tree via
 // Init.Format, half derived per file).
 //
@@ -43,7 +43,7 @@ func KnownExtensions() []string {
 }
 
 // FormatForPath resolves a file's format from its extension. An extensionless
-// or unknown-extension path is a diagnostic error naming the path — not a
+// or unknown-extension path is a diagnostic error naming the path - not a
 // panic, which is what `filepath.Ext(file)[1:]` produced for an extensionless
 // file.
 func FormatForPath(path string) (string, error) {
@@ -67,7 +67,7 @@ func IsBlueprintFile(path string) bool {
 }
 
 // CandidateFilenames returns the discovery candidates for a base name
-// ("init", "bootstrap") — one per known extension, in stable order.
+// ("init", "bootstrap") - one per known extension, in stable order.
 func CandidateFilenames(base string) []string {
 	exts := KnownExtensions()
 	names := make([]string, 0, len(exts))
@@ -77,8 +77,8 @@ func CandidateFilenames(base string) []string {
 	return names
 }
 
-// CanonicalFormat maps any accepted format spelling — canonical name, alias
-// ("yml"), or dotted extension (".yaml") — to the canonical format name.
+// CanonicalFormat maps any accepted format spelling - canonical name, alias
+// ("yml"), or dotted extension (".yaml") - to the canonical format name.
 func CanonicalFormat(format string) (string, error) {
 	f := strings.ToLower(strings.TrimSpace(format))
 	if canonical, ok := formatByExtension["."+strings.TrimPrefix(f, ".")]; ok {

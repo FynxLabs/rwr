@@ -48,7 +48,7 @@ func TestRootShorthands(t *testing.T) {
 }
 
 // No two flags may claim the same shorthand across the root set and any
-// subcommand's local set — a future flag grabbing a taken letter fails here.
+// subcommand's local set - a future flag grabbing a taken letter fails here.
 func TestNoShorthandCollisions(t *testing.T) {
 	app := &AppConfig{}
 	root := NewRootCmd(app)

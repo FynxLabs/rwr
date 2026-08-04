@@ -584,7 +584,7 @@ func TestProcessPackages_ResolveInteractiveIntegration(t *testing.T) {
 	}
 }
 
-// `names` wins over `name` when both are set — matching files and fonts.
+// `names` wins over `name` when both are set - matching files and fonts.
 // packages had it backwards.
 func TestProcessPackages_NamesWinsOverName(t *testing.T) {
 	useTestProvider(t)

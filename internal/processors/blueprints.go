@@ -97,7 +97,7 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 // here only produced an "Unknown processor" warning.
 //
 // users is present because it was previously missing, which meant `rwr all` never
-// created users unless the init file hand-wrote its own order — while
+// created users unless the init file hand-wrote its own order - while
 // `rwr run users` worked, making the omission easy to miss.
 var defaultRunOrder = []string{
 	types.BlueprintTypeRepositories,
@@ -125,7 +125,7 @@ func GetBlueprintRunOrder(initConfig *types.InitConfig) ([]string, error) {
 				runOrder = append(runOrder, str)
 			} else if subOrder, ok := item.(map[string]interface{}); ok {
 				// Go randomizes map iteration, so a nested order entry produced a
-				// different sequence on each run — the one thing an explicit order
+				// different sequence on each run - the one thing an explicit order
 				// is written to control. Sort so the result is at least stable;
 				// a map cannot preserve authored order, which is why the sorted
 				// keys are logged loudly enough to notice.
@@ -183,7 +183,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 	}
 
 	// The run loop only executes buckets named after a processor. A file whose
-	// path names none is typed by its content instead — the flattened and
+	// path names none is typed by its content instead - the flattened and
 	// minimal_files layouts the examples ship have no processor directories at
 	// all, and used to land in a dead bucket and exit 0 having executed
 	// nothing. A multi-type file (minimal_files' all_in_one) routes to every
@@ -199,12 +199,12 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 			return detected
 		}
 		log.Warnf("Blueprint file %s is not under a recognized processor directory and its content matches no blueprint type; it will NOT be executed. "+
-			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/ — or give it top-level blueprint keys.", relPath)
+			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/ - or give it top-level blueprint keys.", relPath)
 		return []string{processor}
 	}
 
 	// The init file configures the run, bootstrap is dispatched separately
-	// (findBootstrapFile), and a root manifest names configurations — none is
+	// (findBootstrapFile), and a root manifest names configurations - none is
 	// a processor blueprint, so none belongs in a processor bucket, nor in
 	// the unrouted warning above. The manifest matters doubly: its top-level
 	// configurations key would otherwise content-route it to the
@@ -322,7 +322,7 @@ var blueprintKeyToType = map[string]string{
 
 // detectBlueprintTypesFromContent types a blueprint by its top-level keys,
 // returning every matched type in run-order-stable form. Templates are
-// resolved leniently first — content routing happens before the run renders
+// resolved leniently first - content routing happens before the run renders
 // anything for real.
 func detectBlueprintTypesFromContent(path string, initConfig *types.InitConfig) []string {
 	top, _, err := decodeTopLevel(path, initConfig)
@@ -368,8 +368,8 @@ func decodeTopLevel(path string, initConfig *types.InitConfig) (map[string]inter
 // subsetForProcessor prepares one processor's view of a blueprint. A
 // single-type file passes through untouched, so strict decode keeps its
 // unknown-key typo protection. A multi-type file (minimal_files'
-// all_in_one.yaml) is cut down to the keys this processor reads — plus
-// schema_version — re-encoded as JSON; a top-level key belonging to no type at
+// all_in_one.yaml) is cut down to the keys this processor reads - plus
+// schema_version - re-encoded as JSON; a top-level key belonging to no type at
 // all is an error rather than something to silently drop.
 func subsetForProcessor(resolved []byte, format, processor string) ([]byte, string, error) {
 	var top map[string]interface{}

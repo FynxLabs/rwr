@@ -1,10 +1,10 @@
-# Common — Shared Definitions
+# Common - Shared Definitions
 
-Shared blueprint definitions that other trees pull in with the `import` directive. This directory is not run directly — it holds the reusable pieces.
+Shared blueprint definitions that other trees pull in with the `import` directive. This directory is not run directly - it holds the reusable pieces.
 
 ## Contents
 
-- `packages/base-aur-arch.yaml` — a base set of AUR packages (`yay`, `paru`, `visual-studio-code-bin`, `google-chrome`, `slack-desktop`, `discord`) installed via `paru`
+- `packages/base-aur-arch.yaml` - a base set of AUR packages (`yay`, `paru`, `visual-studio-code-bin`, `google-chrome`, `slack-desktop`, `discord`) installed via `paru`
 
 ## How it is used
 

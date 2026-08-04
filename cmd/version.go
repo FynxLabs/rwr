@@ -41,7 +41,7 @@ var latestReleaseURL = "https://api.github.com/repos/fynxlabs/rwr/releases/lates
 // SetVersionInfo records the build metadata injected at link time. Empty
 // fields fall back to Go's embedded build info, which is what `go install`
 // builds have instead of ldflags. NewRootCmd wires it into cobra so that
-// `rwr --version` works alongside `rwr version` — buildInfo is link-time
+// `rwr --version` works alongside `rwr version` - buildInfo is link-time
 // constant data, set once from main before any tree is built.
 func SetVersionInfo(info BuildInfo) {
 	buildInfo = fillFromBuildInfo(info)
@@ -143,7 +143,7 @@ func checkForNewVersion(app *AppConfig) {
 	// Read through viper, not the flag variable: the flag is bound to
 	// rwr.skipVersionCheck, but that binding is one-way. Checking the variable
 	// alone meant the config key `rwr config --create` writes, and its env form,
-	// were both inert — only the command-line flag did anything.
+	// were both inert - only the command-line flag did anything.
 	if app.SkipVersionCheck || viper.GetBool("rwr.skipVersionCheck") {
 		log.Debugf("Version check skipped (rwr.skipVersionCheck)")
 		return

@@ -45,7 +45,7 @@ func closeJournal() {
 }
 
 // fileJournalIdentity resolves a file entry's on-disk destination and its
-// post-apply content hash — what a later uninstall needs for a hash-guarded
+// post-apply content hash - what a later uninstall needs for a hash-guarded
 // delete. Best effort: the identity observes the apply, it never fails it.
 func fileJournalIdentity(file types.File, blueprintDir string) map[string]string {
 	_, target, err := determineSourceAndTargetPaths(file, blueprintDir)

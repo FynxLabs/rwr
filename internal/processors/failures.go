@@ -11,7 +11,7 @@ import (
 // Several processors deliberately keep going when one item fails: a package that
 // is not in the repositories should not stop the twenty after it, and a git repo
 // that is temporarily unreachable should not abandon the rest of the run. That is
-// the right behavior. What was wrong is that those failures then vanished — they
+// the right behavior. What was wrong is that those failures then vanished - they
 // were logged and the run exited 0 with "RWR Run Complete!", so a run in which
 // every single package failed to install was indistinguishable from a clean one.
 //

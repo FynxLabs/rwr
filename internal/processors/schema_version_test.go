@@ -33,7 +33,7 @@ func newTestOSInfo() *types.OSInfo {
 // platform has, so these tests assert how rwr builds a command rather than
 // asserting what the runner happens to have installed.
 //
-// Without it the tests pass on a machine with pacman and fail on one without —
+// Without it the tests pass on a machine with pacman and fail on one without -
 // which is exactly what happened: green on an Arch workstation, red on CI's
 // Ubuntu runner.
 func useTestProvider(t *testing.T) {
@@ -246,7 +246,7 @@ func TestProcessors_ImportedFileVersionIsEnforced(t *testing.T) {
 	}
 }
 
-// The error has to say which version was asked for and which are supported —
+// The error has to say which version was asked for and which are supported -
 // "invalid blueprint" sends the operator looking in the wrong place.
 func TestProcessors_UnsupportedVersionErrorIsActionable(t *testing.T) {
 	defer system.SetExecutor(exectest.New())()

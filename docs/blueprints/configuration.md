@@ -37,7 +37,7 @@ The tool-specific settings are `file`, `schema`, `key`, `settings`, `value`,
 `path`, `domain`, `kind` and `type`, described per tool below.
 
 > [!NOTE]
-> Profiles work for configuration entries as of this release — the type had no
+> Profiles work for configuration entries as of this release - the type had no
 > `profiles` field before, so every entry was applied on every machine. The
 > configuration blueprint has **no `import` field** and no `interactive` field;
 > writing either one is now a decode error.
@@ -74,7 +74,7 @@ The gsettings tool sets individual keys in one schema.
 | Option | Required | Description |
 |--------|----------|-------------|
 | `schema` | Yes | The gsettings schema |
-| `settings` | Yes | A map of key to value. This is where the keys go — `key` and `value` are **not** read by this tool |
+| `settings` | Yes | A map of key to value. This is where the keys go - `key` and `value` are **not** read by this tool |
 
 Each key is checked with `gsettings writable` first. A key that is not writable,
 or that fails to apply, is recorded as a failure and reported at the end of the
@@ -160,7 +160,7 @@ configurations:
 ## Notes
 
 * `run_once` is honoured by the dconf tool only. The other three tools apply their setting on every run; each of them is idempotent.
-* The `elevated` option runs the command through sudo on Unix-like systems. On Windows it does not raise privileges — see the note above.
+* The `elevated` option runs the command through sudo on Unix-like systems. On Windows it does not raise privileges - see the note above.
 * A gsettings entry that cannot apply a key does not stop the run; the failures are collected and reported at the end. The other tools return their error immediately.
 
 For more information on using the Configuration Processor in your RWR setup, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Best Practices](../best-practices.md) sections of the documentation.

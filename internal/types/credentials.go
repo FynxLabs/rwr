@@ -12,8 +12,8 @@ import (
 // CredentialSpec is one entry of the init file's `credentials:` section: a named
 // credential the tree's blueprints need, and the ordered places to look for it.
 //
-// Declarations live only in the init file the operator points rwr at — a
-// blueprint can reference a declared credential but never declare one — and
+// Declarations live only in the init file the operator points rwr at - a
+// blueprint can reference a declared credential but never declare one - and
 // exposure to blueprints still requires the operator's exposeCredentials opt-in.
 type CredentialSpec struct {
 	// Name is the credential's identity everywhere: in exposeCredentials, in
@@ -45,7 +45,7 @@ var credentialNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 // DecodeCredentialSpecs strictly decodes the raw `credentials:` section as read
 // by viper. Viper's own Unmarshal ignores unknown keys, so a typo like
-// `soruces:` would silently become the default source order — an error naming
+// `soruces:` would silently become the default source order - an error naming
 // the key is the only honest answer.
 func DecodeCredentialSpecs(raw interface{}) ([]CredentialSpec, error) {
 	if raw == nil {
@@ -137,8 +137,8 @@ func isBuiltinCredential(name string) bool {
 }
 
 // The credential registry: the declared set (scopes) and the values resolved
-// for this run. Values live only here — never in viper, never in a struct a
-// debug dump can reach — and leave only through the exposure-gated accessors
+// for this run. Values live only here - never in viper, never in a struct a
+// debug dump can reach - and leave only through the exposure-gated accessors
 // below.
 var (
 	credentialScopes = map[string][]string{}
@@ -220,7 +220,7 @@ func TemplateCredentials() map[string]interface{} {
 
 // ExportedCredentialEnv returns the RWR_CRED_<NAME> environment entries for
 // spawned commands: resolved, opted into via exposeCredentials, and in a scope
-// that admits scripts. Env is the only export surface — a value must never be
+// that admits scripts. Env is the only export surface - a value must never be
 // placed in argv, where ps can read it.
 func ExportedCredentialEnv() map[string]string {
 	out := map[string]string{}

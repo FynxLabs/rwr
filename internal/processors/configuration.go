@@ -104,7 +104,7 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 	}
 
 	// dconf load reads the keyfile from stdin; there is no file argument. A
-	// literal "<" in argv is not a redirection — commands run without a shell.
+	// literal "<" in argv is not a redirection - commands run without a shell.
 	keyfile, err := os.ReadFile(file) // #nosec G304 -- blueprint-relative path, resolved above
 	if err != nil {
 		return fmt.Errorf("error reading dconf keyfile: %w", err)
@@ -256,7 +256,7 @@ var registryScripts = map[string]string{
 // whatever follows -Command, so a value such as `a'; Remove-Item C:\ -Recurse; #`
 // used to close the surrounding quote and run as a second statement; $env: lookups
 // are values, never re-parsed as code. For the same reason there is no
-// `Start-Process -Verb RunAs -ArgumentList "-Command ..."` branch any more — that
+// `Start-Process -Verb RunAs -ArgumentList "-Command ..."` branch any more - that
 // re-tokenized the already-built string a second time. Windows elevation follows
 // the same rule as every other command in rwr: the process must already be
 // elevated (see system.buildCommand).
@@ -299,8 +299,8 @@ func processWindowsRegistry(config types.Configuration, initConfig *types.InitCo
 // applyRegistryElevated performs the write through a UAC prompt.
 //
 // Windows has no sudo, so elevation means Start-Process -Verb RunAs. The obvious
-// way to do that — building the inner command as a string and handing it to
-// -ArgumentList — is what the injection fix removed: the string is tokenized a
+// way to do that - building the inner command as a string and handing it to
+// -ArgumentList - is what the injection fix removed: the string is tokenized a
 // second time by the elevated shell, so a quote in a blueprint value escapes into
 // code running as administrator.
 //

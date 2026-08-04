@@ -112,7 +112,7 @@ func TestResolveSourcePrecedence(t *testing.T) {
 }
 
 // A declared credential that resolves nowhere fails the run up front, naming
-// the credential and the sources tried — and in a non-TTY run the error says
+// the credential and the sources tried - and in a non-TTY run the error says
 // prompt was skipped rather than silently hanging on an invisible form.
 func TestResolveUnresolvableNamesSourcesTried(t *testing.T) {
 	withFakes(t, &fakeKeyring{}, false, nil)
@@ -203,7 +203,7 @@ func TestKeyringRoundtrip(t *testing.T) {
 	}
 }
 
-// A credential scoped to processors outside the run is not resolved — no point
+// A credential scoped to processors outside the run is not resolved - no point
 // failing (or prompting) for a value nothing will read.
 func TestResolveSkipsOutOfScopeCredentials(t *testing.T) {
 	withFakes(t, &fakeKeyring{}, false, nil)

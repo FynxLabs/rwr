@@ -114,8 +114,8 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 //
 // Only a file the invoking user owns donates its mode. In a shared directory
 // like /tmp anyone can plant the target ahead of time, and inheriting a
-// planted 0666 turns the freshly written file — root-owned, about to be
-// executed by an install step — into one every local user can rewrite.
+// planted 0666 turns the freshly written file - root-owned, about to be
+// executed by an install step - into one every local user can rewrite.
 func targetMode(filePath string) os.FileMode {
 	if info, err := os.Stat(filePath); err == nil {
 		if !fileOwnedByEUID(info) {
@@ -130,7 +130,7 @@ func targetMode(filePath string) os.FileMode {
 // cleanupStaged removes a staging file on an error path.
 // cleanupStaged removes a staging file on an error path. It is best-effort by
 // design: the caller is already returning an error, and a failure to tidy up must
-// not replace it — but it is logged rather than discarded, because a staging file
+// not replace it - but it is logged rather than discarded, because a staging file
 // left behind is the kind of thing that only shows up as a full disk much later.
 func cleanupStaged(f *os.File) {
 	if err := f.Close(); err != nil {
@@ -178,7 +178,7 @@ func ValidateDownloadURL(raw string) error {
 //
 //   - every redirect hop is re-validated with ValidateDownloadURL. Validating
 //     only the initial URL is worthless the moment the server answers with a
-//     302 to plain http — the default client follows it silently and the
+//     302 to plain http - the default client follows it silently and the
 //     content is once again substitutable in transit.
 //   - a timeout, so a stalled mirror fails the step instead of hanging the
 //     whole run forever. Generous, because font archives run to hundreds of MB

@@ -124,7 +124,7 @@ func TestBuildCommand_NoShellIsInterposed(t *testing.T) {
 }
 
 // A blueprint is data from a git repo. Shell metacharacters in a package name
-// must reach the package manager as literal text, never as syntax — especially
+// must reach the package manager as literal text, never as syntax - especially
 // since package operations run elevated.
 func TestBuildCommand_ShellMetacharactersAreNotInterpreted(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -239,7 +239,7 @@ func TestBuildCommand_Elevation(t *testing.T) {
 }
 
 // Providers that genuinely want a shell ask for one explicitly, and that still
-// works — the shell is declared in the provider definition rather than imposed on
+// works - the shell is declared in the provider definition rather than imposed on
 // every command. Mirrors the AUR helper bootstrap steps in paru/yay/aura/etc.
 func TestBuildCommand_ExplicitShellStillWorks(t *testing.T) {
 	if runtime.GOOS == "windows" {

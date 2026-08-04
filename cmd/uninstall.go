@@ -20,7 +20,7 @@ func newUninstallCmd(app *AppConfig) *cobra.Command {
 
 	uninstallCmd := &cobra.Command{
 		Use:   "uninstall",
-		Short: "Reverse what recorded runs applied — and only that",
+		Short: "Reverse what recorded runs applied - and only that",
 		Long: `Remove what the run journal shows was applied: packages via the provider's
 remove verb, files and git checkouts hash-guarded (modified content is
 skipped and listed), services disabled, fonts deleted from their recorded
@@ -63,7 +63,7 @@ users, uploaded SSH keys, repositories) is listed up front.`,
 			}
 
 			if failed := uninstall.Execute(out, items, status.NewQuerier()); failed > 0 {
-				return fmt.Errorf("%d removal(s) failed; failed entries stay unreversed — re-run to retry them", failed)
+				return fmt.Errorf("%d removal(s) failed; failed entries stay unreversed - re-run to retry them", failed)
 			}
 			return nil
 		},

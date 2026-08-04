@@ -24,7 +24,7 @@ type Command struct {
 	// Secrets lists values that must be scrubbed from any log line describing this
 	// command. Some tools accept a credential only as an argument (chocolatey's
 	// --password, cargo's login token), so the value cannot always be moved to
-	// Stdin — but it should still never be written to a log file. Callers that put
+	// Stdin - but it should still never be written to a log file. Callers that put
 	// a credential in Args are expected to list it here.
 	Secrets []string `mapstructure:"-" yaml:"-" json:"-" toml:"-"`
 }
@@ -39,7 +39,7 @@ func (c Command) LogArgs() []string {
 	for i, arg := range c.Args {
 		for _, secret := range c.Secrets {
 			// Substring replacement on a very short secret would corrupt unrelated
-			// arguments — a password of "1" would rewrite every digit in the argv.
+			// arguments - a password of "1" would rewrite every digit in the argv.
 			// Below this length the log damage outweighs the disclosure, and a
 			// secret that short is not protecting anything anyway.
 			if len(secret) < minRedactableSecret {

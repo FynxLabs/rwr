@@ -68,7 +68,7 @@ func TestRunBootstrap_BypassesMarker(t *testing.T) {
 		t.Fatal("marker not refreshed")
 	}
 
-	// And ProcessBootstrap without force still skips — all's gating intact.
+	// And ProcessBootstrap without force still skips - all's gating intact.
 	if err := ProcessBootstrap(filepath.Join(tree, "bootstrap.yaml"), init, &types.OSInfo{}); err != nil {
 		t.Fatalf("gated ProcessBootstrap errored instead of skipping: %v", err)
 	}

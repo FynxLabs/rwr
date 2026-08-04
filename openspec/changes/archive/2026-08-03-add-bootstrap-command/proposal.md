@@ -12,18 +12,18 @@ deliberately absent from the `runProcessors` table (`cmd/run.go:112-123`), so
 neither `rwr run bootstrap` nor the root shorthand `rwr bootstrap` exists.
 
 The result: re-running just the bootstrap after editing `bootstrap.yaml`
-requires `rwr all --force-bootstrap` — which also re-runs every other
+requires `rwr all --force-bootstrap` - which also re-runs every other
 processor. That is both slow and surprising ("I asked to redo bootstrap, why
 is it reinstalling packages?").
 
 ## What Changes
 
 - `rwr run bootstrap` joins the processor table, and therefore the root
-  shorthand `rwr bootstrap` works too — same mechanism as every other
+  shorthand `rwr bootstrap` works too - same mechanism as every other
   processor, no special-casing in `cmd/`.
 - Semantics of an explicit invocation: asking for bootstrap by name implies
   wanting it to run, so the standalone command ignores the run-once marker
-  (equivalent to `--force-bootstrap`) — the marker exists to keep `all`
+  (equivalent to `--force-bootstrap`) - the marker exists to keep `all`
   idempotent, not to refuse an explicit request. It still writes/refreshes the
   marker on success and still honors `--dry-run`.
 - No bootstrap file in the tree → clear error naming the candidate filenames

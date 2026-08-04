@@ -40,8 +40,8 @@ when no hashing tool is available to perform the check.
 A script SHALL match a published asset by its whole file name, so
 `rwr_Linux_arm64.tar.gz` can never satisfy a request for `rwr_Linux_arm.tar.gz`.
 
-A script SHALL accept only architectures goreleaser actually builds — `x86_64`,
-`arm64`, and, on Linux only, `armv7` and `riscv64` — and SHALL say so when asked for
+A script SHALL accept only architectures goreleaser actually builds - `x86_64`,
+`arm64`, and, on Linux only, `armv7` and `riscv64` - and SHALL say so when asked for
 anything else. There is deliberately no `i386` case: no 386 target is built, so
 accepting it only produced a misleading "could not find a download URL" later on.
 
@@ -106,7 +106,7 @@ Every pull request SHALL run, as gating checks:
 - `golangci-lint`, reading the repository's own `.golangci.yml` so there is no
   second copy of the configuration to drift;
 - `shellcheck` on `install.sh`, and a PowerShell parse plus a gating
-  PSScriptAnalyzer run on `install.ps1`, without executing either — running them
+  PSScriptAnalyzer run on `install.ps1`, without executing either - running them
   would test the release rather than the script;
 - the example blueprint checks, including `rwr validate` over every example tree;
 - `gosec` and `govulncheck`.
@@ -149,7 +149,7 @@ and macOS.
   `continue-on-error`: much of the suite assumes POSIX behaviour (unix file modes,
   `/bin/bash`, path separators), and gating on it immediately would fail master for
   reasons unrelated to the change under review. The failures need triaging at their
-  source before the escape hatch comes off — until then the platforms RWR
+  source before the escape hatch comes off - until then the platforms RWR
   provisions are built but not really tested.
 - **Neither installer can pass an init file through to a first run.** See the
   initialization specification.

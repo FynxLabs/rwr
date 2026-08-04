@@ -8,7 +8,7 @@ import (
 
 // On unix, group/world-writable definitions are skipped; a 0644 one loads.
 // On Windows, Go synthesizes mode 0666 for every writable file, so the same
-// check rejected every provider definition a Windows user could ever write —
+// check rejected every provider definition a Windows user could ever write -
 // the platform gets no mode check at all rather than one that always fails.
 func TestIsProviderFileTrustedOn(t *testing.T) {
 	dir := t.TempDir()

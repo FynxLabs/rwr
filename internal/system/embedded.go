@@ -17,8 +17,8 @@ import (
 //go:embed definitions/*.cue
 var embeddedProviderCUE embed.FS
 
-// LoadEmbeddedProviders evaluates the embedded CUE provider definitions —
-// schema, family templates, one file per provider — and returns them keyed
+// LoadEmbeddedProviders evaluates the embedded CUE provider definitions -
+// schema, family templates, one file per provider - and returns them keyed
 // by provider name. Each call returns fresh values: callers own what they
 // get, exactly as they did with the per-call decode this replaced.
 func LoadEmbeddedProviders() (map[string]*types.Provider, error) {

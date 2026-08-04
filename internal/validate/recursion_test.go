@@ -9,7 +9,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// Blueprints live in subdirectories — packages/, files/, services/ — which is the
+// Blueprints live in subdirectories - packages/, files/, services/ - which is the
 // layout the documentation recommends and every shipped example uses. Validation
 // read only the top directory, so `rwr validate` on a real tree checked the init
 // file and reported success. These tests use that layout.

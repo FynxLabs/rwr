@@ -120,7 +120,7 @@ func TestWriteToFile_NewFileUsesDefaultMode(t *testing.T) {
 }
 
 // A repository add appends its section to a shared configuration file. What is
-// already in that file — every other repository, every option — has to survive,
+// already in that file - every other repository, every option - has to survive,
 // and a second `rwr all` must not add the section again.
 func TestAppendToFile_KeepsExistingContentAndIsIdempotent(t *testing.T) {
 	dir := t.TempDir()

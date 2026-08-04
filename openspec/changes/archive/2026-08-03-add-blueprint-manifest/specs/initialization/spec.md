@@ -1,11 +1,11 @@
-# Initialization — Deltas
+# Initialization - Deltas
 
 ## ADDED Requirements
 
 ### Requirement: A repo-root manifest declares multiple configurations
 
 The system SHALL read a root `manifest.*` when the init location (local dir
-or cloned git repo) contains no init file — the manifest is a list of
+or cloned git repo) contains no init file - the manifest is a list of
 named configurations, each with an `init` path relative to the repo root and
 optional matchers `os`, `distro`, `family`, `arch`, plus optional `default`.
 The manifest SHALL decode strictly through the format registry.

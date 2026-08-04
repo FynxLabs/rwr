@@ -11,8 +11,8 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// Imports never recursed. Every blueprint type carried its own copy of the loop —
-// ten of them — and each one decoded an imported file and took its items without
+// Imports never recursed. Every blueprint type carried its own copy of the loop -
+// ten of them - and each one decoded an imported file and took its items without
 // following the imports that file declared. A shared blueprint that imports a base
 // blueprint contributed nothing from the base, silently.
 //
@@ -216,7 +216,7 @@ func TestImports_SchemaVersionEnforcedThroughTheChain(t *testing.T) {
 // processor. Six processors (packages among them) used to resolve top-level
 // imports against the tree root instead, so `import: ../shared/common.yaml`
 // written in packages/base.yaml meant a different file than the same string in
-// files/base.yaml — and the spec has always mandated file-relative.
+// files/base.yaml - and the spec has always mandated file-relative.
 func TestImports_TopLevelResolvesRelativeToTheBlueprintFile(t *testing.T) {
 	useTestProvider(t)
 	root := writeFiles(t, map[string]string{

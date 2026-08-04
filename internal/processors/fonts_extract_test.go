@@ -296,8 +296,8 @@ func assertNoFileOutside(t *testing.T, root, destDir, base string) {
 	}
 }
 
-// The face filter used to be ".ttf" alone: an OTF-only archive — several Nerd
-// Fonts ship only .otf — "installed successfully" with zero files written.
+// The face filter used to be ".ttf" alone: an OTF-only archive - several Nerd
+// Fonts ship only .otf - "installed successfully" with zero files written.
 func TestExtractFontTarball_InstallsEveryFontFace(t *testing.T) {
 	rec := exectest.New()
 	defer system.SetExecutor(rec)()

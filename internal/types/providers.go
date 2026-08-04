@@ -83,7 +83,7 @@ type ActionStep struct {
 	Source  string `toml:"source,omitempty"`
 	Dest    string `toml:"dest,omitempty"`
 	// Sha256, when set on a "download" step, is the hex digest the fetched
-	// content must match — the download is discarded on a mismatch. It is a
+	// content must match - the download is discarded on a mismatch. It is a
 	// template like every other step field, so a provider can take it from the
 	// blueprint with `sha256 = "{{ .SHA256 }}"`.
 	Sha256  string   `toml:"sha256,omitempty"`
@@ -93,7 +93,7 @@ type ActionStep struct {
 	// Condition gates the step: it is a template rendered against the same data
 	// as the rest of the step, and the step runs only when it renders to a
 	// truthy value. Without a field to decode into, every shipped `condition`
-	// was dropped and mutually exclusive steps all ran — flatpak added a remote
+	// was dropped and mutually exclusive steps all ran - flatpak added a remote
 	// both --user and --system, chocolatey added a source twice.
 	Condition string `toml:"condition,omitempty"`
 }

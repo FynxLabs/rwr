@@ -10,7 +10,7 @@ import (
 )
 
 // EncodeBlueprintDoc renders a document in a target format. CUE output is JSON-form
-// CUE: valid, lossless, mechanical — idiomatic CUE is authoring work.
+// CUE: valid, lossless, mechanical - idiomatic CUE is authoring work.
 func EncodeBlueprintDoc(doc map[string]interface{}, format string) ([]byte, error) {
 	switch format {
 	case "yaml":

@@ -35,7 +35,7 @@ jobs:
         run: go build -v ./...
 
       # vet type-checks the test files too, so this is also the guarantee that the
-      # whole tree — tests included — compiles for this platform.
+      # whole tree - tests included - compiles for this platform.
       - name: Vet
         run: go vet ./...
 
@@ -56,7 +56,7 @@ jobs:
       # The same run on macOS and Windows, reporting only.
       #
       # The suite has never executed on either platform, and a good deal of it
-      # assumes POSIX behaviour — unix file modes, /bin/bash, path separators.
+      # assumes POSIX behaviour - unix file modes, /bin/bash, path separators.
       # Gating on it immediately would paint master red for reasons unrelated to
       # whatever change is being reviewed. This surfaces the failures so they can
       # be triaged and skipped or fixed at their source; delete continue-on-error
@@ -67,8 +67,8 @@ jobs:
         run: go test -race -v ./...
 
   # The build matrix above compiles natively: linux/amd64, darwin/arm64,
-  # windows/amd64. The release ships more targets than that — linux/arm 32-bit,
-  # linux/riscv64, linux/arm64, windows/arm64, darwin/amd64 — and none of them
+  # windows/amd64. The release ships more targets than that - linux/arm 32-bit,
+  # linux/riscv64, linux/arm64, windows/arm64, darwin/amd64 - and none of them
   # was compiled before merge, so a target-specific break (a constant that
   # overflows 32-bit int, a missing syscall) surfaced only when the release ran.
   # That is exactly how the linux_arm_7 math.MaxInt64 break reached master.
@@ -100,7 +100,7 @@ jobs:
   # blocks only ever ran inside a real tag push or the master prerelease, which
   # is how the cosign 3.x sign-blob CLI change could break every release and
   # nightly before anything caught it. This runs the full release pipeline as a
-  # snapshot — including the cosign signing step — before merge. Keyless signing
+  # snapshot - including the cosign signing step - before merge. Keyless signing
   # needs an OIDC token, which fork PRs do not get, so those are skipped (they
   # still run cross-compile).
   release-snapshot:
@@ -157,7 +157,7 @@ jobs:
 
 
   # golangci-lint gates every commit locally, through mise (`mise run lint`) and
-  # the hk pre-commit hook — but only for contributors who ran `mise install`.
+  # the hk pre-commit hook - but only for contributors who ran `mise install`.
   # Anyone else got no lint at all, and neither did any pull request.
   lint:
     runs-on: ubuntu-latest
@@ -170,7 +170,7 @@ jobs:
           go-version: ">=1.26.5"
 
       # Reads .golangci.yml from the repo root, so this runs the same rules as
-      # `golangci-lint run` locally — there is no second copy of the config to drift.
+      # `golangci-lint run` locally - there is no second copy of the config to drift.
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           # Pinned like the other gate tooling: a lint release must not change
@@ -209,7 +209,7 @@ jobs:
           Write-Host "install.ps1 parses cleanly"
 
       # Gating. PSAvoidUsingWriteHost is excluded deliberately: install.ps1 is
-      # a console script whose entire output is for the human running it —
+      # a console script whose entire output is for the human running it -
       # Write-Host is the right tool there, and it was the only finding class.
       - name: PSScriptAnalyzer install.ps1
         shell: pwsh
@@ -222,7 +222,7 @@ jobs:
   # The examples are the closest thing to a compatibility contract with users:
   # every blueprint field they use is a field somebody's real blueprint uses too.
   # Breaking one silently is easy, because the decoders RWR uses ignore unknown
-  # keys — a renamed field turns every blueprint using it into a no-op rather
+  # keys - a renamed field turns every blueprint using it into a no-op rather
   # than an error. These checks make that a failed build instead.
   examples:
     runs-on: ubuntu-latest
@@ -256,7 +256,7 @@ jobs:
             echo "::endgroup::"
           done < <(find examples \( -name 'init.*' -o -name 'manifest.*' \) | sort)
           if [ "$found" -eq 0 ]; then
-            echo "No init files found under examples/ — this loop validated nothing." >&2
+            echo "No init files found under examples/ - this loop validated nothing." >&2
             exit 1
           fi
           echo "Validated $found example trees."

@@ -135,14 +135,14 @@ func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 	types.SetCredentialValue("gh_api_token", token)
 
 	// Keyring first: it is the only store that keeps the token off disk in
-	// plaintext. The config file is the fallback, not a second copy — when the
+	// plaintext. The config file is the fallback, not a second copy - when the
 	// keyring save succeeds, no file gains the token value.
 	saveErr := credentials.SaveToKeyring("gh_api_token", token)
 	if saveErr == nil {
 		log.Debugf("Token saved to the OS keyring")
 		return nil
 	}
-	log.Warnf("OS keyring unavailable (%v); saving the token to %s instead — "+
+	log.Warnf("OS keyring unavailable (%v); saving the token to %s instead - "+
 		"it is stored in plaintext, readable only by your user (0600)",
 		saveErr, viper.ConfigFileUsed())
 
@@ -152,7 +152,7 @@ func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 	// The file holds the token, and viper writes at 0644 with no way to ask
 	// for less. Pre-creating it at 0600 means the token is never on disk
 	// world-readable, not even briefly. ConfigFileUsed is empty when no config
-	// was loaded — then SafeWriteConfig below creates the file and the tighten
+	// was loaded - then SafeWriteConfig below creates the file and the tighten
 	// after it is the only guard (a first-run-only window).
 	if path := viper.ConfigFileUsed(); path != "" {
 		if err := helpers.PrecreateSecureConfigFile(path); err != nil {

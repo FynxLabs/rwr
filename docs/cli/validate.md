@@ -84,7 +84,7 @@ The provider validation process includes:
   or `remove` command, is a **warning**
 * **Steps**: Each install, remove and repository step must name an action the
   processor implements, and carry the fields that action needs (`exec` for
-  `command`, `source`/`dest` for `download` and `copy`, and so on) — errors.
+  `command`, `source`/`dest` for `download` and `copy`, and so on) - errors.
   Empty `content` on a `write` or `append` step is a warning
 * **Paths**: A declared repository sources path that does not exist on this
   system is a warning
@@ -111,7 +111,7 @@ With no errors it prints `Validation completed with N warnings`, or
 
 > [!NOTE]
 > Issues carry the file, not a line number. Where the underlying decoder reports
-> a line — a strict-decoding failure, for example — it appears inside the message
+> a line - a strict-decoding failure, for example - it appears inside the message
 > text.
 
 ## Examples

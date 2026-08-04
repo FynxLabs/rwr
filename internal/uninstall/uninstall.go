@@ -1,4 +1,4 @@
-// Package uninstall reverses what the run journal shows was applied — and
+// Package uninstall reverses what the run journal shows was applied - and
 // only that. Input is the record, never the blueprint tree: uninstall after
 // editing or deleting the tree still works, and nothing without a record
 // entry is ever touched.
@@ -51,7 +51,7 @@ type Item struct {
 // removals from a tree that may have changed is how the wrong file dies.
 func Plan(records []*state.RecordFile) (items []Item, skipped []string, err error) {
 	if len(records) == 0 {
-		return nil, nil, fmt.Errorf("no run records under the state directory — nothing recorded, nothing to reverse")
+		return nil, nil, fmt.Errorf("no run records under the state directory - nothing recorded, nothing to reverse")
 	}
 	refs := state.UnreversedApplies(records)
 
@@ -108,7 +108,7 @@ func Execute(out io.Writer, items []Item, querier *status.Querier) (failed int) 
 			log.Errorf("uninstall: %s: %v", item.Action, err)
 			continue
 		case outcome != "":
-			helpers.Say(out, "skipped: %s — %s\n", item.Action, outcome)
+			helpers.Say(out, "skipped: %s - %s\n", item.Action, outcome)
 			continue
 		}
 		helpers.Say(out, "done: %s\n", item.Action)
@@ -139,7 +139,7 @@ func reverse(entry *state.Entry, querier *status.Querier) (skipReason string, er
 }
 
 // reverseFont deletes the font faces the recorded name installed into the
-// recorded directory — the same glob the fonts processor's own remove action
+// recorded directory - the same glob the fonts processor's own remove action
 // uses.
 func reverseFont(entry *state.Entry) (string, error) {
 	dir, name := entry.Identity["dir"], entry.Identity["name"]
@@ -195,7 +195,7 @@ func reverseFile(entry *state.Entry) (string, error) {
 			return "already absent", nil
 		}
 		if err := os.Remove(dest); err != nil {
-			return "not empty or not removable — left in place", nil //nolint:nilerr // deliberate skip, not a failure
+			return "not empty or not removable - left in place", nil //nolint:nilerr // deliberate skip, not a failure
 		}
 		return "", nil
 	}
@@ -203,9 +203,9 @@ func reverseFile(entry *state.Entry) (string, error) {
 	case status.Absent:
 		return "already absent", nil
 	case status.Modified:
-		return "modified since the recorded apply — not deleting", nil
+		return "modified since the recorded apply - not deleting", nil
 	case status.Unknown:
-		return "content unreadable — not deleting", nil
+		return "content unreadable - not deleting", nil
 	}
 	return "", os.Remove(dest)
 }
@@ -220,10 +220,10 @@ func reverseGit(entry *state.Entry) (string, error) {
 	}
 	dirty, err := exec.Command("git", "-C", target, "status", "--porcelain").Output() // #nosec G204 -- target comes from rwr's own journal
 	if err != nil {
-		return "not a readable git worktree — not deleting", nil //nolint:nilerr // deliberate skip
+		return "not a readable git worktree - not deleting", nil //nolint:nilerr // deliberate skip
 	}
 	if strings.TrimSpace(string(dirty)) != "" {
-		return "worktree has local changes — not deleting", nil
+		return "worktree has local changes - not deleting", nil
 	}
 	return "", os.RemoveAll(target)
 }

@@ -3,7 +3,7 @@ package types
 import "time"
 
 // The Plan data model is shared by the resolver (internal/processors), the
-// reporters (internal/reporting), and validate — it lives here so none of
+// reporters (internal/reporting), and validate - it lives here so none of
 // them import each other.
 
 // ResolvedFile is one blueprint file after stage 1: routed, read, and
@@ -25,7 +25,7 @@ type ProviderState struct {
 }
 
 // Status is a resource's outcome. `unknown` is required: rwr shells out and
-// several providers do not report per-package results reliably — forcing
+// several providers do not report per-package results reliably - forcing
 // those into ok or failed would be a lie in either direction.
 type Status string
 
@@ -77,7 +77,7 @@ type StepError struct {
 // only SetPaths and DetectOS, so `rwr validate` consumes it pre-init; stage 2
 // (provider states, resource enumeration) runs after init and bootstrap,
 // because bootstrap can install the package manager later blueprints depend
-// on — detecting providers earlier produces wrong lanes.
+// on - detecting providers earlier produces wrong lanes.
 type Plan struct {
 	Init      *InitConfig
 	Order     []string

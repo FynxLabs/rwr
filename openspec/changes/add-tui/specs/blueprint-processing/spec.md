@@ -1,4 +1,4 @@
-# Blueprint Processing — Deltas
+# Blueprint Processing - Deltas
 
 ## ADDED Requirements
 

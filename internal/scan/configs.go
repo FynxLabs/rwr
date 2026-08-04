@@ -25,7 +25,7 @@ var knownDotfiles = []string{
 }
 
 // configNoise names the ~/.config entries that are cache, state, or session
-// plumbing — shown only with includeAll. The human selects from what is
+// plumbing - shown only with includeAll. The human selects from what is
 // shown, so what is shown must be worth reading.
 var configNoise = map[string]bool{
 	"pulse": true, "dconf": true, "ibus": true, "gtk-2.0": true,

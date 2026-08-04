@@ -5,7 +5,7 @@
 
 ![RWR Logo](img/rwr_128.gif)
 
-Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines — and, with its run records, to see what a run changed and to reverse it again.
+Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines - and, with its run records, to see what a run changed and to reverse it again.
 
 ## Features
 
@@ -17,7 +17,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 - **Task-runner CLI**: `rwr all` runs everything; `rwr run <processor>` (or the shorthand `rwr packages`) runs one processor; `rwr bootstrap` runs just the bootstrap step
 - **Interactive Dashboard**: Interactive runs get a live terminal dashboard with built-in and user-defined themes; non-interactive runs keep plain streaming logs
 - **Run Records**: Every run writes a journal; `rwr status` shows desired-vs-actual drift and `rwr uninstall` reverses what recorded runs applied
-- **Managed Credentials**: Declare credentials in the init file and source them from environment variables, the OS keyring, or a prompt — redacted in logs by default
+- **Managed Credentials**: Declare credentials in the init file and source them from environment variables, the OS keyring, or a prompt - redacted in logs by default
 - **Cross-platform Package Management**: Integrates with various package managers across Linux, macOS, and Windows
 - **File & Directory Management**: Copy, move, delete, create, and manage permissions with URL source support
 - **Service Management**: Start, stop, enable, and disable system services
@@ -27,7 +27,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 - **Git Repository Management**: Clone and manage Git repositories
 - **Script Execution**: Execute scripts with multiple interpreter support
 - **SSH Key Management**: Generate and manage SSH keys with GitHub integration
-- **Extensible Architecture**: Package managers are declarative providers — authored in CUE and embedded in the binary, with filesystem overrides in TOML or JSON
+- **Extensible Architecture**: Package managers are declarative providers - authored in CUE and embedded in the binary, with filesystem overrides in TOML or JSON
 
 ## Table of Contents<!-- omit in toc -->
 
@@ -163,7 +163,7 @@ log:
 ```
 
 `init-file` may be a local path, a directory to look in, or an `https://` URL.
-Where the blueprints themselves come from — a git remote or a local directory —
+Where the blueprints themselves come from - a git remote or a local directory -
 is decided by the init file, under `blueprints.location` and `blueprints.git`.
 
 Point RWR at a different configuration with `--config`, which takes either a file
@@ -231,18 +231,18 @@ See the [examples/imports/](examples/imports/) directory for detailed examples.
 
 RWR supports these blueprint types:
 
-- **packages** — Install and remove packages with a package manager
-- **repositories** — Manage the package repositories
-- **files** — Copy, move, delete, and link files. The `directories` and
+- **packages** - Install and remove packages with a package manager
+- **repositories** - Manage the package repositories
+- **files** - Copy, move, delete, and link files. The `directories` and
   `templates` keys are part of this type
-- **services** — Manage the system services
-- **configuration** — Set the desktop and system settings
-- **git** — Clone and update git repositories
-- **scripts** — Run scripts with a program that you select
-- **users** — Manage the user accounts and the groups
-- **ssh_keys** — Make SSH keys and send them to GitHub
-- **fonts** — Install fonts
-- **bootstrap** — Prepare the system before the other types run
+- **services** - Manage the system services
+- **configuration** - Set the desktop and system settings
+- **git** - Clone and update git repositories
+- **scripts** - Run scripts with a program that you select
+- **users** - Manage the user accounts and the groups
+- **ssh_keys** - Make SSH keys and send them to GitHub
+- **fonts** - Install fonts
+- **bootstrap** - Prepare the system before the other types run
 
 For detailed blueprint documentation, see the [Blueprint Types](docs/index.md#blueprints) section.
 
@@ -388,7 +388,7 @@ mise run update     # go get -u ./... and go mod tidy
 
 GitHub Actions runs the pipeline. There are three workflows.
 
-`Go Build & Test` runs at each push to `master` and at each pull request —
+`Go Build & Test` runs at each push to `master` and at each pull request -
 every pull request, not only those targeting `master`, so a branch stacked on
 another branch is still checked. Its jobs:
 
@@ -400,8 +400,8 @@ another branch is still checked. Its jobs:
   Windows, but with `continue-on-error`, because much of the suite still
   assumes POSIX behaviour.
 - `cross-compile` builds every release target with `goreleaser build
-  --snapshot`, and `release-snapshot` runs the full release pipeline — signing
-  included — as a snapshot, so a release-only breakage is caught before merge.
+  --snapshot`, and `release-snapshot` runs the full release pipeline - signing
+  included - as a snapshot, so a release-only breakage is caught before merge.
 - `cue-providers` vets the CUE provider sources under `providers/cue/` and
   fails when the committed JSON under
   `internal/system/definitions/providers/` differs from a fresh export.
@@ -429,10 +429,10 @@ creates the GitHub release, and updates the Homebrew tap.
 
 The release workflow needs these secrets:
 
-- `GITHUB_TOKEN` — creates the release and sends the files to it.
-- `HOMEBREW_TAP_DEPLOY_KEY` — an SSH key that can write to the Homebrew tap
+- `GITHUB_TOKEN` - creates the release and sends the files to it.
+- `HOMEBREW_TAP_DEPLOY_KEY` - an SSH key that can write to the Homebrew tap
   repository.
-- `NAUR_DISPATCH_TOKEN` — starts the update of the naur repository.
+- `NAUR_DISPATCH_TOKEN` - starts the update of the naur repository.
 
 ## Contributing
 

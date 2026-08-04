@@ -5,7 +5,7 @@ The Providers system is a flexible and extensible way to manage package managers
 ## Where providers live
 
 The providers shipped with RWR are authored in **CUE** under
-`internal/system/definitions/` — the single source. The binary embeds
+`internal/system/definitions/` - the single source. The binary embeds
 those files and evaluates them at load; the schema rejects an invalid
 provider (wrong action name, missing `commands.install`, a `/tmp/` staging
 path) naming the field. There is no exported or committed second
@@ -32,7 +32,7 @@ the first one that exists:
 The current working directory is deliberately **not** searched. A provider file
 declares `exec`, `args` and `elevated = true` and those run verbatim, so
 honouring `./providers` would hand root-level execution to any directory rwr
-happens to be run from — a cloned blueprint repo, `/tmp`, a shared downloads
+happens to be run from - a cloned blueprint repo, `/tmp`, a shared downloads
 folder.
 
 For the same reason, a provider file (or its directory) that is group- or
@@ -168,7 +168,7 @@ args = ["{{ .TempDir }}/provider-install.sh"]
 `[[provider.remove.steps]]` uses the same three actions to uninstall the
 provider.
 
-Do not stage files at fixed `/tmp/` paths — any local user can pre-create or
+Do not stage files at fixed `/tmp/` paths - any local user can pre-create or
 rewrite such a path between the download and the elevated step that executes
 it. `{{ .TempDir }}` renders to a per-run `0700` directory other users cannot
 reach, and the CUE schema refuses to export a shipped provider whose install
@@ -203,17 +203,17 @@ Each step may carry: `action`, `exec`, `args`, `source`, `dest`, `content`,
 `path`, `match`, `section`, `sha256` and `condition`.
 
 `condition` is a template that gates the step: only a step whose condition
-renders truthy runs. Conditions may reference the derived predicates —
+renders truthy runs. Conditions may reference the derived predicates -
 `HasKey`, `HasInterfaces`, `HasSlot`, `HasProxy`, `HasToken`,
 `HasAuthentication`, `RequiresAuth`, `IsCustomRegistry`, `IsOverlay`,
-`IsMainRepo`, `IsLocalFile`, `IsLocalSnap`, `IsSnapStore`, `UserMode` — plus
+`IsMainRepo`, `IsLocalFile`, `IsLocalSnap`, `IsSnapStore`, `UserMode` - plus
 the step-data fields `ResetSettings` and `URL`. A condition naming anything
 else is an error at the point the step would have run.
 
 ## Template Variables
 
-Every templated field of a step is rendered — `source`, `dest`, `exec`,
-`content`, `path`, `match`, `section`, `sha256` and each entry of `args` — with
+Every templated field of a step is rendered - `source`, `dest`, `exec`,
+`content`, `path`, `match`, `section`, `sha256` and each entry of `args` - with
 `missingkey=error`, so a placeholder rwr cannot fill is reported rather than
 written to disk as literal text.
 
@@ -244,7 +244,7 @@ Repository steps render against the repository entry being processed:
 
 Install and remove steps render against a single variable: `{{ .TempDir }}`,
 the run's private staging directory. Blueprint variables (`.UserDefined`,
-`.System`, …) are **not** in scope inside provider steps — provider steps
+`.System`, …) are **not** in scope inside provider steps - provider steps
 describe the machine's package manager, not the blueprint.
 
 ## Supported Providers
@@ -309,7 +309,7 @@ touching the source tree:
 
 1. Copy an exported JSON definition from
    `internal/system/definitions/providers/` (or write a TOML file in the shape
-   shown above) into one of the search paths — `~/.config/rwr/providers/` for
+   shown above) into one of the search paths - `~/.config/rwr/providers/` for
    a per-user override.
 2. Make sure the file is not group- or world-writable, or it will be skipped.
 3. Configure the provider sections: basic information, detection rules,
@@ -318,7 +318,7 @@ touching the source tree:
    blueprints.
 
 To contribute a provider to RWR itself, author it in CUE under
-`internal/system/definitions/` — the schema there documents every field
+`internal/system/definitions/` - the schema there documents every field
 and rejects invalid definitions. That's it: no export step, nothing else to
 regenerate.
 

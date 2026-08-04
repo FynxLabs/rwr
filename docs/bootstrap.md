@@ -117,7 +117,7 @@ rwr all --force-bootstrap
 
 This flag will ensure that the Bootstrap Process is executed even if it has been run previously.
 
-To re-run only the bootstrap — after editing `bootstrap.yaml`, say — use the
+To re-run only the bootstrap - after editing `bootstrap.yaml`, say - use the
 standalone command instead of re-running everything:
 
 ```bash

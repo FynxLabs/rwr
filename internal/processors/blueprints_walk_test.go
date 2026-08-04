@@ -76,7 +76,7 @@ func TestGetBlueprintFileOrder_MixedFormatTree(t *testing.T) {
 	}
 }
 
-// A flattened tree — blueprint files at the root, no processor directories —
+// A flattened tree - blueprint files at the root, no processor directories -
 // is routed by content: a file with a single recognized top-level key executes
 // under that processor. This is the layout examples/alternative_layouts ships,
 // which used to land in a dead bucket and exit 0 having executed nothing.

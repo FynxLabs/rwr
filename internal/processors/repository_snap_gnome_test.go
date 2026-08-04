@@ -9,7 +9,7 @@ import (
 )
 
 // The shipped snap provider gates its last add step on HasInterfaces, which was
-// absent from the predicates map — an underivable predicate is a hard error, so
+// absent from the predicates map - an underivable predicate is a hard error, so
 // every snap repository add failed at that step, interface or no interface.
 func TestProcessRepositories_SnapAddWithoutInterface(t *testing.T) {
 	sourcesDir, keysDir := repoDirs(t)
@@ -90,7 +90,7 @@ func TestProcessRepositories_SnapAddConnectsInterface(t *testing.T) {
 }
 
 // The shipped gnome-extensions provider gates its last remove step on
-// ResetSettings, which no blueprint field carried — so every extension remove
+// ResetSettings, which no blueprint field carried - so every extension remove
 // failed at the reset step.
 func TestProcessRepositories_GnomeExtensionsRemove(t *testing.T) {
 	sourcesDir, keysDir := repoDirs(t)

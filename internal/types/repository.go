@@ -29,7 +29,7 @@ type Repository struct {
 	// Credentials a provider needs to authenticate against a private repository:
 	// chocolatey signs a source in with Username/Password, cargo with Token.
 	//
-	// They are treated like the credentials in secrets.go — never printed. Anything
+	// They are treated like the credentials in secrets.go - never printed. Anything
 	// rwr logs about a repository goes through Redact for these fields, because a
 	// registry token in a debug log is as reusable as one in a blueprint, and rwr's
 	// logs get pasted into issues.
@@ -71,7 +71,7 @@ func (r Repository) GetProfiles() []string {
 // (chocolatey's --password, cargo's login token), so it cannot be moved to stdin
 // the way a user password can. Listing the values here at least keeps them out of
 // the debug and dry-run log lines, which print the whole argv. It does not hide
-// them from `ps` — nothing can, short of the tool growing a stdin option.
+// them from `ps` - nothing can, short of the tool growing a stdin option.
 //
 // The username is not included: it is not a credential, and redacting it would
 // only make the log harder to read.

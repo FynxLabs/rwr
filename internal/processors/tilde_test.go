@@ -13,7 +13,7 @@ import (
 
 // A blueprint that writes `path: ~/.ssh` must still put the key in the home
 // directory. Commands no longer pass through a shell, so nothing expands the ~
-// on the way to ssh-keygen — without expansion the key lands in a directory
+// on the way to ssh-keygen - without expansion the key lands in a directory
 // literally named "~" under the working directory.
 func TestSSHKeyPathExpandsTilde(t *testing.T) {
 	home, err := os.UserHomeDir()

@@ -16,7 +16,7 @@ import (
 )
 
 // runWithTUI executes the whole-tree run under the dashboard. The run itself
-// is unchanged — All() emits events; the TUI is one consumer of them.
+// is unchanged - All() emits events; the TUI is one consumer of them.
 func runWithTUI(app *AppConfig, order []string) error {
 	plan, err := processors.ResolveStage1(app.InitConfig)
 	if err != nil {

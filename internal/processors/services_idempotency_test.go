@@ -106,7 +106,7 @@ func TestCreateWindowsService_MissingServiceIsCreated(t *testing.T) {
 		Target:  target,
 	}, &types.OSInfo{}, &types.InitConfig{})
 
-	// The recorder fails every call, so sc create errors — what matters is
+	// The recorder fails every call, so sc create errors - what matters is
 	// that it was attempted after the probe said the service is absent.
 	if err == nil {
 		t.Fatal("expected the failing sc create to surface")

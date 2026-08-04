@@ -226,7 +226,7 @@ func (m *Model) viewResolving() string {
 	var b strings.Builder
 	b.WriteString(m.viewHeader() + "\n\n")
 	b.WriteString(" " + style(m.theme.Accent).Render(spin) + " resolving blueprints…\n\n")
-	b.WriteString(style(m.theme.Muted).Render(" nothing has been modified yet — q cancels") + "\n")
+	b.WriteString(style(m.theme.Muted).Render(" nothing has been modified yet - q cancels") + "\n")
 	return b.String()
 }
 
@@ -355,7 +355,7 @@ func (m *Model) statusGlyph(status types.Status) string {
 	}
 }
 
-// viewCompact: one pinned status line, the log stream, one help line — stays
+// viewCompact: one pinned status line, the log stream, one help line - stays
 // inside the TUI so filters and search survive a tiny pane.
 func (m *Model) viewCompact() string {
 	failures := 0

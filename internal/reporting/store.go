@@ -32,7 +32,7 @@ type LogRecord struct {
 
 // currentProcessor is the package-level stamp the capture path reads. The
 // run loop sets it around each dispatch, so every existing log call in the
-// ten processor files is attributed with zero edits to those files — the
+// ten processor files is attributed with zero edits to those files - the
 // same pattern as the executor's package state.
 var currentProcessor atomic.Value
 

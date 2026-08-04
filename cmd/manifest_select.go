@@ -79,7 +79,7 @@ func selectFromManifest(app *AppConfig, manifestPath string) (string, error) {
 	}
 
 	// The selection frame, rendered before resolve stage 1 ever runs:
-	// matched entries first, the rest after — selectable, because matchers
+	// matched entries first, the rest after - selectable, because matchers
 	// are hints and the operator may know better.
 	isMatched := map[string]bool{}
 	for _, entry := range matched {
@@ -91,7 +91,7 @@ func selectFromManifest(app *AppConfig, manifestPath string) (string, error) {
 	}
 	for _, entry := range manifest.Configurations {
 		if !isMatched[entry.Name] {
-			options = append(options, huh.NewOption(entry.Name+"  ("+entry.Init+") — not matched", entry.Name))
+			options = append(options, huh.NewOption(entry.Name+"  ("+entry.Init+") - not matched", entry.Name))
 		}
 	}
 	var chosen string

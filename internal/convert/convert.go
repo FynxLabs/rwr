@@ -15,7 +15,7 @@ import (
 // Run walks root and converts every blueprint, init, bootstrap, and manifest
 // file: to toFormat when set (and different from the file's own), and through
 // the migration rules when migrate is set. Comments are not preserved across
-// formats — each file carrying them is warned about. A file whose template
+// formats - each file carrying them is warned about. A file whose template
 // placeholders make it unparseable is reported and skipped, never mangled.
 func Run(out io.Writer, root, toFormat string, migrate, write bool) error {
 	changed := 0
@@ -47,7 +47,7 @@ func Run(out io.Writer, root, toFormat string, migrate, write bool) error {
 
 		var doc map[string]interface{}
 		if err := helpers.UnmarshalBlueprint(data, format, &doc); err != nil {
-			helpers.Say(out, "  ! %s: cannot parse (%v) — skipped, not mangled\n", path, err)
+			helpers.Say(out, "  ! %s: cannot parse (%v) - skipped, not mangled\n", path, err)
 			return nil
 		}
 
@@ -99,7 +99,7 @@ func Run(out io.Writer, root, toFormat string, migrate, write bool) error {
 }
 
 // migrateInitInlineSections moves the removed inline resource sections out of
-// an init file into blueprint files — the first migration rule.
+// an init file into blueprint files - the first migration rule.
 func migrateInitInlineSections(out io.Writer, initPath string, doc map[string]interface{}, format string, write bool) (int, error) {
 	sections := map[string]string{
 		"repositories": "repositories", "packages": "packages", "services": "services",

@@ -58,7 +58,7 @@ type ResourceDone struct {
 }
 
 // TerminalReq asks the display layer to hand the real terminal to a command.
-// stderr of interactive commands is never piped — capturing it swallows
+// stderr of interactive commands is never piped - capturing it swallows
 // sudo's password prompt and hangs the run.
 type TerminalReq struct {
 	Processor string

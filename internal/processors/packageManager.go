@@ -20,7 +20,7 @@ var (
 
 // packageManagerTempDir returns the run's private staging directory, or the
 // error that prevented creating it. A failure used to fall back to the
-// predictable <tmp>/rwr-pm-unavailable — a fixed, world-known name any local
+// predictable <tmp>/rwr-pm-unavailable - a fixed, world-known name any local
 // user can pre-create, which is exactly the class {{ .TempDir }} exists to
 // eliminate.
 func packageManagerTempDir() (string, error) {
@@ -63,7 +63,7 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 		// The definition-level lookup, not GetProvider: GetProvider reports a
 		// provider whose binary is missing as unavailable, and a missing
 		// binary is exactly the state an install starts from. With GetProvider
-		// here, install steps could never run at all — absent binary errored,
+		// here, install steps could never run at all - absent binary errored,
 		// present binary skipped as already installed.
 		provider, exists := system.GetProviderDefinition(pm.Name)
 		if !exists {
@@ -91,8 +91,8 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 		for _, rawStep := range steps {
 			// Install steps historically staged at fixed, world-known /tmp
 			// names (/tmp/brew-install.sh, a git clone into /tmp/yay). Any
-			// local user can pre-create such a path — or rewrite it between
-			// the download and the elevated step that executes it — which is
+			// local user can pre-create such a path - or rewrite it between
+			// the download and the elevated step that executes it - which is
 			// root code execution. {{ .TempDir }} renders to a per-run 0700
 			// directory other users cannot reach.
 			tempDir, err := packageManagerTempDir()

@@ -77,7 +77,7 @@ func TestProcessServices_BadServiceDoesNotStopTheRest(t *testing.T) {
 	}
 
 	if len(rec.Calls) != 2 {
-		t.Errorf("recorded %d calls, want 2 — the second service must still be attempted: %v", len(rec.Calls), rec.Calls)
+		t.Errorf("recorded %d calls, want 2 - the second service must still be attempted: %v", len(rec.Calls), rec.Calls)
 	}
 	if got := failureCount(); got != 2 {
 		t.Errorf("failureCount() = %d, want 2", got)

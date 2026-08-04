@@ -13,7 +13,7 @@ func CleanPackageManagers(osInfo *types.OSInfo, initConfig *types.InitConfig) er
 	// Clean each available package manager
 	for name, pm := range osInfo.PackageManager.Managers {
 		// GetPackageManagerInfo builds Clean as "<bin> <clean args>", so a provider
-		// that defines no clean command still yields "<bin> " — never "". This guard
+		// that defines no clean command still yields "<bin> " - never "". This guard
 		// therefore never fired, and the bare provider binary was executed at the end
 		// of every run. For an AUR helper, a bare invocation can mean a full system
 		// upgrade. Compare the arguments, not the concatenation.

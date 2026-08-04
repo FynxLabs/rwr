@@ -1,4 +1,4 @@
-# CLI — Deltas
+# CLI - Deltas
 
 ## ADDED Requirements
 
@@ -32,8 +32,8 @@ named registry format. Diff never mutates the system.
 ### Requirement: rwr diff --into routes changes into the tree interactively
 
 `rwr diff --into <tree>` SHALL offer each change group a destination chosen
-by the operator — the matching machine tree's file for that category, a
-Common file the tree imports, or skip — and SHALL write accepted edits in
+by the operator - the matching machine tree's file for that category, a
+Common file the tree imports, or skip - and SHALL write accepted edits in
 the destination file's own format, leaving a tree that passes validation.
 Whether a change is machine-specific or Common is the operator's decision;
 rwr's job is to make it once per group instead of once per hand-edit.

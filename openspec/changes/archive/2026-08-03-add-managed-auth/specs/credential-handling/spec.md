@@ -1,4 +1,4 @@
-# Credential Handling — Deltas
+# Credential Handling - Deltas
 
 ## ADDED Requirements
 
@@ -35,7 +35,7 @@ unless named in `exposeCredentials`, and redacted in logs.
 RWR SHALL NOT write a managed credential's value to a plaintext file at rest.
 Persistence SHALL use the operating system keyring, and only with the
 operator's consent. When no keyring backend is available, RWR SHALL decline to
-persist and say so, rather than fall back to a plaintext file — except the
+persist and say so, rather than fall back to a plaintext file - except the
 pre-existing GitHub-token config-file path, which SHALL warn with the file
 path when used.
 

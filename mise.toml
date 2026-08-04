@@ -89,7 +89,7 @@ description = "Validate the CUE provider sources against their schema"
 run = "cue vet ./internal/system/definitions/"
 
 [tasks.security]
-description = "Scan for known vulnerabilities (govulncheck — staged by postinstall)"
+description = "Scan for known vulnerabilities (govulncheck - staged by postinstall)"
 run = "govulncheck ./..."
 
 [tasks.install]

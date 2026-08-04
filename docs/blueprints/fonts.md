@@ -30,7 +30,7 @@ The following settings are available for the Fonts Blueprint:
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes* | The name of the font to manage, exactly as the nerd-fonts release names its archive — `Hack`, `FiraCode`, `JetBrainsMono`. It must not contain a path separator or `..` |
+| `name` | Yes* | The name of the font to manage, exactly as the nerd-fonts release names its archive - `Hack`, `FiraCode`, `JetBrainsMono`. It must not contain a path separator or `..` |
 | `names` | Yes* | A list of font names to manage. The rest of the entry is repeated for each |
 | `action` | Yes | `install` or `remove` |
 | `provider` | No | Defaults to `nerd`. Nerd Fonts is the only implementation; another value is accepted by the schema but changes nothing |
@@ -41,7 +41,7 @@ The following settings are available for the Fonts Blueprint:
 skipped.
 
 > [!NOTE]
-> Profiles work for fonts as of this release — the type had no `profiles` field
+> Profiles work for fonts as of this release - the type had no `profiles` field
 > before, so a font entry ran on every machine regardless of what it declared.
 > The fonts blueprint has **no `import` field** and no `interactive` field;
 > writing either one is now a decode error.

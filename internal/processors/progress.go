@@ -10,7 +10,7 @@ import (
 // progress tracks per-provider lane counts for one processor and emits the
 // events the TUI's lanes fill from: one ResourceDone per completed unit of
 // work plus a LaneUpdate carrying the lane's running done/total. Headless
-// runs are unaffected — LogReporter ignores both events.
+// runs are unaffected - LogReporter ignores both events.
 //
 // The lane provider key is "" for processors without providers (files,
 // services, git, scripts, …); the display layer names that lane.
@@ -47,7 +47,7 @@ func (p *progress) item(provider, name, action string, status types.Status, deta
 	p.itemIdentity(provider, name, action, status, detail, dur, nil)
 }
 
-// itemIdentity is item with extra journal identity — the fields a later
+// itemIdentity is item with extra journal identity - the fields a later
 // uninstall needs to find the thing again (a file's dest and sha256, a git
 // checkout's target). provider+name always land in the identity.
 func (p *progress) itemIdentity(provider, name, action string, status types.Status, detail string, dur time.Duration, identity map[string]string) {

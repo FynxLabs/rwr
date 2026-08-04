@@ -1,5 +1,5 @@
 // The shadow-utils backend: Linux user and group management via
-// groupadd/usermod and friends. Selected at runtime on the detected OS —
+// groupadd/usermod and friends. Selected at runtime on the detected OS -
 // deliberately NOT a _linux.go file, which would carry an implicit GOOS
 // build constraint and break cross-platform validation.
 
@@ -232,7 +232,7 @@ func removeUserLinux(user types.User, initConfig *types.InitConfig) error {
 // setLinuxPassword sets the account password by piping "<name>:<value>" to
 // chpasswd on standard input.
 //
-// The obvious approach — useradd/usermod --password — is wrong twice over. That
+// The obvious approach - useradd/usermod --password - is wrong twice over. That
 // flag writes its argument verbatim into the hash field of /etc/shadow, so a
 // cleartext value does not become the account's password; it becomes a hash
 // nothing can ever match and the account silently has none. And because the

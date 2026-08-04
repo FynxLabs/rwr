@@ -696,7 +696,7 @@ func TestProcessFiles_NumericOctalModeResolvesTo0644(t *testing.T) {
 	}
 }
 
-// `mode: 644` is decimal 644, which is 0o1204 — a setuid mode with almost none
+// `mode: 644` is decimal 644, which is 0o1204 - a setuid mode with almost none
 // of the permissions the writer asked for. The run has to stop at the blueprint
 // rather than put that on disk.
 func TestProcessFiles_DecimalModeIsRefusedBeforeAnythingIsWritten(t *testing.T) {
@@ -907,7 +907,7 @@ files:
 }
 
 // The metadata actions act on an existing target and carry no content, but
-// processFile demanded content or source for every entry — which broke the
+// processFile demanded content or source for every entry - which broke the
 // documented pattern of a copy entry followed by a chmod/chown entry
 // (docs/blueprints/files.md). The validator has always allowed them.
 func TestProcessFile_MetadataActionsNeedNoContentOrSource(t *testing.T) {

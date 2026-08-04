@@ -31,7 +31,7 @@ var nativeManagers = map[string][]string{
 //
 // Used to infer the family from what is installed when /etc/os-release names a
 // distribution nobody has heard of. A great many derivatives ship neither a known
-// ID nor an ID_LIKE — PrismLinux reports ID=prismlinux and nothing else — but the
+// ID nor an ID_LIKE - PrismLinux reports ID=prismlinux and nothing else - but the
 // presence of pacman and its database says "arch" unambiguously.
 var managerFamily = map[string]string{
 	"pacman":   "arch",

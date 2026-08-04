@@ -72,13 +72,13 @@ blueprint as v1, because `files` did not change.
 When `packages` moves to v2, a tree can move one file at a time:
 
 ```yaml
-# init.yaml — the tree is at v1
+# init.yaml - the tree is at v1
 blueprints:
   schema_version: 1
 ```
 
 ```yaml
-# packages/dev-tools.yaml — this file is at v2
+# packages/dev-tools.yaml - this file is at v2
 schema_version: 2
 packages:
   - name: git
@@ -86,7 +86,7 @@ packages:
 ```
 
 ```yaml
-# packages/base.yaml — still at v1, and it operates
+# packages/base.yaml - still at v1, and it operates
 packages:
   - name: curl
     action: install
@@ -101,7 +101,7 @@ RWR stops when a blueprint gives a version that this build cannot read. The erro
 gives the version:
 
 ```
-packages: schema version 2 is not supported by this build (supports 1) —
+packages: schema version 2 is not supported by this build (supports 1) -
 upgrade rwr, or write this blueprint in a supported version
 ```
 

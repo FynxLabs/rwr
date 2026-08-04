@@ -136,7 +136,7 @@ it wanted rather than failing as malformed.
 ## Known Gaps
 
 - **`packageManagers` has a supported-version entry but no wire struct.** It is
-  listed in the per-type version table — so a tree-wide declaration is checked
-  against it — but has no entry in the variant registry, because package managers
+  listed in the per-type version table - so a tree-wide declaration is checked
+  against it - but has no entry in the variant registry, because package managers
   are read from the init file rather than decoded as a blueprint. Nothing decodes
   that type today, so the mismatch is latent rather than reachable.

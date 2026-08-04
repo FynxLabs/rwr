@@ -1,4 +1,4 @@
-# CLI — Deltas
+# CLI - Deltas
 
 ## ADDED Requirements
 
@@ -8,8 +8,8 @@ RWR SHALL provide `rwr run bootstrap` (and the root shorthand `rwr bootstrap`)
 to run the bootstrap processor by itself. An explicit invocation SHALL run the
 bootstrap even when the run-once marker exists, SHALL refresh the marker on
 success, and SHALL fail with an error naming the candidate filenames when the
-tree has no bootstrap file. The gating of bootstrap inside `rwr all` — skipped
-when the marker exists unless `--force-bootstrap` is given — is unchanged.
+tree has no bootstrap file. The gating of bootstrap inside `rwr all` - skipped
+when the marker exists unless `--force-bootstrap` is given - is unchanged.
 
 #### Scenario: Re-running bootstrap after editing it
 
