@@ -8,6 +8,7 @@ providers: "pacman": #PacmanFamily & {
  "update": "-Syu --noconfirm",
  "remove": "-R --noconfirm",
  "list": "-Q",
+ "listExplicit": "-Qe",
  "search": "-Ss",
  "clean": "-Sc --noconfirm"
 }

@@ -12,6 +12,7 @@ install = "build --no-confirm"     # build for AUR packages
 update = "upgrade -a --no-confirm" # -a for AUR updates
 remove = "remove --no-confirm"     # remove packages
 list = "list -i"                   # -i to list installed packages
+list_explicit = "list --explicitly-installed"
 search = "search -a"               # -a to search both repos and AUR
 clean = "clean --no-confirm"       # clean cache
 

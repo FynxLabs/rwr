@@ -8,6 +8,7 @@ providers: "trizen": #ArchAURHelper & {
  "update": "-Syua --noconfirm --noedit",
  "remove": "-Rns --noconfirm",
  "list": "-Qm",
+ "listExplicit": "-Qme",
  "search": "-Ss",
  "clean": "-Sc --noconfirm"
 }

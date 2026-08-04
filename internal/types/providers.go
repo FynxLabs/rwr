@@ -43,8 +43,11 @@ type CommandConfig struct {
 	Update  string `toml:"update"`
 	Remove  string `toml:"remove"`
 	List    string `toml:"list"`
-	Search  string `toml:"search"`
-	Clean   string `toml:"clean"`
+	// ListExplicit is the manager's explicitly-installed query (pacman -Qe,
+	// apt-mark showmanual); scan consumers prefer it over List.
+	ListExplicit string `toml:"list_explicit"`
+	Search       string `toml:"search"`
+	Clean        string `toml:"clean"`
 }
 
 // RepositoryConfig defines repository management configuration.

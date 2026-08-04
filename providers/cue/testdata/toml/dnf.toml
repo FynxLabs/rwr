@@ -12,6 +12,7 @@ install = "install -y"
 update = "update -y"
 remove = "remove -y"
 list = "list installed"
+list_explicit = "repoquery --userinstalled --qf %{name}"
 search = "search"
 clean = "clean all"
 

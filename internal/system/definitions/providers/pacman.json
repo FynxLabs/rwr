@@ -3,6 +3,7 @@
     "clean": "-Sc --noconfirm",
     "install": "-Sy --noconfirm",
     "list": "-Q",
+    "listExplicit": "-Qe",
     "remove": "-R --noconfirm",
     "search": "-Ss",
     "update": "-Syu --noconfirm"

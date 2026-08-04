@@ -12,6 +12,7 @@ install = "install"
 update = "refresh"
 remove = "remove"
 list = "list"
+list_explicit = "list"
 search = "find"
 clean = "refresh"  # Snap handles cleanup automatically
 

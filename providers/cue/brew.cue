@@ -21,6 +21,7 @@ providers: "brew": {
   "update": "update",
   "remove": "uninstall -fq",
   "list": "list",
+  "listExplicit": "leaves",
   "search": "search",
   "clean": "cleanup -q"
  },

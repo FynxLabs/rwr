@@ -19,6 +19,7 @@ providers: "emerge": {
   "update": "-uDN @world",
   "remove": "-C",
   "list": "qlist -I",
+  "listExplicit": "cat /var/lib/portage/world",
   "search": "-s",
   "clean": "--depclean"
  },

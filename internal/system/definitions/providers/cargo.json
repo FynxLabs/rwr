@@ -3,6 +3,7 @@
     "clean": "cache --autoclean",
     "install": "install",
     "list": "install --list",
+    "listExplicit": "install --list",
     "remove": "uninstall",
     "search": "search",
     "update": "install-update --all"

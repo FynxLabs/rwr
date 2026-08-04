@@ -3,6 +3,7 @@
     "clean": "clean",
     "install": "install -y",
     "list": "packages --installed-only",
+    "listExplicit": "search -i --installed-only -t package",
     "remove": "remove -y",
     "search": "search",
     "update": "update -y"

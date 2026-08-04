@@ -12,6 +12,7 @@ install = "install -y"
 update = "update"
 remove = "remove -y"
 list = "dpkg --get-selections"
+list_explicit = "apt-mark showmanual"
 search = "search"
 clean = "clean"
 

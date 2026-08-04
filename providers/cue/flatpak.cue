@@ -19,6 +19,7 @@ providers: "flatpak": {
   "update": "update -y",
   "remove": "uninstall -y",
   "list": "list",
+  "listExplicit": "list --app --columns=application",
   "search": "search",
   "clean": "uninstall --unused -y"
  },

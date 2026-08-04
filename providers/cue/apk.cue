@@ -19,6 +19,7 @@ providers: "apk": {
   "update": "update",
   "remove": "del",
   "list": "info",
+  "listExplicit": "cat /etc/apk/world",
   "search": "search",
   "clean": "cache clean"
  },

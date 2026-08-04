@@ -3,6 +3,7 @@
     "clean": "refresh",
     "install": "install",
     "list": "list",
+    "listExplicit": "list",
     "remove": "remove",
     "search": "find",
     "update": "refresh"

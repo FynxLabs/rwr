@@ -3,6 +3,7 @@
     "clean": "xbps-remove -O",
     "install": "-Sy",
     "list": "xbps-query -l",
+    "listExplicit": "xbps-query -m",
     "remove": "-R",
     "search": "xbps-query -Rs",
     "update": "-Su"

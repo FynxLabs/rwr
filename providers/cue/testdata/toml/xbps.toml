@@ -12,6 +12,7 @@ install = "-Sy"           # Sync repos and install
 update = "-Su"            # Sync and upgrade
 remove = "-R"
 list = "xbps-query -l"
+list_explicit = "xbps-query -m"
 search = "xbps-query -Rs"
 clean = "xbps-remove -O"  # Remove orphaned packages
 

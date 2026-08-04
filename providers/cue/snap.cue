@@ -19,6 +19,7 @@ providers: "snap": {
   "update": "refresh",
   "remove": "remove",
   "list": "list",
+  "listExplicit": "list",
   "search": "find",
   "clean": "refresh"
  },

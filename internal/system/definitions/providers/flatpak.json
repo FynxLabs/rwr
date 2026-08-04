@@ -3,6 +3,7 @@
     "clean": "uninstall --unused -y",
     "install": "install -y",
     "list": "list",
+    "listExplicit": "list --app --columns=application",
     "remove": "uninstall -y",
     "search": "search",
     "update": "update -y"

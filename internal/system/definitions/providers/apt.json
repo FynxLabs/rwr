@@ -3,6 +3,7 @@
     "clean": "clean",
     "install": "install -y",
     "list": "dpkg --get-selections",
+    "listExplicit": "apt-mark showmanual",
     "remove": "remove -y",
     "search": "search",
     "update": "update"

@@ -20,6 +20,7 @@ providers: "dnf": {
   "update": "update -y",
   "remove": "remove -y",
   "list": "list installed",
+  "listExplicit": "repoquery --userinstalled --qf %{name}",
   "search": "search",
   "clean": "clean all"
  },

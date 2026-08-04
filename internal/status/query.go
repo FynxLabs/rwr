@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/scan"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -42,7 +42,7 @@ func (q *Querier) PackagePresent(provider *types.Provider, name string) Presence
 	}
 	installed, cached := q.packageLists[provider.Name]
 	if !cached {
-		installed = listInstalled(provider)
+		installed = toSet(scan.RunListCommand(provider, provider.Commands.List))
 		q.packageLists[provider.Name] = installed
 	}
 	if installed == nil {
@@ -54,38 +54,17 @@ func (q *Querier) PackagePresent(provider *types.Provider, name string) Presence
 	return Absent
 }
 
-// listInstalled runs the provider's list command read-only and returns the
-// set of first-column package names, nil when the command fails. Some list
-// values name a different binary entirely (apt's is `dpkg
-// --get-selections`); the first field decides what actually runs.
-func listInstalled(provider *types.Provider) map[string]bool {
-	fields := strings.Fields(provider.Commands.List)
-	bin := provider.BinPath
-	args := fields
-	if len(fields) > 0 {
-		if path, err := exec.LookPath(fields[0]); err == nil && fields[0] != provider.Name {
-			bin, args = path, fields[1:]
-		}
-	}
-	out, err := exec.Command(bin, args...).Output() // #nosec G204 -- provider definitions are rwr's own vetted data; list verbs are read-only
-	if err != nil {
-		log.Debugf("status: %s list failed: %v", provider.Name, err)
+// toSet indexes list output for presence checks; nil stays nil (the list
+// failed and the answer is unknown, not empty).
+func toSet(names []string) map[string]bool {
+	if names == nil {
 		return nil
 	}
-	installed := map[string]bool{}
-	for _, line := range strings.Split(string(out), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		name := fields[0]
-		// dpkg emits "name:arch"; strip the qualifier so identity matches.
-		if i := strings.IndexByte(name, ':'); i > 0 {
-			name = name[:i]
-		}
-		installed[name] = true
+	set := make(map[string]bool, len(names))
+	for _, name := range names {
+		set[name] = true
 	}
-	return installed
+	return set
 }
 
 // FileState compares a recorded file against disk: missing, still matching

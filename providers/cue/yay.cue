@@ -8,6 +8,7 @@ providers: "yay": #ArchAURHelper & {
  "update": "-Syu --noconfirm",
  "remove": "-Rns --noconfirm",
  "list": "-Qm",
+ "listExplicit": "-Qme",
  "search": "-Ss",
  "clean": "-Yc --noconfirm"
 }

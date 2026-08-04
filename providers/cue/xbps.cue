@@ -19,6 +19,7 @@ providers: "xbps": {
   "update": "-Su",
   "remove": "-R",
   "list": "xbps-query -l",
+  "listExplicit": "xbps-query -m",
   "search": "xbps-query -Rs",
   "clean": "xbps-remove -O"
  },

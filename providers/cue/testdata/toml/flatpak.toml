@@ -12,6 +12,7 @@ install = "install -y"
 update = "update -y"
 remove = "uninstall -y"
 list = "list"
+list_explicit = "list --app --columns=application"
 search = "search"
 clean = "uninstall --unused -y"
 

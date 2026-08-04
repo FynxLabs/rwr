@@ -19,6 +19,7 @@ install = "install -fq"
 update = "update"
 remove = "uninstall -fq"
 list = "list"
+list_explicit = "leaves"
 search = "search"
 clean = "cleanup -q"
 
