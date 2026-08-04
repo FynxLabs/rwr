@@ -84,5 +84,5 @@ func CanonicalFormat(format string) (string, error) {
 	if canonical, ok := formatByExtension["."+strings.TrimPrefix(f, ".")]; ok {
 		return canonical, nil
 	}
-	return "", fmt.Errorf("unsupported blueprint format %q; supported formats are yaml, json, toml", format)
+	return "", fmt.Errorf("unsupported blueprint format %q; supported formats are yaml, json, toml, cue", format)
 }
