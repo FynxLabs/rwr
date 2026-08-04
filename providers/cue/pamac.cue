@@ -8,6 +8,7 @@ providers: "pamac": #ArchAURHelper & {
  "update": "upgrade -a --no-confirm",
  "remove": "remove --no-confirm",
  "list": "list -i",
+ "listExplicit": "list --explicitly-installed",
  "search": "search -a",
  "clean": "clean --no-confirm"
 }

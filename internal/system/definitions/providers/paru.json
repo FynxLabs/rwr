@@ -3,6 +3,7 @@
     "clean": "-Scc --noconfirm",
     "install": "-S --noconfirm",
     "list": "-Qm",
+    "listExplicit": "-Qme",
     "remove": "-Rns --noconfirm",
     "search": "-Ss",
     "update": "-Sua --noconfirm"

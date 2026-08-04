@@ -12,6 +12,7 @@ install = "-S --noconfirm --noedit"  # -S for install, --noedit to skip PKGBUILD
 update = "-Syua --noconfirm --noedit" # -Syua for full update including AUR
 remove = "-Rns --noconfirm" # -Rns to remove with dependencies and config
 list = "-Qm"               # -Qm to list foreign (AUR) packages
+list_explicit = "-Qme"
 search = "-Ss"            # -Ss searches both repos and AUR
 clean = "-Sc --noconfirm" # -Sc for cache clean
 

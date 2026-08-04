@@ -12,6 +12,7 @@ install = "-Sy --noconfirm"
 update = "-Syu --noconfirm"
 remove = "-R --noconfirm"
 list = "-Q"
+list_explicit = "-Qe"
 search = "-Ss"
 clean = "-Sc --noconfirm"
 

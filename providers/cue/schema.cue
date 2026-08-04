@@ -64,8 +64,9 @@ package providers
 	install: string
 	update?:  string
 	remove?:  string
-	list?:    string
-	search?:  string
+	list?:         string
+	listExplicit?: string
+	search?:       string
 	clean?:   string
 }
 

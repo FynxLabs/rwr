@@ -8,6 +8,7 @@ providers: "paru": #ArchAURHelper & {
  "update": "-Sua --noconfirm",
  "remove": "-Rns --noconfirm",
  "list": "-Qm",
+ "listExplicit": "-Qme",
  "search": "-Ss",
  "clean": "-Scc --noconfirm"
 }

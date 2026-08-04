@@ -12,6 +12,7 @@ install = "-qv"        # Quiet and verbose output
 update = "-uDN @world" # Update deep with new use flags
 remove = "-C"
 list = "qlist -I"      # Uses portage-utils
+list_explicit = "cat /var/lib/portage/world"
 search = "-s"
 clean = "--depclean"
 

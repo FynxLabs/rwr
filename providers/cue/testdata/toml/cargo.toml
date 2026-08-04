@@ -12,6 +12,7 @@ install = "install"
 update = "install-update --all" # Use cargo-update to update all packages
 remove = "uninstall"
 list = "install --list"
+list_explicit = "install --list"
 search = "search"
 clean = "cache --autoclean"
 

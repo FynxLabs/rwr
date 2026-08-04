@@ -3,6 +3,7 @@
     "clean": "clean --no-confirm",
     "install": "build --no-confirm",
     "list": "list -i",
+    "listExplicit": "list --explicitly-installed",
     "remove": "remove --no-confirm",
     "search": "search -a",
     "update": "upgrade -a --no-confirm"

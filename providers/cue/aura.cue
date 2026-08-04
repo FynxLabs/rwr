@@ -9,6 +9,7 @@ providers: "aura": #ArchAURHelper & {
  "update": "-Au --noconfirm",
  "remove": "-R --noconfirm",
  "list": "-Qm",
+ "listExplicit": "-Qme",
  "search": "-As",
  "clean": "-Cc --noconfirm"
 }

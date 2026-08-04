@@ -4,17 +4,12 @@
 package convert
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/fynxlabs/rwr/internal/helpers"
-	"gopkg.in/yaml.v3"
 )
 
 // Run walks root and converts every blueprint, init, bootstrap, and manifest
@@ -72,8 +67,8 @@ func Run(out io.Writer, root, toFormat string, migrate, write bool) error {
 		}
 
 		if toFormat != "" && toFormat != format {
-			target := strings.TrimSuffix(path, filepath.Ext(path)) + extensionFor(toFormat)
-			encoded, encErr := encodeAs(doc, toFormat)
+			target := strings.TrimSuffix(path, filepath.Ext(path)) + helpers.BlueprintExtension(toFormat)
+			encoded, encErr := helpers.EncodeBlueprintDoc(doc, toFormat)
 			if encErr != nil {
 				helpers.Say(out, "  ! %s: cannot encode as %s: %v\n", path, toFormat, encErr)
 				return nil
@@ -118,7 +113,7 @@ func migrateInitInlineSections(out io.Writer, initPath string, doc map[string]in
 			continue
 		}
 		targetDir := filepath.Join(root, dir)
-		target := filepath.Join(targetDir, "from-init"+extensionFor(format))
+		target := filepath.Join(targetDir, "from-init"+helpers.BlueprintExtension(format))
 		helpers.Say(out, "  → %s: move %q into %s\n", initPath, key, target)
 		if write {
 			if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G301 -- operator's own blueprint tree
@@ -132,7 +127,7 @@ func migrateInitInlineSections(out io.Writer, initPath string, doc map[string]in
 					payload = current
 				}
 			}
-			encoded, err := encodeAs(payload, format)
+			encoded, err := helpers.EncodeBlueprintDoc(payload, format)
 			if err != nil {
 				return moved, err
 			}
@@ -140,7 +135,7 @@ func migrateInitInlineSections(out io.Writer, initPath string, doc map[string]in
 				return moved, err
 			}
 			delete(doc, key)
-			rewritten, err := encodeAs(doc, format)
+			rewritten, err := helpers.EncodeBlueprintDoc(doc, format)
 			if err != nil {
 				return moved, err
 			}
@@ -151,42 +146,6 @@ func migrateInitInlineSections(out io.Writer, initPath string, doc map[string]in
 		moved++
 	}
 	return moved, nil
-}
-
-// encodeAs renders a document in a target format. CUE output is JSON-form
-// CUE: valid, lossless, mechanical — idiomatic CUE is authoring work.
-func encodeAs(doc map[string]interface{}, format string) ([]byte, error) {
-	switch format {
-	case "yaml":
-		return yaml.Marshal(doc)
-	case "json":
-		var buf bytes.Buffer
-		enc := json.NewEncoder(&buf)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(doc); err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
-	case "toml":
-		var buf bytes.Buffer
-		if err := toml.NewEncoder(&buf).Encode(doc); err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
-	case "cue":
-		var buf bytes.Buffer
-		enc := json.NewEncoder(&buf)
-		enc.SetIndent("", "\t")
-		if err := enc.Encode(doc); err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
-	}
-	return nil, fmt.Errorf("unsupported target format %q", format)
-}
-
-func extensionFor(format string) string {
-	return "." + format
 }
 
 // hasComments detects comment markers well enough to warn (never to block).

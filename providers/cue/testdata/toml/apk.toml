@@ -12,6 +12,7 @@ install = "add"
 update = "update"
 remove = "del"
 list = "info"
+list_explicit = "cat /etc/apk/world"
 search = "search"
 clean = "cache clean"
 

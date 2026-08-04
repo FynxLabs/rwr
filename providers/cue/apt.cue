@@ -8,6 +8,7 @@ providers: "apt": #DebianFamily & {
  "update": "update",
  "remove": "remove -y",
  "list": "dpkg --get-selections",
+ "listExplicit": "apt-mark showmanual",
  "search": "search",
  "clean": "clean"
 }

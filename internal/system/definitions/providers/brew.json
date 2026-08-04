@@ -3,6 +3,7 @@
     "clean": "cleanup -q",
     "install": "install -fq",
     "list": "list",
+    "listExplicit": "leaves",
     "remove": "uninstall -fq",
     "search": "search",
     "update": "update"

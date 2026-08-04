@@ -12,6 +12,7 @@ install = "install -y"
 update = "update -y"
 remove = "remove -y"
 list = "packages --installed-only"
+list_explicit = "search -i --installed-only -t package"
 search = "search"
 clean = "clean"
 

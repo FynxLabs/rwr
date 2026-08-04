@@ -3,6 +3,7 @@
     "clean": "cache clean",
     "install": "add",
     "list": "info",
+    "listExplicit": "cat /etc/apk/world",
     "remove": "del",
     "search": "search",
     "update": "update"

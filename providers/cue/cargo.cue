@@ -20,6 +20,7 @@ providers: "cargo": {
   "update": "install-update --all",
   "remove": "uninstall",
   "list": "install --list",
+  "listExplicit": "install --list",
   "search": "search",
   "clean": "cache --autoclean"
  },

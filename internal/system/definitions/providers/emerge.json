@@ -3,6 +3,7 @@
     "clean": "--depclean",
     "install": "-qv",
     "list": "qlist -I",
+    "listExplicit": "cat /var/lib/portage/world",
     "remove": "-C",
     "search": "-s",
     "update": "-uDN @world"

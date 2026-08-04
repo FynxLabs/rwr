@@ -3,6 +3,7 @@
     "clean": "-Cc --noconfirm",
     "install": "-A --noconfirm",
     "list": "-Qm",
+    "listExplicit": "-Qme",
     "remove": "-R --noconfirm",
     "search": "-As",
     "update": "-Au --noconfirm"
