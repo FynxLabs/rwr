@@ -36,7 +36,7 @@ redacted), "rwr config edit" opens it in $VISUAL/$EDITOR, and
 			if err != nil {
 				return err
 			}
-			cmd.Print(rendered)
+			helpers.Say(cmd.OutOrStdout(), "%s", rendered)
 			return nil
 		},
 	}

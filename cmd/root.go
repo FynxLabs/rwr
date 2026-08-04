@@ -126,6 +126,7 @@ git checkouts, scripts, and desktop configuration.`,
 	rootCmd.AddCommand(newConvertCmd())
 	rootCmd.AddCommand(newStatusCmd(app))
 	rootCmd.AddCommand(newUninstallCmd(app))
+	rootCmd.AddCommand(newDiffCmd(app))
 
 	return rootCmd
 }
