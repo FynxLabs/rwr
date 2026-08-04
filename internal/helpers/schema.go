@@ -8,8 +8,8 @@ import (
 
 // DecodeBlueprint reads a blueprint file as the schema version it is written in.
 //
-// The version is resolved most-specific-first — the file's own `schema_version`,
-// then the tree-wide version from the init file, then v1 — and that decides which
+// The version is resolved most-specific-first - the file's own `schema_version`,
+// then the tree-wide version from the init file, then v1 - and that decides which
 // struct the bytes are decoded into. The result is converted to the canonical
 // type the processors consume, so nothing past this function needs to know more
 // than one version exists.
@@ -48,8 +48,8 @@ func DecodeBlueprint(data []byte, format, blueprintType string, treeVersion int)
 // This is the function processors call. DecodeBlueprint returning interface{} is
 // why nothing called it: every processor decodes into a concrete struct, and
 // nobody was going to write a type assertion at each of twenty call sites. The
-// result was that the whole versioning path — resolution, validation, the variant
-// registry — sat behind a function with no callers, so a blueprint declaring an
+// result was that the whole versioning path - resolution, validation, the variant
+// registry - sat behind a function with no callers, so a blueprint declaring an
 // unsupported schema_version was read as the current schema and applied to the
 // machine instead of being refused.
 func DecodeBlueprintInto[T any](data []byte, format, blueprintType string, treeVersion int, out *T) error {

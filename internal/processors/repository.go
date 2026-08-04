@@ -84,8 +84,8 @@ func processRepositories(repositories []types.Repository, osInfo *types.OSInfo, 
 // validateRepositoryName refuses names that would escape the paths derived
 // from them. repo.Name is blueprint-supplied and is joined into KeyPath,
 // TempKeyPath and provider-templated file names ("{{ .SourcesPath }}/
-// {{ .Name }}.list"), all written with the provider's privileges — root, for
-// every system package manager — so "../../etc/cron.d/x" would land the write
+// {{ .Name }}.list"), all written with the provider's privileges - root, for
+// every system package manager - so "../../etc/cron.d/x" would land the write
 // outside every declared boundary.
 func validateRepositoryName(name string) error {
 	if strings.TrimSpace(name) == "" {
@@ -112,7 +112,7 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 	// but the TLS connection that served it. Warn now; a later major refuses
 	// (the policy ratchets, never loosens).
 	if repo.Action == "add" && repo.KeyURL != "" && repo.KeySha256 == "" {
-		log.Warnf("Repository %s downloads its signing key from %s with no key_sha256 declared — "+
+		log.Warnf("Repository %s downloads its signing key from %s with no key_sha256 declared - "+
 			"the key is unpinned. Add key_sha256 to the repository entry; a future major version will refuse this.",
 			repo.Name, repo.KeyURL)
 	}
@@ -267,7 +267,7 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 
 // runRepositoryUpdates refreshes package lists for the providers this
 // blueprint file declared repositories for. It used to update every available
-// provider after every repositories file — a tree with three such files ran
+// provider after every repositories file - a tree with three such files ran
 // `apt update`, `dnf makecache` etc. three times each, for managers whose
 // repositories never changed.
 //

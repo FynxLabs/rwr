@@ -16,6 +16,6 @@ Measured with `go test -coverprofile` across `./...`:
 (`main` and `internal/exectest` carry no tests: the former is a thin
 entrypoint, the latter is itself test tooling.)
 
-Gate threshold: **50%** — at-or-below the measured total so CI does not go
+Gate threshold: **50%** - at-or-below the measured total so CI does not go
 red on day one; ratchet deliberately as coverage grows (prompts at 8.1% is
 the obvious first target).

@@ -11,10 +11,10 @@ The `config.yaml` file is located in the RWR configuration directory. By default
 
 `--config` is a global flag that changes where RWR looks. It accepts either:
 
-- **a file** — RWR reads that file as the configuration, whatever it is named.
+- **a file** - RWR reads that file as the configuration, whatever it is named.
   The directory holding it becomes the configuration directory, so `run_once`
   is created next to it.
-- **a directory** — RWR reads `config.yaml` from that directory and uses the
+- **a directory** - RWR reads `config.yaml` from that directory and uses the
   directory as the configuration directory.
 
 ```bash
@@ -40,7 +40,7 @@ The `rwr` section contains general settings for the RWR tool.
 
 | Option | Description |
 |--------|-------------|
-| `configdir` | The config directory: where `config.yaml` is looked up, where `rwr config create` writes it, and where the `bootstrap` marker lives. The default is `$HOME/.config/rwr`. Because it decides where the config file is, it only takes effect from the environment (`RWR_RWR_CONFIGDIR`) — a config file cannot name its own directory. `--config` overrides it |
+| `configdir` | The config directory: where `config.yaml` is looked up, where `rwr config create` writes it, and where the `bootstrap` marker lives. The default is `$HOME/.config/rwr`. Because it decides where the config file is, it only takes effect from the environment (`RWR_RWR_CONFIGDIR`) - a config file cannot name its own directory. `--config` overrides it |
 | `skipVersionCheck` | Set to `true` to turn off the startup check for a newer release. The `--skip-version-check` flag does the same for a single run |
 
 ### `repository` Section

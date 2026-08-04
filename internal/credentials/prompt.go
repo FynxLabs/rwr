@@ -43,7 +43,7 @@ var promptForCredential = func(name, description string) (string, error) {
 
 // offerKeyringSave asks (default yes) whether to keep a just-prompted value in
 // the OS keyring so the next run does not ask again. Declining is fine; a
-// failed save is reported but does not fail the run — the value is already in
+// failed save is reported but does not fail the run - the value is already in
 // hand.
 var offerKeyringSave = func(name, value string) {
 	confirm := true

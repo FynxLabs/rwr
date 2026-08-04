@@ -218,7 +218,7 @@ func generateSSHKey(sshKey types.SSHKey, initConfig *types.InitConfig) (string, 
 	sshKey = withSSHKeyDefaults(sshKey)
 
 	// Expand a leading ~ here. Commands are argv now, so no shell expands it on
-	// the way to ssh-keygen — an unexpanded "~/.ssh" would create a directory
+	// the way to ssh-keygen - an unexpanded "~/.ssh" would create a directory
 	// literally named "~" in the working directory.
 	sshPath := filepath.Join(system.ExpandPath(sshKey.Path), sshKey.Name)
 
@@ -453,7 +453,7 @@ func getGitHubToken(initConfig *types.InitConfig) (string, string, error) {
 		return token, "GITHUB_TOKEN", nil
 	}
 
-	// Priority 3: OS keyring — where the device flow saves new tokens
+	// Priority 3: OS keyring - where the device flow saves new tokens
 	if token, ok := credentials.FromKeyring("gh_api_token"); ok {
 		log.Debugf("Using GitHub token from the OS keyring")
 		return token, "keyring", nil

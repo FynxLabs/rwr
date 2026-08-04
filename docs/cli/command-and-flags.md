@@ -18,7 +18,7 @@ The following flags are available for all commands:
 | `--show-secrets` | Print credential values in logs instead of redacting them. Off by default; use it only to confirm RWR is reading the token or key you expect |
 | `--dry-run`, `-n` | Simulate operations without making changes (no-op mode) |
 | `--no-op` | Alias for `--dry-run` |
-| `--interactive`, `-I` | Enable interactive per-item prompts (default: true). Use `--interactive=false` to disable. Capital `-I` — lowercase `-i` is `--init-file` |
+| `--interactive`, `-I` | Enable interactive per-item prompts (default: true). Use `--interactive=false` to disable. Capital `-I` - lowercase `-i` is `--init-file` |
 | `--gh-key` | Deprecated alias for `--gh-api-key`; use `--gh-api-key` |
 | `--gh-auth` | Get a GitHub token with the OAuth device flow. Only `rwr all` and `rwr run ssh_keys` act on it |
 | `--profile`, `-p` | Make a profile active. Repeat the flag, or give a comma-separated list |
@@ -37,7 +37,7 @@ rwr: https://github.com/fynxlabs/rwr/releases/latest (silence with --skip-versio
 ```
 
 The check is advisory and never fails the run: a two-second timeout, and every
-error — no network, a rate limit, an unexpected response — is a debug log and
+error - no network, a rate limit, an unexpected response - is a debug log and
 nothing more. It is also skipped for a development build (one built with plain
 `go build`, or from a modified tree), and for `rwr help`, `rwr config`,
 `rwr version` and `rwr validate`, which do no version check at all.
@@ -107,7 +107,7 @@ Run all blueprints and set up the system.
 
 Run just the bootstrap processor (`rwr run bootstrap` works too). Asking for
 bootstrap by name implies wanting it to run, so this ignores the run-once
-marker that keeps `rwr all` idempotent — no `--force-bootstrap` needed. The
+marker that keeps `rwr all` idempotent - no `--force-bootstrap` needed. The
 marker is refreshed on success, `--dry-run` is honored, and a tree without a
 bootstrap file is an error naming the filenames searched.
 ### `rwr status`
@@ -117,7 +117,7 @@ elevates, exits 1 on drift. See [Run records](../state.md).
 
 ### `rwr uninstall`
 
-Reverse what recorded runs applied — and only that. Refuses without a run
+Reverse what recorded runs applied - and only that. Refuses without a run
 record; prints the not-reversible list up front; `--yes` skips the prompt.
 See [Run records](../state.md).
 
@@ -204,7 +204,7 @@ Run the fonts processor.
 > files blueprint. Use `rwr run files` to process it.
 >
 > `rwr run` takes one processor, not a list. `rwr run all` runs every
-> processor — it is the same run as `rwr all`.
+> processor - it is the same run as `rwr all`.
 >
 > Every processor name also works straight off the root, task-runner style:
 > `rwr packages` is `rwr run packages`.

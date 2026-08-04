@@ -11,7 +11,7 @@ import (
 )
 
 // Stage 2 fills provider states and enumerates planned resources per
-// processor — the lane counts a progress display needs, computed after
+// processor - the lane counts a progress display needs, computed after
 // bootstrap could have installed the manager they depend on.
 func TestResolveStage2_ProvidersAndResources(t *testing.T) {
 	dir := t.TempDir()

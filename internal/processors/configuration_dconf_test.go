@@ -12,7 +12,7 @@ import (
 )
 
 // dconf load takes the keyfile on stdin. Commands run without a shell, so a
-// "<" in argv is not a redirection — it reaches dconf as a literal argument
+// "<" in argv is not a redirection - it reaches dconf as a literal argument
 // and the keyfile is never read.
 func TestProcessDconf_LoadsKeyfileViaStdin(t *testing.T) {
 	rec := exectest.New()

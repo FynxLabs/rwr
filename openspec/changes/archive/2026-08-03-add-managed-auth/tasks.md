@@ -27,7 +27,7 @@
       `gh_api_token` credential; device-flow save prefers keyring, config-file
       fallback warns with the path. Tests: existing config-file token still
       read; keyring-available path writes no plaintext.
-      *Deviation:* the built-ins' implicit sources omit `prompt` at init time —
+      *Deviation:* the built-ins' implicit sources omit `prompt` at init time -
       prompting for the GitHub token stays at its point of use (`ssh_keys`),
       preserving the existing behavior of never prompting a run that does not
       need the token. Built-ins are optional: unresolved is not an error.

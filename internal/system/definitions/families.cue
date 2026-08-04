@@ -1,5 +1,5 @@
 // Family templates for the proven clusters. Everything else stays a
-// standalone definition — inventing hierarchies for single members obscures
+// standalone definition - inventing hierarchies for single members obscures
 // more than it saves.
 package providers
 
@@ -90,7 +90,7 @@ package providers
 }
 
 // #ArchAURHelper: #PacmanFamily plus the clone-and-makepkg install shape.
-// Parameterized by the AUR package to clone (#aur — aura ships as aura-bin,
+// Parameterized by the AUR package to clone (#aur - aura ships as aura-bin,
 // pamac as pamac-aur) and the package name pacman removes (#removePkg).
 #ArchAURHelper: #PacmanFamily & {
 	#aur:       string

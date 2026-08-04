@@ -296,7 +296,7 @@ func BenchmarkSetPaths(b *testing.B) {
 }
 
 // Windows entries used to be literal "%USERPROFILE%\..." strings that Go never
-// expands, so every one of them failed EvalSymlinks and was dropped — scoop
+// expands, so every one of them failed EvalSymlinks and was dropped - scoop
 // included. The expansion is tested through the injected lookup so it runs on
 // any platform.
 func TestWindowsCommonPaths_ExpandsVariables(t *testing.T) {

@@ -3,7 +3,7 @@
 ## Why
 
 Format *decoding* is centralized (`internal/helpers/blueprints.go` `unmarshalBlueprint`),
-but format *derivation* — which extensions exist and which decoder a file gets — is
+but format *derivation* - which extensions exist and which decoder a file gets - is
 hardcoded in ~15 places. Worse, the codebase holds two contradictory models:
 
 - `internal/processors/blueprints.go:187,221` and `internal/processors/profiles.go:53`
@@ -43,8 +43,8 @@ the config-file form of the setting and the flag disagree.
 
 ## Breakage
 
-Nothing breaks for existing blueprints. A tree that mixes formats — previously
-undefined behavior (half the code honored it, half didn't) — becomes supported.
+Nothing breaks for existing blueprints. A tree that mixes formats - previously
+undefined behavior (half the code honored it, half didn't) - becomes supported.
 `examples/` must still pass unchanged.
 
 ## Impact

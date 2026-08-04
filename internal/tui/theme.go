@@ -35,7 +35,7 @@ var asciiGlyphs = Glyphs{
 }
 
 // Theme is the eleven color roles plus glyphs. Color is by state, not by
-// processor — thirteen distinguishable accents is more than most palettes
+// processor - thirteen distinguishable accents is more than most palettes
 // carry. No background is ever painted: the terminal's own is inherited, so
 // light-theme and transparent-terminal users keep a working frame.
 type Theme struct {
@@ -72,7 +72,7 @@ func catppuccinTheme(name string, flavour catppuccin.Flavor) Theme {
 
 // builtinThemes ships embedded; user themes are TOML files in the config dir
 // with the same schema (LoadUserTheme), so copying a built-in and editing it
-// just works — the providers pattern.
+// just works - the providers pattern.
 func builtinThemes() map[string]Theme {
 	themes := map[string]Theme{
 		"rwr":       rwrTheme,
@@ -131,7 +131,7 @@ func unicodeSafe() bool {
 // ResolveTheme picks the theme: --theme flag, config key, $RWR_THEME, then
 // the default. NO_COLOR overrides all of it (colors drop; glyphs stay per
 // capability). forceASCII/forceUnicode come from --ascii/--unicode.
-// A TOML theme in <configDir>/themes/ overrides a built-in of the same name —
+// A TOML theme in <configDir>/themes/ overrides a built-in of the same name -
 // the providers pattern. unknown names the requested theme when nothing
 // matched and the default was substituted, so the caller can warn.
 func ResolveTheme(configDir, flagTheme, configTheme string, forceASCII, forceUnicode bool) (resolved Theme, unknown string) {

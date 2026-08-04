@@ -58,7 +58,7 @@ When the init file declares no order, RWR SHALL run blueprint types in this orde
 10. `configuration`
 
 `users` SHALL be present. Its previous absence meant `rwr all` never created users
-unless the init file hand-wrote its own order, while `rwr run users` worked — which
+unless the init file hand-wrote its own order, while `rwr run users` worked - which
 made the omission easy to miss.
 
 An init file that declares `blueprints.order` SHALL override this order.
@@ -70,7 +70,7 @@ When an `order` entry is a mapping rather than a plain name, RWR SHALL run the n
 processors in sorted order, and when the mapping names more than one processor RWR
 SHALL warn that it did so, naming them. A mapping cannot preserve the order it was
 written in, and Go randomizes map iteration, so such an entry previously produced a
-different sequence on every run — the one thing an explicit order is written to
+different sequence on every run - the one thing an explicit order is written to
 control. A mapping naming a single processor has only one possible order, so it
 produces no warning.
 
@@ -100,7 +100,7 @@ produces no warning.
 When the blueprint tree contains a bootstrap file, RWR SHALL process it before the
 ordered blueprint types.
 
-RWR SHALL look for the bootstrap file in every supported format — `bootstrap.yaml`,
+RWR SHALL look for the bootstrap file in every supported format - `bootstrap.yaml`,
 `bootstrap.yml`, `bootstrap.json`, `bootstrap.toml`. Looking only for
 `bootstrap.yaml` meant a tree written in TOML or JSON silently never bootstrapped,
 with no message saying so.
@@ -131,7 +131,7 @@ and every processor SHALL read its blueprint through `DecodeBlueprintInto`.
 
 A silently ignored key is a blueprint that looks applied and is not: `pacakges:`
 yields an empty section, every processor finds nothing to do, and the run reports
-success having changed nothing. A misspelled `profiles` is worse — the entry loses
+success having changed nothing. A misspelled `profiles` is worse - the entry loses
 its scoping and runs on every machine. Both are invisible at any log level, so they
 surface as "rwr didn't do anything" long after the typo was written.
 
@@ -182,9 +182,9 @@ time on an unchanged machine is the normal case, not an error path. Specifically
 
 ### Requirement: Non-fatal item failures reach the exit code
 
-A processor that SHALL continue past a failed item — a package that is not in the
+A processor that SHALL continue past a failed item - a package that is not in the
 repositories, a git remote that is temporarily unreachable, an SSH key that could
-not be registered — SHALL record that failure in a run ledger rather than only
+not be registered - SHALL record that failure in a run ledger rather than only
 logging it.
 
 At the end of the run RWR SHALL report every recorded failure and SHALL return an
@@ -212,13 +212,13 @@ the first failed entry instead (see Known Gaps).
 
 ### Requirement: A file mode is declared unambiguously
 
-A blueprint SHALL declare a file or directory mode as a quoted octal string —
-`"0644"`, `"644"`, `"0o644"` — which is the recommended form because it means the
+A blueprint SHALL declare a file or directory mode as a quoted octal string -
+`"0644"`, `"644"`, `"0o644"` - which is the recommended form because it means the
 same thing in YAML, JSON, and TOML.
 
 A number SHALL be read as the mode's own value, which is what every parser already
 produces for an octal literal: YAML `0644`, TOML `0o644`, and JSON `420` are one
-mode. A bare decimal that instead reads like unquoted octal digits — `644`, `755` —
+mode. A bare decimal that instead reads like unquoted octal digits - `644`, `755` -
 SHALL be refused with an error showing both readings, rather than guessed at.
 
 A mode SHALL NOT exceed `0o7777`. Zero SHALL mean "no mode declared", so a
@@ -247,14 +247,14 @@ file `0644`. A template's output is the place a credential is most likely to lan
 
 RWR SHALL render every templated field of a repository action step against the
 repository's values before acting on it, with `missingkey=error`. A provider's
-`add` and `remove` steps are Go templates — apt writes
+`add` and `remove` steps are Go templates - apt writes
 `deb [arch={{ .Arch }} signed-by={{ .KeyPath }}] {{ .URL }} ...`.
 
 Previously the placeholders were written to disk literally, producing source files
 containing `{{ .URL }}`.
 
 A step MAY declare a `condition`, which SHALL be evaluated before the rest of the
-step is rendered — a skipped step is allowed to reference data this repository does
+step is rendered - a skipped step is allowed to reference data this repository does
 not carry, which is the reason it is conditional. Only an explicitly truthy
 rendering SHALL run the step.
 
@@ -265,15 +265,15 @@ SHALL stop the run.
 `action: remove` on a repository blueprint SHALL run the provider's remove steps.
 Every embedded provider defines them.
 
-The steps that edit or delete an existing file — `append`, `remove_line`,
-`remove_section`, and `remove` — SHALL resolve their path against the provider's
+The steps that edit or delete an existing file - `append`, `remove_line`,
+`remove_section`, and `remove` - SHALL resolve their path against the provider's
 declared repository directories and SHALL refuse a path that resolves outside them,
 including through a symlink.
 
-The steps that create a file — `download`, `write`, and `copy` — SHALL resolve
+The steps that create a file - `download`, `write`, and `copy` - SHALL resolve
 their destination the same way, accepting only a destination inside the provider's
 declared repository paths or the run's private staging directory. These steps run
-with the provider's privileges — root, for every system package manager — and the
+with the provider's privileges - root, for every system package manager - and the
 destination is a template rendered against blueprint values, so an unchecked
 destination would be a root-privileged write to an arbitrary path.
 
@@ -291,7 +291,7 @@ destination would be a root-privileged write to an arbitrary path.
 #### Scenario: Removing a repository
 
 - **WHEN** a repositories blueprint declares `action: remove`
-- **THEN** the provider's remove steps run — deleting the source file and keyring,
+- **THEN** the provider's remove steps run - deleting the source file and keyring,
   or removing the named section from the provider's config file
 
 #### Scenario: A step path outside the provider's directories
@@ -327,7 +327,7 @@ file whose definitions are merged in.
 
 Import paths SHALL resolve relative to the file that declares them, in every
 processor. (Previously six processors resolved top-level imports against the
-tree root while four resolved file-relative — the same `import:` string meant
+tree root while four resolved file-relative - the same `import:` string meant
 two different files depending on the blueprint type.) An imported file MAY be
 in any supported format, and its format SHALL be derived from its own
 extension, not the importing file's. Imported entries SHALL be subject to
@@ -395,7 +395,7 @@ blueprint tree declares, before processing begins. A name no blueprint declares
 SHALL stop the run with an error listing the available profiles.
 
 When the tree declares no profiles at all, RWR SHALL warn that every
-profile-scoped entry will be skipped and continue — an empty discovery is as
+profile-scoped entry will be skipped and continue - an empty discovery is as
 likely to mean the walk missed something as that the operator mistyped. When
 profile discovery itself fails, RWR SHALL continue without validating; the
 processors will report why with better context.
@@ -449,8 +449,8 @@ than through the command executor where dry-run is otherwise enforced.
 ### Requirement: A managed clone's origin follows the declared URL
 
 RWR SHALL compare a managed clone's `origin` remote URL against the URL the
-blueprint declares — for a `git` blueprint entry that already exists on disk,
-and for the blueprint repository itself — and SHALL re-point `origin` to the
+blueprint declares - for a `git` blueprint entry that already exists on disk,
+and for the blueprint repository itself - and SHALL re-point `origin` to the
 declared URL when they differ, before any pull.
 
 The blueprint is the source of truth for where a repository comes from; without
@@ -546,8 +546,8 @@ RWR SHALL enforce the schema version of every file in the chain.
 ### Requirement: Downloads are validated on every hop, bounded, and pinnable
 
 A download URL SHALL be refused unless it is https (plain http is allowed only
-for loopback hosts) — everything RWR downloads (package-signing keys, fonts,
-file sources, the init file) is installed with the operator's privileges — and
+for loopback hosts) - everything RWR downloads (package-signing keys, fonts,
+file sources, the init file) is installed with the operator's privileges - and
 that check SHALL be re-applied to **every redirect hop**, not only the initial
 URL. Validating only the first URL is worthless the moment a server answers
 with a 302 to plain http.
@@ -609,10 +609,10 @@ backwards relative to files/fonts.)
 
 A blueprint file whose path names no processor directory SHALL be typed by its
 top-level keys (`packages:` → packages, `repositories:` → repositories, …).
-A file whose content matches no type — or more than one — SHALL produce the
+A file whose content matches no type - or more than one - SHALL produce the
 loud unrouted-file warning and SHALL NOT execute.
 
-Why: the flattened and minimal_files layouts the examples ship were dead ends —
+Why: the flattened and minimal_files layouts the examples ship were dead ends -
 path-only dispatch sent every file to a bucket the run loop never reads, and
 the run exited 0 having executed nothing.
 
@@ -666,7 +666,7 @@ touches it.
 `.cue` SHALL be a registered blueprint format alongside YAML, JSON, and TOML,
 valid for blueprints, imports, init files, bootstrap files, and the manifest.
 A `.cue` file SHALL be evaluated in-process (`cuelang.org/go`), exported to
-concrete values, and decoded through the existing strict path — semantics
+concrete values, and decoded through the existing strict path - semantics
 identical to the equivalent YAML.
 
 Why: CUE gives authors types, constraints, and composition at authoring time;
@@ -700,8 +700,8 @@ arbitrary files or phone home.
 - **THEN** evaluation fails with a containment error
 ### Requirement: Configuration entries apply desktop settings through named tools
 
-RWR SHALL apply a `configuration` entry with the tool it names — `dconf`,
-`gsettings`, `macos_defaults`, or `windows_registry` — and SHALL stop the run
+RWR SHALL apply a `configuration` entry with the tool it names - `dconf`,
+`gsettings`, `macos_defaults`, or `windows_registry` - and SHALL stop the run
 with an error naming any other tool. A failure applying a `dconf`,
 `macos_defaults`, or `windows_registry` entry SHALL also stop the run.
 
@@ -710,14 +710,14 @@ action as a ledger failure and skip the entry. The field used to be decoded and
 never read, so `action: banana` applied the setting anyway.
 
 For `dconf`, RWR SHALL resolve the entry's `file` relative to the blueprint
-directory and feed its content to `dconf load /` on standard input — commands
+directory and feed its content to `dconf load /` on standard input - commands
 run without a shell, so a `<` in argv is data, not a redirection. An entry with
 `run_once: true` SHALL be skipped when its bootstrap marker file exists, and
 the marker SHALL be written only after a successful apply.
 
 For `gsettings`, RWR SHALL check that each key is writable before setting it,
-and SHALL record a per-key ledger failure — and continue with the remaining
-keys — when the check or the set fails. Every failure here used to be
+and SHALL record a per-key ledger failure - and continue with the remaining
+keys - when the check or the set fails. Every failure here used to be
 discarded, so a run in which no setting applied still reported success.
 
 For `macos_defaults`, RWR SHALL write through `defaults write`, defaulting the
@@ -749,7 +749,7 @@ RWR SHALL write a `windows_registry` entry through PowerShell script bodies
 that are compile-time constants, and SHALL pass the blueprint-supplied path,
 name, and value in forms PowerShell never re-tokenizes: environment variables
 for an unelevated write, and a JSON payload file read with `ConvertFrom-Json`
-for an elevated one — a UAC-elevated child does not reliably inherit the
+for an elevated one - a UAC-elevated child does not reliably inherit the
 parent's environment. The elevated command itself is a constant plus a
 base64-encoded script, whose alphabet contains no quote, space, or
 metacharacter.
@@ -761,7 +761,7 @@ instead of reaching the registry as formatted garbage.
 
 Values used to be interpolated into the `-Command` string, so a value such as
 `a'; Remove-Item C:\ -Recurse; #` closed the surrounding quote and ran as a
-second statement — as administrator, for an elevated entry.
+second statement - as administrator, for an elevated entry.
 
 #### Scenario: A value carrying PowerShell metacharacters
 
@@ -779,7 +779,7 @@ second statement — as administrator, for an elevated entry.
 
 RWR SHALL resolve the latest `ryanoasis/nerd-fonts` release once per run and
 download each font as `<name>.tar.xz` from that release. The lookup SHALL
-happen only after the dry-run and empty-blueprint exits — it is a network call,
+happen only after the dry-run and empty-blueprint exits - it is a network call,
 and `--dry-run` is expected to work offline.
 
 A failed release lookup SHALL be recorded as a ledger failure and SHALL NOT
@@ -788,7 +788,7 @@ through the ledger. One font failing SHALL NOT stop the rest: each failure is
 ledgered and processing continues.
 
 A font name SHALL be refused when it is empty or contains a path separator or
-`..` — the name is concatenated into the download URL and the local font path,
+`..` - the name is concatenated into the download URL and the local font path,
 so `../../owner/repo/x` would both redirect the download to another release and,
 on removal, glob outside the font directory.
 
@@ -812,21 +812,21 @@ decompression error.
 RWR SHALL extract only regular-file entries whose name ends in `.ttf` or `.otf`
 (case-insensitive) from a font archive, into the system font directory for
 `location: system` and the user font directory otherwise. The filter used to be
-`.ttf` alone, so an OTF-only archive — several Nerd Fonts ship only `.otf` —
+`.ttf` alone, so an OTF-only archive - several Nerd Fonts ship only `.otf` -
 "installed successfully" with zero files written.
 
 Symlink and hardlink entries SHALL be skipped with a warning: links are never
 needed to install a font and are the cheapest way to make a later write land
 outside the destination. An entry whose path resolves outside the destination
 directory SHALL fail the extraction. A single entry decompressing past 64 MB
-SHALL fail as a suspected decompression bomb — archives arrive xz-compressed
+SHALL fail as a suspected decompression bomb - archives arrive xz-compressed
 from the network, and real font faces are single-digit MB.
 
 An archive that produced zero font faces SHALL be a failure, not a success.
 After an install or removal RWR SHALL refresh the font cache, elevated only for
 a system-scoped install.
 
-Removal SHALL glob both `<name>*.ttf` and `<name>*.otf` in the font directory —
+Removal SHALL glob both `<name>*.ttf` and `<name>*.otf` in the font directory -
 removal was `.ttf`-blind too, so an installed OTF face survived its own
 removal.
 
@@ -879,7 +879,7 @@ RWR SHALL show a diff and ask before overwriting when a directory copy runs
 interactively and a file already exists at the target. Declining SHALL skip
 that file and continue with the rest of the copy.
 
-A failed read of the confirmation — for example EOF on a piped stdin — SHALL
+A failed read of the confirmation - for example EOF on a piped stdin - SHALL
 fail the operation with an error naming `--interactive=false` as the way to
 skip prompts, and SHALL NOT terminate the process. It used to be a
 `log.Fatalf`, which bypassed the failure ledger and every deferred cleanup;
@@ -900,14 +900,14 @@ interactive defaults to on, so a piped stdin killed the whole run mid-flight.
 ## Known Gaps
 
 - **The users and scripts processors do not use the failure ledger.** The other
-  eight processors — packages, repositories, services, files (with its templates
-  and directories sections), configuration, git, `ssh_keys`, and fonts — record a
+  eight processors - packages, repositories, services, files (with its templates
+  and directories sections), configuration, git, `ssh_keys`, and fonts - record a
   failed item and keep going. The users and scripts processors return an error on
   the first failed entry, which aborts the rest of the run: the failure does reach
   the exit code, but the remaining work is given up rather than attempted and
   reported at the end.
 - **The files processor's `target` is not contained.** Repository steps resolve
-  their paths against the provider's declared repository directories — the editing
+  their paths against the provider's declared repository directories - the editing
   and removing steps and, since the write-path containment landed, the `download`,
   `write` and `copy` steps too. The files processor still writes to whatever
   `target` a blueprint names, with no boundary check.

@@ -1,7 +1,7 @@
 // Path containment: every path a repository step reads, writes, or
 // removes resolves through here, and anything outside the provider's
 // declared boundaries is refused. Steps run with the provider's
-// privileges — root, for system package managers.
+// privileges - root, for system package managers.
 
 package processors
 
@@ -74,7 +74,7 @@ func repositoryFilePath(path string, paths types.RepositoryPaths) (string, error
 // removeRepositoryPath deletes one path named by a provider's "remove" step.
 //
 // The path is a provider template rendered against blueprint values, and the
-// deletion runs with whatever privilege the provider declares — root, for every
+// deletion runs with whatever privilege the provider declares - root, for every
 // system package manager. So it is only carried out inside the directories the
 // provider itself declares in [provider.repository.paths]: neither a provider
 // definition nor a repository name may redirect a root-owned delete at
@@ -155,7 +155,7 @@ var (
 
 // repositoryTempDir returns the run's private staging directory, or the error
 // that prevented creating it. A failure used to fall back to the predictable
-// <tmp>/rwr-repo-unavailable — a fixed, world-known name any local user can
+// <tmp>/rwr-repo-unavailable - a fixed, world-known name any local user can
 // pre-create, which is exactly the class {{ .TempDir }} exists to eliminate.
 func repositoryTempDir() (string, error) {
 	repoTempDirOnce.Do(func() {
@@ -172,7 +172,7 @@ func repositoryTempDir() (string, error) {
 // repositoryWritePath resolves the destination a download/write/copy step
 // names and refuses anything outside the provider's declared repository paths
 // or the run's private staging directory. These steps run with the provider's
-// privileges — root, for every system package manager — and the destination
+// privileges - root, for every system package manager - and the destination
 // is a template rendered against blueprint values, so an unchecked dest is a
 // root-privileged write to an arbitrary path. The in-place edit and remove
 // steps have been contained since #163; this closes the same door for the

@@ -179,8 +179,8 @@ func TestCreate_RerunIsANoOpAndKeepsTheMode(t *testing.T) {
 	}
 }
 
-// A template can render a .netrc or a gh config — that is what exposing
-// credentials to templates is for — so a rendered template with no declared mode
+// A template can render a .netrc or a gh config - that is what exposing
+// credentials to templates is for - so a rendered template with no declared mode
 // must not be created world-readable and narrowed afterwards.
 
 func TestTemplate_DefaultsToPrivateMode(t *testing.T) {

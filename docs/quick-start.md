@@ -81,7 +81,7 @@ To run your first blueprint, follow these steps:
     rwr all
     ```
 
-    With no `--profile` flag, RWR installs **everything** — the base packages
+    With no `--profile` flag, RWR installs **everything** - the base packages
     (git, curl, wget, htop) and the profiled ones too. Profiles only start
     filtering once at least one is active.
 

@@ -1,7 +1,7 @@
 # Credentials in blueprints
 
-RWR manages credentials for your blueprints. Two are built in — your GitHub API
-token and your SSH private key — and the init file can declare more. By
+RWR manages credentials for your blueprints. Two are built in - your GitHub API
+token and your SSH private key - and the init file can declare more. By
 default, blueprints cannot read any of them.
 
 ## Why RWR holds back the credentials
@@ -19,7 +19,7 @@ different author. RWR cannot tell the difference between the two.
 
 ## Declare the credentials that a tree needs
 
-A blueprint sometimes needs a secret that is not the GitHub token — a registry
+A blueprint sometimes needs a secret that is not the GitHub token - a registry
 token, an API key, a license key. Declare it in the init file, and RWR finds
 the value for you:
 
@@ -41,7 +41,7 @@ credentials:
 RWR resolves every declared credential at the start of the run, before any
 processor runs. A credential with no value from any source stops the run with
 an error that names the credential and the sources tried. When the run is not
-interactive — no terminal, or `--interactive=false` — RWR skips `prompt` and
+interactive - no terminal, or `--interactive=false` - RWR skips `prompt` and
 the error says so.
 
 After you answer a prompt, RWR offers to save the value to the OS keyring, so
@@ -53,8 +53,8 @@ under `exposeCredentials`, and the logs show `[redacted]` instead of the value.
 
 ### Where RWR stores a credential
 
-RWR persists a managed credential only in the OS keyring — Secret Service on
-Linux, Keychain on macOS, Credential Manager on Windows — and only when you
+RWR persists a managed credential only in the OS keyring - Secret Service on
+Linux, Keychain on macOS, Credential Manager on Windows - and only when you
 agree. RWR never writes a managed credential to a plaintext file.
 
 One exception is grandfathered: a GitHub token that an earlier RWR saved into

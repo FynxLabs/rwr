@@ -25,7 +25,7 @@ another format (--to yaml|json|toml|cue), or rewrite deprecated constructs to
 their current equivalents (--migrate).
 
 Dry-run by default: nothing is written without --write. Comments are NOT
-preserved across formats — the command warns per file that carries them.
+preserved across formats - the command warns per file that carries them.
 Template placeholders survive as quoted strings; a file whose templates make
 it unparseable is reported and skipped, never mangled.`,
 		Args: cobra.MaximumNArgs(1),

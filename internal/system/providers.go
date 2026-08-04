@@ -130,7 +130,7 @@ func getSystemInfo() (string, string) {
 // Availability is decided by evidence on the machine rather than by what the
 // distribution calls itself. A named distro match is accepted, but so is the
 // combination of "the binary is installed" plus "every file the provider declares
-// as proof of itself exists" — for pacman that is /etc/pacman.conf and
+// as proof of itself exists" - for pacman that is /etc/pacman.conf and
 // /var/lib/pacman. There are far more Arch and Debian derivatives than any list
 // can track (this was found on PrismLinux, which no provider names and which sets
 // no ID_LIKE), and a machine that has pacman's binary and pacman's database is
@@ -160,7 +160,7 @@ func isProviderAvailable(provider *types.Provider, currentOS, currentDistro stri
 	}
 
 	// Unrecognised distribution. Accept it when the provider declares files that
-	// prove it is genuinely in use, and say so — a provider with no such files has
+	// prove it is genuinely in use, and say so - a provider with no such files has
 	// only its distro list to go on, so it stays unavailable.
 	if len(provider.Detection.Files) > 0 {
 		log.Debugf("GetAvailableProviders: Provider %s not listed for %s/%s but its binary and required files are present; treating as available",
@@ -184,7 +184,7 @@ var osTokens = map[string]bool{
 //
 // A provider that names any OS token must name this one. A provider that lists
 // only distributions (pacman, apt, dnf) is not OS-specific in its declaration, so
-// the file and binary checks decide — those paths simply do not exist on the wrong
+// the file and binary checks decide - those paths simply do not exist on the wrong
 // OS.
 func targetsOS(provider *types.Provider, currentOS string) bool {
 	namedAnOS := false
@@ -248,7 +248,7 @@ func GetProvider(name string) (*types.Provider, bool) {
 
 	// Under providersMu like every other reader: this was the one lookup that
 	// read the map unlocked, a data race against SetProvidersForTest and any
-	// future reload. The lock is not held across FindTool below — only the map
+	// future reload. The lock is not held across FindTool below - only the map
 	// access needs it.
 	providersMu.Lock()
 	provider, exists := providers[name]
@@ -284,7 +284,7 @@ func GetProvider(name string) (*types.Provider, bool) {
 
 // GetProviderDefinition returns a provider by name without requiring its
 // binary to exist. GetProvider treats a missing binary as "not available",
-// which is right everywhere except the install flow — whose entire purpose is
+// which is right everywhere except the install flow - whose entire purpose is
 // that the binary is not there yet.
 func GetProviderDefinition(name string) (*types.Provider, bool) {
 	if err := InitProviders(); err != nil {
@@ -304,7 +304,7 @@ func GetProviderDefinition(name string) (*types.Provider, bool) {
 // The current working directory is deliberately not searched. A provider file
 // declares exec, args and elevated=true and those are run verbatim, so honouring
 // ./providers would hand root-level execution to any directory rwr happens to be
-// run from — a cloned blueprint repo, /tmp, a shared downloads folder. Provider
+// run from - a cloned blueprint repo, /tmp, a shared downloads folder. Provider
 // overrides belong in the user's config directory, which only the user can write.
 func GetProvidersPath() (string, error) {
 	// Get the executable's directory
@@ -322,7 +322,7 @@ func GetProvidersPath() (string, error) {
 
 	// $HOME via Getenv would be empty under systemd/cron/sudo env -i (and always
 	// on Windows), and joining "" yields a relative path that os.Stat resolves
-	// against the CWD — exactly the directory this search must never honour.
+	// against the CWD - exactly the directory this search must never honour.
 	if home, err := os.UserHomeDir(); err == nil {
 		locations = append(locations, filepath.Join(home, ".config/rwr/providers")) // RWR Config Path
 	} else {
@@ -403,7 +403,7 @@ func isProviderFileTrustedOn(goos, path string) bool {
 
 	// Windows has no unix permission bits: Go synthesizes 0666 for any file
 	// that is not read-only, so the writability check below would reject every
-	// normal provider file — and its chmod advice is not runnable there. File
+	// normal provider file - and its chmod advice is not runnable there. File
 	// security on Windows is ACLs, which os.FileMode cannot express.
 	if goos == "windows" {
 		return true
@@ -450,7 +450,7 @@ func LoadProviderDefinition(path string) (*types.Provider, error) {
 	}
 
 	// Overrides come in two shapes: the historical TOML with a [provider]
-	// section, and bare-provider JSON — the same document the embedded
+	// section, and bare-provider JSON - the same document the embedded
 	// definitions use, so an exported provider can be dropped in verbatim.
 	var provider types.Provider
 	if filepath.Ext(path) == ".json" {

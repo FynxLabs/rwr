@@ -149,7 +149,7 @@ func TestNestedStructsDoNotLeakCredentials(t *testing.T) {
 }
 
 // Credentials are withheld from templates by default, but a blueprint that
-// genuinely needs one — writing a .netrc, configuring gh — can opt in by name.
+// genuinely needs one - writing a .netrc, configuring gh - can opt in by name.
 func TestFlagsToMap_ExposesOnlyOptedInCredentials(t *testing.T) {
 	defer SetExposedCredentials(nil)
 

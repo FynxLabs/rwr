@@ -8,7 +8,7 @@ import "fmt"
 // Each supported version of a blueprint type is its own struct describing exactly
 // what that version accepts on disk. Decoding picks the struct by resolved
 // version and then converts it to the canonical type the processors use. So a v2
-// of packages is a new struct plus a conversion — nothing downstream of the
+// of packages is a new struct plus a conversion - nothing downstream of the
 // decoder learns that more than one version exists, and no other blueprint type
 // is touched.
 //
@@ -70,7 +70,7 @@ func HasSchemaVariant(blueprintType string, version int) bool {
 }
 
 // v1 variants. Each wraps the canonical struct, because v1 *is* the current
-// shape — the indirection only starts paying off at v2, where the wire struct
+// shape - the indirection only starts paying off at v2, where the wire struct
 // and the canonical struct diverge and Canonical() does real mapping work.
 
 type packagesV1 struct{ PackagesData }

@@ -74,7 +74,7 @@ func TestExamples_ParseInTheirDeclaredFormat(t *testing.T) {
 
 // The examples may only use template variables that actually exist. A missing key
 // renders as the literal "<no value>" rather than erroring, so a typo silently
-// produces paths like "<no value>/.bashrc" — which is how 214 uses of
+// produces paths like "<no value>/.bashrc" - which is how 214 uses of
 // {{ .User.Home }} (capital H, where the map key is "home") went unnoticed.
 func TestExamples_UseOnlyRealTemplateVariables(t *testing.T) {
 	walkExamples(t, func(path, ext string, data []byte) {
@@ -83,7 +83,7 @@ func TestExamples_UseOnlyRealTemplateVariables(t *testing.T) {
 			return // reported by the parse test
 		}
 		if strings.Contains(string(resolved), "<no value>") {
-			t.Errorf("%s: renders \"<no value>\" — it references a template variable "+
+			t.Errorf("%s: renders \"<no value>\" - it references a template variable "+
 				"that does not exist (check casing: the keys are lowercase-first)", path)
 		}
 	})
@@ -121,7 +121,7 @@ func exampleVariables() types.Variables {
 }
 
 // A CUE blueprint that violates its own constraints is a validate diagnostic
-// with the file attached, on the same surface as schema errors — and the tree
+// with the file attached, on the same surface as schema errors - and the tree
 // still gets its init file discovered in .cue.
 func TestValidate_CueConstraintViolationIsDiagnostic(t *testing.T) {
 	dir := t.TempDir()

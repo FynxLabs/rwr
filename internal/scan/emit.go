@@ -8,7 +8,7 @@ import (
 
 // EmitPackages renders package results as a packages blueprint block in the
 // given registry format. The block strict-decodes against the blueprint
-// schema — emission that produces invalid blueprints is worse than a list.
+// schema - emission that produces invalid blueprints is worse than a list.
 func EmitPackages(results []PackageResult, format string) ([]byte, error) {
 	var entries []interface{}
 	for _, result := range results {

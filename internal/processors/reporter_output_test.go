@@ -88,7 +88,7 @@ func TestAll_HeadlessOutputUnchanged(t *testing.T) {
 
 // A headless (non-interactive) run pushes through a failing processor,
 // still runs the rest, and exits nonzero. Before task 5 the first error
-// aborted the loop — this test fails on that behavior.
+// aborted the loop - this test fails on that behavior.
 func TestAll_NonInteractiveCollectsErrorsAndContinues(t *testing.T) {
 	dir := t.TempDir()
 	write := func(name, content string) {

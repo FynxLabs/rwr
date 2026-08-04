@@ -1,4 +1,4 @@
-# CLI — Deltas
+# CLI - Deltas
 
 ## ADDED Requirements
 

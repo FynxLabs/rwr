@@ -1,4 +1,4 @@
-# CLI — Deltas
+# CLI - Deltas
 
 ## ADDED Requirements
 
@@ -17,7 +17,7 @@ valid and lossless; idiomatic CUE remains authoring work.
 
 The first migration rule SHALL move init-file inline resource sections
 (`repositories`, `packages`, `services`, `files`, `templates`, `directories`,
-`configuration`) out of the init file into blueprint files under the tree —
+`configuration`) out of the init file into blueprint files under the tree -
 the construct strict decode now rejects.
 
 #### Scenario: Dry run by default

@@ -6,6 +6,6 @@
       `cmd/root.go` into it; thread through `initializeSystemInfo` and
       subcommands.
 - [x] 3. Test constructing two isolated `AppConfig` instances and running
-      command setup against each without cross-talk (impossible today —
+      command setup against each without cross-talk (impossible today -
       fails without the refactor).
 - [x] 4. `mise run ci` green; behavior of every flag unchanged.

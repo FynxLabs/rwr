@@ -11,7 +11,7 @@ import (
 //
 // The config file holds a GitHub token and a base64-encoded SSH private key, so
 // it is owner-only. These were previously created with os.ModePerm (0777) and
-// written at 0644, leaving credentials world-readable — and the directory
+// written at 0644, leaving credentials world-readable - and the directory
 // world-writable on any account with a permissive umask.
 const (
 	ConfigDirPerm  os.FileMode = 0o700

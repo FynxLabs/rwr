@@ -12,7 +12,7 @@ import (
 //
 // GetAvailableProviders has already applied supportsSystem (exact distro, distro
 // family, or the "linux" wildcard), confirmed the binary exists, and stored its
-// path in BinPath — so no further filtering belongs here. The per-OS callers used
+// path in BinPath - so no further filtering belongs here. The per-OS callers used
 // to re-filter with a literal string match against the provider's distribution
 // list, which excluded every provider that names concrete distros: on Linux that
 // meant apt, dnf, pacman, zypper and the AUR helpers never made it into the map,

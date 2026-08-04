@@ -1,5 +1,5 @@
 // The Open Directory backend: macOS user and group management via
-// dscl. Selected at runtime on the detected OS — deliberately NOT a
+// dscl. Selected at runtime on the detected OS - deliberately NOT a
 // _darwin.go file, which would carry an implicit GOOS build constraint
 // and break cross-platform validation.
 
@@ -370,7 +370,7 @@ func macAddGroups(name string, groups []string, initConfig *types.InitConfig) er
 // macSetPassword sets the account password through dscl.
 //
 // macOS stores a salted SHA-512 PBKDF2 blob it computes itself, so unlike Linux
-// it needs the cleartext password — there is no hash to pre-compute. That value
+// it needs the cleartext password - there is no hash to pre-compute. That value
 // therefore appears in the argv of a sudo'd process, visible in `ps` to every
 // local user and recorded in sudo's syslog entry.
 //

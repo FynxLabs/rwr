@@ -89,7 +89,7 @@ credentials:
     scope: [scripts]
 ```
 
-Declaring a credential does not give it to blueprints — for that, also name it
+Declaring a credential does not give it to blueprints - for that, also name it
 under `exposeCredentials`. See [Credentials](credentials.md) for the fields,
 the source order, and where values are stored.
 

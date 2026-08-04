@@ -86,7 +86,7 @@ func AddCommonPaths() string {
 //
 // The variables have to be expanded here: Go does not interpret cmd-style
 // "%USERPROFILE%\..." strings, so the literal paths never resolved and every
-// Windows entry was silently skipped — including scoop's shims directory, which
+// Windows entry was silently skipped - including scoop's shims directory, which
 // an elevated shell often does not inherit in PATH, so scoop went undetected.
 //
 // getenv is a parameter so the expansion can be tested off Windows.

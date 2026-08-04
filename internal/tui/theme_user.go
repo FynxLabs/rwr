@@ -15,7 +15,7 @@ func LoadUserTheme(configDir, name string) (Theme, bool) {
 		return Theme{}, false
 	}
 	// The name reaches us from a flag or environment variable; a theme name
-	// is a bare filename, never a path — anything else stays out of ReadFile.
+	// is a bare filename, never a path - anything else stays out of ReadFile.
 	if name != filepath.Base(name) || strings.ContainsAny(name, `/\`) || name == ".." {
 		return Theme{}, false
 	}

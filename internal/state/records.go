@@ -20,7 +20,7 @@ func (r *RecordFile) Save() error {
 }
 
 // LoadAll reads every run record under configDir, oldest first. Unreadable
-// files are skipped — one corrupt record must not hide the others.
+// files are skipped - one corrupt record must not hide the others.
 func LoadAll(configDir string) ([]*RecordFile, error) {
 	dir := RunsDir(configDir)
 	entries, err := os.ReadDir(dir)
@@ -59,7 +59,7 @@ type EntryRef struct {
 func (ref EntryRef) Entry() *Entry { return &ref.File.Record.Entries[ref.Index] }
 
 // UnreversedApplies returns every successfully applied, not-yet-reversed
-// entry across records, one per identity (the latest apply wins — that is
+// entry across records, one per identity (the latest apply wins - that is
 // the state on disk). Uninstall consumes this: reversed work must not be
 // reversed again.
 func UnreversedApplies(records []*RecordFile) []EntryRef {

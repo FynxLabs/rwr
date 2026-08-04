@@ -49,7 +49,7 @@ packages:
 	}
 }
 
-// CUE's value: constraints hold at decode time — a violated constraint is an
+// CUE's value: constraints hold at decode time - a violated constraint is an
 // error naming the position, before anything touches the machine.
 func TestUnmarshalBlueprint_CUEConstraintViolation(t *testing.T) {
 	cueData := []byte(`
@@ -82,7 +82,7 @@ func TestUnmarshalBlueprint_CUENonConcreteIsError(t *testing.T) {
 }
 
 // Evaluation is sandboxed: with no module loader and no filesystem root, a
-// .cue file can import only the built-in standard library — a package path
+// .cue file can import only the built-in standard library - a package path
 // that would resolve through disk or a registry fails to compile.
 func TestEvalCUE_ImportsOutsideStdlibRefused(t *testing.T) {
 	for name, src := range map[string]string{

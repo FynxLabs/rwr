@@ -73,7 +73,7 @@ type multiTypeBlueprint struct {
 //
 // This deliberately mirrors production: getProcessorType (processors/blueprints.go)
 // scans *every* path segment for a blueprint type name, it does not look only at
-// the immediate parent directory. Using the parent alone — as this test used to —
+// the immediate parent directory. Using the parent alone - as this test used to -
 // gave a nil target to every init and bootstrap file (their parent is the format
 // name, "yaml"/"json"/"toml"), to everything under alternative_layouts/, and to
 // examples/imports/Common/packages/arch/base-aur.yaml, all of which were then
@@ -116,8 +116,8 @@ func blueprintTargetForPath(rel string) interface{} {
 //
 // It is currently empty, and that is the goal state. Widening the type derivation
 // above brought init, bootstrap, alternative_layouts/ and imports/ under the strict
-// check for the first time and uncovered two real bugs — `asUser` on script entries
-// and `variables.userDefined` in init files — both of which are now implemented
+// check for the first time and uncovered two real bugs - `asUser` on script entries
+// and `variables.userDefined` in init files - both of which are now implemented
 // rather than tolerated.
 //
 // This is a shrinking list, never a growing one: an entry whose file starts
@@ -132,7 +132,7 @@ var knownSchemaViolations = map[string]struct{ key string }{}
 // here means such a change fails the build with the field named, instead of
 // shipping and quietly doing nothing on users' machines.
 //
-// It also catches the reverse — an example inventing a field that never existed,
+// It also catches the reverse - an example inventing a field that never existed,
 // which is how `src`/`dest`, `username` and script `mode` survived in the tree.
 func TestExamples_DecodeStrictlyIntoBlueprintStructs(t *testing.T) {
 	root := examplesDir(t)
@@ -181,7 +181,7 @@ func TestExamples_DecodeStrictlyIntoBlueprintStructs(t *testing.T) {
 			t.Errorf("%s: expected only the known %q violation, got: %s",
 				path, known.key, strings.Join(unknown, ", "))
 		case len(unknown) == 0 && isKnown:
-			t.Errorf("%s: now decodes cleanly — delete its knownSchemaViolations entry "+
+			t.Errorf("%s: now decodes cleanly - delete its knownSchemaViolations entry "+
 				"so the file cannot regress", path)
 		}
 		return nil
@@ -249,7 +249,7 @@ func unknownFieldsFromError(msg string) []string {
 //
 // This replaces a blanket "skip everything under alternative_layouts/" exclusion.
 // That exclusion was written when the whole subtree had drifted; it no longer
-// holds — every other pair under alternative_layouts/ agrees exactly, so the
+// holds - every other pair under alternative_layouts/ agrees exactly, so the
 // exclusion was hiding nothing but suppressing a real check on eleven files.
 //
 // What remains is narrow and real: YAML's `|` block scalar keeps the trailing
@@ -290,7 +290,7 @@ func trimStringNewlines(v interface{}) interface{} {
 
 // The yaml, json and toml copies of a blueprint must express the same thing.
 //
-// They had drifted badly — the Arch files example was 194 lines of YAML against
+// They had drifted badly - the Arch files example was 194 lines of YAML against
 // 31 of JSON, and the macOS scripts example worked in YAML while the JSON and
 // TOML copies were missing the `action` every entry needs. Someone reading the
 // TOML tree was being shown something that would not run.
@@ -361,7 +361,7 @@ func TestExamples_FormatsAgreeWithEachOther(t *testing.T) {
 		compare := func(other map[string]interface{}, format string) {
 			if reflect.DeepEqual(fromYAML, other) {
 				if _, listed := knownTrailingNewlineDrift[key]; listed && format == "toml" {
-					t.Errorf("%s and its .toml copy now agree exactly — delete its "+
+					t.Errorf("%s and its .toml copy now agree exactly - delete its "+
 						"knownTrailingNewlineDrift entry", rel)
 				}
 				return
@@ -401,8 +401,8 @@ func decodeInto(t *testing.T, path, format string, out *map[string]interface{}) 
 		return false // reported by the parse test
 	}
 
-	// Decoders disagree on Go representation for identical content — yaml yields
-	// []interface{} of maps where toml yields []map[string]interface{} — so
+	// Decoders disagree on Go representation for identical content - yaml yields
+	// []interface{} of maps where toml yields []map[string]interface{} - so
 	// canonicalise through JSON before comparing, or every file looks different.
 	canonical, err := json.Marshal(*out)
 	if err != nil {

@@ -27,8 +27,8 @@ func newDiffCmd(app *AppConfig) *cobra.Command {
 	diffCmd := &cobra.Command{
 		Use:   "diff",
 		Short: "Show machine drift as blueprint material",
-		Long: `Compare what is actually on this machine — explicitly-installed packages,
-enabled services, git checkouts, configs — against the blueprint tree.
+		Long: `Compare what is actually on this machine - explicitly-installed packages,
+enabled services, git checkouts, configs - against the blueprint tree.
 Additions are things you did by hand; removals are declared things that are
 gone. Output as a readable list, paste-ready blueprint blocks (--format), or
 routed interactively into the tree (--into). Diff never touches the system.`,

@@ -10,7 +10,7 @@ import (
 )
 
 // Services reports enabled unit names on the current platform; elsewhere it
-// reports nothing — an empty answer is honest, a guessed one is not.
+// reports nothing - an empty answer is honest, a guessed one is not.
 func Services() []string {
 	if runtime.GOOS != "linux" {
 		return nil
@@ -49,7 +49,7 @@ type GitCheckout struct {
 	URL  string
 }
 
-// GitCheckouts finds clones under the given roots (two levels deep — the
+// GitCheckouts finds clones under the given roots (two levels deep - the
 // host/org/repo layout most people keep).
 func GitCheckouts(roots []string) []GitCheckout {
 	var checkouts []GitCheckout

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-RWR configures a machine by running other programs — package managers, `systemctl`,
+RWR configures a machine by running other programs - package managers, `systemctl`,
 `ssh-keygen`, `useradd`, operator scripts. Every one of those invocations carries
 values that came out of a blueprint file, and blueprints are cloned from git
 repositories. This capability defines how a `types.Command` becomes a real process,
@@ -58,7 +58,7 @@ cannot be absorbed as a `sudo` option.
 On Windows, `Elevated` SHALL be a no-op at this layer: there is no `sudo`
 equivalent. A processor that genuinely needs elevation on Windows SHALL raise it
 itself through `Start-Process -Verb RunAs`, and SHALL pass the elevated process
-its inputs as data rather than as command text — the elevated shell tokenizes its
+its inputs as data rather than as command text - the elevated shell tokenizes its
 argument list a second time, so any value interpolated into it becomes code
 running as administrator. The Windows registry processor does this by writing a
 JSON payload and invoking a constant script via `-EncodedCommand`.
@@ -130,8 +130,8 @@ spawned process on standard input. `Stdin` SHALL NOT be a blueprint field: it ex
 so RWR can hand a tool a credential without putting it in argv.
 
 Where a tool accepts a credential on stdin, RWR SHALL use that path. Setting a Linux
-account password SHALL go through `chpasswd` on stdin — `chpasswd -e` when the value
-is already a crypt(3) hash, plain `chpasswd` otherwise — and SHALL NOT use
+account password SHALL go through `chpasswd` on stdin - `chpasswd -e` when the value
+is already a crypt(3) hash, plain `chpasswd` otherwise - and SHALL NOT use
 `useradd`/`usermod --password`.
 
 An argument of a `sudo`'d process is readable in `ps` by every local user for the
@@ -159,7 +159,7 @@ inheriting `os.Stdin` would hang waiting for a human who has nothing to type.
 `types.Command` SHALL carry a `Secrets` field listing values that must not be
 written to a log, and SHALL expose a `LogArgs()` method returning `Args` with every
 such value replaced by the redaction placeholder. Every log line that prints a
-command's arguments — the debug lines in `buildCommand`, and the `[DRY-RUN]` line —
+command's arguments - the debug lines in `buildCommand`, and the `[DRY-RUN]` line -
 SHALL use `LogArgs()` rather than `Args`.
 
 Some tools accept a credential only as an argument (chocolatey's `--password`,
@@ -249,8 +249,8 @@ the init file opted into them by name. See the credential-handling specification
 
 ### Requirement: Installer steps stage in a private per-run directory
 
-RWR SHALL create one private staging directory per run — a `0700` temporary
-directory with an unpredictable name, reachable only by the invoking user — and
+RWR SHALL create one private staging directory per run - a `0700` temporary
+directory with an unpredictable name, reachable only by the invoking user - and
 SHALL render `{{ .TempDir }}` in package-manager install and remove steps to
 it. When the directory cannot be created, the run SHALL stop; there is no
 fallback path.
@@ -258,8 +258,8 @@ fallback path.
 Install steps historically staged at fixed, world-known `/tmp` names
 (`/tmp/brew-install.sh`, a clone into `/tmp/yay`), and the macports installer
 staged its download in the current working directory. Any local user can
-pre-create such a path — or rewrite it between the download and the elevated
-step that executes it — which is root code execution. A failed creation used to
+pre-create such a path - or rewrite it between the download and the elevated
+step that executes it - which is root code execution. A failed creation used to
 fall back to the predictable `<tmp>/rwr-pm-unavailable`, which is exactly the
 class of name `{{ .TempDir }}` exists to eliminate.
 

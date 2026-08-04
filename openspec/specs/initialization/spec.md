@@ -16,8 +16,8 @@ RWR SHALL accept an init file given as:
   `init.json`, then `init.toml` inside it
 - an `https://` URL to a raw file
 - a GitHub blob URL, which RWR SHALL rewrite to its raw form
-- a GitHub shorthand — `owner/repo`, `owner/repo@ref`, or
-  `owner/repo/path/to/file` with an optional `@ref` — resolved against
+- a GitHub shorthand - `owner/repo`, `owner/repo@ref`, or
+  `owner/repo/path/to/file` with an optional `@ref` - resolved against
   `raw.githubusercontent.com`; a bare `owner/repo` probes the repository root
   for the init file names, and `@ref` defaults to the default branch
 
@@ -74,14 +74,14 @@ same `User`, `System`, `Flags`, and `UserDefined` variables available to bluepri
 RWR SHALL decode the init file's `variables.userDefined` block and SHALL make its
 keys available to every blueprint template as `{{ .UserDefined.<key> }}`.
 
-The runtime halves of the variable set — `Flags`, `User`, `System` — are computed
+The runtime halves of the variable set - `Flags`, `User`, `System` - are computed
 rather than declared and SHALL NOT be decodable from the init file, so a blueprint
 cannot claim to be running as a different user or with different flags than it is.
 Filling them in SHALL preserve the declared `userDefined` entries rather than
 replacing the whole structure.
 
 Previously the block decoded into nothing and was then overwritten, so every
-`{{ .UserDefined.x }}` in a tree rendered empty — and because rendering is strict,
+`{{ .UserDefined.x }}` in a tree rendered empty - and because rendering is strict,
 the run stopped on a variable the operator had in fact declared.
 
 `RWR_`-prefixed environment variables SHALL be merged into the same namespace with
@@ -117,10 +117,10 @@ blueprint silently unprocessed, which is not a state anybody wants a machine in.
 
 RWR SHALL resolve the blueprint location as follows:
 
-- empty or `.` — the directory containing the init file
-- beginning with `~` — relative to the user's home directory
-- a relative path — relative to the directory containing the init file
-- an absolute path — used as given
+- empty or `.` - the directory containing the init file
+- beginning with `~` - relative to the user's home directory
+- a relative path - relative to the directory containing the init file
+- an absolute path - used as given
 
 #### Scenario: A relative location
 
@@ -160,7 +160,7 @@ belongs to.
 
 Configuration keys are nested (`log.level`), and a dot is not legal in an
 environment variable name, so RWR SHALL translate dots to underscores when reading
-the environment — `RWR_LOG_LEVEL` sets `log.level`.
+the environment - `RWR_LOG_LEVEL` sets `log.level`.
 
 RWR SHALL create its config directory and its run-once state directory at startup,
 at owner-only permissions.
@@ -199,7 +199,7 @@ Under strict decode, an init file carrying any of these keys SHALL fail with
 an error naming the key and pointing at blueprint files.
 
 Why: these sections were decoded, validated, and profile-counted but never
-applied at runtime — a declaration that silently did nothing. Blueprints are
+applied at runtime - a declaration that silently did nothing. Blueprints are
 the single declaration path.
 
 Migration: move the entries into blueprint files under the tree; `rwr convert
@@ -214,7 +214,7 @@ Migration: move the entries into blueprint files under the tree; `rwr convert
 ### Requirement: A repo-root manifest declares multiple configurations
 
 The system SHALL read a root `manifest.*` when the init location (local dir
-or cloned git repo) contains no init file — the manifest is a list of
+or cloned git repo) contains no init file - the manifest is a list of
 named configurations, each with an `init` path relative to the repo root and
 optional matchers `os`, `distro`, `family`, `arch`, plus optional `default`.
 The manifest SHALL decode strictly through the format registry.

@@ -37,7 +37,7 @@ Full design in `design.md`. Key decisions:
    working without a CUE toolchain.
 
 Resolved open questions: overrides accept TOML **and** JSON; `cue` pinned in
-mise from PR 1; source lives at `providers/cue/` (repo root — it is source,
+mise from PR 1; source lives at `providers/cue/` (repo root - it is source,
 not an embedded asset).
 
 ## What Changes

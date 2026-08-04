@@ -30,7 +30,7 @@ func ConfigFilePath() string {
 
 // ConfigView renders the effective merged configuration, one key per line,
 // annotated with where each value comes from (config file, environment, or
-// the running process — flags and defaults). Secrets render as the redaction
+// the running process - flags and defaults). Secrets render as the redaction
 // placeholder unless showSecrets is set: `rwr config view` output lands in
 // terminals, scrollback, and pasted issues.
 func ConfigView(showSecrets bool) (string, error) {

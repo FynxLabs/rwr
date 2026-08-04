@@ -34,7 +34,7 @@ func testModel(t *testing.T) *Model {
 }
 
 // Every frame renders from one model: running (with a failure row), summary,
-// dry-run vocabulary, compact — and the ASCII theme — without panicking and
+// dry-run vocabulary, compact - and the ASCII theme - without panicking and
 // with the load-bearing content present.
 func TestModel_FramesRender(t *testing.T) {
 	m := testModel(t)

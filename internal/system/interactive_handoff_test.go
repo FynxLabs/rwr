@@ -21,7 +21,7 @@ func (r *recordingReporter) Emit(e reporting.Event) {
 }
 
 // Interactive commands are handed to the display layer via TerminalReq; the
-// run blocks on Done. This is the seam a TUI suspends around — and it must
+// run blocks on Done. This is the seam a TUI suspends around - and it must
 // fire regardless of the global interactive flag, because a single blueprint
 // item can set interactive: true inside a non-interactive run.
 func TestRunCommand_InteractiveGoesThroughTerminalReq(t *testing.T) {

@@ -21,7 +21,7 @@ import (
 
 // buildCommand creates an *exec.Cmd from the given types.Command.
 //
-// Commands are built as argv and handed directly to the kernel — no shell is
+// Commands are built as argv and handed directly to the kernel - no shell is
 // interposed. Every element of cmd.Args reaches the target program as exactly one
 // argument, so blueprint-supplied values (package names, paths, comments, password
 // hashes) cannot be reinterpreted as shell syntax and arguments containing spaces
@@ -30,7 +30,7 @@ import (
 // A shell is still available when a provider genuinely wants one; it just has to
 // say so explicitly, e.g. exec = "sh" with args = ["-c", "cd /tmp/paru && makepkg"].
 //
-// Elevation is unchanged in policy — it remains per-command via Elevated/AsUser —
+// Elevation is unchanged in policy - it remains per-command via Elevated/AsUser -
 // only the spawn differs. "--" terminates sudo's own option parsing so a command
 // whose name begins with a dash cannot be absorbed as a sudo flag. Windows has no
 // sudo: Elevated is a no-op there and the process must already be elevated, which
@@ -117,7 +117,7 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if cmd.Interactive {
-		// Interactive commands must reach the terminal directly — capturing
+		// Interactive commands must reach the terminal directly - capturing
 		// stderr would swallow sudo's password prompt and hang the run. The
 		// display layer owns the terminal, so the handoff goes through the
 		// reporter: LogReporter wires os.Std* exactly as this code used to;
@@ -194,7 +194,7 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 
 // setOutputStreams points the command's stdout at the terminal (debug) or at the
 // blueprint's log file. When a log file is opened it is returned so the caller can
-// close it *after* the command has run — closing it here would hand the command a
+// close it *after* the command has run - closing it here would hand the command a
 // dead descriptor and silently discard everything it wrote.
 func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, error) {
 	log.Debugf("Debug: %v", debug)
@@ -214,7 +214,7 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 	// attacker-influenced whenever the blueprint is. Appending through a symlink
 	// would let command output be written into ~/.ssh/authorized_keys or ~/.bashrc
 	// without the blueprint containing anything that looks like it writes a file.
-	// Refuse to follow a symlink, and create at 0600 — command output routinely
+	// Refuse to follow a symlink, and create at 0600 - command output routinely
 	// contains more than the operator expects.
 	if info, err := os.Lstat(logName); err == nil && info.Mode()&os.ModeSymlink != 0 {
 		return nil, fmt.Errorf("refusing to write command log through symlink %q", logName)

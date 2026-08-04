@@ -4,7 +4,7 @@ Depends on: `add-format-registry`, `add-tui` (selection renders as a TUI frame).
 
 ## Why
 
-A single blueprint repo commonly carries several machines' worth of config —
+A single blueprint repo commonly carries several machines' worth of config -
 e.g. TheFynx/rwr-blueprints has Arch/, Archcraft/, Common/, macOS/,
 OpenMandriva/, PopOS/, Windows/ at root. Today rwr has no notion of this: the
 operator must point `--init-file` at the right subdirectory by hand, and there
@@ -14,14 +14,14 @@ is no way to publish one repo URL that works on any of your machines.
 
 - A `manifest.{yaml,yml,json,toml}` file at blueprint-repo root (`.cue` once
   `add-cue-blueprints` lands), listing named configurations. Each entry:
-  - `name` — e.g. `arch-desktop`
-  - `init` — path to that configuration's init file, relative to repo root
+  - `name` - e.g. `arch-desktop`
+  - `init` - path to that configuration's init file, relative to repo root
   - matchers: `os` (linux/darwin/windows), `distro`, `family` (arch/debian/…),
     optional `arch`
   - optional `default: true`
 - Init resolution learns to accept a repo root (local dir or git URL): clone via
   the existing `GetBlueprints` machinery, find `manifest.*` at root, filter
-  entries against `system.DetectOS()` (runs before init — ordering already works).
+  entries against `system.DetectOS()` (runs before init - ordering already works).
 - Selection:
   - zero matches → error listing every entry and its matchers
   - exactly one match → use it, log which

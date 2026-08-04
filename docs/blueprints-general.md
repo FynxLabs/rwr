@@ -141,15 +141,15 @@ blueprints:
 
 Blueprints can be written in [CUE](https://cuelang.org), which adds types,
 constraints, and composition on top of what YAML/JSON/TOML offer. A `.cue`
-blueprint is evaluated in-process — no `cue` binary is needed on the target
-machine — exported to concrete values, and decoded exactly like its YAML
+blueprint is evaluated in-process - no `cue` binary is needed on the target
+machine - exported to concrete values, and decoded exactly like its YAML
 equivalent.
 
 JSON is valid CUE, so any JSON blueprint is already a CUE blueprint. What CUE
 adds is checking at authoring time:
 
 ```cue
-// packages/base.cue — constraints hold before anything touches the machine
+// packages/base.cue - constraints hold before anything touches the machine
 #Package: {
 	name:    string
 	action:  "install" | "remove"
@@ -165,7 +165,7 @@ packages: [
 
 A violated constraint (say `action: "instal"`) or an unresolved field
 (`version: string` with no concrete value) fails evaluation with the file,
-line, and failing field — at `rwr validate` time, not halfway through a run.
+line, and failing field - at `rwr validate` time, not halfway through a run.
 
 Evaluation is sandboxed: a `.cue` blueprint can import only CUE's built-in
 standard library (`strings`, `list`, …). Imports that would resolve through

@@ -1,11 +1,11 @@
-# System Scan — Deltas
+# System Scan - Deltas
 
 ## ADDED Requirements
 
 ### Requirement: Scans report what the operator put on the machine
 
-A scan SHALL report the machine's operator-chosen state per category —
-packages, configs, services, git checkouts — preferring each package
+A scan SHALL report the machine's operator-chosen state per category -
+packages, configs, services, git checkouts - preferring each package
 manager's explicitly-installed query (`list_explicit`) over its full list,
 and marking results unfiltered when only the full list exists. Dependency
 noise is the difference between a usable answer and 1200 rows.

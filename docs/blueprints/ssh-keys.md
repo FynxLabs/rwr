@@ -29,7 +29,7 @@ The following settings are available for each SSH key in the SSH Keys blueprint:
 | -------------------- | -------- | ---------------------------------------------------------------------------------- |
 | `name`               | Yes, if `import` is not provided      | The name of the SSH key file (e.g., `id_rsa`)                                      |
 | `import`             | Yes, if `name` is not provided | Path to import SSH key definitions from another file (relative to blueprint directory) |
-| `type`               | Yes      | The key type, passed straight to `ssh-keygen -t`. There is **no default** — omitting it makes `ssh-keygen` fail. `rwr validate` warns for anything other than `rsa`, `ed25519` or `ecdsa` |
+| `type`               | Yes      | The key type, passed straight to `ssh-keygen -t`. There is **no default** - omitting it makes `ssh-keygen` fail. `rwr validate` warns for anything other than `rsa`, `ed25519` or `ecdsa` |
 | `path`               | Yes      | The directory where the SSH key will be stored. There is **no default**; write it explicitly, e.g. `~/.ssh`. A leading `~` is expanded |
 | `comment`            | No       | A comment to include in the SSH key (e.g., email address)                          |
 | `no_passphrase`      | No       | Set to `true` to generate the SSH key without a passphrase. Default is `false`     |

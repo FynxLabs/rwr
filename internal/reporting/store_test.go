@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Every line written while a processor is stamped is attributed to it — the
+// Every line written while a processor is stamped is attributed to it - the
 // mechanism that gives per-processor log views with zero edits to the ten
 // processor files.
 func TestLineWriter_AttributesRecordsToCurrentProcessor(t *testing.T) {

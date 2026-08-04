@@ -20,7 +20,7 @@ func fileOwnedByEUID(info os.FileInfo) bool {
 
 // ownedByRootOrEUID reports whether the file or directory belongs to root or
 // to the effective user. A provider directory owned by any other account is
-// rewritable by that account regardless of its mode bits — a directory's owner
+// rewritable by that account regardless of its mode bits - a directory's owner
 // can always chmod it open.
 func ownedByRootOrEUID(info os.FileInfo) bool {
 	st, ok := info.Sys().(*syscall.Stat_t)

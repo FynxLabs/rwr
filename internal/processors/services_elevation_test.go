@@ -11,7 +11,7 @@ import (
 )
 
 // services: action: create with inline content wrote via a plain os.WriteFile
-// on all three platforms, ignoring `elevated` — a unit file under /etc/systemd
+// on all three platforms, ignoring `elevated` - a unit file under /etc/systemd
 // died with EACCES for any non-root run that declared elevated: true.
 func TestCreateServiceFile_ContentHonorsElevated(t *testing.T) {
 	rec := exectest.New()

@@ -46,7 +46,7 @@ func TestValidateGitHubToken(t *testing.T) {
 // The huh v2 upgrade came with a module rename (github.com/charmbracelet/huh ->
 // charm.land/huh/v2), so it is worth exercising the builder API rather than only
 // compiling against it. These construct the same forms the prompts build, without
-// running them — Run needs a terminal.
+// running them - Run needs a terminal.
 func TestFormsBuildAgainstHuhV2(t *testing.T) {
 	t.Run("select", func(t *testing.T) {
 		var choice string

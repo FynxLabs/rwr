@@ -54,7 +54,7 @@ func Defaults(findings Findings) Selection {
 
 // Generate writes the tree: init, per-category blueprints, and the selected
 // config files copied under files/src/. The generated tree is validated
-// before success is reported — a generator whose output needs hand-repair
+// before success is reported - a generator whose output needs hand-repair
 // has not captured anything.
 func Generate(out io.Writer, dir, format string, selection Selection, findings Findings, manifest bool, osInfo *types.OSInfo) error {
 	ext := helpers.BlueprintExtension(format)
@@ -113,7 +113,7 @@ func Generate(out io.Writer, dir, format string, selection Selection, findings F
 	if len(selection.Configs) > 0 {
 		for _, config := range selection.Configs {
 			if scan.SecretShaped(config.Rel) {
-				helpers.Say(out, "warning: capturing secret-shaped path %s — review before committing\n", config.Rel)
+				helpers.Say(out, "warning: capturing secret-shaped path %s - review before committing\n", config.Rel)
 			}
 			dest := filepath.Join(dir, "files", "src", config.Rel)
 			if err := copyPath(config.Path, dest); err != nil {
@@ -158,7 +158,7 @@ func Generate(out io.Writer, dir, format string, selection Selection, findings F
 				helpers.Say(out, "  ✗ %s: %s\n", issue.File, issue.Message)
 			}
 		}
-		return fmt.Errorf("the generated tree fails validation with %d error(s) — capture aborted, fix the selection and re-run", results.ErrorCount)
+		return fmt.Errorf("the generated tree fails validation with %d error(s) - capture aborted, fix the selection and re-run", results.ErrorCount)
 	}
 	helpers.Say(out, "Captured to %s (validated).\n", dir)
 	return nil

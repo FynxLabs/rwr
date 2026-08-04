@@ -112,23 +112,23 @@ func TestEmbeddedProviders_NoSharedOrCWDStagingInInstallSteps(t *testing.T) {
 				fields := append([]string{step.Source, step.Dest, step.Exec, step.Content}, step.Args...)
 				for _, field := range fields {
 					if strings.Contains(field, "/tmp/") {
-						t.Errorf("provider %s stages at a fixed /tmp path: %q — use {{ .TempDir }}", name, field)
+						t.Errorf("provider %s stages at a fixed /tmp path: %q - use {{ .TempDir }}", name, field)
 					}
 				}
 
 				if step.Action == "download" && !contained(step.Dest) {
-					t.Errorf("provider %s downloads to a relative dest: %q — use {{ .TempDir }}", name, step.Dest)
+					t.Errorf("provider %s downloads to a relative dest: %q - use {{ .TempDir }}", name, step.Dest)
 				}
 
 				for i, arg := range step.Args {
 					// curl -O / --remote-name writes into the CWD by construction.
 					if step.Exec == "curl" && (arg == "-O" || arg == "--remote-name") {
-						t.Errorf("provider %s uses `curl %s`, which stages in the CWD — use a download step with a {{ .TempDir }} dest", name, arg)
+						t.Errorf("provider %s uses `curl %s`, which stages in the CWD - use a download step with a {{ .TempDir }} dest", name, arg)
 					}
 					// A bare relative file name consumed or produced by a step
 					// resolves against whatever directory rwr happens to run in.
 					if stagedFile(arg) && !contained(arg) {
-						t.Errorf("provider %s references a relative staged file: args[%d] = %q — use {{ .TempDir }}", name, i, arg)
+						t.Errorf("provider %s references a relative staged file: args[%d] = %q - use {{ .TempDir }}", name, i, arg)
 					}
 				}
 			}

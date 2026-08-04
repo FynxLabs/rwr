@@ -22,7 +22,7 @@
       drift table (`in-sync/missing/modified/unknown/stale`), exit 1 on
       drift. Tests: golden output for a synthetic tree; no-record fallback
       omits the recorded column; command never elevates.
-- [x] 5. `rwr uninstall`: record-driven reverse-order removal — provider
+- [x] 5. `rwr uninstall`: record-driven reverse-order removal - provider
       `remove` for packages, provider `remove` steps for repositories,
       hash-guarded deletes for files/dirs/git/fonts, disable/stop for
       services. Tests: modified file skipped and listed; already-absent
@@ -35,5 +35,5 @@
       exit; failed entries stay unreversed and a re-run retries them (test
       fails without re-run coverage).
 - [x] 8. Docs: new commands page, state-file format doc; examples unaffected
-      (no blueprint schema change) — verify `examples/` validation still
+      (no blueprint schema change) - verify `examples/` validation still
       green.

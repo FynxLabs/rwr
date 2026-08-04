@@ -1,4 +1,4 @@
-# CLI — Deltas
+# CLI - Deltas
 
 ## ADDED Requirements
 
@@ -29,7 +29,7 @@ A TUI run SHALL record every log line to a run log file (mode 0600, path
 printed on exit, `--log-file` overrides) and SHALL end with a summary of
 resources by status: applied, skipped, failed, unknown.
 
-Why: `unknown` is required — several providers do not report per-package
+Why: `unknown` is required - several providers do not report per-package
 results reliably; forcing them into ok/failed fabricates data.
 
 #### Scenario: Failure visible at end

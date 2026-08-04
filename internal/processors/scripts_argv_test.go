@@ -104,7 +104,7 @@ scripts:
 
 // Inline `content:` scripts used to stage as *.sh unconditionally, but the
 // Windows default executor is `powershell -File`, which refuses any file not
-// ending in .ps1 — every inline script on Windows failed before its first line.
+// ending in .ps1 - every inline script on Windows failed before its first line.
 func TestProcessScripts_InlineContentExtensionMatchesExecutor(t *testing.T) {
 	rec := exectest.New()
 	defer system.SetExecutor(rec)()
@@ -132,6 +132,6 @@ scripts:
 		t.Fatalf("powershell args = %v, want [-File <path>]", calls[0].Args)
 	}
 	if got := calls[0].Args[1]; filepath.Ext(got) != ".ps1" {
-		t.Errorf("staged script = %q, want a .ps1 extension — powershell -File refuses anything else", got)
+		t.Errorf("staged script = %q, want a .ps1 extension - powershell -File refuses anything else", got)
 	}
 }

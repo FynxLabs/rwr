@@ -27,7 +27,7 @@ RWR's profile system allows you to organize and selectively install packages and
 - [Profile Commands](cli/profiles.md): Profile-specific CLI commands and flags.
 - [Validate Command](cli/validate.md): Check blueprints and provider configurations before a run.
 - [Convert Command](cli/convert.md): Rewrite a blueprint tree between formats or migrate deprecated constructs.
-- [Diff Command](cli/diff.md): Machine drift as blueprint material — lists, paste-ready blocks, or routed tree edits.
+- [Diff Command](cli/diff.md): Machine drift as blueprint material - lists, paste-ready blocks, or routed tree edits.
 - [Capture Command](cli/capture.md): Turn a handcrafted machine into a validated blueprint tree.
 
 ## The Init File
@@ -81,7 +81,7 @@ RWR supports various blueprint types for managing different aspects of your syst
 
 ## Extending RWR
 
-- [Package Manager Providers](providers.md): Declarative provider definitions —
+- [Package Manager Providers](providers.md): Declarative provider definitions -
   add or override a package manager without writing Go code.
 - Coming Soon: Adding a New Processor
 

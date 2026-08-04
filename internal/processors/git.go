@@ -61,7 +61,7 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 		}
 		// The action field was decoded and never read, so `action: pull` cloned and
 		// `action: banana` was accepted. Empty and "clone" keep the original
-		// behavior — clone when missing, pull when present.
+		// behavior - clone when missing, pull when present.
 		switch repo.Action {
 		case "", types.GitActionClone, types.GitActionPull:
 		default:

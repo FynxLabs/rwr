@@ -12,7 +12,7 @@ import (
 
 // EditConfig opens the config file in the operator's editor, creating a
 // default file first when none exists. After the editor exits the file is
-// re-parsed; a file that no longer parses is warned about, not reverted —
+// re-parsed; a file that no longer parses is warned about, not reverted -
 // it is the operator's file.
 func EditConfig() error {
 	path := ConfigFilePath()

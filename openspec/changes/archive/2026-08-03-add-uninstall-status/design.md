@@ -5,7 +5,7 @@
 rwr is convergence-oriented (`openspec/config.yaml`: running `rwr all` twice
 is the normal case) but write-only: nothing records what a run did. This
 design adds an observation journal and two consumers of it. It deliberately
-does NOT turn rwr into a state-enforcing system like Terraform — blueprints
+does NOT turn rwr into a state-enforcing system like Terraform - blueprints
 remain the source of desired state; the record is evidence of past applies,
 never an input to `all`.
 
@@ -36,7 +36,7 @@ never an input to `all`.
   services, `{name}` for repositories/fonts, `{target}` for git.
 - Only *applies* are recorded (dry-run writes nothing). Removal runs append
   removal entries; `uninstall` finalizes by marking entries reversed rather
-  than deleting records — the journal is append-only history.
+  than deleting records - the journal is append-only history.
 - Emission point: the processors already funnel failures through the ledger
   (`internal/processors/failures.go`); record emission rides the same
   per-item points, so coverage is per-item, not per-processor-exit.
@@ -44,7 +44,7 @@ never an input to `all`.
 ### `rwr status`
 
 - Desired side: reuse blueprint resolution (the `ResolveStage1` /
-  `plan_stage2` machinery, `internal/processors/plan.go`) — no new parser.
+  `plan_stage2` machinery, `internal/processors/plan.go`) - no new parser.
 - Actual side: a new optional per-processor `Query` capability:
   - packages: provider `list` command output (already defined per provider,
     e.g. apt's `dpkg --get-selections`) parsed for presence
@@ -53,17 +53,17 @@ never an input to `all`.
     sc.exe)
   - repositories: source-file presence at the provider's `paths`
   - fonts/git: recorded-path existence
-  - scripts, configuration, users, ssh_keys: report `unknown` — a query that
+  - scripts, configuration, users, ssh_keys: report `unknown` - a query that
     cannot be honest is worse than none
 - Output rows: `in-sync | missing | modified | unknown`; with a record
   available, an extra class `stale` (recorded but no longer in the tree).
-  Exit code 0 when everything in-sync/unknown, 1 on drift — scriptable.
+  Exit code 0 when everything in-sync/unknown, 1 on drift - scriptable.
 - Never elevates and never mutates: queries run unelevated, read-only.
 
 ### `rwr uninstall`
 
 - Input is the record (union of unreversed entries across runs), not the
-  blueprint tree — uninstall after editing or deleting the tree still works.
+  blueprint tree - uninstall after editing or deleting the tree still works.
   No record → refuse with an explanation (guessing at removals from a tree
   that may have changed is how you delete the wrong file).
 - Reverse application order (the inverse of the `all` processor order,

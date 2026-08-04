@@ -22,7 +22,7 @@ func ResolveTemplate(templateData []byte, variables types.Variables) ([]byte, er
 //
 // `rwr validate` cannot know which RWR_* variables the operator will export when
 // they run, so a reference to one is not a defect it can report. A run has no such
-// excuse — by then the value really is absent and would be written to disk — which
+// excuse - by then the value really is absent and would be written to disk - which
 // is why ResolveTemplate is strict and this is not.
 func ResolveTemplateForValidation(templateData []byte, variables types.Variables) ([]byte, error) {
 	rendered, err := resolveTemplate(templateData, variables, "zero")
@@ -31,7 +31,7 @@ func ResolveTemplateForValidation(templateData []byte, variables types.Variables
 	}
 	// missingkey=zero on a map[string]interface{} yields a nil interface, which
 	// text/template prints as "<no value>". Validation is checking structure, and
-	// "<no value>" in the middle of a path breaks nothing here — but leaving it in
+	// "<no value>" in the middle of a path breaks nothing here - but leaving it in
 	// would put the very string this change exists to eliminate back into the
 	// document being checked.
 	return bytes.ReplaceAll(rendered, []byte("<no value>"), nil), nil
@@ -62,7 +62,7 @@ func resolveTemplate(templateData []byte, variables types.Variables, missingKey 
 	// This used to parse with missingkey=error and then execute with
 	// missingkey=invalid, so a reference to a variable that does not exist rendered
 	// the literal string "<no value>" and the run carried on. That string then
-	// became a file path, a package name, or a service name — rwr wrote
+	// became a file path, a package name, or a service name - rwr wrote
 	// "<no value>/.vimrc" rather than telling anybody the variable was missing.
 	var renderedTemplate bytes.Buffer
 	err = t.Option("missingkey="+missingKey).Execute(&renderedTemplate, data)
@@ -74,14 +74,14 @@ func resolveTemplate(templateData []byte, variables types.Variables, missingKey 
 }
 
 // builtinRefPattern matches simple references into the fixed template
-// namespaces — {{ .User.home }}, {{ if .System.os }} — whose keys are known at
+// namespaces - {{ .User.home }}, {{ if .System.os }} - whose keys are known at
 // validate time, unlike UserDefined's.
 var builtinRefPattern = regexp.MustCompile(`\.(User|System|Flags)\.([A-Za-z0-9_]+)`)
 
 // UnknownTemplateReferences reports references into the User, System, and
 // Flags namespaces that name no existing key. UserDefined is deliberately
 // exempt: its values vary per machine, so a reference to one is not a defect
-// validate can report. The fixed namespaces have no such excuse — validate
+// validate can report. The fixed namespaces have no such excuse - validate
 // used to render every namespace with missingkey=zero, so a typo like
 // {{ .User.hoem }} validated clean and failed at run time.
 func UnknownTemplateReferences(templateData []byte, variables types.Variables) []string {

@@ -17,7 +17,7 @@ const MaxFileMode = 0o7777
 // FileMode is a Unix permission mode declared by a blueprint.
 //
 // A plain int could not carry one safely. `mode: 644` is decimal 644 in YAML and
-// in JSON — 0o1204, a setuid mode nobody asked for — and JSON has no octal
+// in JSON - 0o1204, a setuid mode nobody asked for - and JSON has no octal
 // literal at all, so a JSON blueprint could only say 0o644 by writing its decimal
 // value 420. Every one of those decoded without complaint, so a wrong mode
 // reached the file and nothing reported it.
@@ -30,7 +30,7 @@ const MaxFileMode = 0o7777
 //   - A number, read as the mode's own value. That is what every parser already
 //     produces for an octal literal, so YAML `0644`, TOML `0o644` and JSON `420`
 //     are one and the same mode. A number that instead reads like octal digits
-//     typed without quotes — `644`, `755` — is refused rather than guessed at,
+//     typed without quotes - `644`, `755` - is refused rather than guessed at,
 //     because as a value it is a mode the blueprint cannot have meant.
 //
 // Zero means "no mode declared". A mode of 0000 leaves a file nobody can read,
@@ -90,7 +90,7 @@ func fileModeFromInt(v int64, literal string) (FileMode, error) {
 	return FileMode(v), nil
 }
 
-// isExplicitlyBased reports whether a numeric literal carried its own base —
+// isExplicitlyBased reports whether a numeric literal carried its own base -
 // 0644, 0o644, 0x1a4. Such a literal has already been converted by the parser
 // and cannot be a decimal mistaken for octal.
 func isExplicitlyBased(literal string) bool {
@@ -185,7 +185,7 @@ func (m *FileMode) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalTOML reads a mode from TOML. BurntSushi hands over the decoded value
-// only, so `0o644` and `420` arrive identically — as the number 420, the mode
+// only, so `0o644` and `420` arrive identically - as the number 420, the mode
 // both of them name. The ambiguity check therefore works from the value alone,
 // which is why a setuid mode has to be written as a string in TOML.
 func (m *FileMode) UnmarshalTOML(data any) error {

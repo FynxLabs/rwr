@@ -36,8 +36,8 @@ func IsSecretConfigKey(key string) bool {
 // Credentials are withheld by default because blueprints are cloned from git
 // repositories and scripts inherit rwr's environment, so anything reachable from
 // either is readable by whoever wrote the blueprint. But some blueprints
-// legitimately need a token — writing a .netrc, configuring gh, calling the
-// GitHub API from a script — so this is opt-in rather than unavailable.
+// legitimately need a token - writing a .netrc, configuring gh, calling the
+// GitHub API from a script - so this is opt-in rather than unavailable.
 var exposedCredentials = map[string]bool{}
 
 // SetExposedCredentials records which credential keys the operator opted into.
@@ -87,7 +87,7 @@ func SetShowSecrets(enabled bool) {
 // Redact returns value unless the operator asked to see secrets.
 //
 // The escape hatch exists because "is rwr even reading my token?" is a real
-// question with no other answer — but it has to be asked for deliberately rather
+// question with no other answer - but it has to be asked for deliberately rather
 // than being the default any time debug logging is on.
 func Redact(value string) string {
 	if value == "" {

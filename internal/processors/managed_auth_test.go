@@ -45,7 +45,7 @@ credentials:
 `
 
 // A declared credential resolves at init time and stays withheld: absent from
-// template scope and the RWR_CRED_* export until exposeCredentials names it —
+// template scope and the RWR_CRED_* export until exposeCredentials names it -
 // the same treatment the two built-ins get.
 func TestInitializeResolvesAndWithholdsDeclaredCredential(t *testing.T) {
 	resetManagedAuthState(t)

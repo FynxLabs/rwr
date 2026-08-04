@@ -15,7 +15,7 @@ func newRunCmd(app *AppConfig) *cobra.Command {
 		Long: `Run a single processor.
 
 "rwr run" on its own lists the processors, like a task runner. Name one to
-run it — "rwr run packages" — or use the shorthand straight off the root:
+run it - "rwr run packages" - or use the shorthand straight off the root:
 "rwr packages". To run everything: "rwr run all", or "rwr all" from the root.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Bare `rwr run` lists the processors, like a bare `mise run`.
@@ -29,7 +29,7 @@ run it — "rwr run packages" — or use the shorthand straight off the root:
 		},
 	}
 
-	// `rwr run all` runs everything — the same task `rwr all` names at the root.
+	// `rwr run all` runs everything - the same task `rwr all` names at the root.
 	runCmd.AddCommand(&cobra.Command{
 		Use:   "all",
 		Short: "Run all processors",
@@ -112,7 +112,7 @@ func selectedProcessorsFor(cmd *cobra.Command, args []string) []string {
 }
 
 // processorShorthand resolves a root-level argument to a processor, so
-// `rwr packages` works like `rwr run packages` — the processor names are not
+// `rwr packages` works like `rwr run packages` - the processor names are not
 // part of the prime command namespace, exactly like a task runner's tasks.
 func processorShorthand(name string) (runProcessorSpec, bool) {
 	for _, p := range runProcessors {

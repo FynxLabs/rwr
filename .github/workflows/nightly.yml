@@ -2,7 +2,7 @@ name: RWR - Master Prerelease
 
 # Publishes a build of master on every merge, so there is always something
 # installable that reflects current master. These are explicitly not vetted
-# releases — see the release notes the job writes.
+# releases - see the release notes the job writes.
 #
 # goreleaser's own nightly support is a Pro feature, so this assembles a snapshot
 # build and publishes it through gh. The `nightly` tag is moved to each new commit
@@ -42,7 +42,7 @@ jobs:
         with:
           go-version: ">=1.26.5"
 
-      # cosign signs checksums.txt, syft writes the SBOMs — both invoked by
+      # cosign signs checksums.txt, syft writes the SBOMs - both invoked by
       # goreleaser (signs: / sboms: in .goreleaser.yaml). The nightly gets the
       # same treatment as a release: people install it.
       - name: Install cosign

@@ -633,20 +633,20 @@ RWR does not check the names you pass against the ones your blueprints declare.
 `rwr all --profile worx` produces no error and no warning: nothing matches
 `worx`, so only the base items are applied.
 
-**Solution**: Compare against `rwr profiles`. Names are case-sensitive — `Work`
+**Solution**: Compare against `rwr profiles`. Names are case-sensitive - `Work`
 and `work` are different profiles.
 
 #### Fewer Items Than Expected
 
 1. Verify profile names match exactly (case-sensitive)
 2. Check that the items carry the `profiles` field you think they do
-3. Confirm the blueprint type supports `profiles` at all — fonts and
+3. Confirm the blueprint type supports `profiles` at all - fonts and
    configuration blueprints do not
 
 #### More Items Than Expected
 
 1. If you passed no `--profile`, that is the cause: no filtering happens
-2. Check for items without a `profiles` field — they are base items and always
+2. Check for items without a `profiles` field - they are base items and always
    apply
 3. Verify multi-profile items aren't matching a profile you did not intend
 

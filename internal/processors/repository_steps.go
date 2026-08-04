@@ -1,5 +1,5 @@
 // The step machinery: rendering a provider's declared repository steps
-// into executable commands — the template field namespace, the condition
+// into executable commands - the template field namespace, the condition
 // predicates, and the per-field rendering.
 
 package processors
@@ -15,8 +15,8 @@ import (
 )
 
 // repositoryStepData is the value a provider's repository action steps are
-// rendered against. Provider definitions are Go templates — apt writes
-// "deb [arch={{ .Arch }} signed-by={{ .KeyPath }}] {{ .URL }} ..." — so every
+// rendered against. Provider definitions are Go templates - apt writes
+// "deb [arch={{ .Arch }} signed-by={{ .KeyPath }}] {{ .URL }} ..." - so every
 // placeholder they may use has to have a key here, and anything else is a
 // blueprint or provider defect rather than a value to silently drop.
 func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, provider *types.Provider) (map[string]any, error) {
@@ -91,7 +91,7 @@ func repositoryStepData(repo types.Repository, paths types.RepositoryPaths, prov
 // predicate a provider names but that is absent from this map is an error at
 // the point the step would have run: the conditions used to decode into
 // nothing, so every step ran and flatpak added its remote both --user and
-// --system — silently skipping an underivable predicate would reintroduce the
+// --system - silently skipping an underivable predicate would reintroduce the
 // same class of bug in the other direction.
 func repositoryPredicates(repo types.Repository, provider *types.Provider) map[string]any {
 	localURL := isLocalPath(repo.URL)
@@ -131,7 +131,7 @@ func repositoryPredicates(repo types.Repository, provider *types.Provider) map[s
 // stepCondition reports whether a step's condition holds.
 //
 // Only an explicit truthy rendering runs the step. A condition that renders to
-// anything else — including the empty string a nil or missing value produces —
+// anything else - including the empty string a nil or missing value produces -
 // means the provider did not ask for this step on this repository.
 func stepCondition(condition string, data map[string]any) (bool, error) {
 	if strings.TrimSpace(condition) == "" {

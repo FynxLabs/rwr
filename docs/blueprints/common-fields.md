@@ -7,8 +7,8 @@ type, and the one decoding rule that applies to all of them.
 
 > [!IMPORTANT]
 > Blueprints decode strictly, in YAML, JSON, TOML and CUE alike. A key the blueprint
-> type does not define — a misspelled `pacakges:`, a `profile:` that should have
-> been `profiles:` — stops the run with an error naming the file and, for YAML,
+> type does not define - a misspelled `pacakges:`, a `profile:` that should have
+> been `profiles:` - stops the run with an error naming the file and, for YAML,
 > the line.
 
 An unknown key used to be dropped in silence. A misspelled section then produced
@@ -50,7 +50,7 @@ nothing else.
 Supported by: `packages`, `repositories`, `files`, `templates`, `directories`,
 `git`, `scripts`, `services`, `ssh_keys`, `users` and `groups`.
 
-**Not** supported by `fonts` or `configurations` — those two types have no
+**Not** supported by `fonts` or `configurations` - those two types have no
 `import` field, so an `import` key in them is now a decode error rather than a
 silently ignored one.
 
@@ -61,7 +61,7 @@ flag for a single entry. Omit it to follow the flag.
 
 Read per entry by `directories`, `packages`, `repositories`, `scripts`,
 `services`, `ssh_keys` and `users`. `files`, `templates` and `git` accept the
-key but do **not** read it — those processors follow only the global flag. Not
+key but do **not** read it - those processors follow only the global flag. Not
 supported at all by `fonts`, `groups` or `configurations`.
 
 ## `schema_version`
@@ -86,5 +86,5 @@ version a type does not support is an error.
 Every type has `name`. A `names` list, which repeats the rest of the entry once
 per name, is read by `files`, `templates`, `packages` and `fonts`.
 
-`directories` and `configurations` accept a `names` key and do **not** read it —
+`directories` and `configurations` accept a `names` key and do **not** read it -
 write one entry per item there. Every other type rejects `names` outright.

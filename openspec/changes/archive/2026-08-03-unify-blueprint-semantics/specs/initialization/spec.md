@@ -1,4 +1,4 @@
-# Initialization — Deltas
+# Initialization - Deltas
 
 ## ADDED Requirements
 
@@ -10,7 +10,7 @@ Under strict decode, an init file carrying any of these keys SHALL fail with
 an error naming the key and pointing at blueprint files.
 
 Why: these sections were decoded, validated, and profile-counted but never
-applied at runtime — a declaration that silently did nothing. Blueprints are
+applied at runtime - a declaration that silently did nothing. Blueprints are
 the single declaration path.
 
 Migration: move the entries into blueprint files under the tree; `rwr convert

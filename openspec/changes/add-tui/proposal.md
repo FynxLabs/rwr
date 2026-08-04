@@ -19,7 +19,7 @@ Full design in `design.md`. Summary:
   Exit nonzero if any collected.
 - `Reporter` event bus; `TUIReporter` and `LogReporter` (byte-identical to
   today's output). Log capture via a `slog.Handler` stamping a package-level
-  `currentProcessor` — zero edits to the ten processor files.
+  `currentProcessor` - zero edits to the ten processor files.
 - Interactive command handoff via `TerminalReq` + `tea.ExecProcess`; stderr of
   interactive commands is never piped (sudo prompt). Works for per-item
   `interactive: true` inside non-interactive runs.
@@ -33,7 +33,7 @@ Full design in `design.md`. Summary:
   `LogReporter`.
 
 Also folds `internal/system/prompt.go` `PromptUserChoice` (raw stdin) into the
-reporter/handoff path — a second stdin consumer would fight the TUI.
+reporter/handoff path - a second stdin consumer would fight the TUI.
 
 ## Breakage
 

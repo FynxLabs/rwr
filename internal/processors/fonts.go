@@ -280,7 +280,7 @@ func downloadFontTarball(url, filepath string) error {
 // resolveTarEntryPath joins a tar entry name onto destDir and refuses anything that
 // would land outside it. Archive entry names are attacker-controlled data: a member
 // named "../../../etc/cron.d/x" otherwise resolves through filepath.Join to a real
-// path outside the font directory, which rwr then writes — as root, for a
+// path outside the font directory, which rwr then writes - as root, for a
 // system-scoped install.
 func resolveTarEntryPath(destDir, name string) (string, error) {
 	if name == "" {
@@ -398,8 +398,8 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 }
 
 // isFontFace reports whether an archive entry is a font face rwr installs.
-// The filter used to be ".ttf" alone, so an OTF-only archive — several Nerd
-// Fonts ship only .otf — "installed successfully" with zero files written.
+// The filter used to be ".ttf" alone, so an OTF-only archive - several Nerd
+// Fonts ship only .otf - "installed successfully" with zero files written.
 func isFontFace(name string) bool {
 	lower := strings.ToLower(name)
 	return strings.HasSuffix(lower, ".ttf") || strings.HasSuffix(lower, ".otf")

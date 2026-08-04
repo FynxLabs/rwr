@@ -114,7 +114,7 @@ func TestExecute_HashGuardAndAbsentSkip(t *testing.T) {
 		t.Error("deleted entry not marked reversed")
 	}
 	if marks["modified"] {
-		t.Error("skipped entry marked reversed — a re-run would never retry it")
+		t.Error("skipped entry marked reversed - a re-run would never retry it")
 	}
 }
 

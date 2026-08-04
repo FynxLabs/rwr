@@ -25,5 +25,5 @@ internal restructuring.
 
 ## Impact
 
-- Affected specs: `cli` (no requirement changes — internal only).
+- Affected specs: `cli` (no requirement changes - internal only).
 - Makes cmd-level tests with isolated config instances possible.

@@ -53,7 +53,7 @@ func withSaveFixture(t *testing.T, ring credentials.Keyring) string {
 }
 
 // With a keyring available the device-flow token lands there and no plaintext
-// file gains the token value — the spec's hard rule for managed credentials.
+// file gains the token value - the spec's hard rule for managed credentials.
 func TestSaveGitHubTokenPrefersKeyring(t *testing.T) {
 	ring := &mapKeyring{entries: map[string]string{}}
 	configFile := withSaveFixture(t, ring)
@@ -74,7 +74,7 @@ func TestSaveGitHubTokenPrefersKeyring(t *testing.T) {
 	}
 }
 
-// The grandfathered path: no keyring backend falls back to the config file —
+// The grandfathered path: no keyring backend falls back to the config file -
 // still restricted to 0600, and the file keeps being read on later runs.
 func TestSaveGitHubTokenFallsBackToConfigFile(t *testing.T) {
 	configFile := withSaveFixture(t, &mapKeyring{unavailable: true})

@@ -1,4 +1,4 @@
-# CLI — Deltas
+# CLI - Deltas
 
 ## ADDED Requirements
 
@@ -8,7 +8,7 @@
 selection form (packages per provider explicit-only and pre-selected;
 configs pre-selected only for known dotfiles; services unselected by
 default; git checkouts pre-selected), and generate a blueprint tree in the
-chosen registry format from the selection — init file, per-category
+chosen registry format from the selection - init file, per-category
 blueprints, and selected config files copied under `files/src/` with
 matching entries. `--all` SHALL take the defaults without the form;
 `--manifest` SHALL add a root manifest carrying the machine's detected

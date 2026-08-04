@@ -9,13 +9,13 @@ import (
 )
 
 // EvalCUEToJSON evaluates a single CUE file and returns its concrete value as
-// JSON, which feeds the same strict decode path every other format uses — so a
+// JSON, which feeds the same strict decode path every other format uses - so a
 // .cue blueprint has semantics identical to its YAML twin.
 //
 // Evaluation is sandboxed by construction: the bytes are compiled with no
 // module loader and no filesystem root, so a `.cue` file can import only CUE's
 // built-in standard library. Package imports that would resolve through the
-// module system — a path on disk, a network registry — fail to compile, and
+// module system - a path on disk, a network registry - fail to compile, and
 // @embed is not enabled. Blueprints are untrusted input; evaluation must not
 // become a way to read arbitrary files or phone home.
 //

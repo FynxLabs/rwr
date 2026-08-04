@@ -72,7 +72,7 @@ func (l *Lane) target() float64 {
 	return float64(l.Done) / float64(l.Total)
 }
 
-// state derives a processor's display state from the worst lane state —
+// state derives a processor's display state from the worst lane state -
 // never set directly, per the design.
 func (p *Proc) derive() ProcState {
 	if p.State == ProcFailed || p.State == ProcSkipped || p.State == ProcPending {
@@ -282,7 +282,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tick:
 		m.spinnerFrame++
 		// Advance the bar springs; when every spring has settled and nothing
-		// is running, the animation has nothing left to do — kill the tick
+		// is running, the animation has nothing left to do - kill the tick
 		// (the next event restarts it).
 		animating := false
 		for _, proc := range m.procs {
@@ -303,7 +303,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		// Either threshold trips compact mode; resize promotes/demotes live
-		// with no state lost — both layouts render from this one model.
+		// with no state lost - both layouts render from this one model.
 		m.compact = msg.Width < 60 || msg.Height < 14
 		return m, nil
 	case tea.FocusMsg:

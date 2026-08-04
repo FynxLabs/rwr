@@ -17,9 +17,9 @@ new-machine command.
 
 ### Requirement: `rwr run <processor>` applies one blueprint type
 
-`rwr run` SHALL provide a subcommand for each blueprint type — `packages`,
+`rwr run` SHALL provide a subcommand for each blueprint type - `packages`,
 `repository`, `services`, `files`, `configuration`, `users`, `git`, `scripts`,
-`ssh_keys`, and `fonts` — plus `all`, which runs everything exactly as `rwr all`
+`ssh_keys`, and `fonts` - plus `all`, which runs everything exactly as `rwr all`
 does. The subcommands are generated from one processor table, so a new processor
 is one table entry, not a new hand-written command.
 
@@ -29,8 +29,8 @@ path as `rwr all`.
 A bare `rwr run` SHALL list the processors and exit zero, like a task runner
 listing its tasks; naming an unknown processor SHALL print the list and fail.
 
-Each processor name SHALL also work directly off the root — `rwr packages` is
-`rwr run packages` — without the processor names entering the primary command
+Each processor name SHALL also work directly off the root - `rwr packages` is
+`rwr run packages` - without the processor names entering the primary command
 namespace, so they cannot collide with real subcommands.
 
 #### Scenario: Reapplying packages only
@@ -126,8 +126,8 @@ RWR SHALL provide a `version` subcommand and a `--version` flag on the root comm
 both reporting the version injected at link time by goreleaser, along with the
 commit, build date, builder, tree state, and the Go toolchain and platform.
 
-When a field was not injected — which is the case for `go build` and `go install`
-binaries — RWR SHALL fall back to the module and VCS information the Go toolchain
+When a field was not injected - which is the case for `go build` and `go install`
+binaries - RWR SHALL fall back to the module and VCS information the Go toolchain
 embeds, and SHALL report `dev` rather than nothing.
 
 A binary on disk that cannot say which commit produced it cannot be matched to a
@@ -148,7 +148,7 @@ bug report.
 At the start of any command that initializes the system, RWR SHALL ask GitHub for
 the latest release and SHALL print a one-line notice to stderr when a newer version
 exists. `--skip-version-check` SHALL suppress it, as SHALL the `rwr.skipVersionCheck`
-configuration key and its environment form — the flag binding into viper is one-way,
+configuration key and its environment form - the flag binding into viper is one-way,
 so reading only the flag variable left the key `rwr config --create` writes inert.
 
 The check SHALL be strictly advisory: a timeout, an unreachable network, a rate
@@ -257,7 +257,7 @@ valid and lossless; idiomatic CUE remains authoring work.
 
 The first migration rule SHALL move init-file inline resource sections
 (`repositories`, `packages`, `services`, `files`, `templates`, `directories`,
-`configuration`) out of the init file into blueprint files under the tree —
+`configuration`) out of the init file into blueprint files under the tree -
 the construct strict decode now rejects.
 
 #### Scenario: Dry run by default
@@ -291,8 +291,8 @@ RWR SHALL provide `rwr run bootstrap` (and the root shorthand `rwr bootstrap`)
 to run the bootstrap processor by itself. An explicit invocation SHALL run the
 bootstrap even when the run-once marker exists, SHALL refresh the marker on
 success, and SHALL fail with an error naming the candidate filenames when the
-tree has no bootstrap file. The gating of bootstrap inside `rwr all` — skipped
-when the marker exists unless `--force-bootstrap` is given — is unchanged.
+tree has no bootstrap file. The gating of bootstrap inside `rwr all` - skipped
+when the marker exists unless `--force-bootstrap` is given - is unchanged.
 
 #### Scenario: Re-running bootstrap after editing it
 

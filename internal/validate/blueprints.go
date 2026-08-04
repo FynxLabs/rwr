@@ -23,7 +23,7 @@ func ValidateBlueprints(path string, verbose bool, results *types.ValidationResu
 	// Find init file in the specified directory only
 	initFile := findInitFile(path)
 	if initFile == "" {
-		// A multi-configuration repo has a manifest instead: validate it —
+		// A multi-configuration repo has a manifest instead: validate it -
 		// decode, escape checks, and each entry's init file existing.
 		if manifestPath := helpers.FindManifest(path); manifestPath != "" {
 			validateManifest(manifestPath, results)
@@ -143,7 +143,7 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 	}
 
 	// Blueprints are rendered as templates before they are read, so validation
-	// has to render them against the same variables a run would — including
+	// has to render them against the same variables a run would - including
 	// the userDefined block the init file declares. Assigning the whole
 	// struct used to throw that block away, which blanked every
 	// {{ .UserDefined.x }} and turned the values behind them into false
@@ -208,8 +208,8 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	//
 	// This used to apply to bootstrap.yaml alone, which was survivable only because
 	// validation never looked past the top directory. A blueprint using
-	// {{ .User.home }} is not valid YAML until it is rendered — the braces read as a
-	// flow mapping — so validating the raw bytes reports a parse error against a
+	// {{ .User.home }} is not valid YAML until it is rendered - the braces read as a
+	// flow mapping - so validating the raw bytes reports a parse error against a
 	// blueprint that works.
 	// Strict for the fixed namespaces, lenient only for UserDefined: validate
 	// used to render everything with missingkey=zero, so a typo like
@@ -263,8 +263,8 @@ type blueprintValidator func(data []byte, format string, file string, results *t
 // blueprintValidators maps blueprint types to their decode+validate functions.
 //
 // Each one decodes into the same Data struct the matching processor uses. They
-// used to decode into a bare slice — []types.Repository for a file whose content
-// is `repositories:` followed by a list — which cannot succeed against any real
+// used to decode into a bare slice - []types.Repository for a file whose content
+// is `repositories:` followed by a list - which cannot succeed against any real
 // blueprint. Nothing caught it because validation never looked inside a
 // subdirectory, and blueprints live in subdirectories.
 var blueprintValidators = map[string]blueprintValidator{

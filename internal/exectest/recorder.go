@@ -1,7 +1,7 @@
 // Package exectest provides a recording system.Executor for tests.
 //
 // It lets a test drive a real processor end to end and then assert on exactly what
-// the processor asked to run — the argv, the elevation, the environment — without
+// the processor asked to run - the argv, the elevation, the environment - without
 // installing packages or touching the system.
 package exectest
 

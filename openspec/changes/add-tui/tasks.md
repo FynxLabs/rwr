@@ -9,7 +9,7 @@ Steps 1–5 are prerequisites and carry the risk; 6+ are additive.
 - [x] 3. Store, views, slog handler; test processor attribution of records.
 - [x] 4. Stage 2 resolve: provider grouping, lane counts.
 - [x] 5. Error accumulation in `All()`; test: non-interactive run with one
-      failing processor continues, exits nonzero (fails today — first error
+      failing processor continues, exits nonzero (fails today - first error
       aborts).
 - [x] 6. Static TUI: header, strip, collapsed list, panel, help bar.
 - [x] 7. Terminal handoff (`tea.ExecProcess`); test sudo prompt and per-item
@@ -27,5 +27,5 @@ Steps 1–5 are prerequisites and carry the risk; 6+ are additive.
 - [x] 14. OSC 9 notification (unfocused, >30s, recognized terminal only).
 - [ ] 15. Full test checklist from design.md §18. Per-item
       ResourceDone/LaneUpdate emission from all ten Process* functions is DONE.
-      REMAINING: manual terminal checks only — sudo-prompt handoff on a real
+      REMAINING: manual terminal checks only - sudo-prompt handoff on a real
       TTY; NO_COLOR/TERM=xterm/conhost visual passes.

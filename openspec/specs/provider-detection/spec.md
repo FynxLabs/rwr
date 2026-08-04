@@ -5,7 +5,7 @@
 A provider is a declarative description of a package manager: the binary that
 identifies it, the files that prove it is in use, the distributions it belongs to,
 and the command templates for install, remove, update, list, search, and clean.
-Providers are what let RWR put "the annoying bits on rails" — a blueprint says
+Providers are what let RWR put "the annoying bits on rails" - a blueprint says
 `action: install`, and the provider decides what that means on this machine.
 
 This capability defines how providers are loaded, how RWR decides which ones are
@@ -35,7 +35,7 @@ RWR SHALL fail only when it has no providers at all.
 
 RWR SHALL search for a filesystem provider directory in the executable's own
 directory, `/usr/local/share/rwr/providers`, `/usr/share/rwr/providers`, and
-`~/.config/rwr/providers` — plus the Homebrew and app-bundle paths on macOS.
+`~/.config/rwr/providers` - plus the Homebrew and app-bundle paths on macOS.
 
 RWR SHALL NOT search the current working directory.
 
@@ -44,8 +44,8 @@ and which mode, and SHALL continue loading the rest of the directory.
 
 A provider file declares `exec`, `args` and `elevated = true`, and those are run
 verbatim. Honouring `./providers` handed root-level execution to any directory RWR
-happened to be run from — a cloned blueprint repo, `/tmp`, a shared downloads
-folder — and a definition anyone on the box can edit is a root shell for anyone on
+happened to be run from - a cloned blueprint repo, `/tmp`, a shared downloads
+folder - and a definition anyone on the box can edit is a root shell for anyone on
 the box. One bad file is skipped rather than failing the load, so it does not cost
 the operator every other provider in the directory.
 
@@ -72,7 +72,7 @@ When those hold and the provider's distribution list also names this distributio
 or its family, the provider SHALL be available.
 
 When those hold but the distribution is not named, RWR SHALL still treat the
-provider as available if it declares detection files — because a machine that has
+provider as available if it declares detection files - because a machine that has
 `pacman` on `PATH`, `/etc/pacman.conf`, and `/var/lib/pacman` is running `pacman`
 whatever `/etc/os-release` calls itself.
 
@@ -81,7 +81,7 @@ go on, and SHALL be unavailable on an unrecognised distribution.
 
 This exists because derivatives outnumber any list that can be maintained. It was
 found on PrismLinux, which reports `ID=prismlinux`, sets no `ID_LIKE`, and is named
-by no provider — yet is plainly an Arch system.
+by no provider - yet is plainly an Arch system.
 
 #### Scenario: An unrecognised Arch derivative
 
@@ -129,7 +129,7 @@ its resolved binary path and its command templates.
 
 RWR SHALL NOT re-filter that map by matching the provider's distribution list
 against a literal OS name. Doing so excluded every provider that names concrete
-distributions — `apt`, `dnf`, `pacman`, `zypper`, and the AUR helpers — leaving
+distributions - `apt`, `dnf`, `pacman`, `zypper`, and the AUR helpers - leaving
 cache cleaning and core-package resolution operating on a map that held only
 wildcard providers.
 
@@ -191,7 +191,7 @@ load; there SHALL be no second committed representation. The schema closes
 fails evaluation naming the field.
 
 Why: the export-and-commit pipeline made every provider change a
-multi-format edit — the disease the CUE migration existed to cure.
+multi-format edit - the disease the CUE migration existed to cure.
 
 #### Scenario: Provider missing a required field fails at load
 

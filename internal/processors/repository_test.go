@@ -218,7 +218,7 @@ func TestProcessRepositories_UpdatesOnlyDeclaredProviders(t *testing.T) {
 }
 
 // A placeholder rwr has no value for is a provider or blueprint defect. Rendering
-// it as "<no value>" — or passing it through verbatim, as rwr used to — turns it
+// it as "<no value>" - or passing it through verbatim, as rwr used to - turns it
 // into a file path or a URL instead.
 func TestProcessRepositories_UnknownPlaceholderIsAnError(t *testing.T) {
 	rec := exectest.New()
@@ -796,7 +796,7 @@ func TestProcessRepositories_UnknownConditionPredicateIsAnError(t *testing.T) {
 	}
 }
 
-// A false condition is not an error, and the step it gates does not run — even
+// A false condition is not an error, and the step it gates does not run - even
 // when that step references data this repository does not carry.
 func TestProcessRepositories_FalseConditionSkipsStep(t *testing.T) {
 	rec := exectest.New()

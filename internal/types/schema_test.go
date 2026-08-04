@@ -50,7 +50,7 @@ func TestResolveSchemaVersion(t *testing.T) {
 // blueprint written today gets today's format without boilerplate.
 //
 // This asserts against LatestSchemaVersion rather than a literal, so it keeps
-// testing the intent once a type gains a v2 — a hardcoded 1 here would silently
+// testing the intent once a type gains a v2 - a hardcoded 1 here would silently
 // keep passing while the behaviour it describes had changed.
 func TestResolveSchemaVersion_UndeclaredIsLatest(t *testing.T) {
 	for _, blueprintType := range []string{
@@ -131,7 +131,7 @@ func TestValidateTreeSchemaVersion(t *testing.T) {
 		t.Fatal("a tree-wide v2 must be rejected while no type implements v2")
 	}
 	// A tree-wide version applies to every type, so when only some types have a
-	// v2 the fix is to declare it per file — the error should say so.
+	// v2 the fix is to declare it per file - the error should say so.
 	if !strings.Contains(err.Error(), "per blueprint file") {
 		t.Errorf("error should suggest declaring per file, got: %v", err)
 	}
@@ -172,7 +172,7 @@ func withExtraVersion(t *testing.T, blueprintType string, version int) {
 }
 
 // The real point of "undeclared means latest": when packages gains a v2, a
-// packages blueprint that declares nothing is read as v2 — while files, which did
+// packages blueprint that declares nothing is read as v2 - while files, which did
 // not change, stays where it is. Today latest is 1 everywhere, so this simulates
 // the v2 to test the rule rather than the current numbers.
 func TestResolveSchemaVersion_UndeclaredFollowsANewVersion(t *testing.T) {
@@ -181,10 +181,10 @@ func TestResolveSchemaVersion_UndeclaredFollowsANewVersion(t *testing.T) {
 	if got := ResolveSchemaVersion(0, 0, BlueprintTypePackages); got != 2 {
 		t.Errorf("undeclared packages resolved to %d, want the new latest 2", got)
 	}
-	// A type that did not gain a version is unaffected — this is what keeps a
+	// A type that did not gain a version is unaffected - this is what keeps a
 	// breaking change contained to one resource.
 	if got := ResolveSchemaVersion(0, 0, BlueprintTypeFiles); got != 1 {
-		t.Errorf("undeclared files resolved to %d, want 1 — files did not change", got)
+		t.Errorf("undeclared files resolved to %d, want 1 - files did not change", got)
 	}
 	// Declaring a version still pins, which is how a tree stays on v1 after v2
 	// ships.
@@ -198,13 +198,13 @@ func TestResolveSchemaVersion_UndeclaredFollowsANewVersion(t *testing.T) {
 
 // Every type-and-version pair the supported map advertises must resolve to a
 // registered variant. packageManagers was listed as supported with no variant
-// registered, so NewSchemaVariant could only ever error on it — the two tables
+// registered, so NewSchemaVariant could only ever error on it - the two tables
 // are one contract and must not drift.
 func TestSupportedSchemaVersions_AllHaveRegisteredVariants(t *testing.T) {
 	for blueprintType, versions := range supportedSchemaVersions {
 		for _, version := range versions {
 			if _, err := NewSchemaVariant(blueprintType, version); err != nil {
-				t.Errorf("NewSchemaVariant(%q, %d): %v — supported but not registered", blueprintType, version, err)
+				t.Errorf("NewSchemaVariant(%q, %d): %v - supported but not registered", blueprintType, version, err)
 			}
 		}
 	}

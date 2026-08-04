@@ -11,8 +11,8 @@ import (
 	"testing"
 )
 
-// Everything rwr downloads is installed with the operator's privileges —
-// package-signing keys included — so plain http from a real host is refused.
+// Everything rwr downloads is installed with the operator's privileges -
+// package-signing keys included - so plain http from a real host is refused.
 // Loopback stays allowed for local mirrors and these tests.
 func TestValidateDownloadURL(t *testing.T) {
 	for _, tt := range []struct {
@@ -55,7 +55,7 @@ func TestDownloadFile_RefusesPlainHTTP(t *testing.T) {
 // Validating only the initial URL is worthless if a redirect can hop to plain
 // http: the default client follows it silently and the content is once again
 // substitutable in transit. Every hop is re-validated by DownloadClient's
-// CheckRedirect. The redirect target here is a non-loopback http URL — the
+// CheckRedirect. The redirect target here is a non-loopback http URL - the
 // refusal happens in CheckRedirect before any request is made to it.
 func TestDownloadFile_RefusesRedirectToPlainHTTP(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

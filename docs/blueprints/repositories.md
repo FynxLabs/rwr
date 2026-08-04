@@ -28,7 +28,7 @@ blueprint did not supply is an error naming the repository, not a blank.
 | `name` | Yes, if `import` is not provided | The name of the repository. Also names the file most providers write (`/etc/apt/sources.list.d/<name>.list`) and the keyring (`<keys_dir>/<name>.gpg`) |
 | `package_manager` | Yes | The provider that owns the repository (`apt`, `dnf`, `pacman`, `zypper`, `apk`, `xbps`, `eopkg`, `emerge`, `slackpkg`, `brew`, `macports`, `nix`, `flatpak`, `snap`, `cargo`, `chocolatey`, `scoop`, `winget`, `mas`, `gnome-extensions`, and the AUR helpers) |
 | `action` | Yes | `add` or `remove` |
-| `url` | Yes for `add` | The repository URL. A value with no scheme, or a `file://` URL, is treated as a local path — that is what selects the sideload steps for `snap` and `gnome-extensions` |
+| `url` | Yes for `add` | The repository URL. A value with no scheme, or a `file://` URL, is treated as a local path - that is what selects the sideload steps for `snap` and `gnome-extensions` |
 | `key_url` | No | URL of the repository's signing key, downloaded to the provider's key directory (apt, dnf, zypper, apk, xbps, eopkg, slackpkg) |
 | `key_sha256` | No | SHA-256 digest of the signing key at `key_url`; the key download is verified against it |
 | `key_id` | No | Key ID to import or delete rather than a URL (pacman family, and the `rpm --erase gpg-pubkey-<id>` step in dnf/zypper removal) |
@@ -60,17 +60,17 @@ rendered, so the settings above take effect.
 
 > [!WARNING]
 > `username`, `password` and `token` are passed to the package manager as
-> **command-line arguments** — `choco source add --password=…`, `cargo login …`
-> — because those tools accept them no other way. They are therefore visible in
+> **command-line arguments** - `choco source add --password=…`, `cargo login …`
+> - because those tools accept them no other way. They are therefore visible in
 > `ps` to every local user on the machine for the lifetime of the call. RWR
 > keeps them out of its own output (logs, `--debug` argv dumps and `--dry-run`
 > lines redact them), but nothing rwr can do hides them from the process list.
 
 ## Actions and what actually works
 
-Every shipped provider — apt, dnf, zypper, pacman/yay/paru/aura/pamac/trizen,
+Every shipped provider - apt, dnf, zypper, pacman/yay/paru/aura/pamac/trizen,
 apk, xbps, eopkg, emerge, slackpkg, brew, macports, nix, flatpak, snap, cargo,
-chocolatey, scoop, winget, mas, gnome-extensions — defines both `add` and
+chocolatey, scoop, winget, mas, gnome-extensions - defines both `add` and
 `remove` steps, and both work. Provider steps may be gated on predicates RWR
 derives from the entry (`HasKey`, `HasInterfaces`, `ResetSettings`, …), so a
 step for a feature you did not ask for is simply skipped: a snap add without

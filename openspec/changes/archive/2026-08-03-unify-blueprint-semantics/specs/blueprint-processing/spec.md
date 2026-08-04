@@ -1,4 +1,4 @@
-# Blueprint Processing — Deltas
+# Blueprint Processing - Deltas
 
 ## ADDED Requirements
 
@@ -17,10 +17,10 @@ backwards relative to files/fonts.)
 
 A blueprint file whose path names no processor directory SHALL be typed by its
 top-level keys (`packages:` → packages, `repositories:` → repositories, …).
-A file whose content matches no type — or more than one — SHALL produce the
+A file whose content matches no type - or more than one - SHALL produce the
 loud unrouted-file warning and SHALL NOT execute.
 
-Why: the flattened and minimal_files layouts the examples ship were dead ends —
+Why: the flattened and minimal_files layouts the examples ship were dead ends -
 path-only dispatch sent every file to a bucket the run loop never reads, and
 the run exited 0 having executed nothing.
 
@@ -41,8 +41,8 @@ the run exited 0 having executed nothing.
 ### Requirement: Downloads are validated on every hop, bounded, and pinnable
 
 A download URL SHALL be refused unless it is https (plain http is allowed only
-for loopback hosts) — everything RWR downloads (package-signing keys, fonts,
-file sources, the init file) is installed with the operator's privileges — and
+for loopback hosts) - everything RWR downloads (package-signing keys, fonts,
+file sources, the init file) is installed with the operator's privileges - and
 that check SHALL be re-applied to **every redirect hop**, not only the initial
 URL. Validating only the first URL is worthless the moment a server answers
 with a 302 to plain http.
@@ -96,7 +96,7 @@ file whose definitions are merged in.
 
 Import paths SHALL resolve relative to the file that declares them, in every
 processor. (Previously six processors resolved top-level imports against the
-tree root while four resolved file-relative — the same `import:` string meant
+tree root while four resolved file-relative - the same `import:` string meant
 two different files depending on the blueprint type.) An imported file MAY be
 in any supported format, and its format SHALL be derived from its own
 extension, not the importing file's. Imported entries SHALL be subject to

@@ -37,12 +37,12 @@ plain values a definition unifies with (`yay: #ArchAURHelper & {name: "yay"}`).
    The exported JSON decodes into the existing `types.Provider` structs; the
    loading code changes from a TOML decoder to a JSON decoder and nothing
    downstream notices. Filesystem provider *overrides* stay TOML (or gain
-   JSON) — operators should not need CUE installed to override a provider.
+   JSON) - operators should not need CUE installed to override a provider.
 
 2. **Schema mirrors `types.Provider` exactly, and a test enforces it.** A Go
    test round-trips every exported provider through strict decoding into
    `types.Provider` with no unknown keys, so the CUE schema and the Go structs
-   cannot drift apart silently — the same guarantee `embedded_test.go` gives
+   cannot drift apart silently - the same guarantee `embedded_test.go` gives
    today, but at the schema level.
 
 3. **Family templates for the proven clusters only.**
@@ -52,7 +52,7 @@ plain values a definition unifies with (`yay: #ArchAURHelper & {name: "yay"}`).
      parameterized by AUR package name (collapses 5 files to ~5 lines each).
    - `#DebianFamily`: apt/apt-get share detection and repository shape.
 
-   Everything else stays a standalone definition — inventing hierarchies for
+   Everything else stays a standalone definition - inventing hierarchies for
    single members obscures more than it saves.
 
 4. **Contracts move into the schema.** What `validate/providers.go` checks by
@@ -62,14 +62,14 @@ plain values a definition unifies with (`yay: #ArchAURHelper & {name: "yay"}`).
    - step actions constrained to the enum the processors implement
    - a `condition` may reference only the predicate names rwr derives
      (kept as a CUE `or` list that a Go test asserts equals the keys of
-     `repositoryPredicates` — one source of truth, checked both ways)
+     `repositoryPredicates` - one source of truth, checked both ways)
    - install/remove steps may not contain literal `/tmp/` paths
      (the `{{ .TempDir }}` rule, today a Go test, becomes a schema regexp)
 
 5. **CI validates and checks freshness; the export is committed.** A
    `cue-providers` job runs `cue vet` + `cue export` and fails if the
    committed JSON differs from the fresh export (same pattern as gofmt).
-   Committed output keeps `go build` working with no CUE toolchain installed —
+   Committed output keeps `go build` working with no CUE toolchain installed -
    contributors touching providers need CUE (via mise), everyone else doesn't.
 
 ## What gets deleted
@@ -88,13 +88,13 @@ of export-freshness tooling.
 ## Sequencing (3 PRs)
 
 1. **Schema + pipeline**: `providers/cue/schema.cue`, export tooling
-   (`mise run providers:export`), CI job, loader reads committed JSON —
+   (`mise run providers:export`), CI job, loader reads committed JSON -
    with the TOMLs still the source, converted mechanically 1:1 (no family
    templates yet). Proves the pipeline with zero semantic change; the
    round-trip test is the gate.
 2. **Families**: introduce `#PacmanFamily` / `#ArchAURHelper` /
    `#DebianFamily`, collapse the members onto them. Exported JSON must be
-   byte-identical to PR 1's — the diff *is* the review.
+   byte-identical to PR 1's - the diff *is* the review.
 3. **Contracts**: move the validate/providers.go checks into the schema,
    delete the superseded Go, add the predicate-name cross-check test.
 

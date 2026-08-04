@@ -3,7 +3,7 @@ package cmd
 import "testing"
 
 // Two trees, two AppConfigs, zero cross-talk: parsing flags on one must not
-// leak into the other. Impossible before the refactor — seventeen package
+// leak into the other. Impossible before the refactor - seventeen package
 // globals meant every test shared (and had to reset) the same state.
 func TestAppConfig_InstancesAreIsolated(t *testing.T) {
 	appA, appB := NewAppConfig(), NewAppConfig()

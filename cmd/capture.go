@@ -26,9 +26,9 @@ func newCaptureCmd(app *AppConfig) *cobra.Command {
 	captureCmd := &cobra.Command{
 		Use:   "capture [dir]",
 		Short: "Turn this handcrafted machine into a blueprint tree",
-		Long: `Scan the machine — explicitly-installed packages across every detected
+		Long: `Scan the machine - explicitly-installed packages across every detected
 package manager, dotfiles and ~/.config entries, enabled services, git
-checkouts — pick what to keep on a per-category form, and generate a
+checkouts - pick what to keep on a per-category form, and generate a
 validated blueprint tree from the selection. --all skips the form and takes
 the defaults; --manifest adds a root manifest matched to this machine.`,
 		Args: cobra.MaximumNArgs(1),
@@ -98,7 +98,7 @@ func selectionForm(findings capture.Findings, selection *capture.Selection) erro
 		for _, name := range result.Names {
 			options = append(options, huh.NewOption(name, name).Selected(preselect))
 		}
-		title := fmt.Sprintf("Packages — %s (%d found)", provider, len(result.Names))
+		title := fmt.Sprintf("Packages - %s (%d found)", provider, len(result.Names))
 		if result.Unfiltered {
 			title += " [full list: no explicit query, nothing pre-selected]"
 		}
@@ -135,7 +135,7 @@ func selectionForm(findings capture.Findings, selection *capture.Selection) erro
 		}
 		groups = append(groups, huh.NewGroup(
 			huh.NewMultiSelect[string]().
-				Title(fmt.Sprintf("Services (%d enabled — most are distro plumbing)", len(findings.Services))).
+				Title(fmt.Sprintf("Services (%d enabled - most are distro plumbing)", len(findings.Services))).
 				Options(options...).Value(&servicePicks).Filterable(true),
 		))
 	}
@@ -170,7 +170,7 @@ func selectionForm(findings capture.Findings, selection *capture.Selection) erro
 	for _, key := range configPicks {
 		config := findings.Configs[int(key)]
 		if scan.SecretShaped(config.Rel) {
-			fmt.Fprintf(os.Stderr, "warning: %s is secret-shaped — captured because you selected it; review before committing\n", config.Rel)
+			fmt.Fprintf(os.Stderr, "warning: %s is secret-shaped - captured because you selected it; review before committing\n", config.Rel)
 		}
 		selection.Configs = append(selection.Configs, config)
 	}

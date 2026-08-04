@@ -168,7 +168,7 @@ func validatePackagesWithVisited(packages []types.Package, file string, results 
 			validateImportWithVisited(pkg.Import, fmt.Sprintf("packages[%d]", i), blueprintDir, file, results, &types.PackagesData{}, visited)
 			continue
 		}
-		// name or names, the same contract ValidatePackages applies — this
+		// name or names, the same contract ValidatePackages applies - this
 		// copy still required `name` alone, so a names-list entry that
 		// validated fine as a file errored the moment it was imported.
 		if pkg.Name == "" && len(pkg.Names) == 0 {

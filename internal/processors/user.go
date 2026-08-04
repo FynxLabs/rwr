@@ -37,7 +37,7 @@ const macDefaultPrimaryGroupID = "20"
 //
 // Linux goes through shadow-utils (useradd/usermod/userdel, groupadd/groupmod,
 // gpasswd); macOS goes through Open Directory (dscl, sysadminctl, dseditgroup,
-// pwpolicy) — none of the shadow-utils binaries exist there. Windows has no
+// pwpolicy) - none of the shadow-utils binaries exist there. Windows has no
 // implementation and logs a warning per entry.
 func ProcessUsers(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
 	var usersData types.UsersData
@@ -202,7 +202,7 @@ func processUsers(users []types.User, initConfig *types.InitConfig, track *progr
 // ---------------------------------------------------------------------------
 
 // groupExists probes for a group. In dry-run mode nothing is executed, so the
-// probe returns assumeDryRun — callers pass whichever answer keeps the dry run
+// probe returns assumeDryRun - callers pass whichever answer keeps the dry run
 // printing the work it would do (absent before a create, present before a
 // remove) instead of a skip message.
 func groupExists(name string, initConfig *types.InitConfig, assumeDryRun bool) bool {

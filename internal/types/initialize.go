@@ -58,14 +58,14 @@ type InitConfig struct {
 	PackageManagers []PackageManagerInfo `mapstructure:"packageManagers,omitempty" yaml:"packageManagers,omitempty" json:"packageManagers,omitempty" toml:"packageManagers,omitempty"`
 	// The inline resource sections (repositories, packages, services, files,
 	// templates, directories, configuration) are gone: they were decoded,
-	// validated, profile-counted — and never applied at runtime. Blueprints
+	// validated, profile-counted - and never applied at runtime. Blueprints
 	// are the single declaration path; under strict decode a leftover key is
 	// an error naming it instead of a silent no-op.
 	// Squashing this made the `variables:` block in the init file decode into
 	// nothing at all, so every {{ .UserDefined.x }} in a blueprint rendered empty.
 	Variables Variables `mapstructure:"variables,omitempty" yaml:"variables,omitempty" json:"variables,omitempty" toml:"variables,omitempty"`
 	// ExposeCredentials names the credentials this tree's blueprints are allowed
-	// to read, e.g. ["gh_api_token"]. Empty — the default — means blueprints get
+	// to read, e.g. ["gh_api_token"]. Empty - the default - means blueprints get
 	// none of them. See docs/credentials.md.
 	ExposeCredentials []string `mapstructure:"exposeCredentials,omitempty" yaml:"exposeCredentials,omitempty" json:"exposeCredentials,omitempty" toml:"exposeCredentials,omitempty"`
 	// Credentials declares the named credentials this tree's blueprints need and
@@ -93,7 +93,7 @@ func (u UserInfo) ToMap() map[string]interface{} {
 // Templates render from blueprint files cloned out of git repositories, and the
 // result is written to a path the same blueprint chooses, so exposing a
 // credential by default let any blueprint copy it anywhere. A blueprint that
-// genuinely needs one — writing a .netrc, configuring gh — opts in by name; see
+// genuinely needs one - writing a .netrc, configuring gh - opts in by name; see
 // exposeCredentials in the init file.
 func (f Flags) ToMap() map[string]interface{} {
 	out := map[string]interface{}{

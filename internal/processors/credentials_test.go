@@ -19,7 +19,7 @@ const (
 )
 
 // setUserDefinedAndEnvVariables exported every viper key as RWR_VAR_*, and
-// setupCommandEnvironment copies os.Environ() into every command rwr spawns — so
+// setupCommandEnvironment copies os.Environ() into every command rwr spawns - so
 // the GitHub token and the base64 SSH private key were readable by any script a
 // blueprint chose to run. Blueprints are cloned from git repositories.
 //
@@ -80,7 +80,7 @@ func TestSpawnedCommandsDoNotInheritCredentials(t *testing.T) {
 		t.Error("RWR_VAR_REPOSITORY_SSH_PRIVATE_KEY was exported")
 	}
 
-	// Non-secret config must still be exported — that is the point of the feature.
+	// Non-secret config must still be exported - that is the point of the feature.
 	if !strings.Contains(env, "RWR_VAR_REPOSITORY_INIT-FILE") {
 		t.Error("non-secret config values should still be exported to commands")
 	}

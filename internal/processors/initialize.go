@@ -121,7 +121,7 @@ func Initialize(initFilePath string, flags types.Flags, selectedProcessors ...st
 	// The inline resource sections were removed from the schema: they were
 	// decoded, validated, and never applied at runtime. Viper ignores unknown
 	// keys, so without this check a tree still carrying them would go from
-	// silent no-op to silent drop — an error naming the key is the only honest
+	// silent no-op to silent drop - an error naming the key is the only honest
 	// answer. (`rwr convert --migrate` is the planned mover.)
 	for _, removed := range []string{"repositories", "packages", "services", "files", "templates", "directories", "configuration"} {
 		if viper.IsSet(removed) {
@@ -158,7 +158,7 @@ func Initialize(initFilePath string, flags types.Flags, selectedProcessors ...st
 	// command, so the choice is in effect for the whole run.
 	types.SetExposedCredentials(initConfig.ExposeCredentials)
 	if len(initConfig.ExposeCredentials) > 0 {
-		log.Warnf("Blueprints in this tree can read these credentials: %v — "+
+		log.Warnf("Blueprints in this tree can read these credentials: %v - "+
 			"they are readable by any script or template the blueprints run",
 			types.ExposedCredentials())
 	}
@@ -255,7 +255,7 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 		}
 	}
 
-	// Export config values as RWR_VAR_* so blueprints and scripts can read them —
+	// Export config values as RWR_VAR_* so blueprints and scripts can read them -
 	// except the credentials. setupCommandEnvironment copies os.Environ() into
 	// every command rwr spawns, so exporting the GitHub token and the base64 SSH
 	// private key put both in reach of any script a blueprint chooses to run, and
@@ -275,7 +275,7 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 	}
 
 	// Managed credentials export as RWR_CRED_<NAME>, and only the ones the
-	// operator opted into with exposeCredentials whose scope admits scripts —
+	// operator opted into with exposeCredentials whose scope admits scripts -
 	// the same gate that keeps the two built-ins out of RWR_VAR_*.
 	for envKey, value := range types.ExportedCredentialEnv() {
 		if err := os.Setenv(envKey, value); err != nil {

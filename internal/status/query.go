@@ -102,7 +102,7 @@ func PathPresent(path string) Presence {
 
 // validUnitName accepts systemd unit-name characters only. The query is
 // argv-exec'd so a shell never sees the name, but a name starting with "-"
-// would be read as a systemctl option — refused here.
+// would be read as a systemctl option - refused here.
 var validUnitName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.@:\\-]*$`)
 
 // ServiceState queries a service read-only on the current platform; other

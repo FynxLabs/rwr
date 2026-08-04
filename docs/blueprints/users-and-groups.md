@@ -56,7 +56,7 @@ accepted alias for `remove`.
 fail: it converges the existing one to the attributes the entry declares
 (`usermod` on Linux, `dscl -create` on macOS) and sets the password if one is
 given. A declared `home` on an existing account is treated as the intended home,
-not as a request to relocate the current one — use `modify` with `new_home` for
+not as a request to relocate the current one - use `modify` with `new_home` for
 that.
 
 `remove` on an account or group that does not exist succeeds and does nothing.
@@ -105,8 +105,8 @@ command argument, so it does not appear in `ps` or in rwr's debug output. The
 value may be either:
 
 - **Cleartext**, which `chpasswd` hashes itself, or
-- **A crypt(3) hash** — `$6$…`, `$y$…`, a 13-character DES hash, or one of the
-  locked markers `!`, `!!`, `*`, `*LK*` — which is passed through with
+- **A crypt(3) hash** - `$6$…`, `$y$…`, a 13-character DES hash, or one of the
+  locked markers `!`, `!!`, `*`, `*LK*` - which is passed through with
   `chpasswd -e`.
 
 RWR detects which of the two you wrote; there is no field to declare it.

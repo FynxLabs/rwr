@@ -154,7 +154,7 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 	log.Debugf("Processing file: %s", file.Name)
 
 	// Only the actions that consume content need it. chmod/chown/chgrp/delete
-	// operate on an existing target — demanding content or source for them
+	// operate on an existing target - demanding content or source for them
 	// broke the documented metadata examples (docs/blueprints/files.md), which
 	// pair a copy entry with a follow-up chmod/chown entry. The validator
 	// (internal/validate/components.go) has always gated this by action.
@@ -184,7 +184,7 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 		// A URL source without a declared digest is trusted on nothing but the
 		// TLS connection that served it. Warn now; a later major refuses.
 		if file.Sha256 == "" {
-			log.Warnf("File %s downloads %s with no sha256 declared — the content is unpinned. "+
+			log.Warnf("File %s downloads %s with no sha256 declared - the content is unpinned. "+
 				"Add sha256 to the entry; a future major version will refuse this.", file.Name, file.Source)
 		}
 		err = system.DownloadFileWithChecksum(file.Source, downloadPath, false, file.Sha256)
@@ -309,7 +309,7 @@ func createFile(file types.File, targetPath string) error {
 	}
 
 	// The mode is carried into the open so the content is never readable by anyone
-	// the blueprint did not name — a later chmod would leave a window in which a
+	// the blueprint did not name - a later chmod would leave a window in which a
 	// rendered credential sat on disk world-readable.
 	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, mode) // #nosec G304 G703 -- path is operator-supplied blueprint/config input; containment added in PR8
 	if err != nil {

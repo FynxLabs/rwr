@@ -1,7 +1,7 @@
 # rwr convert
 
 Convert a blueprint tree between formats, or migrate deprecated constructs to
-their current equivalents. Dry-run by default — nothing is written without
+their current equivalents. Dry-run by default - nothing is written without
 `--write`.
 
 ## Format conversion
@@ -22,7 +22,7 @@ Limits, stated plainly:
 - **Template placeholders survive as quoted strings** (`"{{ .User.home }}"`).
   A file whose templates make it unparseable raw is reported and skipped,
   never mangled.
-- **CUE output is JSON-form CUE** — valid and lossless. Idiomatic CUE
+- **CUE output is JSON-form CUE** - valid and lossless. Idiomatic CUE
   (schemas, constraints) is authoring work the converter does not guess at.
 
 ## Migration
@@ -37,7 +37,7 @@ Rewrites deprecated constructs. Current rules:
 - **Init-file inline resource sections** (`packages:`, `repositories:`, …
   declared in `init.yaml`) move into blueprint files under the tree
   (`packages/from-init.yaml`, …). These sections were removed from the init
-  schema — they were decoded and never applied — and an init file still
+  schema - they were decoded and never applied - and an init file still
   carrying them is an error until migrated.
 
 `--to` and `--migrate` compose in one invocation.

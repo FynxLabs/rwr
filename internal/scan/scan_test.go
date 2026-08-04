@@ -42,7 +42,7 @@ func TestPackages_ExplicitPreferred(t *testing.T) {
 	}
 }
 
-// A scan executes only list verbs — a provider whose other commands are
+// A scan executes only list verbs - a provider whose other commands are
 // traps proves it.
 func TestPackages_OnlyListVerbsRun(t *testing.T) {
 	dir := t.TempDir()
@@ -122,7 +122,7 @@ func TestConfigs_KnownNoiseAndSecrets(t *testing.T) {
 
 func TestParseEnabledUnits_VendorPresetSkipped(t *testing.T) {
 	out := "sshd.service enabled disabled\n" + // operator enabled (preset says off)
-		"cups.service enabled enabled\n" + // vendor preset — not operator intent
+		"cups.service enabled enabled\n" + // vendor preset - not operator intent
 		"tailscaled.service enabled disabled\n"
 	units := parseEnabledUnits(out)
 	if strings.Join(units, ",") != "sshd,tailscaled" {

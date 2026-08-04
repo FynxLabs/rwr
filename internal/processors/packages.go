@@ -107,7 +107,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 		}
 
 		// Get package names. `names` wins over `name` when both are set,
-		// matching files and fonts — packages had the precedence backwards,
+		// matching files and fonts - packages had the precedence backwards,
 		// so the same both-declared entry meant different things per type.
 		var names []string
 		if len(pkg.Names) > 0 {

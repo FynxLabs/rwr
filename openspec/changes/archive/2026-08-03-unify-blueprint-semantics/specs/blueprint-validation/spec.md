@@ -1,16 +1,16 @@
-# Blueprint Validation — Deltas
+# Blueprint Validation - Deltas
 
 ## ADDED Requirements
 
 ### Requirement: Template strictness at validate matches the run
 
 `rwr validate` SHALL resolve template references strictly for the `User`,
-`System`, and `Flags` namespaces — a reference that does not exist is a
-validation error — and leniently (`missingkey=zero`) only for `UserDefined`,
+`System`, and `Flags` namespaces - a reference that does not exist is a
+validation error - and leniently (`missingkey=zero`) only for `UserDefined`,
 whose values legitimately vary per machine.
 
 Why: validate resolved every namespace leniently, so a typo like
-`{{ .User.hoem }}` validated clean and failed at run time — the exact class of
+`{{ .User.hoem }}` validated clean and failed at run time - the exact class of
 error validate exists to catch early.
 
 #### Scenario: Misspelled built-in reference

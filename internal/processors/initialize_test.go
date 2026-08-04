@@ -376,7 +376,7 @@ variables:
 	}
 }
 
-// A .cue init file is evaluated to concrete JSON and fed to viper — same
+// A .cue init file is evaluated to concrete JSON and fed to viper - same
 // treatment TOML gets via its YAML pre-conversion.
 func TestInitialize_CueInitFile(t *testing.T) {
 	dir := t.TempDir()

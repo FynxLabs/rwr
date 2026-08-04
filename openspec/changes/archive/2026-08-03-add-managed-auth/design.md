@@ -5,7 +5,7 @@
 Today's secret handling is a fixed two-key list (`internal/types/secrets.go`)
 with three behaviors attached: template-scope withholding, `RWR_VAR_*` export
 gating, and log redaction. The design generalizes the *list* while keeping the
-three behaviors exactly as specified in `credential-handling` — they are
+three behaviors exactly as specified in `credential-handling` - they are
 already right, they just apply to too few things.
 
 ## Goals
@@ -20,7 +20,7 @@ already right, they just apply to too few things.
 
 - Secret *management* (rotation, expiry, vault backends). Sources are local:
   env, OS keyring, prompt. A future `exec:` source could shell out to
-  `pass`/`op`/`vault` — out of scope here, but the sources list is ordered and
+  `pass`/`op`/`vault` - out of scope here, but the sources list is ordered and
   extensible precisely so that can land without schema change.
 - Per-blueprint scoping. Scope is per-processor at most; anything finer needs
   provenance tracking rwr does not have.
@@ -65,8 +65,8 @@ before prompt so an interactive answer given once (and saved) is not re-asked.
 A single resolution phase in `ProcessInitialization` after `SetExposedCredentials`
 (`internal/processors/initialize.go:156`) and before
 `setUserDefinedAndEnvVariables`, so the export gate sees the full credential
-set. All declared credentials resolve up front — failing at minute 20 inside a
-script is worse than failing at second 1 — except credentials scoped to
+set. All declared credentials resolve up front - failing at minute 20 inside a
+script is worse than failing at second 1 - except credentials scoped to
 processors not selected for this run, which are skipped.
 
 ### Storage
@@ -75,10 +75,10 @@ processors not selected for this run, which are skipped.
   name). Candidate library: `zalando/go-keyring` (no cgo, covers Secret
   Service, macOS Keychain, Windows Credential Manager). Headless Linux without
   a Secret Service provider: `keyring` source resolves to "unavailable" and
-  precedence moves on — never an error on read, loud error on an explicit save.
+  precedence moves on - never an error on read, loud error on an explicit save.
 - Hard rule: rwr never writes a managed credential to a plaintext file. The
-  one existing violation — the GitHub token in the viper config file
-  (`SaveGitHubTokenToConfig`) — is grandfathered for reads; the device flow's
+  one existing violation - the GitHub token in the viper config file
+  (`SaveGitHubTokenToConfig`) - is grandfathered for reads; the device flow's
   save path prefers the keyring when available and only falls back to the
   config file with a warning naming the file.
 
@@ -95,7 +95,7 @@ export surface is env (opt-in via `exposeCredentials`) and template scope
 
 `scope` limits which processors see the credential even after exposure:
 `scripts`, `templates` (files/templates rendering), or a processor name.
-Enforcement point is the same gate that today checks `IsCredentialExposed` —
+Enforcement point is the same gate that today checks `IsCredentialExposed` -
 the check becomes (exposed AND in scope for the consuming processor). Default
 scope is everything `exposeCredentials` reaches today, so omitting `scope`
 reproduces current semantics.

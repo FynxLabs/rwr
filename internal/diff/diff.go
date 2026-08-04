@@ -1,7 +1,7 @@
 // Package diff compares the system scan against the resolved blueprint
 // tree: what is on the machine that the tree does not declare, and what the
-// tree declares that is gone. Its output is blueprint material — a list, a
-// paste-ready block, or a routed edit — never an apply.
+// tree declares that is gone. Its output is blueprint material - a list, a
+// paste-ready block, or a routed edit - never an apply.
 package diff
 
 import (
@@ -33,7 +33,7 @@ type Machine struct {
 }
 
 // Compute joins machine, tree, and journal. A package the journal shows a
-// run applied is not hand-added, whatever the current tree says — the tree
+// run applied is not hand-added, whatever the current tree says - the tree
 // may have changed since the apply.
 func Compute(machine Machine, plan *types.Plan, records []*state.RecordFile) []Change {
 	desired := map[string]map[string]bool{} // category → name set

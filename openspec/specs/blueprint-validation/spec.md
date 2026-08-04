@@ -85,7 +85,7 @@ wild, and CI is where that must surface.
 `rwr validate` SHALL walk the blueprint tree and check every blueprint file, not
 only the files in the top directory.
 
-Blueprints are organised by type — `packages/`, `files/`, `services/` — which is the
+Blueprints are organised by type - `packages/`, `files/`, `services/` - which is the
 layout the documentation recommends and every example uses. Reading only the top
 directory means checking the init file and reporting success.
 
@@ -132,10 +132,10 @@ what a processor rejects is a missed one. Specifically:
 - A package entry SHALL be valid with `name` or with `names`.
 - `package_manager` SHALL be optional; without one the default manager applies.
 - A file entry's action SHALL be one of `create`, `delete`, `copy`, `move`,
-  `chmod`, `chown`, `chgrp`, `symlink` — the set the files processor dispatches on.
+  `chmod`, `chown`, `chgrp`, `symlink` - the set the files processor dispatches on.
 - A script SHALL be valid with `exec`, `content`, or `source`.
 - A user or group action SHALL be valid as `create`, `modify`, `remove`, or
-  `delete` — the last being the accepted alias for `remove`.
+  `delete` - the last being the accepted alias for `remove`.
 - Every blueprint type SHALL have a validator, including `fonts` and
   `configuration`.
 
@@ -166,8 +166,8 @@ what a processor rejects is a missed one. Specifically:
 - A `chmod` action with no mode SHALL be an error, because applying it would strip
   every permission off the target at run time.
 - A mode larger than `0o7777` SHALL be an error: it is not a permission mode.
-- A mode on an action that ignores it — `move`, `delete`, `chown`, `chgrp`,
-  `symlink` — SHALL be a warning, so an operator who expected it to be applied
+- A mode on an action that ignores it - `move`, `delete`, `chown`, `chgrp`,
+  `symlink` - SHALL be a warning, so an operator who expected it to be applied
   finds out here. The mode-carrying actions are `create`, `chmod`, and `copy`:
   the files processor applies a declared mode to a copied target, so a mode on
   `copy` is meaningful, not ignored.
@@ -200,7 +200,7 @@ define, across YAML, JSON, and TOML. It SHALL be what a run uses as well as what
 validation uses, so `rwr validate` and `rwr all` agree on which keys exist; see the
 blueprint-processing specification.
 
-A silently ignored key is a blueprint that looks applied and is not — a misspelled
+A silently ignored key is a blueprint that looks applied and is not - a misspelled
 `profiles` key means an entry runs on every machine instead of the one it was
 scoped to.
 
@@ -226,12 +226,12 @@ its concern.
 ### Requirement: Template strictness at validate matches the run
 
 `rwr validate` SHALL resolve template references strictly for the `User`,
-`System`, and `Flags` namespaces — a reference that does not exist is a
-validation error — and leniently (`missingkey=zero`) only for `UserDefined`,
+`System`, and `Flags` namespaces - a reference that does not exist is a
+validation error - and leniently (`missingkey=zero`) only for `UserDefined`,
 whose values legitimately vary per machine.
 
 Why: validate resolved every namespace leniently, so a typo like
-`{{ .User.hoem }}` validated clean and failed at run time — the exact class of
+`{{ .User.hoem }}` validated clean and failed at run time - the exact class of
 error validate exists to catch early.
 
 #### Scenario: Misspelled built-in reference
@@ -252,7 +252,7 @@ naming the entry, since only the `names` list will be processed.
 
 ### Requirement: Embedded provider contracts live in the CUE schema
 
-Embedded provider contracts SHALL be expressed in the CUE schema — the checks
+Embedded provider contracts SHALL be expressed in the CUE schema - the checks
 currently hand-rolled in `internal/validate/providers.go`: required `name`,
 `detection.binary`, `commands.install`; step `action` constrained to the enum
 the processors implement; `condition` restricted to derivable predicate names;
@@ -303,12 +303,12 @@ validated in CI, per the compatibility contract.
 ### Requirement: Template strictness at validate matches the run
 
 `rwr validate` SHALL resolve template references strictly for the `User`,
-`System`, and `Flags` namespaces — a reference that does not exist is a
-validation error — and leniently (`missingkey=zero`) only for `UserDefined`,
+`System`, and `Flags` namespaces - a reference that does not exist is a
+validation error - and leniently (`missingkey=zero`) only for `UserDefined`,
 whose values legitimately vary per machine.
 
 Why: validate resolved every namespace leniently, so a typo like
-`{{ .User.hoem }}` validated clean and failed at run time — the exact class of
+`{{ .User.hoem }}` validated clean and failed at run time - the exact class of
 error validate exists to catch early.
 
 #### Scenario: Misspelled built-in reference
@@ -329,7 +329,7 @@ naming the entry, since only the `names` list will be processed.
 
 ### Requirement: Embedded provider contracts live in the CUE schema
 
-Embedded provider contracts SHALL be expressed in the CUE schema — the checks
+Embedded provider contracts SHALL be expressed in the CUE schema - the checks
 currently hand-rolled in `internal/validate/providers.go`: required `name`,
 `detection.binary`, `commands.install`; step `action` constrained to the enum
 the processors implement; `condition` restricted to derivable predicate names;

@@ -59,7 +59,7 @@ Read-only, never elevates, exits 1 on drift. Classes per item:
 
 ## `rwr uninstall`
 
-Input is the record — never the blueprint tree. With no record it refuses.
+Input is the record - never the blueprint tree. With no record it refuses.
 The not-reversible list (scripts, configuration writes, users, uploaded SSH
 keys, repositories) prints before the confirmation. Removal runs in reverse
 apply order; files and git checkouts are hash-/cleanliness-guarded, modified
