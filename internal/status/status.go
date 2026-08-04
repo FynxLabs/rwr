@@ -30,22 +30,22 @@ type Row struct {
 }
 
 // Rows joins the plan's desired resources with the journal and the queries.
-// The record enriches identity (a plan resource has no dest path; its record
-// entry does); without a record, classes the queries cannot honestly decide
-// are unknown.
-func Rows(plan *types.Plan, records []*state.RecordFile, querier *Querier) []Row {
+// The journal enriches identity (a plan resource has no dest path; its
+// entry does); without one, classes the queries cannot honestly decide are
+// unknown.
+func Rows(plan *types.Plan, applies []state.Entry, querier *Querier) []Row {
 	// Identity enrichment uses every recorded apply - a reversal does not
 	// erase where an identity lives on disk; stale detection uses only the
 	// unreversed ones - deliberately removed work is not stale.
 	recorded := map[string]*state.Entry{}
-	for _, ref := range state.LatestApplies(records) {
-		entry := ref.Entry()
-		recorded[entry.Processor+"\x00"+entry.Identity["name"]] = entry
-	}
 	unreversed := map[string]*state.Entry{}
-	for _, ref := range state.UnreversedApplies(records) {
-		entry := ref.Entry()
-		unreversed[entry.Processor+"\x00"+entry.Identity["name"]] = entry
+	for i := range applies {
+		entry := &applies[i]
+		key := entry.Processor + "\x00" + entry.Identity["name"]
+		recorded[key] = entry
+		if !entry.Reversed {
+			unreversed[key] = entry
+		}
 	}
 
 	var rows []Row

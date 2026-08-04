@@ -47,11 +47,11 @@ func TestCompute_AdditionsAndRemovals(t *testing.T) {
 // A package the journal shows a run applied is not hand-added, whatever the
 // current tree says.
 func TestCompute_JournalAppliedIsNotDrift(t *testing.T) {
-	record := &state.RecordFile{Path: "r", Record: &state.Record{Entries: []state.Entry{{
+	applies := []state.Entry{{
 		Processor: types.BlueprintTypePackages, OK: true, Outcome: "ok",
 		Identity: map[string]string{"provider": "pacman", "name": "helix"},
-	}}}}
-	changes := Compute(machineWith("helix"), planWith(), []*state.RecordFile{record})
+	}}
+	changes := Compute(machineWith("helix"), planWith(), applies)
 	for _, change := range changes {
 		if change.Name == "helix" && !change.Removal {
 			t.Fatalf("journal-applied package reported as addition: %+v", change)

@@ -26,24 +26,20 @@ func TestJournal_RecordsAppliesOnly(t *testing.T) {
 	track.itemIdentity("", "rc", "create", types.StatusOK, "", 0, map[string]string{"dest": "/tmp/rc", "sha256": "ab"})
 	closeJournal()
 
-	record, err := state.Latest(configDir)
+	applies, err := state.Applies(configDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if record == nil || !record.Finalized {
-		t.Fatalf("record = %+v", record)
+	// Failed and planned items must not fold into applies; the two OK items
+	// carry their identities.
+	if len(applies) != 2 {
+		t.Fatalf("applies = %+v, want 2", applies)
 	}
-	if len(record.Entries) != 3 {
-		t.Fatalf("entries = %d, want 3 (planned items must not be recorded): %+v", len(record.Entries), record.Entries)
+	if applies[0].Identity["provider"] != "pacman" || applies[0].Identity["name"] != "git" {
+		t.Fatalf("apply 0 = %+v", applies[0])
 	}
-	if record.Entries[0].Identity["provider"] != "pacman" || record.Entries[0].Identity["name"] != "git" || !record.Entries[0].OK {
-		t.Fatalf("entry 0 = %+v", record.Entries[0])
-	}
-	if record.Entries[1].OK || record.Entries[1].Outcome != string(types.StatusFailed) {
-		t.Fatalf("entry 1 = %+v", record.Entries[1])
-	}
-	if record.Entries[2].Identity["dest"] != "/tmp/rc" || record.Entries[2].Identity["sha256"] != "ab" {
-		t.Fatalf("entry 2 identity = %+v", record.Entries[2].Identity)
+	if applies[1].Identity["dest"] != "/tmp/rc" || applies[1].Identity["sha256"] != "ab" {
+		t.Fatalf("apply 1 identity = %+v", applies[1])
 	}
 }
 

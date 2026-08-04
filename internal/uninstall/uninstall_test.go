@@ -18,11 +18,6 @@ func fileEntry(name, dest, sha string) state.Entry {
 		Identity: map[string]string{"name": name, "dest": dest, "sha256": sha}}
 }
 
-func recordWith(entries ...state.Entry) *state.RecordFile {
-	return &state.RecordFile{Path: filepath.Join(os.TempDir(), "unsaved.json"),
-		Record: &state.Record{RecordVersion: state.RecordVersion, Entries: entries}}
-}
-
 func TestPlan_RefusesWithoutRecords(t *testing.T) {
 	if _, _, err := Plan(nil); err == nil {
 		t.Fatal("no records did not refuse")
@@ -30,20 +25,20 @@ func TestPlan_RefusesWithoutRecords(t *testing.T) {
 }
 
 func TestPlan_ReverseOrderAndNotReversible(t *testing.T) {
-	record := recordWith(
-		state.Entry{Processor: types.BlueprintTypePackages, OK: true, Identity: map[string]string{"name": "git", "provider": "pacman"}},
+	entries := []state.Entry{
+		{Processor: types.BlueprintTypePackages, OK: true, Identity: map[string]string{"name": "git", "provider": "pacman"}},
 		fileEntry("rc", "/tmp/rc", "ab"),
-		state.Entry{Processor: types.BlueprintTypeScripts, OK: true, Identity: map[string]string{"name": "setup.sh"}},
-		state.Entry{Processor: types.BlueprintTypeGit, OK: true, Identity: map[string]string{"name": "dotfiles", "target": "/tmp/dots"}},
-	)
-	items, skipped, err := Plan([]*state.RecordFile{record})
+		{Processor: types.BlueprintTypeScripts, OK: true, Identity: map[string]string{"name": "setup.sh"}},
+		{Processor: types.BlueprintTypeGit, OK: true, Identity: map[string]string{"name": "dotfiles", "target": "/tmp/dots"}},
+	}
+	items, skipped, err := Plan(entries)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Applied order was packages→files→git; removal must be git→files→packages.
 	var processors []string
 	for _, item := range items {
-		processors = append(processors, item.Ref.Entry().Processor)
+		processors = append(processors, item.Entry.Processor)
 	}
 	want := []string{types.BlueprintTypeGit, types.BlueprintTypeFiles, types.BlueprintTypePackages}
 	if strings.Join(processors, ",") != strings.Join(want, ",") {
@@ -68,22 +63,36 @@ func TestExecute_HashGuardAndAbsentSkip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	record := recordWith(
-		fileEntry("intact", intact, intactSum),
-		fileEntry("modified", modified, "0000000000000000000000000000000000000000000000000000000000000000"),
-		fileEntry("gone", filepath.Join(dir, "gone"), intactSum),
-	)
-	record.Path = filepath.Join(dir, "record.json")
-	if err := record.Save(); err != nil {
+	configDir := t.TempDir()
+	journal, err := state.NewWriter(configDir, "test", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal.Append(fileEntry("intact", intact, intactSum))
+	journal.Append(fileEntry("modified", modified, "0000000000000000000000000000000000000000000000000000000000000000"))
+	journal.Append(fileEntry("gone", filepath.Join(dir, "gone"), intactSum))
+	if err := journal.Finalize(); err != nil {
 		t.Fatal(err)
 	}
 
-	items, _, err := Plan([]*state.RecordFile{record})
+	entries, err := state.Unreversed(configDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, _, err := Plan(entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reversalJournal, err := state.NewWriter(configDir, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if failed := Execute(&out, items, status.NewQuerier()); failed != 0 {
+	failed := Execute(&out, items, status.NewQuerier(), reversalJournal)
+	if err := reversalJournal.Finalize(); err != nil {
+		t.Fatal(err)
+	}
+	if failed != 0 {
 		t.Fatalf("failed = %d, output:\n%s", failed, out.String())
 	}
 
@@ -100,21 +109,21 @@ func TestExecute_HashGuardAndAbsentSkip(t *testing.T) {
 		t.Errorf("absent skip not listed:\n%s", out.String())
 	}
 
-	// Reversal marks persist: the intact delete is reversed, the modified one
-	// stays unreversed so a re-run retries it.
-	reloaded, err := state.Load(record.Path)
+	// Reversals are journal events: the intact delete folds out of
+	// Unreversed, the modified one stays so a re-run retries it.
+	remaining, err := state.Unreversed(configDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	marks := map[string]bool{}
-	for _, entry := range reloaded.Entries {
-		marks[entry.Identity["name"]] = entry.Reversed
+	names := map[string]bool{}
+	for _, entry := range remaining {
+		names[entry.Identity["name"]] = true
 	}
-	if !marks["intact"] {
-		t.Error("deleted entry not marked reversed")
+	if names["intact"] {
+		t.Error("deleted entry still unreversed")
 	}
-	if marks["modified"] {
-		t.Error("skipped entry marked reversed - a re-run would never retry it")
+	if !names["modified"] {
+		t.Error("skipped entry reversed - a re-run would never retry it")
 	}
 }
 
@@ -125,7 +134,7 @@ func TestExecute_DryRunTouchesNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	sum, _ := system.HashFileSHA256(dest)
-	items, _, err := Plan([]*state.RecordFile{recordWith(fileEntry("f", dest, sum))})
+	items, _, err := Plan([]state.Entry{fileEntry("f", dest, sum)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +142,7 @@ func TestExecute_DryRunTouchesNothing(t *testing.T) {
 	system.SetDryRun(true)
 	defer system.SetDryRun(false)
 	var out bytes.Buffer
-	if failed := Execute(&out, items, status.NewQuerier()); failed != 0 {
+	if failed := Execute(&out, items, status.NewQuerier(), nil); failed != 0 {
 		t.Fatal("dry-run failed")
 	}
 	if _, err := os.Stat(dest); err != nil {
@@ -145,7 +154,7 @@ func TestExecute_DryRunTouchesNothing(t *testing.T) {
 }
 
 func TestReverseGit_DirtyWorktreeSkipped(t *testing.T) {
-	entry := &state.Entry{Processor: types.BlueprintTypeGit,
+	entry := state.Entry{Processor: types.BlueprintTypeGit,
 		Identity: map[string]string{"name": "x", "target": t.TempDir()}}
 	// A plain directory is not a readable git worktree: skip, never delete.
 	reason, err := reverseGit(entry)
