@@ -42,26 +42,23 @@ var NotReversible = []string{
 
 // Item is one reversible entry with its planned removal.
 type Item struct {
-	Ref    state.EntryRef
+	Entry  state.Entry
 	Action string // human description of the removal
 }
 
 // Plan orders the journal's unreversed applies for removal and separates
 // out what cannot be reversed. No records → an explicit refusal: guessing
 // removals from a tree that may have changed is how the wrong file dies.
-func Plan(records []*state.RecordFile) (items []Item, skipped []string, err error) {
-	if len(records) == 0 {
-		return nil, nil, fmt.Errorf("no run records under the state directory - nothing recorded, nothing to reverse")
+func Plan(entries []state.Entry) (items []Item, skipped []string, err error) {
+	if len(entries) == 0 {
+		return nil, nil, fmt.Errorf("nothing recorded, nothing to reverse")
 	}
-	refs := state.UnreversedApplies(records)
-
-	byProcessor := map[string][]state.EntryRef{}
-	for _, ref := range refs {
-		byProcessor[ref.Entry().Processor] = append(byProcessor[ref.Entry().Processor], ref)
+	byProcessor := map[string][]state.Entry{}
+	for _, entry := range entries {
+		byProcessor[entry.Processor] = append(byProcessor[entry.Processor], entry)
 	}
 	for _, processor := range NotReversible {
-		for _, ref := range byProcessor[processor] {
-			entry := ref.Entry()
+		for _, entry := range byProcessor[processor] {
 			skipped = append(skipped, fmt.Sprintf("%s: %s", entry.Processor, entry.Identity["name"]))
 		}
 	}
@@ -69,13 +66,13 @@ func Plan(records []*state.RecordFile) (items []Item, skipped []string, err erro
 		// Within a processor, reverse the recorded order too.
 		group := byProcessor[processor]
 		for i := len(group) - 1; i >= 0; i-- {
-			items = append(items, Item{Ref: group[i], Action: describe(group[i].Entry())})
+			items = append(items, Item{Entry: group[i], Action: describe(group[i])})
 		}
 	}
 	return items, skipped, nil
 }
 
-func describe(entry *state.Entry) string {
+func describe(entry state.Entry) string {
 	switch entry.Processor {
 	case types.BlueprintTypePackages:
 		return fmt.Sprintf("remove package %s via %s", entry.Identity["name"], entry.Identity["provider"])
@@ -92,11 +89,12 @@ func describe(entry *state.Entry) string {
 }
 
 // Execute runs the plan per-item: failures are logged and counted, never
-// aborting the remaining work; reversed entries are marked in their records
-// so a re-run retries only what failed.
-func Execute(out io.Writer, items []Item, querier *status.Querier) (failed int) {
+// aborting the remaining work. Each completed reversal is appended to the
+// journal as an event, so the log stays append-only and a re-run retries
+// only what failed.
+func Execute(out io.Writer, items []Item, querier *status.Querier, journal *state.Writer) (failed int) {
 	for _, item := range items {
-		entry := item.Ref.Entry()
+		entry := item.Entry
 		if system.IsDryRun() {
 			helpers.Say(out, "[DRY-RUN] Would %s\n", item.Action)
 			continue
@@ -112,17 +110,14 @@ func Execute(out io.Writer, items []Item, querier *status.Querier) (failed int) 
 			continue
 		}
 		helpers.Say(out, "done: %s\n", item.Action)
-		entry.Reversed = true
-		if err := item.Ref.File.Save(); err != nil {
-			log.Warnf("marking reversal in %s: %v", item.Ref.File.Path, err)
-		}
+		journal.Reverse(entry.Processor, entry.Identity)
 	}
 	return failed
 }
 
 // reverse undoes one entry. A non-empty skip reason means the item was
 // deliberately left alone; an error means the removal was tried and failed.
-func reverse(entry *state.Entry, querier *status.Querier) (skipReason string, err error) {
+func reverse(entry state.Entry, querier *status.Querier) (skipReason string, err error) {
 	switch entry.Processor {
 	case types.BlueprintTypePackages:
 		return reversePackage(entry, querier)
@@ -141,7 +136,7 @@ func reverse(entry *state.Entry, querier *status.Querier) (skipReason string, er
 // reverseFont deletes the font faces the recorded name installed into the
 // recorded directory - the same glob the fonts processor's own remove action
 // uses.
-func reverseFont(entry *state.Entry) (string, error) {
+func reverseFont(entry state.Entry) (string, error) {
 	dir, name := entry.Identity["dir"], entry.Identity["name"]
 	if dir == "" || name == "" {
 		return "no recorded font directory", nil
@@ -165,7 +160,7 @@ func reverseFont(entry *state.Entry) (string, error) {
 	return "", nil
 }
 
-func reversePackage(entry *state.Entry, querier *status.Querier) (string, error) {
+func reversePackage(entry state.Entry, querier *status.Querier) (string, error) {
 	name := entry.Identity["name"]
 	provider, ok := system.GetProvider(entry.Identity["provider"])
 	if !ok {
@@ -183,7 +178,7 @@ func reversePackage(entry *state.Entry, querier *status.Querier) (string, error)
 	return "", system.RunCommand(cmd, false)
 }
 
-func reverseFile(entry *state.Entry) (string, error) {
+func reverseFile(entry state.Entry) (string, error) {
 	dest := entry.Identity["dest"]
 	if dest == "" {
 		return "no recorded destination", nil
@@ -210,7 +205,7 @@ func reverseFile(entry *state.Entry) (string, error) {
 	return "", os.Remove(dest)
 }
 
-func reverseGit(entry *state.Entry) (string, error) {
+func reverseGit(entry state.Entry) (string, error) {
 	target := entry.Identity["target"]
 	if target == "" {
 		return "no recorded checkout target", nil
@@ -228,7 +223,7 @@ func reverseGit(entry *state.Entry) (string, error) {
 	return "", os.RemoveAll(target)
 }
 
-func reverseService(entry *state.Entry) (string, error) {
+func reverseService(entry state.Entry) (string, error) {
 	name := entry.Identity["name"]
 	if status.ServiceState(name) != status.Present {
 		return "not enabled or not queryable", nil

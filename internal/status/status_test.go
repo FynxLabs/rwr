@@ -98,16 +98,16 @@ func TestRowsClassification(t *testing.T) {
 		{Processor: types.BlueprintTypeFiles, Name: "missing"},
 		{Processor: types.BlueprintTypeScripts, Name: "setup.sh"},
 	}}
-	record := &state.RecordFile{Path: "r", Record: &state.Record{Entries: []state.Entry{
+	applies := []state.Entry{
 		{Processor: types.BlueprintTypeFiles, OK: true, Outcome: "ok",
 			Identity: map[string]string{"name": "present", "dest": present, "sha256": sum}},
 		{Processor: types.BlueprintTypeFiles, OK: true, Outcome: "ok",
 			Identity: map[string]string{"name": "missing", "dest": filepath.Join(dir, "gone"), "sha256": sum}},
 		{Processor: types.BlueprintTypeFiles, OK: true, Outcome: "ok",
 			Identity: map[string]string{"name": "stale-one", "dest": present, "sha256": sum}},
-	}}}
+	}
 
-	rows := Rows(plan, []*state.RecordFile{record}, NewQuerier())
+	rows := Rows(plan, applies, NewQuerier())
 	byName := map[string]Row{}
 	for _, row := range rows {
 		byName[row.Name] = row

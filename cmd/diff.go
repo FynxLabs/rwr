@@ -40,12 +40,12 @@ routed interactively into the tree (--into). Diff never touches the system.`,
 				return err
 			}
 			processors.ResolveStage2(plan)
-			records, err := state.LoadAll(viper.GetString("rwr.configdir"))
+			applies, err := state.Applies(viper.GetString("rwr.configdir"))
 			if err != nil {
 				return err
 			}
 
-			changes := diff.Compute(machine, plan, records)
+			changes := diff.Compute(machine, plan, applies)
 			changes = filterCategories(changes, scoped(categories))
 
 			switch {

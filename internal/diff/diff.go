@@ -35,7 +35,7 @@ type Machine struct {
 // Compute joins machine, tree, and journal. A package the journal shows a
 // run applied is not hand-added, whatever the current tree says - the tree
 // may have changed since the apply.
-func Compute(machine Machine, plan *types.Plan, records []*state.RecordFile) []Change {
+func Compute(machine Machine, plan *types.Plan, applies []state.Entry) []Change {
 	desired := map[string]map[string]bool{} // category → name set
 	for _, resource := range plan.Resources {
 		category := resource.Processor
@@ -45,8 +45,7 @@ func Compute(machine Machine, plan *types.Plan, records []*state.RecordFile) []C
 		desired[category][resource.Name] = true
 	}
 	applied := map[string]bool{} // "category\x00name" the journal accounts for
-	for _, ref := range state.LatestApplies(records) {
-		entry := ref.Entry()
+	for _, entry := range applies {
 		applied[entry.Processor+"\x00"+entry.Identity["name"]] = true
 	}
 

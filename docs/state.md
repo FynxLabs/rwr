@@ -10,40 +10,27 @@ recognize files it wrote and what `rwr uninstall` uses to reverse them.
 
 ## Format
 
+One append-only event log: `<configdir>/state/journal.jsonl`. Every line is
+a self-contained JSON event; nothing is ever rewritten or mutated.
+
 ```json
-{
-  "recordVersion": 1,
-  "id": "20260803-094124-3bc1ebd2",
-  "started": "2026-08-03T09:41:24-05:00",
-  "finished": "2026-08-03T09:41:28-05:00",
-  "finalized": true,
-  "location": "/path/to/blueprints",
-  "entries": [
-    {
-      "processor": "files",
-      "action": "create",
-      "identity": {
-        "name": "hello.txt",
-        "dest": "/home/user/hello.txt",
-        "sha256": "8f4343…"
-      },
-      "outcome": "ok",
-      "ok": true
-    }
-  ]
-}
+{"v":2,"kind":"run","id":"20260803-204243-7b0f","started":"...","location":"/path/to/blueprints"}
+{"v":2,"kind":"apply","run":"20260803-204243-7b0f","processor":"files","action":"create","identity":{"name":"h.txt","dest":"/home/user/h.txt","sha256":"2d71..."},"outcome":"ok","ok":true}
+{"v":2,"kind":"finish","run":"20260803-204243-7b0f","finished":"..."}
+{"v":2,"kind":"reverse","run":"20260803-2050-1a2b","processor":"files","identity":{"name":"h.txt","dest":"/home/user/h.txt","sha256":"2d71..."}}
 ```
 
-- The file is rewritten after every entry: a crash mid-run leaves a valid,
-  readable record with `finalized: false`.
+- Appends are O(1); a crash loses at most a partial last line, and every
+  complete line before it still counts. A run without a `finish` event is
+  unfinalized.
 - `identity` carries what a later run needs to find the thing again:
   `provider` + `name` for packages, `dest` + `sha256` for files and
   templates, `dest` for directories, `target` for git checkouts, `dir` for
   fonts.
-- Entries are never deleted. `rwr uninstall` marks what it removed with
-  `"reversed": true`; the journal is append-only history.
-- Records are user-only (`0600`, directory `0700`). A record with a newer
-  `recordVersion` than the binary understands is refused, not misread.
+- `rwr uninstall` appends `reverse` events; readers fold them over the
+  applies. History is never edited.
+- The journal is user-only (`0600`, directory `0700`). Legacy v1 per-run
+  record files under `state/runs/` are still read and folded in.
 
 ## `rwr status`
 

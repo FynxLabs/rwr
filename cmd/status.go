@@ -26,12 +26,12 @@ mutates and never elevates. Exits 1 on drift.`,
 				return err
 			}
 			processors.ResolveStage2(plan)
-			records, err := state.LoadAll(viper.GetString("rwr.configdir"))
+			applies, err := state.Applies(viper.GetString("rwr.configdir"))
 			if err != nil {
 				return err
 			}
-			rows := status.Rows(plan, records, status.NewQuerier())
-			helpers.Say(cmd.OutOrStdout(), "%s", status.Render(rows, len(records) > 0))
+			rows := status.Rows(plan, applies, status.NewQuerier())
+			helpers.Say(cmd.OutOrStdout(), "%s", status.Render(rows, len(applies) > 0))
 			if status.Drifted(rows) {
 				return fmt.Errorf("drift detected")
 			}

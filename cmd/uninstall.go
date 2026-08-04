@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/state"
 	"github.com/fynxlabs/rwr/internal/status"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/uninstall"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -28,11 +30,12 @@ directory. Input is the record, never the blueprint tree; with no record the
 command refuses. What cannot be reversed (scripts, configuration writes,
 users, uploaded SSH keys, repositories) is listed up front.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			records, err := state.LoadAll(viper.GetString("rwr.configdir"))
+			configDir := viper.GetString("rwr.configdir")
+			entries, err := state.Unreversed(configDir)
 			if err != nil {
 				return err
 			}
-			items, notReversible, err := uninstall.Plan(records)
+			items, notReversible, err := uninstall.Plan(entries)
 			if err != nil {
 				return err
 			}
@@ -62,7 +65,15 @@ users, uploaded SSH keys, repositories) is listed up front.`,
 				}
 			}
 
-			if failed := uninstall.Execute(out, items, status.NewQuerier()); failed > 0 {
+			journal, err := state.NewWriter(configDir, "", system.IsDryRun())
+			if err != nil {
+				return err
+			}
+			failed := uninstall.Execute(out, items, status.NewQuerier(), journal)
+			if err := journal.Finalize(); err != nil {
+				log.Warnf("finalizing the journal: %v", err)
+			}
+			if failed > 0 {
 				return fmt.Errorf("%d removal(s) failed; failed entries stay unreversed - re-run to retry them", failed)
 			}
 			return nil
