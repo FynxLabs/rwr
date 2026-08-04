@@ -4,7 +4,7 @@ The Scripts blueprint allows you to execute scripts as part of the configuration
 
 ## Blueprint Structure
 
-The Scripts blueprint follows the same structure as other blueprints in RWR. It can be defined in YAML, JSON, or TOML format.
+The Scripts blueprint follows the same structure as other blueprints in RWR. It can be defined in YAML, JSON, TOML, or CUE format.
 
 See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `import`, `interactive`, and the rule that an unknown key is an error.

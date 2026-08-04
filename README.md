@@ -5,14 +5,19 @@
 
 ![RWR Logo](img/rwr_128.gif)
 
-Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines.
+Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It aims to simplify the process of setting up and maintaining your system, making it easy to rebuild and reproduce configurations across multiple machines — and, with its run records, to see what a run changed and to reverse it again.
 
 ## Features
 
 - **Blueprint-based Configuration**: Uses configuration files called blueprints to define and manage your system's configuration
 - **Blueprint Imports**: Share and reuse blueprint configurations across multiple files and projects
 - **Profile System**: Additive profile model for managing different environments (dev, staging, production) or use cases (work, personal)
-- **Multi-format Support**: Blueprints can be written in YAML, JSON, or TOML format
+- **Multi-format Support**: Blueprints can be written in YAML, JSON, TOML, or CUE format, and `rwr convert` rewrites a whole tree from one format to another
+- **Multi-configuration Repos**: One blueprint repository can hold several configurations behind a root manifest; RWR matches the machine, or `--config-name` picks one
+- **Task-runner CLI**: `rwr all` runs everything; `rwr run <processor>` (or the shorthand `rwr packages`) runs one processor; `rwr bootstrap` runs just the bootstrap step
+- **Interactive Dashboard**: Interactive runs get a live terminal dashboard with built-in and user-defined themes; non-interactive runs keep plain streaming logs
+- **Run Records**: Every run writes a journal; `rwr status` shows desired-vs-actual drift and `rwr uninstall` reverses what recorded runs applied
+- **Managed Credentials**: Declare credentials in the init file and source them from environment variables, the OS keyring, or a prompt — redacted in logs by default
 - **Cross-platform Package Management**: Integrates with various package managers across Linux, macOS, and Windows
 - **File & Directory Management**: Copy, move, delete, create, and manage permissions with URL source support
 - **Service Management**: Start, stop, enable, and disable system services
@@ -22,7 +27,7 @@ Rinse, Wash, Repeat (RWR) is a powerful and flexible configuration management to
 - **Git Repository Management**: Clone and manage Git repositories
 - **Script Execution**: Execute scripts with multiple interpreter support
 - **SSH Key Management**: Generate and manage SSH keys with GitHub integration
-- **Extensible Architecture**: Add new package managers through TOML-based provider configurations
+- **Extensible Architecture**: Package managers are declarative providers — authored in CUE and embedded in the binary, with filesystem overrides in TOML or JSON
 
 ## Table of Contents<!-- omit in toc -->
 
@@ -133,10 +138,10 @@ Read [Install](docs/install.md) for the full description.
 ## Getting Started
 
 1. **Make the configuration file**: Run
-   [`rwr config --create`](docs/cli/configuration.md). RWR asks for the settings
+   [`rwr config create`](docs/cli/configuration.md). RWR asks for the settings
    and writes the file.
-2. **Give the blueprints**: Give a git repository URL or a local path when RWR
-   asks for it.
+2. **Give the blueprints**: Give a git repository URL, a local path, or a
+   GitHub shorthand like `owner/repo` when RWR asks for it.
 3. **Set up the system**: Run [`rwr all`](docs/cli/command-and-flags.md). RWR
    applies the blueprints.
 
@@ -260,10 +265,12 @@ For detailed documentation on how to use RWR, please refer to the `docs/` direct
 - [Config File](docs/cli/configuration.md)
 - [Profile CLI Commands](docs/cli/profiles.md)
 - [Validate Command](docs/cli/validate.md)
+- [Convert Command](docs/cli/convert.md)
 
 ### Blueprints
 
 - [Blueprint Best Practices](docs/best-practices.md)
+- [Fields Common to Every Blueprint](docs/blueprints/common-fields.md)
 - Blueprint Types
   - [Packages Blueprint](docs/blueprints/packages.md)
   - [Repositories Blueprint](docs/blueprints/repositories.md)
@@ -284,6 +291,7 @@ For detailed documentation on how to use RWR, please refer to the `docs/` direct
 - [Template Variables](docs/variables.md)
 - [Package Manager Providers](docs/providers.md)
 - [Credentials](docs/credentials.md)
+- [Run Records - Status & Uninstall](docs/state.md)
 - [Schema versioning](docs/schema-versioning.md)
 
 For more detailed information on each topic, please refer to the corresponding documentation file.
@@ -382,14 +390,21 @@ GitHub Actions runs the pipeline. There are three workflows.
 
 `Go Build & Test` runs at each push to `master` and at each pull request —
 every pull request, not only those targeting `master`, so a branch stacked on
-another branch is still checked. It has five jobs:
+another branch is still checked. Its jobs:
 
 - `build` runs on `ubuntu-latest`, `macos-latest` and `windows-latest`. Each
   runs `go build ./...` and `go vet ./...`; vet type-checks the test files, so
   this is also the guarantee that the whole tree compiles on that platform.
-  `go test -race -v ./...` gates on Linux. It also runs on macOS and Windows,
-  but with `continue-on-error`, because much of the suite still assumes POSIX
-  behaviour.
+  `go test -race -v ./...` gates on Linux, and a coverage gate keeps total
+  coverage at or above a ratcheting threshold. The tests also run on macOS and
+  Windows, but with `continue-on-error`, because much of the suite still
+  assumes POSIX behaviour.
+- `cross-compile` builds every release target with `goreleaser build
+  --snapshot`, and `release-snapshot` runs the full release pipeline — signing
+  included — as a snapshot, so a release-only breakage is caught before merge.
+- `cue-providers` vets the CUE provider sources under `providers/cue/` and
+  fails when the committed JSON under
+  `internal/system/definitions/providers/` differs from a fresh export.
 - `lint` runs golangci-lint against the repository's own `.golangci.yml`, so it
   is the same set of rules as `mise run lint`.
 - `installers` runs shellcheck over `install.sh` and parses `install.ps1` with
@@ -436,7 +451,8 @@ Please ensure that your code follows the project's coding style and includes app
 RWR keeps living specifications under `openspec/specs/`, one directory per
 capability: `blueprint-processing`, `blueprint-schema-versioning`,
 `blueprint-validation`, `cli`, `command-execution`, `credential-handling`,
-`distribution`, `initialization` and `provider-detection`. Project-wide context
+`distribution`, `initialization`, `provider-detection` and `state-tracking`.
+Project-wide context
 and the rules specs are written against live in `openspec/config.yaml`.
 
 **If a change alters behavior that a spec covers, update that spec in the same

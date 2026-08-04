@@ -4,9 +4,9 @@ The Init file is the main entry point for your RWR blueprints. It defines the co
 
 ## File Format
 
-The Init file is typically named `init.yaml`, but `init.yml`, `init.json` and
-`init.toml` work as well. RWR supports YAML, JSON, and TOML formats for the Init
-file.
+The Init file is typically named `init.yaml`, but `init.yml`, `init.json`,
+`init.toml` and `init.cue` work as well. RWR supports YAML, JSON, TOML, and CUE
+formats for the Init file.
 
 ## File Location
 
@@ -47,7 +47,7 @@ The `blueprints` section defines the configuration settings for your blueprints.
 
 | Field | Description | Required |
 |-------|-------------|----------|
-| `format` | The format of the blueprint files (yaml, json, toml) | Yes |
+| `format` | The format of the blueprint files (yaml, json, toml, cue) | Yes |
 | `location` | The directory where the blueprint files are located | No (default: current directory) |
 | `order` | The order of the blueprint types | No. The default is a fixed order. See [Blueprints General](blueprints-general.md) |
 | `git` | Git repository settings for managing blueprints | No |

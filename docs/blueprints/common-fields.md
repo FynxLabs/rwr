@@ -6,7 +6,7 @@ type, and the one decoding rule that applies to all of them.
 ## Unknown keys are an error
 
 > [!IMPORTANT]
-> Blueprints decode strictly, in YAML, JSON and TOML alike. A key the blueprint
+> Blueprints decode strictly, in YAML, JSON, TOML and CUE alike. A key the blueprint
 > type does not define — a misspelled `pacakges:`, a `profile:` that should have
 > been `profiles:` — stops the run with an error naming the file and, for YAML,
 > the line.

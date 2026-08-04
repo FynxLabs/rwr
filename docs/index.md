@@ -25,6 +25,8 @@ RWR's profile system allows you to organize and selectively install packages and
 - [Commands and Flags](cli/command-and-flags.md): Learn about the available commands in the RWR CLI and their respective flags.
 - [Configuration File](cli/configuration.md): Understand how to configure RWR through the configuration file.
 - [Profile Commands](cli/profiles.md): Profile-specific CLI commands and flags.
+- [Validate Command](cli/validate.md): Check blueprints and provider configurations before a run.
+- [Convert Command](cli/convert.md): Rewrite a blueprint tree between formats or migrate deprecated constructs.
 
 ## The Init File
 
@@ -59,6 +61,11 @@ RWR supports various blueprint types for managing different aspects of your syst
 
 - [Variables and Templating](variables.md): Learn how to use variables and templating in blueprints to make them more dynamic and reusable.
 
+## Run Records
+
+- [Run records](state.md): The journal each run writes, `rwr status` for
+  desired-vs-actual drift, and `rwr uninstall` to reverse recorded runs.
+
 ## Credentials and Schema Versions
 
 - [Credentials](credentials.md): How RWR holds your GitHub token and SSH key, and
@@ -72,6 +79,8 @@ RWR supports various blueprint types for managing different aspects of your syst
 
 ## Extending RWR
 
+- [Package Manager Providers](providers.md): Declarative provider definitions —
+  add or override a package manager without writing Go code.
 - Coming Soon: Adding a New Processor
 
 ## Troubleshooting
