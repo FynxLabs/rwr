@@ -86,7 +86,7 @@ func distroInFamily(distro, family string) bool {
 		return true
 	}
 	families := map[string][]string{
-		"arch":   {"arch", "manjaro", "endeavouros", "cachyos", "garuda", "archcraft"},
+		"arch":   {"arch", "manjaro", "endeavouros", "cachyos", "garuda", "archcraft", "prismlinux"},
 		"debian": {"debian", "ubuntu", "pop", "linuxmint", "elementary", "raspbian"},
 		"rhel":   {"rhel", "fedora", "centos", "rocky", "almalinux"},
 		"suse":   {"suse", "opensuse", "opensuse-leap", "opensuse-tumbleweed"},
