@@ -52,28 +52,32 @@ func selectFromManifest(app *AppConfig, manifestPath string) (string, error) {
 	osInfo := system.DetectOS()
 	matched := helpers.MatchManifest(manifest, osInfo)
 
-	switch len(matched) {
-	case 0:
+	if len(matched) == 0 {
 		var lines []string
 		for _, entry := range manifest.Configurations {
 			lines = append(lines, fmt.Sprintf("  %s (os=%s distro=%s family=%s arch=%s)", entry.Name, entry.OS, entry.Distro, entry.Family, entry.Arch))
 		}
 		return "", fmt.Errorf("no manifest configuration matches this machine (%s/%s/%s); entries:\n%s\nselect one explicitly with --config-name",
 			osInfo.System.OS, osInfo.System.OSFamily, osInfo.System.OSArch, strings.Join(lines, "\n"))
-	case 1:
-		log.Infof("Using manifest configuration %q (matched this machine)", matched[0].Name)
-		return entryInit(matched[0]), nil
 	}
 
-	// Prefer a declared default among the matches before prompting.
-	for _, entry := range matched {
-		if entry.Default {
-			log.Infof("Using manifest configuration %q (default among %d matches)", entry.Name, len(matched))
-			return entryInit(entry), nil
-		}
-	}
-
+	// The selection frame is the default whenever a real terminal is present
+	// and --no-tui was not passed - even for a single match, so the operator
+	// always confirms which configuration rwr is about to apply. The headless
+	// path (no TTY, CI, or --no-tui) cannot prompt and falls back to a
+	// deterministic pick: a declared Default among the matches, then a single
+	// match, then an error listing the candidates.
 	if !tui.Active(app.NoTUI) {
+		for _, entry := range matched {
+			if entry.Default {
+				log.Infof("Using manifest configuration %q (default among %d matches, headless)", entry.Name, len(matched))
+				return entryInit(entry), nil
+			}
+		}
+		if len(matched) == 1 {
+			log.Infof("Using manifest configuration %q (matched this machine, headless)", matched[0].Name)
+			return entryInit(matched[0]), nil
+		}
 		return "", fmt.Errorf("%d manifest configurations match this machine (%s); scripts and CI must pick one with --config-name",
 			len(matched), entryNames(matched))
 	}
