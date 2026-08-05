@@ -57,6 +57,11 @@ func TestMatchManifest(t *testing.T) {
 	if got := MatchManifest(manifest, sys("linux", "manjaro", "amd64")); len(got) != 2 {
 		t.Errorf("manjaro matches = %d (%v), want 2 (arch-desktop via family + any-linux)", len(got), got)
 	}
+	// prismlinux is an Arch derivative (pacman + makepkg); a family: arch
+	// matcher must catch it the same way manjaro is caught.
+	if got := MatchManifest(manifest, sys("linux", "prismlinux", "amd64")); len(got) != 2 {
+		t.Errorf("prismlinux matches = %d (%v), want 2 (arch-desktop via family + any-linux)", len(got), got)
+	}
 	if got := MatchManifest(manifest, sys("darwin", "", "arm64")); len(got) != 1 || got[0].Name != "mac" {
 		t.Errorf("darwin matches = %v, want [mac]", got)
 	}
