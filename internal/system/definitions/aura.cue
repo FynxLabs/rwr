@@ -3,7 +3,7 @@ package providers
 providers: "aura": #ArchAURHelper & {
 	#aur: "aura-bin"
 	#removePkg: "aura"
-	elevated: true
+	elevated: false
 	commands: {
  "install": "-A --noconfirm",
  "update": "-Au --noconfirm",

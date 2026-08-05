@@ -2,7 +2,7 @@ package providers
 
 providers: "pamac": #ArchAURHelper & {
 	#aur: "pamac-aur"
-	elevated: true
+	elevated: false
 	commands: {
  "install": "build --no-confirm",
  "update": "upgrade -a --no-confirm",

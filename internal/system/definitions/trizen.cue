@@ -2,7 +2,7 @@ package providers
 
 providers: "trizen": #ArchAURHelper & {
 	#aur: "trizen"
-	elevated: true
+	elevated: false
 	commands: {
  "install": "-S --noconfirm --noedit",
  "update": "-Syua --noconfirm --noedit",

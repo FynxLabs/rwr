@@ -2,7 +2,7 @@ package providers
 
 providers: "yay": #ArchAURHelper & {
 	#aur: "yay"
-	elevated: true
+	elevated: false
 	commands: {
  "install": "-S --noconfirm --needed",
  "update": "-Syu --noconfirm",
