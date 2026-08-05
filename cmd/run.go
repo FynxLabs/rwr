@@ -123,6 +123,20 @@ func processorShorthand(name string) (runProcessorSpec, bool) {
 	return runProcessorSpec{}, false
 }
 
+// hasProcessorArg reports whether the root command's args begin with a
+// recognized processor shorthand or "all". It gates the "skip init for bare
+// `rwr`" check: `rwr packages` inits, `rwr` alone does not.
+func hasProcessorArg(args []string) bool {
+	if len(args) == 0 {
+		return false
+	}
+	if args[0] == "all" {
+		return true
+	}
+	_, ok := processorShorthand(args[0])
+	return ok
+}
+
 // runProcessorSpec maps each subcommand to the blueprint type it dispatches.
 type runProcessorSpec struct {
 	use       string
