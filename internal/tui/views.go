@@ -17,6 +17,12 @@ func (m *Model) View() tea.View {
 	// escape sequences; all-motion mouse mode is what delivers hover events.
 	view := tea.NewView(m.zones.Scan(m.render()))
 	view.MouseMode = tea.MouseModeAllMotion
+	// Run in the alternate screen buffer so each frame overwrites the last in
+	// place instead of stacking in the scrollback. Without this, child output
+	// (package installs) interleaves with the dashboard and mode-query
+	// responses (^[[?2026;2$y etc.) leak as literal text across the
+	// tea.ExecProcess handoff. bubbletea v2 exits the alt screen on quit.
+	view.AltScreen = true
 	return view
 }
 
