@@ -21,3 +21,27 @@ func TestBootstrapInProcessorTable(t *testing.T) {
 	}
 	t.Fatal("`rwr run bootstrap` subcommand missing")
 }
+
+// hasProcessorArg gates the "skip init for bare `rwr`" check in
+// PersistentPreRunE. A bare invocation must not initialize a tree; any
+// recognized processor shorthand - or "all" - must.
+func TestHasProcessorArg(t *testing.T) {
+	cases := []struct {
+		args []string
+		want bool
+	}{
+		{nil, false},
+		{[]string{}, false},
+		{[]string{"packages"}, true},
+		{[]string{"files"}, true},
+		{[]string{"bootstrap"}, true},
+		{[]string{"all"}, true},
+		{[]string{"nonexistent"}, false},
+		{[]string{"packages", "extra"}, true}, // first arg decides
+	}
+	for _, tc := range cases {
+		if got := hasProcessorArg(tc.args); got != tc.want {
+			t.Errorf("hasProcessorArg(%v) = %v, want %v", tc.args, got, tc.want)
+		}
+	}
+}

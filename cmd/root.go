@@ -91,6 +91,17 @@ git checkouts, scripts, and desktop configuration.`,
 				current = current.Parent()
 			}
 
+			// `rwr run` with no processor, and bare `rwr` with no processor
+			// shorthand, only list processors / print help - they must not
+			// initialize a tree, resolve a manifest, or touch git. A named
+			// processor (`rwr run packages`, `rwr packages`, `rwr all`) still
+			// inits.
+			isBareRun := cmd.Name() == "run" && len(args) == 0
+			isBareRoot := cmd.Name() == "rwr" && !hasProcessorArg(args)
+			if isBareRun || isBareRoot {
+				return nil
+			}
+
 			checkForNewVersion(app)
 
 			return initializeSystemInfo(app, selectedProcessorsFor(cmd, args)...)
@@ -110,7 +121,9 @@ git checkouts, scripts, and desktop configuration.`,
 			}
 
 			fmt.Println("Welcome to rwr - The Distrohopper's Friend!")
-			log.Debugf("Variables: %+v", app.InitConfig.Variables)
+			if app.InitConfig != nil {
+				log.Debugf("Variables: %+v", app.InitConfig.Variables)
+			}
 			return cmd.Help()
 		},
 	}
