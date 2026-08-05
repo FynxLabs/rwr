@@ -47,3 +47,51 @@ func TestSelectFromManifest_HeadlessSelection(t *testing.T) {
 		t.Errorf("selected = %s, want Server/init.yaml under the repo root", selected)
 	}
 }
+
+// In headless mode a single match still resolves without prompting, so CI and
+// pipes keep working when only one configuration fits the machine.
+func TestSelectFromManifest_HeadlessSingleMatch(t *testing.T) {
+	dir := t.TempDir()
+	manifest := "configurations:\n" +
+		"  - name: only\n    init: Only/init.yaml\n    os: " + runtime.GOOS + "\n" +
+		"  - name: other\n    init: Other/init.yaml\n    os: never-matches\n"
+	manifestPath := filepath.Join(dir, "manifest.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	app := NewAppConfig()
+	app.NoTUI = true // headless: single match should auto-select
+
+	selected, err := selectFromManifest(app, manifestPath)
+	if err != nil {
+		t.Fatalf("headless single match errored: %v", err)
+	}
+	if selected != filepath.Join(dir, "Only", "init.yaml") {
+		t.Errorf("selected = %s, want Only/init.yaml", selected)
+	}
+}
+
+// --no-tui with multiple matches and a declared default picks the default
+// without prompting - the headless fallback is deterministic, not arbitrary.
+func TestSelectFromManifest_HeadlessDefaultWins(t *testing.T) {
+	dir := t.TempDir()
+	manifest := "configurations:\n" +
+		"  - name: desktop\n    init: Desktop/init.yaml\n    os: " + runtime.GOOS + "\n" +
+		"  - name: server\n    init: Server/init.yaml\n    os: " + runtime.GOOS + "\n    default: true\n"
+	manifestPath := filepath.Join(dir, "manifest.yaml")
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	app := NewAppConfig()
+	app.NoTUI = true
+
+	selected, err := selectFromManifest(app, manifestPath)
+	if err != nil {
+		t.Fatalf("headless default selection errored: %v", err)
+	}
+	if selected != filepath.Join(dir, "Server", "init.yaml") {
+		t.Errorf("selected = %s, want the default Server/init.yaml", selected)
+	}
+}
