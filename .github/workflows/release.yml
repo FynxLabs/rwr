@@ -37,7 +37,7 @@ jobs:
           # Pin the binary, not just the action: an unpinned install tracks
           # cosign's latest, whose sign-blob CLI has broken the signs: block
           # before (the 3.x bundle-format switch). Renovate keeps this current.
-          cosign-release: "v3.1.2"
+          cosign-release: "v3.1.3"
       - name: Install syft
         uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
       - name: Run GoReleaser
