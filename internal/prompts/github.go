@@ -54,9 +54,11 @@ func PromptGitHubAuthMethod() (GitHubAuthChoice, error) {
 	return GitHubAuthChoice(authChoice), nil
 }
 
-// PromptGitHubToken displays a secure input form for a GitHub personal access token.
-// It validates that the token starts with a prefix GitHub issues; see
-// gitHubTokenPrefixes.
+// PromptGitHubToken displays a secure input form for a GitHub personal access
+// token. It validates that the token is one of the kinds that can upload an
+// SSH key for the authenticated user; see gitHubTokenPrefixes. Not every
+// GitHub-issued prefix qualifies - ghs_ is a real token this prompt correctly
+// refuses.
 func PromptGitHubToken() (string, error) {
 	var token string
 
@@ -112,11 +114,32 @@ var gitHubTokenRejections = map[string]string{
 	"ghs_": "that is a GitHub App installation token, which has no authenticated user to add a key to; use a user access token (ghu_) or a personal access token",
 }
 
+// minGitHubTokenBody is the shortest run of characters that can follow a
+// prefix and still be a real token.
+//
+// The prefix check is HasPrefix, so without this a bare "ghp_" validated, and
+// so did "ghp_x". Neither can be a token, and accepting them puts the failure
+// back where this validator exists to stop it happening: a 401 from the upload,
+// long after the operator has stopped looking at what they pasted. A truncated
+// paste is the realistic way to produce one.
+//
+// The bound is deliberately far below every real format rather than exact.
+// Classic, OAuth and user tokens carry 36 characters after the prefix and
+// fine-grained ones carry about 82, but GitHub has changed token lengths
+// before and a validator that pins them would reject the next format. This
+// only has to be tight enough to catch a value that is obviously not a token.
+const minGitHubTokenBody = 20
+
 // validateGitHubToken checks that a pasted value is a GitHub token that can
 // upload an SSH key for the authenticated user.
 func validateGitHubToken(s string) error {
 	if s == "" {
 		return fmt.Errorf("token cannot be empty")
+	}
+	for _, prefix := range gitHubTokenPrefixes {
+		if strings.HasPrefix(s, prefix) && len(s)-len(prefix) < minGitHubTokenBody {
+			return fmt.Errorf("that is only the %s prefix, not a whole token; check for a truncated paste", prefix)
+		}
 	}
 	for _, prefix := range gitHubTokenPrefixes {
 		if strings.HasPrefix(s, prefix) {
