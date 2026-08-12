@@ -54,9 +54,11 @@ func PromptGitHubAuthMethod() (GitHubAuthChoice, error) {
 	return GitHubAuthChoice(authChoice), nil
 }
 
-// PromptGitHubToken displays a secure input form for a GitHub personal access token.
-// It validates that the token starts with a prefix GitHub issues; see
-// gitHubTokenPrefixes.
+// PromptGitHubToken displays a secure input form for a GitHub personal access
+// token. It validates that the token is one of the kinds that can upload an
+// SSH key for the authenticated user; see gitHubTokenPrefixes. Not every
+// GitHub-issued prefix qualifies - ghs_ is a real token this prompt correctly
+// refuses.
 func PromptGitHubToken() (string, error) {
 	var token string
 
