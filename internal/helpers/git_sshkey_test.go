@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"encoding/base64"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,11 +43,13 @@ func sshAuthFor(value string) (err error) {
 //
 // setAsRWRSSHKey stores base64 of the private key under
 // repository.ssh_private_key, and --ssh-key documents base64 as an accepted
-// input. Nothing decoded it: base64 has no newlines and no "ssh-" prefix, so
-// it fell through to the file-path branch and rwr tried to open the blob as a
-// filename, failing with "file name too long". set_as_rwr_ssh_key produced a
-// value that could never authenticate anything.
+// input. Nothing decoded it: base64 has no newlines, so it fell through to the
+// file-path branch and rwr tried to open the blob as a filename, failing with
+// "file name too long". set_as_rwr_ssh_key produced a value that could never
+// authenticate anything.
 func TestSSHAuthAcceptsBase64EncodedKey(t *testing.T) {
+	t.Parallel()
+
 	_, pem := generateKey(t)
 	encoded := base64.StdEncoding.EncodeToString(pem)
 
@@ -57,6 +60,8 @@ func TestSSHAuthAcceptsBase64EncodedKey(t *testing.T) {
 
 // The two forms that already worked must keep working.
 func TestSSHAuthAcceptsRawPEMAndPath(t *testing.T) {
+	t.Parallel()
+
 	path, pem := generateKey(t)
 
 	if err := sshAuthFor(string(pem)); err != nil {
@@ -67,10 +72,51 @@ func TestSSHAuthAcceptsRawPEMAndPath(t *testing.T) {
 	}
 }
 
+// A key file whose name begins with "ssh-" is a path, not key material.
+//
+// The classifier used to shortcut on that prefix, so "ssh-key" and
+// "ssh-private.pem" were parsed as key data and failed with "ssh: no key
+// found" while the same file's absolute path worked. The prefix only ever
+// matches a public key, which this flow cannot authenticate with, so the
+// shortcut could not enable any working case - it could only swallow paths.
+func TestSSHAuthTreatsSSHPrefixedNameAsPath(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	_, pem := generateKey(t)
+
+	for _, name := range []string{"ssh-key", "ssh-private.pem", "ssh-rsa"} {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, pem, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := sshAuthFor(path); err != nil {
+			t.Errorf("key file named %q rejected: %v", name, err)
+		}
+	}
+}
+
+// A public key is not a credential this flow can use. It must not be mistaken
+// for one, whether supplied directly or base64-encoded.
+func TestSSHAuthRejectsAPublicKey(t *testing.T) {
+	t.Parallel()
+
+	const pub = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHhkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA user@host"
+
+	if err := sshAuthFor(pub); err == nil {
+		t.Error("a public key was accepted as an authentication credential")
+	}
+	if err := sshAuthFor(base64.StdEncoding.EncodeToString([]byte(pub))); err == nil {
+		t.Error("a base64-encoded public key was accepted as an authentication credential")
+	}
+}
+
 // A path that happens to be valid base64 is still a path. "config" decodes
 // cleanly under StdEncoding, so the decode alone cannot be the test - the
 // decoded bytes have to look like a key.
 func TestSSHAuthTreatsBase64LookingPathAsPath(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	// "config" is 6 chars, a multiple of 3, so it round-trips as base64.
 	name := base64.StdEncoding.EncodeToString([]byte("config"))
@@ -90,14 +136,18 @@ func TestSSHAuthTreatsBase64LookingPathAsPath(t *testing.T) {
 // filename the operator never wrote. The message must not carry the whole
 // value, which may be the key itself.
 func TestSSHAuthRejectsUnusableValueClearly(t *testing.T) {
+	t.Parallel()
+
 	junk := strings.Repeat("z", 400)
 
 	err := sshAuthFor(junk)
 	if err == nil {
 		t.Fatal("expected an error for a value that is neither a key nor a path")
 	}
-	if !strings.Contains(err.Error(), "neither a readable file nor recognisable key material") {
-		t.Errorf("unhelpful error: %v", err)
+	// The sentinel, not the message text: the condition is part of the
+	// contract, the wording is not.
+	if !errors.Is(err, ErrUnusableSSHKey) {
+		t.Errorf("error is not ErrUnusableSSHKey: %v", err)
 	}
 	if strings.Contains(err.Error(), junk) {
 		t.Error("the error repeats the whole value; it may be a private key")

@@ -159,26 +159,39 @@ func getHTTPAuthMethod(rawURL string, initConfig *types.InitConfig) (transport.A
 	}, nil
 }
 
+// ErrUnusableSSHKey is returned when a configured ssh key value is neither a
+// readable file nor recognisable key material. It is a sentinel so callers and
+// tests can identify the condition without matching on message text, which
+// would otherwise be the only handle on it - and the message deliberately
+// carries only a truncated preview of the value.
+var ErrUnusableSSHKey = errors.New("ssh key is neither a readable file nor recognisable key material")
+
 // sshKeyMaterial decides whether a configured ssh key value is the key itself
 // rather than a path to it, and returns the PEM bytes when it is.
 //
 // Two forms count as the key itself:
 //
-//   - the PEM as written, which contains newlines (an "ssh-" prefix is
-//     accepted too, though that is a public key and go-git will reject it
-//     later with a better message than a stat failure would).
+//   - the PEM as written. Every private key PEM is multi-line, so a newline is
+//     what identifies it.
 //   - base64 of that PEM. This is the form set_as_rwr_ssh_key writes into
-//     repository.ssh_private_key and the form --ssh-key documents, and
-//     nothing decoded it: base64 has no newlines and no "ssh-" prefix, so it
-//     fell through to the file-path branch and rwr tried to open the blob as
-//     a filename. set_as_rwr_ssh_key produced a config value that could never
-//     authenticate anything.
+//     repository.ssh_private_key and the form --ssh-key documents, and nothing
+//     decoded it: base64 has no newlines, so it fell through to the file-path
+//     branch and rwr tried to open the blob as a filename. set_as_rwr_ssh_key
+//     produced a config value that could never authenticate anything.
+//
+// An "ssh-" prefix deliberately does not count, though it used to. It only
+// ever matches a public key ("ssh-rsa AAAA..."), and this flow hands its bytes
+// to ssh.NewPublicKeys, which needs the private half - so that branch could
+// never produce a working credential, only a worse error. What it did do is
+// swallow real paths: a key file named "ssh-key" or "ssh-private.pem" was
+// parsed as key data and failed with "ssh: no key found" instead of being
+// read.
 //
 // The decode has to prove itself: a bare filename can be valid base64 by
-// accident, so the decoded bytes must actually look like a key before they are
-// treated as one, and anything else stays a path.
+// accident, so the decoded bytes must actually look like a private key before
+// they are treated as one, and anything else stays a path.
 func sshKeyMaterial(value string) ([]byte, bool) {
-	if strings.Contains(value, "\n") || strings.HasPrefix(value, "ssh-") {
+	if strings.Contains(value, "\n") {
 		log.Debugf("Using the SSH key material as supplied")
 		return []byte(value), true
 	}
@@ -187,18 +200,21 @@ func sshKeyMaterial(value string) ([]byte, bool) {
 	if err != nil {
 		return nil, false
 	}
-	if !looksLikeSSHKey(decoded) {
+	if !looksLikePrivateKey(decoded) {
 		return nil, false
 	}
 	log.Debugf("Using base64-encoded SSH key material")
 	return decoded, true
 }
 
-// looksLikeSSHKey reports whether bytes are plausibly an SSH key, so a path
-// that happens to decode as base64 is not mistaken for one.
-func looksLikeSSHKey(data []byte) bool {
-	text := string(data)
-	return strings.Contains(text, "PRIVATE KEY") || strings.HasPrefix(text, "ssh-")
+// looksLikePrivateKey reports whether bytes are plausibly a private key, so a
+// path that happens to decode as base64 is not mistaken for one.
+//
+// Every PEM private key rwr can authenticate with says so in its header:
+// OPENSSH, RSA (PKCS#1), PKCS#8 and the encrypted forms all contain
+// "PRIVATE KEY". A public key does not, and could not be used here anyway.
+func looksLikePrivateKey(data []byte) bool {
+	return strings.Contains(string(data), "PRIVATE KEY")
 }
 
 // truncateForError keeps a bad ssh key value out of the log at full length: it
@@ -242,7 +258,7 @@ func getSSHAuthMethod(initConfig *types.InitConfig) (transport.AuthMethod, error
 			if errors.As(err, &pathErr) {
 				reason = pathErr.Err
 			}
-			return nil, fmt.Errorf("ssh key %q is neither a readable file nor recognisable key material: %w", truncateForError(sshKeyValue), reason)
+			return nil, fmt.Errorf("%w (%q): %v", ErrUnusableSSHKey, truncateForError(sshKeyValue), reason)
 		}
 
 		auth, err := ssh.NewPublicKeysFromFile("git", sshKeyValue, "")
