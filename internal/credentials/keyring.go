@@ -33,6 +33,36 @@ var ErrKeyringNotFound = errors.New("keyring entry not found")
 // keyring (Secret Service / macOS Keychain / Windows Credential Manager).
 var Ring Keyring = osKeyring{}
 
+// EmptyKeyring answers "not found" for every name and refuses every save. It
+// is what a test wants whenever the code under test happens to consult the
+// keyring but the test is not about the keyring.
+type EmptyKeyring struct{}
+
+// Get implements Keyring.
+func (EmptyKeyring) Get(string) (string, error) { return "", ErrKeyringNotFound }
+
+// Set implements Keyring.
+func (EmptyKeyring) Set(string, string) error { return errors.New("keyring unavailable") }
+
+// SetRingForTest installs a keyring for the duration of a test and returns the
+// restore func, in the same shape as system.SetProvidersForTest.
+//
+// It exists because reading the real keyring from a test is not merely flaky,
+// it is a disclosure: the "no token available" cases in the SSH key tests
+// found the developer's own GitHub token in the macOS Keychain and testify
+// printed the value into the terminal on the assertion failure. CI never saw
+// it because GitHub runners have no keyring backend, so the gate could not
+// catch it either.
+//
+// Any test that exercises a code path reaching FromKeyring must call this.
+//
+//	defer credentials.SetRingForTest(credentials.EmptyKeyring{})()
+func SetRingForTest(ring Keyring) (restore func()) {
+	previous := Ring
+	Ring = ring
+	return func() { Ring = previous }
+}
+
 type osKeyring struct{}
 
 func (osKeyring) Get(name string) (string, error) {

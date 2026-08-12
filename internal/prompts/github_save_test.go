@@ -39,13 +39,11 @@ func (m *mapKeyring) Set(name, value string) error {
 
 func withSaveFixture(t *testing.T, ring credentials.Keyring) string {
 	t.Helper()
-	origRing := credentials.Ring
-	credentials.Ring = ring
+	t.Cleanup(credentials.SetRingForTest(ring))
 	viper.Reset()
 	configFile := filepath.Join(t.TempDir(), "config.yaml")
 	viper.SetConfigFile(configFile)
 	t.Cleanup(func() {
-		credentials.Ring = origRing
 		viper.Reset()
 		types.RegisterCredentials(nil)
 	})

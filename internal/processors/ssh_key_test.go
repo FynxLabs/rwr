@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fynxlabs/rwr/internal/credentials"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,6 +48,11 @@ func TestGetGitHubToken_Priority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// getGitHubToken consults the OS keyring between the environment
+			// and the prompt. Without this the "no token" case finds whatever
+			// the developer has stored and asserts against it.
+			defer credentials.SetRingForTest(credentials.EmptyKeyring{})()
+
 			// Setup test environment
 			oldGitHubToken := os.Getenv("GITHUB_TOKEN")
 			defer os.Setenv("GITHUB_TOKEN", oldGitHubToken)
@@ -336,6 +342,8 @@ func TestGetGitHubToken_EnvVarOnly(t *testing.T) {
 
 // TestGetGitHubToken_NoToken tests error when no token available.
 func TestGetGitHubToken_NoToken(t *testing.T) {
+	defer credentials.SetRingForTest(credentials.EmptyKeyring{})()
+
 	oldGitHubToken := os.Getenv("GITHUB_TOKEN")
 	defer os.Setenv("GITHUB_TOKEN", oldGitHubToken)
 
@@ -352,7 +360,9 @@ func TestGetGitHubToken_NoToken(t *testing.T) {
 
 	token, source, err := getGitHubToken(initConfig)
 
-	assert.Error(t, err)
+	// require, not assert: the assertions below dereference err, so a run
+	// that unexpectedly finds a token panicked instead of failing.
+	require.Error(t, err)
 	assert.Empty(t, token)
 	assert.Empty(t, source)
 	assert.Contains(t, err.Error(), "GitHub token not found")
