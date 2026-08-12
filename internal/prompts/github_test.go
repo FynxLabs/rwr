@@ -18,17 +18,26 @@ func TestValidateGitHubToken(t *testing.T) {
 		// The one that mattered: fine-grained PATs are what GitHub's
 		// "Generate new token" offers first, so this was the common case
 		// being refused.
-		{name: "fine-grained personal access token", token: "github_pat_11ABCDEFG0abcdef1234567890"},
-		{name: "classic personal access token", token: "ghp_abcdef1234567890"},
-		{name: "oauth token", token: "gho_abcdef1234567890"},
-		{name: "github app user access token", token: "ghu_abcdef1234567890"},
+		{name: "fine-grained personal access token", token: "github_pat_11ABCDEFG0" + strings.Repeat("b", 72)},
+		{name: "classic personal access token", token: "ghp_" + strings.Repeat("c", 36)},
+		{name: "oauth token", token: "gho_" + strings.Repeat("d", 36)},
+		{name: "github app user access token", token: "ghu_" + strings.Repeat("e", 36)},
 		// A GitHub App *installation* token acts as the installation, not as a
 		// person, so /user/keys has no authenticated user to add a key to.
 		// Accepting it would only move the failure to the upload, where it
 		// arrives as a bare 403.
-		{name: "installation token is the wrong kind", token: "ghs_abcdef1234567890",
+		{name: "installation token is the wrong kind", token: "ghs_" + strings.Repeat("f", 36),
 			wantErr: "has no authenticated user"},
 		{name: "empty", token: "", wantErr: "cannot be empty"},
+		// Boundaries. The prefix check is HasPrefix, so a bare prefix or a
+		// truncated paste reaches it and used to validate.
+		{name: "classic prefix with no body", token: "ghp_", wantErr: "not a whole token"},
+		{name: "fine-grained prefix with no body", token: "github_pat_", wantErr: "not a whole token"},
+		{name: "oauth prefix with no body", token: "gho_", wantErr: "not a whole token"},
+		{name: "user prefix with no body", token: "ghu_", wantErr: "not a whole token"},
+		{name: "body one short of the minimum", token: "ghp_" + strings.Repeat("a", 19), wantErr: "not a whole token"},
+		{name: "body exactly at the minimum", token: "ghp_" + strings.Repeat("a", 20)},
+		{name: "a real-length classic token", token: "ghp_" + strings.Repeat("a", 36)},
 		{name: "no recognised prefix", token: "abcdef1234567890", wantErr: "does not look like a GitHub token"},
 		{name: "prefix must lead", token: "xghp_abcdef", wantErr: "does not look like a GitHub token"},
 	}
@@ -153,7 +162,7 @@ func TestValidateGitHubTokenErrorOmitsTheValue(t *testing.T) {
 func TestValidateGitHubTokenExplainsAWrongKindOfToken(t *testing.T) {
 	t.Parallel()
 
-	err := validateGitHubToken("ghs_abcdef1234567890")
+	err := validateGitHubToken("ghs_" + strings.Repeat("f", 36))
 	if err == nil {
 		t.Fatal("an installation token was accepted for a /user/keys upload")
 	}
