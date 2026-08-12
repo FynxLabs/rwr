@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/credentials"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/prompts"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
@@ -287,28 +289,47 @@ func setAsRWRSSHKey(keyPath string) error {
 
 // AuthenticateWithGitHub performs OAuth device flow authentication with GitHub,
 // returning an access token that can be used for API operations like uploading SSH keys.
+//
+// The whole flow - instructions, code, polling - runs under the terminal
+// lease. Under the TUI the instructions used to go to the log store while the
+// dashboard showed an early frame with no log panel: the operator saw
+// nothing, and the flow silently polled a URL nobody visited until it timed
+// out. The operator is actively authenticating here; holding the suspension
+// until they finish is the point.
 func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
-	log.Infof("Starting GitHub authentication...")
+	log.Debugf("Starting GitHub authentication...")
 
 	// Step 1: Request device code
 	deviceResp, err := requestDeviceCode()
 	if err != nil {
 		return "", fmt.Errorf("failed to request device code: %w", err)
 	}
+	log.Debugf("GitHub device flow: %s code %s", deviceResp.VerificationURI, deviceResp.UserCode)
 
-	// Step 2: Display instructions to user
-	log.Infof("")
-	log.Infof("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Infof("  GitHub Authentication Required")
-	log.Infof("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Infof("")
-	log.Infof("1. Visit: %s", deviceResp.VerificationURI)
-	log.Infof("2. Enter code: %s", deviceResp.UserCode)
-	log.Infof("")
-	log.Infof("Waiting for authorization...")
-	log.Infof("")
-	// Step 3: Poll for access token
-	token, err := pollForAccessToken(deviceResp.DeviceCode, deviceResp.Interval)
+	// Steps 2+3: show instructions on the real terminal and poll there.
+	var token string
+	err = reporting.WithTerminal(func() error {
+		fmt.Println()
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Println("  GitHub Authentication Required")
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Println()
+		fmt.Printf("1. Visit: %s\n", deviceResp.VerificationURI)
+		fmt.Printf("2. Enter code: %s\n", deviceResp.UserCode)
+		fmt.Println()
+		fmt.Println("Waiting for authorization (5 minute timeout)...")
+		fmt.Println()
+
+		// Best effort: put the verification page in front of the operator.
+		openBrowser(deviceResp.VerificationURI)
+
+		var pollErr error
+		token, pollErr = pollForAccessToken(deviceResp.DeviceCode, deviceResp.Interval)
+		if pollErr == nil {
+			fmt.Println("Authorized.")
+		}
+		return pollErr
+	})
 	if err != nil {
 		return "", fmt.Errorf("failed to get access token: %w", err)
 	}
@@ -322,6 +343,23 @@ func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 	}
 
 	return token, nil
+}
+
+// openBrowser opens url in the operator's default browser, best effort - the
+// printed instructions are the contract, this is a convenience.
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url) // #nosec G204 -- argv, not a shell; url is GitHub's device-flow verification_uri
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url) // #nosec G204 -- argv, not a shell; url is GitHub's device-flow verification_uri
+	default:
+		cmd = exec.Command("xdg-open", url) // #nosec G204 -- argv, not a shell; url is GitHub's device-flow verification_uri
+	}
+	if err := cmd.Start(); err != nil {
+		log.Debugf("could not open browser for %s: %v", url, err)
+	}
 }
 
 // requestDeviceCode requests a device code from GitHub
@@ -496,9 +534,16 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 			return fmt.Errorf("error getting hostname: %v", err)
 		}
 
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf("Enter GitHub SSH key title (default: %s): ", hostname)
-		input, err := reader.ReadString('\n')
+		// Through the terminal lease: a bare stdin read under the TUI freezes
+		// the run (the dashboard eats every keystroke, including ctrl-c).
+		var input string
+		err = reporting.WithTerminal(func() error {
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Printf("Enter GitHub SSH key title (default: %s): ", hostname)
+			line, readErr := reader.ReadString('\n')
+			input = line
+			return readErr
+		})
 		if err != nil {
 			return fmt.Errorf("error reading user input: %v", err)
 		}

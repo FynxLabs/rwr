@@ -101,7 +101,10 @@ func GetAvailableProviders() map[string]*types.Provider {
 		if binPath, ok := isProviderAvailable(provider, currentOS, currentDistro); ok {
 			provider.BinPath = binPath
 			available[name] = provider
-			log.Infof("GetAvailableProviders: Provider %s is available with binary at %s", name, binPath)
+			// Debug, not info: detection runs several times per invocation and
+			// at info this printed every provider 3+ times before the TUI even
+			// started. The zero-providers case below stays loud.
+			log.Debugf("GetAvailableProviders: Provider %s is available with binary at %s", name, binPath)
 		}
 	}
 
@@ -129,8 +132,8 @@ func getSystemInfo() (string, string) {
 //
 // Availability is decided by evidence on the machine rather than by what the
 // distribution calls itself. A named distro match is accepted, but so is the
-// combination of "the binary is installed" plus "every file the provider declares
-// as proof of itself exists" - for pacman that is /etc/pacman.conf and
+// combination of "the binary is installed" plus "at least one file the provider
+// declares as proof of itself exists" - for pacman that is /etc/pacman.conf or
 // /var/lib/pacman. There are far more Arch and Debian derivatives than any list
 // can track (this was found on PrismLinux, which no provider names and which sets
 // no ID_LIKE), and a machine that has pacman's binary and pacman's database is
@@ -151,7 +154,7 @@ func isProviderAvailable(provider *types.Provider, currentOS, currentDistro stri
 		return "", false
 	}
 
-	if !areRequiredFilesPresent(provider) {
+	if !anyDetectionFilePresent(provider) {
 		return "", false
 	}
 
@@ -213,24 +216,32 @@ func supportsSystem(provider *types.Provider, currentOS, currentDistro string) b
 	return false
 }
 
-// areRequiredFilesPresent checks that all files listed in provider.Detection.Files exist.
-func areRequiredFilesPresent(provider *types.Provider) bool {
+// anyDetectionFilePresent reports whether at least one of the provider's
+// detection files exists. The lists are alternative evidence, not a checklist:
+// brew declares /usr/local/bin/brew (Intel), /opt/homebrew/bin/brew (Apple
+// Silicon), and two Linuxbrew prefixes - no machine ever has all of them.
+// Requiring every entry rejected brew on every Apple Silicon Mac.
+// An empty list demands nothing.
+func anyDetectionFilePresent(provider *types.Provider) bool {
+	if len(provider.Detection.Files) == 0 {
+		return true
+	}
 	for _, file := range provider.Detection.Files {
 		expandedFile := file
 		if file[0] == '~' {
 			home, err := os.UserHomeDir()
 			if err != nil {
 				log.Debugf("GetAvailableProviders: Provider %s - error expanding %s: %v", provider.Name, file, err)
-				return false
+				continue
 			}
 			expandedFile = filepath.Join(home, file[1:])
 		}
-		if _, err := os.Stat(expandedFile); err != nil {
-			log.Debugf("GetAvailableProviders: Provider %s missing required file: %s", provider.Name, expandedFile)
-			return false
+		if _, err := os.Stat(expandedFile); err == nil {
+			return true
 		}
 	}
-	return true
+	log.Debugf("GetAvailableProviders: Provider %s has none of its detection files: %v", provider.Name, provider.Detection.Files)
+	return false
 }
 
 // GetProvider returns a specific provider by name from the available providers.
@@ -547,7 +558,7 @@ func logDetectionSummary(currentOS, currentDistro string) {
 		log.Debugf("Provider: %s", name)
 		log.Debugf("  Binary: %s", provider.Detection.Binary)
 		log.Debugf("  Supported distributions: %v", provider.Detection.Distributions)
-		log.Debugf("  Required files: %v", provider.Detection.Files)
+		log.Debugf("  Detection files (any-of): %v", provider.Detection.Files)
 
 		compatible := supportsSystem(provider, currentOS, currentDistro)
 		log.Debugf("  System compatible: %v", compatible)
@@ -558,7 +569,7 @@ func logDetectionSummary(currentOS, currentDistro string) {
 			if tool.Exists {
 				log.Debugf("  Binary path: %s", tool.Bin)
 			}
-			log.Debugf("  All files exist: %v", areRequiredFilesPresent(provider))
+			log.Debugf("  Any detection file exists: %v", anyDetectionFilePresent(provider))
 		}
 		log.Debugf("  ---")
 	}

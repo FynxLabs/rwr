@@ -7,6 +7,7 @@ import (
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -107,6 +108,8 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 	if !exists {
 		return fmt.Errorf("unsupported package manager: %s", repo.PackageManager)
 	}
+	reporting.SetCurrentProvider(provider.Name)
+	defer reporting.SetCurrentProvider("")
 
 	// A signing key fetched without a declared digest is trusted on nothing
 	// but the TLS connection that served it. Warn now; a later major refuses
@@ -160,10 +163,14 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 		switch step.Action {
 		case "exec", "command": // Support both "exec" and "command" action types
 			cmd = types.Command{
-				Exec:        step.Exec,
-				Args:        step.Args,
-				Elevated:    provider.Elevated,
-				Interactive: helpers.ResolveInteractive(repo.Interactive, initConfig.Variables.Flags.Interactive),
+				Exec:      step.Exec,
+				Args:      step.Args,
+				Elevated:  provider.Elevated,
+				Variables: provider.Environment,
+				// Same routing as packages: terminal handover only on an
+				// explicit per-item `interactive: true`; sudo's password is
+				// served by ensureSudoCredentials before captured commands.
+				Interactive: helpers.ResolveInteractive(repo.Interactive, false),
 				// chocolatey's --password and cargo's login token are accepted
 				// only as arguments, so they cannot move to stdin. They can at
 				// least be kept out of the debug and dry-run log lines, which
@@ -258,6 +265,12 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 		}
 
 		if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
+			if step.Optional {
+				// A version-dependent step (brew 6's `brew trust`) that this
+				// machine's tool doesn't have; the action does not fail on it.
+				log.Warnf("Optional repository step for %s failed (ignored): %v", repo.Name, err)
+				continue
+			}
 			return fmt.Errorf("error executing repository step: %w", err)
 		}
 	}

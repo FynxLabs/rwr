@@ -2,8 +2,13 @@ package reporting
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,10 +28,11 @@ const (
 type LogRecord struct {
 	Seq       uint64
 	Time      time.Time
-	Level     string
+	Level     string // "DEBU" "INFO" "WARN" "ERRO" "FATA"; "" for raw command output
 	Processor string
 	Provider  string
 	Msg       string
+	Caller    string // "packages.go:199"; display renders it at debug level only
 	Src       Source
 }
 
@@ -42,6 +48,22 @@ func SetCurrentProcessor(name string) { currentProcessor.Store(name) }
 // CurrentProcessor returns the active stamp ("" before any dispatch).
 func CurrentProcessor() string {
 	if v, ok := currentProcessor.Load().(string); ok {
+		return v
+	}
+	return ""
+}
+
+// currentProvider is the provider-lane stamp, set by the loops that know
+// which provider is doing the work (packages, repositories). It fills the
+// provider column of the log view.
+var currentProvider atomic.Value
+
+// SetCurrentProvider stamps subsequent captured records ("" clears).
+func SetCurrentProvider(name string) { currentProvider.Store(name) }
+
+// CurrentProvider returns the active provider stamp.
+func CurrentProvider() string {
+	if v, ok := currentProvider.Load().(string); ok {
 		return v
 	}
 	return ""
@@ -82,8 +104,28 @@ func (s *Store) AttachRunLog(path string) error {
 	return nil
 }
 
-// Append records one line and returns its Seq.
+// Append records one line and returns its Seq. A message with embedded
+// newlines (an error carrying a command's stderr) is split into one record
+// per line: the display budgets height by record, so a single 20-line record
+// would push the frame past the terminal and scroll the dashboard away.
 func (s *Store) Append(record LogRecord) uint64 {
+	if i := strings.IndexByte(record.Msg, '\n'); i >= 0 {
+		lines := strings.Split(record.Msg, "\n")
+		var last uint64
+		for _, line := range lines {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			sub := record
+			sub.Msg = line
+			last = s.appendOne(sub)
+		}
+		return last
+	}
+	return s.appendOne(record)
+}
+
+func (s *Store) appendOne(record LogRecord) uint64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -100,9 +142,14 @@ func (s *Store) Append(record LogRecord) uint64 {
 	s.buf = append(s.buf, record)
 
 	if s.file != nil {
-		// Best-effort by design: a full disk must not take the run down with
-		// the log of the run.
-		fmt.Fprintf(s.file, "%s [%s] %s\n", record.Time.Format(time.RFC3339Nano), record.Processor, record.Msg) //nolint:errcheck // a full disk must not take the run down with its own log
+		// Full fidelity including level and caller - rendering rules are
+		// display-only. Best-effort by design: a full disk must not take the
+		// run down with the log of the run.
+		level := record.Level
+		if level == "" {
+			level = "OUT " // raw command output
+		}
+		fmt.Fprintf(s.file, "%s %s [%s] %s %s\n", record.Time.Format(time.RFC3339Nano), level, record.Processor, record.Msg, record.Caller) //nolint:errcheck // a full disk must not take the run down with its own log
 	}
 
 	for _, view := range s.views {
@@ -158,13 +205,18 @@ func (s *Store) NewView(processor string) *View {
 }
 
 // Records returns the view's live records, dropping evicted Seqs lazily.
+// The lock covers the whole read: appendOne mutates view.idx under s.mu, and
+// the render tick calling this concurrently with the run goroutine's log
+// writes would otherwise race on the slice header - stale lengths (lines
+// silently missing from the viewport) or a re-slice clobbering an append.
 func (s *Store) Records(view *View) []LogRecord {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	oldest := uint64(0)
 	if len(s.buf) > 0 {
 		oldest = s.buf[0].Seq
 	}
-	s.mu.Unlock()
 
 	start := 0
 	for start < len(view.idx) && view.idx[start] < oldest {
@@ -174,9 +226,10 @@ func (s *Store) Records(view *View) []LogRecord {
 
 	out := make([]LogRecord, 0, len(view.idx))
 	for _, seq := range view.idx {
-		if record, ok := s.Get(seq); ok {
-			out = append(out, record)
+		if len(s.buf) == 0 || seq < s.buf[0].Seq || seq > s.seq {
+			continue
 		}
+		out = append(out, s.buf[seq-s.buf[0].Seq])
 	}
 	return out
 }
@@ -206,6 +259,7 @@ func (w *LineWriter) Write(p []byte) (int, error) {
 		}
 		w.Store.Append(LogRecord{
 			Processor: CurrentProcessor(),
+			Provider:  CurrentProvider(),
 			Msg:       line[:len(line)-1],
 			Src:       w.Src,
 			Level:     levelOf(line),
@@ -223,4 +277,101 @@ func levelOf(line string) string {
 		}
 	}
 	return ""
+}
+
+// JSONCaptureWriter parses charm log's JSON formatter output - one object per
+// line - into structured LogRecords. This is the TUI capture path: level,
+// message, timestamp, and caller survive as fields, so the viewport renders
+// them itself and the text formatter's `<file:line>` and level prefixes never
+// reach the screen.
+type JSONCaptureWriter struct {
+	Store *Store
+
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+// shortLevel maps the JSON formatter's level values onto the four-letter
+// forms the display filters use.
+var shortLevel = map[string]string{
+	"debug": "DEBU", "info": "INFO", "warn": "WARN", "error": "ERRO", "fatal": "FATA",
+}
+
+// Write implements io.Writer.
+func (w *JSONCaptureWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.buf.Write(p)
+	for {
+		line, err := w.buf.ReadString('\n')
+		if err != nil {
+			w.buf.WriteString(line)
+			break
+		}
+		w.Store.Append(w.parse(line[:len(line)-1]))
+	}
+	return len(p), nil
+}
+
+// parse decodes one JSON log line; a line that is not JSON (a stray print)
+// is kept verbatim rather than dropped.
+func (w *JSONCaptureWriter) parse(line string) LogRecord {
+	record := LogRecord{Processor: CurrentProcessor(), Provider: CurrentProvider(), Src: SrcLog}
+
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(line), &obj); err != nil {
+		record.Msg = line
+		return record
+	}
+
+	if v, ok := obj["msg"].(string); ok {
+		record.Msg = v
+		delete(obj, "msg")
+	}
+	if v, ok := obj["level"].(string); ok {
+		record.Level = shortLevel[v]
+		delete(obj, "level")
+	}
+	if v, ok := obj["caller"].(string); ok {
+		// The formatter emits a full path; the display wants file.go:line.
+		record.Caller = filepath.Base(v)
+		delete(obj, "caller")
+	}
+	if v, ok := obj["time"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			record.Time = t
+		}
+		delete(obj, "time")
+	}
+	// The logger's own prefix ("rwr: ") is branding, not data.
+	delete(obj, "prefix")
+	// Remaining structured fields append as k=v so nothing is lost.
+	if len(obj) > 0 {
+		keys := make([]string, 0, len(obj))
+		for k := range obj {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			record.Msg += fmt.Sprintf(" %s=%v", k, obj[k])
+		}
+	}
+	return record
+}
+
+// commandSink, when set, receives captured stdout/stderr of non-interactive
+// commands so they render in the log view (the `≫` lines at debug level).
+var commandSink atomic.Pointer[Store]
+
+// SetCommandSink routes captured command output into store (nil clears).
+func SetCommandSink(store *Store) { commandSink.Store(store) }
+
+// CommandOutputWriter returns a writer that records command output lines, or
+// nil when no sink is installed (headless: output flows as it always has).
+func CommandOutputWriter(src Source) io.Writer {
+	store := commandSink.Load()
+	if store == nil {
+		return nil
+	}
+	return &LineWriter{Store: store, Src: src}
 }

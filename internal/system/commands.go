@@ -8,15 +8,20 @@ package system
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
+	"golang.org/x/term"
 )
 
 // buildCommand creates an *exec.Cmd from the given types.Command.
@@ -74,6 +79,80 @@ func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 	command.Env = env
 }
 
+// sudoValidatedAt throttles credential validation: sudo's cache lives for
+// minutes, so re-checking before every one of hundreds of elevated commands
+// would be pure overhead.
+var (
+	sudoValidateMu  sync.Mutex
+	sudoValidatedAt time.Time
+)
+
+// ensureSudoCredentials tries to make sure sudo can run without prompting.
+// When the cached credentials have expired and a real terminal exists, the
+// password prompt runs as its own terminal handover (`sudo -v`), so under
+// the TUI the dashboard suspends cleanly instead of painting over the
+// prompt. Best effort by design: without a tty (CI), or when validation
+// fails (a command-scoped NOPASSWD rule makes `sudo -v` itself want a
+// password), the command proceeds and fails or succeeds on its own terms,
+// exactly as it did before validation existed.
+func ensureSudoCredentials() {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+
+	if time.Since(sudoValidatedAt) < time.Minute {
+		return
+	}
+
+	// Cheap probe: -n never prompts, it just reports whether the cache holds.
+	probe := exec.Command("sudo", "-n", "-v")
+	if err := probe.Run(); err == nil {
+		sudoValidatedAt = time.Now()
+		return
+	}
+
+	// No terminal, no prompt: leave it to the command (CI runs are
+	// NOPASSWD or root, where sudo never needed a tty in the first place).
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
+	}
+
+	// Cache expired: ask for the password on the real terminal.
+	if err := runOnTerminal(exec.Command("sudo", "-v")); err != nil {
+		log.Debugf("sudo validation inconclusive (%v); running the command anyway", err)
+		return
+	}
+	sudoValidatedAt = time.Now()
+}
+
+// runOnTerminal hands cmd the real terminal via the display layer, falling
+// back to direct wiring if the dashboard dies before servicing the request -
+// bubbletea drops Sends after its context cancels, and a dropped TerminalReq
+// would otherwise block its waiter forever. The claim makes the request
+// run-once: losing it means a servicer is executing the command and its
+// callback will write done regardless of the program's lifetime, so waiting
+// is safe - and Run() is never called twice on the same *exec.Cmd.
+func runOnTerminal(command *exec.Cmd) error {
+	done := make(chan error, 1)
+	claim := &atomic.Bool{}
+	reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done, Claim: claim})
+	select {
+	case err := <-done:
+		return err
+	case <-reporting.TerminalLost():
+		if claim.CompareAndSwap(false, true) {
+			// Nobody serviced it; the terminal is free now - wire it
+			// directly, exactly as the LogReporter would have.
+			if command.Stdin == nil {
+				command.Stdin = os.Stdin
+			}
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			return command.Run()
+		}
+		return <-done
+	}
+}
+
 // dryRunMode controls whether commands are actually executed.
 // When true, RunCommand and RunCommandOutput log the command but skip execution.
 var dryRunMode bool
@@ -107,8 +186,6 @@ func runCommand(cmd types.Command, debug bool) error {
 	command := buildCommand(cmd)
 	setupCommandEnvironment(command, cmd)
 
-	var stderr bytes.Buffer
-
 	if cmd.Stdin != "" {
 		// Supplied input wins over the terminal even for an interactive command:
 		// the caller is feeding the tool something specific, and inheriting
@@ -123,16 +200,35 @@ func runCommand(cmd types.Command, debug bool) error {
 		// reporter: LogReporter wires os.Std* exactly as this code used to;
 		// a TUI suspends itself around the child instead. This path also
 		// serves per-item `interactive: true` inside non-interactive runs.
-		done := make(chan error, 1)
-		reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done})
-		if err := <-done; err != nil {
-			log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
+		if err := runOnTerminal(command); err != nil {
+			log.Errorf("Error running command: %v (stderr above)", err)
 			return err
 		}
 		return nil
 	}
+
+	// A captured elevated command can still make sudo prompt: sudo reads the
+	// password from /dev/tty, straight past the captured pipes - under the
+	// TUI the prompt and the dashboard then fight over the terminal and the
+	// dashboard eats half the password. Validate credentials first, through
+	// a proper terminal handover when the cache has expired. Advisory only:
+	// a failed validation must not fail the command - `sudo -v` is not
+	// command-scoped, so a NOPASSWD rule for just this command makes
+	// validation want a password the command itself never needs.
+	if (cmd.Elevated || cmd.AsUser != "") && runtime.GOOS != "windows" {
+		ensureSudoCredentials()
+	}
 	{
-		command.Stderr = &stderr
+		// Under the TUI, captured stderr streams into the log view (the `≫`
+		// lines); headless it streams to the real stderr like the pre-TUI
+		// wiring did. No buffer: the error path points at the stream, and
+		// accumulating hundreds of KB of compiler progress just to discard
+		// it unread was pure memory overhead.
+		if w := reporting.CommandOutputWriter(reporting.SrcStderr); w != nil {
+			command.Stderr = w
+		} else {
+			command.Stderr = os.Stderr
+		}
 		logFile, err := setOutputStreams(command, debug, cmd.LogName)
 		if err != nil {
 			return err
@@ -149,7 +245,9 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if err := command.Run(); err != nil {
-		log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
+		// stderr was streamed live (to the log view under the TUI, to the
+		// real stderr headless); repeating the blob here renders it twice.
+		log.Errorf("Error running command: %v (stderr above)", err)
 		return err
 	}
 
@@ -200,13 +298,29 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 	log.Debugf("Debug: %v", debug)
 	log.Debugf("Log Name: %v", logName)
 
+	// Under the TUI, command stdout is captured into the store so it renders
+	// in the log view at debug display level, instead of tearing the frame.
+	// Headless (no sink), it streams to the real stdout - the pre-TUI
+	// contract is that `rwr all > install.log` carries the package-manager
+	// output, and a nil writer here silently threw it away.
+	captured := reporting.CommandOutputWriter(reporting.SrcStdout)
+
 	if debug {
 		log.Debugf("Debug set, configuring stdout for command: %v", cmd.Path)
-		cmd.Stdout = os.Stdout
+		if captured != nil {
+			cmd.Stdout = captured
+		} else {
+			cmd.Stdout = os.Stdout
+		}
 		return nil, nil
 	}
 
 	if logName == "" {
+		if captured != nil {
+			cmd.Stdout = captured
+		} else {
+			cmd.Stdout = os.Stdout
+		}
 		return nil, nil
 	}
 
@@ -226,7 +340,11 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 		return nil, fmt.Errorf("error opening log file %q: %w", logName, err)
 	}
 
-	cmd.Stdout = file
+	if captured != nil {
+		cmd.Stdout = io.MultiWriter(file, captured)
+	} else {
+		cmd.Stdout = file
+	}
 	return file, nil
 }
 

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -659,15 +660,23 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 			// Check if the file already exists at the target path
 			_, err := os.Stat(targetPath)
 			if err == nil {
-				// File exists, prompt for confirmation if interactive mode is enabled
+				// File exists, prompt for confirmation if interactive mode is
+				// enabled. The whole interaction - notice, diff, question -
+				// holds the terminal lease: printing a multi-line diff and
+				// reading stdin over the dashboard tore the viewport and
+				// fought it for keystrokes.
 				if interactive {
-					fmt.Printf("File '%s' already exists at the target location.\n", targetPath)
-					fmt.Printf("Diff:\n")
-					err := ShowDiff(path, targetPath)
-					if err != nil {
-						log.Errorf("Failed to show diff: %v", err)
-					}
-					overwrite, promptErr := promptOverwrite()
+					var overwrite bool
+					promptErr := reporting.WithTerminal(func() error {
+						fmt.Printf("File '%s' already exists at the target location.\n", targetPath)
+						fmt.Printf("Diff:\n")
+						if diffErr := ShowDiff(path, targetPath); diffErr != nil {
+							log.Errorf("Failed to show diff: %v", diffErr)
+						}
+						var innerErr error
+						overwrite, innerErr = promptOverwrite()
+						return innerErr
+					})
 					if promptErr != nil {
 						return promptErr
 					}

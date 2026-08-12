@@ -386,3 +386,47 @@ func containsValidTemplate(content string, validTemplates []string) bool {
 }
 
 // Helper function to parse TOML configuration.
+
+// Homebrew 6 made "ask mode" the default for installs; the brew provider's
+// environment block is what keeps automated runs from stopping at a
+// "Do you want to proceed? [y/n]" prompt (and the official install.sh from
+// stopping at "Press RETURN"). This asserts the CUE environment block actually
+// decodes into Provider.Environment - if the field mapping breaks, brew runs
+// start prompting again with no compile error anywhere.
+func TestLoadEmbeddedProviders_BrewEnvironmentDecodes(t *testing.T) {
+	providers, err := LoadEmbeddedProviders()
+	if err != nil {
+		t.Fatalf("LoadEmbeddedProviders() failed: %v", err)
+	}
+	brew, ok := providers["brew"]
+	if !ok {
+		t.Fatal("brew provider missing")
+	}
+	if brew.Environment["HOMEBREW_NO_ASK"] != "1" {
+		t.Fatalf("brew environment HOMEBREW_NO_ASK not decoded from CUE; got %v", brew.Environment)
+	}
+	if brew.Environment["NONINTERACTIVE"] != "1" {
+		t.Fatalf("brew environment NONINTERACTIVE not decoded from CUE; got %v", brew.Environment)
+	}
+}
+
+// Homebrew 6 refuses formulae/casks from untrusted third-party taps; the brew
+// provider's repository.add must tap and then trust (optional, since older
+// brew has no trust command). Asserts the step and its optional flag decode.
+func TestLoadEmbeddedProviders_BrewTapTrustStep(t *testing.T) {
+	providers, err := LoadEmbeddedProviders()
+	if err != nil {
+		t.Fatalf("LoadEmbeddedProviders() failed: %v", err)
+	}
+	steps := providers["brew"].Repository.Add.Steps
+	if len(steps) < 2 {
+		t.Fatalf("brew repository.add has %d steps, want tap then trust", len(steps))
+	}
+	trust := steps[1]
+	if trust.Exec != "brew" || len(trust.Args) < 2 || trust.Args[0] != "trust" {
+		t.Fatalf("second add step is not brew trust: %+v", trust)
+	}
+	if !trust.Optional {
+		t.Fatal("brew trust step must be optional - older brew has no trust command")
+	}
+}
