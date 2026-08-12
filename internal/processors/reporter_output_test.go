@@ -61,6 +61,12 @@ func TestAll_HeadlessOutputUnchanged(t *testing.T) {
 	osInfo := &types.OSInfo{}
 	osInfo.System.OS = runtime.GOOS
 	osInfo.Tools.Bash = types.ToolInfo{Exists: true, Bin: "/bin/bash"}
+	// A detected manager keeps All() out of the darwin "no package manager,
+	// install one" bootstrap branch - this test is about the processor loop's
+	// output, and on a mac an empty Managers map reads as a fresh machine.
+	osInfo.PackageManager.Managers = map[string]types.PackageManagerInfo{
+		"pacman": {Name: "pacman", Bin: bin},
+	}
 
 	if err := All(initConfig, osInfo, []string{"packages", "scripts"}); err != nil {
 		t.Fatalf("All: %v", err)
@@ -120,6 +126,10 @@ func TestAll_NonInteractiveCollectsErrorsAndContinues(t *testing.T) {
 	osInfo := &types.OSInfo{}
 	osInfo.System.OS = runtime.GOOS
 	osInfo.Tools.Bash = types.ToolInfo{Exists: true, Bin: "/bin/bash"}
+	// Same as above: keep All() out of the darwin bootstrap branch.
+	osInfo.PackageManager.Managers = map[string]types.PackageManagerInfo{
+		"sh": {Name: "sh", Bin: "/bin/sh"},
+	}
 
 	err := All(initConfig, osInfo, []string{"scripts", "files"})
 	if err == nil {

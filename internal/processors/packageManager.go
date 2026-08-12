@@ -108,11 +108,23 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 
 			switch step.Action {
 			case "command":
+				// Resolve through FindTool, not the raw process PATH: an
+				// install sequence runs the binary it just installed (rustup
+				// puts cargo in ~/.cargo/bin, brew lands in /opt/homebrew/bin)
+				// and none of those are on the PATH rwr started with.
+				execPath := step.Exec
+				if tool := system.FindTool(step.Exec); tool.Exists {
+					execPath = tool.Bin
+				}
 				cmd = types.Command{
-					Exec:     step.Exec,
+					Exec:     execPath,
 					Args:     step.Args,
 					Elevated: provider.Elevated,
 					AsUser:   pm.AsUser,
+					// The provider's environment applies to its own install
+					// steps too: brew's NONINTERACTIVE is what keeps the
+					// official install.sh from stopping at "Press RETURN".
+					Variables: provider.Environment,
 				}
 			case "download":
 				if system.IsDryRun() {
@@ -140,6 +152,10 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 			}
 
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
+				if step.Optional {
+					log.Warnf("Optional %s step for %s failed (ignored): %v", pm.Action, pm.Name, err)
+					continue
+				}
 				return fmt.Errorf("error executing package manager step: %w", err)
 			}
 		}

@@ -8,11 +8,14 @@ package system
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/reporting"
@@ -74,6 +77,43 @@ func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 	command.Env = env
 }
 
+// sudoValidatedAt throttles credential validation: sudo's cache lives for
+// minutes, so re-checking before every one of hundreds of elevated commands
+// would be pure overhead.
+var (
+	sudoValidateMu  sync.Mutex
+	sudoValidatedAt time.Time
+)
+
+// ensureSudoCredentials makes sure sudo can run without prompting. When the
+// cached credentials have expired, the password prompt runs as its own
+// terminal handover (`sudo -v`), so under the TUI the dashboard suspends
+// cleanly instead of painting over the prompt.
+func ensureSudoCredentials() error {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+
+	if time.Since(sudoValidatedAt) < time.Minute {
+		return nil
+	}
+
+	// Cheap probe: -n never prompts, it just reports whether the cache holds.
+	probe := exec.Command("sudo", "-n", "-v")
+	if err := probe.Run(); err == nil {
+		sudoValidatedAt = time.Now()
+		return nil
+	}
+
+	// Cache expired: ask for the password on the real terminal.
+	done := make(chan error, 1)
+	reporting.Emit(reporting.TerminalReq{Cmd: exec.Command("sudo", "-v"), Done: done})
+	if err := <-done; err != nil {
+		return err
+	}
+	sudoValidatedAt = time.Now()
+	return nil
+}
+
 // dryRunMode controls whether commands are actually executed.
 // When true, RunCommand and RunCommandOutput log the command but skip execution.
 var dryRunMode bool
@@ -131,8 +171,25 @@ func runCommand(cmd types.Command, debug bool) error {
 		}
 		return nil
 	}
+
+	// A captured elevated command can still make sudo prompt: sudo reads the
+	// password from /dev/tty, straight past the captured pipes - under the
+	// TUI the prompt and the dashboard then fight over the terminal and the
+	// dashboard eats half the password. Validate credentials first, through
+	// a proper terminal handover when the cache has expired.
+	if (cmd.Elevated || cmd.AsUser != "") && runtime.GOOS != "windows" {
+		if err := ensureSudoCredentials(); err != nil {
+			return fmt.Errorf("sudo authentication failed: %w", err)
+		}
+	}
 	{
-		command.Stderr = &stderr
+		// Under the TUI, captured stderr also streams into the log view (the
+		// `≫` lines); the buffer still holds full text for the error path.
+		if w := reporting.CommandOutputWriter(reporting.SrcStderr); w != nil {
+			command.Stderr = io.MultiWriter(&stderr, w)
+		} else {
+			command.Stderr = &stderr
+		}
 		logFile, err := setOutputStreams(command, debug, cmd.LogName)
 		if err != nil {
 			return err
@@ -149,7 +206,13 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if err := command.Run(); err != nil {
-		log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
+		if reporting.CommandOutputWriter(reporting.SrcStderr) != nil {
+			// The TUI already streamed stderr live into the log view;
+			// embedding the whole blob again would render it twice.
+			log.Errorf("Error running command: %v (stderr in the log above)", err)
+		} else {
+			log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
+		}
 		return err
 	}
 
@@ -200,13 +263,22 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 	log.Debugf("Debug: %v", debug)
 	log.Debugf("Log Name: %v", logName)
 
+	// Under the TUI, command stdout is captured into the store so it renders
+	// in the log view at debug display level, instead of tearing the frame.
+	captured := reporting.CommandOutputWriter(reporting.SrcStdout)
+
 	if debug {
 		log.Debugf("Debug set, configuring stdout for command: %v", cmd.Path)
-		cmd.Stdout = os.Stdout
+		if captured != nil {
+			cmd.Stdout = captured
+		} else {
+			cmd.Stdout = os.Stdout
+		}
 		return nil, nil
 	}
 
 	if logName == "" {
+		cmd.Stdout = captured // nil is fine: exec discards
 		return nil, nil
 	}
 
@@ -226,7 +298,11 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 		return nil, fmt.Errorf("error opening log file %q: %w", logName, err)
 	}
 
-	cmd.Stdout = file
+	if captured != nil {
+		cmd.Stdout = io.MultiWriter(file, captured)
+	} else {
+		cmd.Stdout = file
+	}
 	return file, nil
 }
 

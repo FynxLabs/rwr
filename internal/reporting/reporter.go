@@ -66,6 +66,33 @@ type TerminalReq struct {
 	Done      chan error
 }
 
+// TerminalFunc asks the display layer to lend the real terminal to an
+// in-process interaction - a huh form, a raw stdin prompt. The TerminalReq
+// counterpart for code that runs in this process rather than a child.
+type TerminalFunc struct {
+	Run  func() error
+	Done chan error
+}
+
+// HaltDecision is the operator's answer to an interactive halt.
+type HaltDecision int
+
+const (
+	HaltAbort HaltDecision = iota
+	HaltRetry
+	HaltSkip
+)
+
+// HaltReq reports a processor error in an interactive run and waits for the
+// operator: retry the processor, skip past the error, or abort the run. The
+// LogReporter answers abort, which is exactly the pre-halt behavior (an
+// interactive headless run returned the error immediately).
+type HaltReq struct {
+	Processor string
+	Err       error
+	Decision  chan HaltDecision
+}
+
 // RunFinished carries the collected step errors of a push-through run.
 type RunFinished struct {
 	Errs []types.StepError
@@ -77,6 +104,8 @@ func (ProcSkipped) runEvent()  {}
 func (LaneUpdate) runEvent()   {}
 func (ResourceDone) runEvent() {}
 func (TerminalReq) runEvent()  {}
+func (TerminalFunc) runEvent() {}
+func (HaltReq) runEvent()      {}
 func (RunFinished) runEvent()  {}
 
 // processorLabels are the exact strings the pre-event loop logged per
@@ -119,6 +148,13 @@ func (LogReporter) Emit(event Event) {
 		e.Cmd.Stdout = os.Stdout
 		e.Cmd.Stderr = os.Stderr
 		e.Done <- e.Cmd.Run()
+	case TerminalFunc:
+		// Headless the terminal is already free; just run the interaction.
+		e.Done <- e.Run()
+	case HaltReq:
+		// Headless interactive keeps its historical behavior: the first
+		// processor error aborts the run.
+		e.Decision <- HaltAbort
 	case ProcFinished, LaneUpdate, ResourceDone, RunFinished:
 		// The streaming output never printed these as their own lines; the
 		// processors' own log calls carry the detail.
@@ -139,3 +175,23 @@ func Set(r Reporter) (restore func()) {
 
 // Emit sends an event to the active reporter.
 func Emit(event Event) { current.Emit(event) }
+
+// RequestHalt reports an interactive processor error and blocks until the
+// operator (or the LogReporter's abort default) decides what happens next.
+func RequestHalt(processor string, err error) HaltDecision {
+	decision := make(chan HaltDecision, 1)
+	Emit(HaltReq{Processor: processor, Err: err, Decision: decision})
+	return <-decision
+}
+
+// WithTerminal runs fn with exclusive use of the real terminal. Headless it
+// runs fn directly; under the TUI the dashboard suspends itself first and
+// resumes after. Every in-process prompt (huh forms, raw stdin reads) MUST go
+// through this: a prompt that reads stdin while the dashboard owns it
+// deadlocks the run - the prompt never gets keystrokes, the dashboard keeps
+// eating them, and ctrl-c dies with both.
+func WithTerminal(fn func() error) error {
+	done := make(chan error, 1)
+	Emit(TerminalFunc{Run: fn, Done: done})
+	return <-done
+}

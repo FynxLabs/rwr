@@ -32,6 +32,10 @@ package providers
 	args?: [...string]
 	content?:   string
 	condition?: string & =~#conditionPattern
+	// A step whose failure is logged but does not fail the action - for
+	// version-dependent tooling (brew 6's `brew trust` does not exist on
+	// older brew).
+	optional?: bool
 }
 
 // Install/remove steps: the package-manager processor implements only these
@@ -46,6 +50,7 @@ package providers
 	args?: [...string & !~"/tmp/"]
 	content?:   string & !~"/tmp/"
 	condition?: string & =~#conditionPattern
+	optional?:  bool
 }
 
 #Detection: {

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fynxlabs/rwr/internal/credentials"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,7 @@ import (
 
 // TestGetGitHubToken_Priority tests token retrieval priority.
 func TestGetGitHubToken_Priority(t *testing.T) {
+	withEmptyKeyring(t)
 	tests := []struct {
 		name           string
 		configToken    string
@@ -313,6 +315,7 @@ func TestCopySSHKeyToGitHub_Errors(t *testing.T) {
 
 // TestGetGitHubToken_EnvVarOnly tests GITHUB_TOKEN environment variable.
 func TestGetGitHubToken_EnvVarOnly(t *testing.T) {
+	withEmptyKeyring(t)
 	oldGitHubToken := os.Getenv("GITHUB_TOKEN")
 	defer os.Setenv("GITHUB_TOKEN", oldGitHubToken)
 
@@ -336,6 +339,7 @@ func TestGetGitHubToken_EnvVarOnly(t *testing.T) {
 
 // TestGetGitHubToken_NoToken tests error when no token available.
 func TestGetGitHubToken_NoToken(t *testing.T) {
+	withEmptyKeyring(t)
 	oldGitHubToken := os.Getenv("GITHUB_TOKEN")
 	defer os.Setenv("GITHUB_TOKEN", oldGitHubToken)
 
@@ -378,4 +382,19 @@ func TestPollForAccessToken_Timeout(t *testing.T) {
 	// Note: This would require making the timeout configurable
 	// For now, we document the expected behavior
 	// In production, pollForAccessToken should timeout after 5 minutes
+}
+
+// emptyKeyring isolates token tests from the developer's real OS keyring: a
+// machine where `rwr --gh-auth` has ever succeeded has a real token stored,
+// and un-stubbed tests started failing the moment auth worked.
+type emptyKeyring struct{}
+
+func (emptyKeyring) Get(string) (string, error) { return "", credentials.ErrKeyringNotFound }
+func (emptyKeyring) Set(string, string) error   { return nil }
+
+func withEmptyKeyring(t *testing.T) {
+	t.Helper()
+	previous := credentials.Ring
+	credentials.Ring = emptyKeyring{}
+	t.Cleanup(func() { credentials.Ring = previous })
 }

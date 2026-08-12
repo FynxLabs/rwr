@@ -30,6 +30,10 @@ func RunBootstrap(initConfig *types.InitConfig, osInfo *types.OSInfo) error {
 	initConfig.Variables.Flags.ForceBootstrap = true
 	defer func() { initConfig.Variables.Flags.ForceBootstrap = previous }()
 
+	// The standalone entry sets the import-template seam itself; the All()
+	// path has already set it by the time bootstrap runs.
+	defer helpers.SetTemplateVariables(&initConfig.Variables)()
+
 	return ProcessBootstrap(bootstrapFile, initConfig, osInfo)
 }
 
@@ -43,6 +47,12 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	}
 
 	log.Info("Starting bootstrap processor...")
+
+	// The run-once marker is only earned by a bootstrap where every step
+	// succeeded. Steps that record-and-continue (an SSH key whose GitHub
+	// upload fails) used to be papered over: the marker was written anyway,
+	// every later run skipped bootstrap, and the failed step never retried.
+	failuresBefore := failureCount()
 
 	var bootstrapData types.BootstrapData
 	var blueprintData []byte
@@ -155,7 +165,13 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
-	// Set the bootstrap file
+	// Set the bootstrap file - only when every step succeeded. A bootstrap
+	// with recorded failures stays unmarked so the next run retries it
+	// (completed steps are idempotent and skip fast).
+	if failed := failureCount() - failuresBefore; failed > 0 {
+		log.Warnf("Bootstrap finished with %d failed step(s); NOT writing the run-once marker - the next run will retry bootstrap", failed)
+		return nil
+	}
 	log.Debugf("Setting bootstrap fileProcessDirectories")
 	if err := writeBootstrapMarker(); err != nil {
 		log.Errorf("Error setting bootstrap file: %v", err)

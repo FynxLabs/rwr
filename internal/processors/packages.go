@@ -9,6 +9,7 @@ import (
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -89,19 +90,31 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 		var provider *types.Provider
 		var exists bool
 
+		// A package entry that cannot reach a package manager is a FAILURE,
+		// not a skip. Blueprint trees are per-OS, so a declared
+		// package_manager is a demand: skipping here meant a machine without
+		// cargo "successfully" ran a tree whose init file exists to install
+		// cargo's packages, and the run exited 0 having installed none of
+		// them. The ledger keeps the run going but puts it in the exit code.
+		subject := pkg.Name
+		if subject == "" && len(pkg.Names) > 0 {
+			subject = strings.Join(pkg.Names, " ")
+		}
 		if pkg.PackageManager != "" {
 			// Use specified package manager
 			provider, exists = system.GetProvider(pkg.PackageManager)
 			if !exists {
-				log.Warnf("Specified package manager %s not available, skipping package %s", pkg.PackageManager, pkg.Name)
-				track.item(pkg.PackageManager, pkg.Name, pkg.Action, types.StatusSkipped, "package manager not available", 0)
+				recordFailure("packages", subject,
+					fmt.Errorf("required package manager %q is not available on this system; declare it under packageManagers in the init file (action: install) or install it manually", pkg.PackageManager))
+				track.item(pkg.PackageManager, subject, pkg.Action, types.StatusFailed, "package manager not available", 0)
 				continue
 			}
 		} else {
 			provider, exists = defaultProviderFor(osInfo, available)
 			if !exists {
-				log.Warnf("No package manager available for package %s, skipping", pkg.Name)
-				track.item("", pkg.Name, pkg.Action, types.StatusSkipped, "no package manager available", 0)
+				recordFailure("packages", subject,
+					errors.New("no package manager available for this entry; declare one under packageManagers in the init file (action: install) or set package_manager on the entry"))
+				track.item("", subject, pkg.Action, types.StatusFailed, "no package manager available", 0)
 				continue
 			}
 		}
@@ -125,6 +138,10 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 
 	for _, unit := range units {
 		pkg, provider := unit.pkg, unit.provider
+
+		// The provider stamp fills the log view's provider column for every
+		// line this unit's work produces (rwr's own and captured output).
+		reporting.SetCurrentProvider(provider.Name)
 
 		// Process each package
 		for _, name := range unit.names {
@@ -159,15 +176,22 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 			}
 
 			// Execute command directly with environment variables
+			elevated := provider.Elevated || pkg.Elevated
 			cmd := types.Command{
 				Exec: provider.BinPath,
 				Args: args,
 				// The provider decides whether its package manager needs elevation;
 				// a blueprint may ask for it on top (a user-scoped manager invoked
 				// against a system path), but may not take it away.
-				Elevated:    provider.Elevated || pkg.Elevated,
-				Variables:   provider.Environment,
-				Interactive: helpers.ResolveInteractive(pkg.Interactive, initConfig.Variables.Flags.Interactive),
+				Elevated:  elevated,
+				Variables: provider.Environment,
+				// Terminal handover only when this command can actually need
+				// one: an explicit per-item `interactive: true`, or sudo that
+				// may prompt for a password. Routing EVERY package through the
+				// terminal (the old behavior under the default interactive
+				// run) suspended the TUI per package and splattered raw
+				// package-manager output across the dashboard.
+				Interactive: helpers.ResolveInteractive(pkg.Interactive, initConfig.Variables.Flags.Interactive && elevated),
 			}
 			started := time.Now()
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
@@ -180,6 +204,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 			log.Infof("Successfully %s package %s via %s", pastTense(pkg.Action), name, provider.Name)
 		}
 	}
+	reporting.SetCurrentProvider("")
 
 	return nil
 }

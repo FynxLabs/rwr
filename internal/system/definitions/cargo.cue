@@ -16,7 +16,13 @@ providers: "cargo": {
   ]
  },
  "commands": {
-  "install": "install",
+  // --locked: build with each crate's committed Cargo.lock instead of
+  // re-resolving dependencies at install time. Fresh resolution pulls
+  // whatever currently solves, and eza's unlocked solve chose a palette
+  // version that no longer compiles under current rustc (E0433 in its
+  // derive macros). Crates published without a lockfile fall back with a
+  // warning, so this is strictly safer.
+  "install": "install --locked",
   "update": "install-update --all",
   "remove": "uninstall",
   "list": "install --list",
