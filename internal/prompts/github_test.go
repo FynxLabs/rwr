@@ -19,11 +19,13 @@ func TestValidateGitHubToken(t *testing.T) {
 		{name: "fine-grained personal access token", token: "github_pat_11ABCDEFG0abcdef1234567890"},
 		{name: "classic personal access token", token: "ghp_abcdef1234567890"},
 		{name: "oauth token", token: "gho_abcdef1234567890"},
-		{name: "user-to-server token", token: "ghu_abcdef1234567890"},
-		// A GitHub App installation token, which is what a CI job hands to
-		// rwr. Previously refused; that was characterisation of the
-		// implementation rather than a decision about App tokens.
-		{name: "server-to-server token", token: "ghs_abcdef1234567890"},
+		{name: "github app user access token", token: "ghu_abcdef1234567890"},
+		// A GitHub App *installation* token acts as the installation, not as a
+		// person, so /user/keys has no authenticated user to add a key to.
+		// Accepting it would only move the failure to the upload, where it
+		// arrives as a bare 403.
+		{name: "installation token is the wrong kind", token: "ghs_abcdef1234567890",
+			wantErr: "has no authenticated user"},
 		{name: "empty", token: "", wantErr: "cannot be empty"},
 		{name: "no recognised prefix", token: "abcdef1234567890", wantErr: "does not look like a GitHub token"},
 		{name: "prefix must lead", token: "xghp_abcdef", wantErr: "does not look like a GitHub token"},
@@ -134,5 +136,32 @@ func TestValidateGitHubTokenErrorOmitsTheValue(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), pasted) {
 		t.Errorf("error repeats the pasted credential: %v", err)
+	}
+}
+
+// A real GitHub token of the wrong kind is told which kind it is, and pointed
+// at one that works. Falling back to "does not look like a GitHub token" would
+// be untrue, and leaves an operator staring at a token they can see is valid.
+func TestValidateGitHubTokenExplainsAWrongKindOfToken(t *testing.T) {
+	err := validateGitHubToken("ghs_abcdef1234567890")
+	if err == nil {
+		t.Fatal("an installation token was accepted for a /user/keys upload")
+	}
+	if strings.Contains(err.Error(), "does not look like a GitHub token") {
+		t.Errorf("a real token was called unrecognisable: %v", err)
+	}
+	// It has to name the alternative, or the operator has nothing to do next.
+	if !strings.Contains(err.Error(), "ghu_") {
+		t.Errorf("error does not point at a token type that works: %v", err)
+	}
+}
+
+// Nothing may appear in both lists: a prefix that is accepted and explained as
+// a rejection would resolve by list order rather than by intent.
+func TestGitHubTokenPrefixesAndRejectionsAreDisjoint(t *testing.T) {
+	for _, accepted := range gitHubTokenPrefixes {
+		if _, rejected := gitHubTokenRejections[accepted]; rejected {
+			t.Errorf("%q is both accepted and rejected", accepted)
+		}
 	}
 }

@@ -64,7 +64,10 @@ func PromptGitHubToken() (string, error) {
 		huh.NewGroup(
 			huh.NewInput().
 				Title("Enter your GitHub personal access token").
-				Description("Token needs 'write:public_key' scope").
+				// Both permission models, because the answer differs and the
+				// classic-only wording sent fine-grained users looking for a
+				// scope their token does not have.
+				Description("Classic token: 'write:public_key' scope. Fine-grained token: 'Git SSH keys' user permission, write.").
 				EchoMode(huh.EchoModePassword).
 				Value(&token).
 				Validate(validateGitHubToken),
@@ -79,25 +82,38 @@ func PromptGitHubToken() (string, error) {
 	return token, nil
 }
 
-// gitHubTokenPrefixes are the token forms GitHub issues today.
+// gitHubTokenPrefixes are the token forms that can do the one thing this
+// prompt collects a token for: POST /user/keys, which adds an SSH key to the
+// authenticated user's account.
 //
-// github_pat_ is the one whose absence actually hurt: fine-grained personal
+// github_pat_ is the one whose absence actually hurt. Fine-grained personal
 // access tokens are what "Generate new token" offers first, so the common case
 // was an operator pasting a valid, correctly-scoped token and being told it was
-// invalid. ghs_ covers GitHub App installation tokens, which is what a CI job
-// hands to rwr.
+// invalid.
+//
+// The list is what /user/keys accepts, not every prefix GitHub issues. See
+// gitHubTokenRejections for the ones deliberately left out.
 //
 // Order matters for the message only; HasPrefix is exact either way.
 var gitHubTokenPrefixes = []string{
-	"github_pat_", // fine-grained personal access token
-	"ghp_",        // classic personal access token
+	"github_pat_", // fine-grained PAT, with the "Git SSH keys" user permission
+	"ghp_",        // classic PAT, with the write:public_key scope
 	"gho_",        // OAuth token, what the device flow returns
-	"ghu_",        // user-to-server token
-	"ghs_",        // server-to-server (GitHub App installation) token
+	"ghu_",        // GitHub App user access token (user-to-server)
 }
 
-// validateGitHubToken checks that a pasted value looks like a GitHub token:
-// non-empty and carrying a prefix GitHub actually issues.
+// gitHubTokenRejections are real GitHub tokens that cannot do this job, mapped
+// to the reason. Passing one through validation only moves the failure to the
+// upload, where it surfaces as a bare 403 with nothing explaining it.
+var gitHubTokenRejections = map[string]string{
+	// An installation token acts as the app installation, not as a person, so
+	// there is no authenticated user for /user/keys to add a key to. The
+	// GitHub App token that does have a user is ghu_, which is accepted.
+	"ghs_": "that is a GitHub App installation token, which has no authenticated user to add a key to; use a user access token (ghu_) or a personal access token",
+}
+
+// validateGitHubToken checks that a pasted value is a GitHub token that can
+// upload an SSH key for the authenticated user.
 func validateGitHubToken(s string) error {
 	if s == "" {
 		return fmt.Errorf("token cannot be empty")
@@ -105,6 +121,13 @@ func validateGitHubToken(s string) error {
 	for _, prefix := range gitHubTokenPrefixes {
 		if strings.HasPrefix(s, prefix) {
 			return nil
+		}
+	}
+	// A real token of the wrong kind gets told which kind it is. "does not
+	// look like a GitHub token" would be untrue and unactionable.
+	for prefix, reason := range gitHubTokenRejections {
+		if strings.HasPrefix(s, prefix) {
+			return fmt.Errorf("%s", reason)
 		}
 	}
 	// Name the accepted prefixes. "invalid GitHub token format" told an
