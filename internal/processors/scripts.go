@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -69,6 +68,20 @@ func processScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *ty
 			if err != nil {
 				log.Errorf("Error running script %s: %v", script.Name, err)
 				track.item("", script.Name, script.Action, types.StatusFailed, err.Error(), time.Since(started))
+				// Scripts stop at the first failure, where packages, files and
+				// the rest record the failure and carry on. That difference is
+				// deliberate: a script is arbitrary code, the scripts in a file
+				// are usually ordered, and one that fails has very likely left
+				// the next one's prerequisites unmet. Stopping is what keeps
+				// the later scripts from running against that.
+				//
+				// Returning also hands the error to All(), which is what offers
+				// the operator retry/skip/abort. Note what retry costs here: it
+				// re-runs the whole file, so every script that already
+				// succeeded runs again. Nothing in this processor can assume
+				// the idempotence that makes that cheap for packages or files,
+				// which is a reason to keep the failed set small, not a reason
+				// to push on past a failure.
 				return fmt.Errorf("error running script %s: %w", script.Name, err)
 			}
 			log.Infof("Script %s executed successfully", script.Name)
@@ -178,13 +191,13 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		return fmt.Errorf("unsupported script executor: %s", script.Exec)
 	}
 
-	// Append the script arguments. `args` is a single string in the blueprint, and
-	// the shell used to word-split it on the way to the script. Now that commands are
-	// argv, split it here - otherwise `args: "--verbose --out /tmp"` would arrive as
-	// one argument instead of three.
-	if script.Args != "" {
-		log.Debugf("Adding script arguments: %s", script.Args)
-		scriptCmd.Args = append(scriptCmd.Args, strings.Fields(script.Args)...)
+	// Append the script arguments. The blueprint writes `args` either as a
+	// string, which types.ScriptArgs splits on whitespace the way it always
+	// has, or as a list, whose elements are taken verbatim so an argument
+	// containing a space can be expressed at all.
+	if len(script.Args) > 0 {
+		log.Debugf("Adding script arguments: %v", []string(script.Args))
+		scriptCmd.Args = append(scriptCmd.Args, script.Args...)
 	}
 
 	// Set the log name

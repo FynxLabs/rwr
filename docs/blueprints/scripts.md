@@ -124,7 +124,7 @@ The Scripts blueprint supports the following fields:
 | `exec` | No | The program that runs the script: `bash`, `python`, `ruby`, `perl`, `lua`, `powershell`, or `self`. The default is `bash` on Linux and macOS, and `powershell` on Windows. `self` runs the script file directly |
 | `source` | No | The path to the script file (relative to blueprint directory). |
 | `content` | No | The inline content of the script. |
-| `args` | No | Additional arguments to pass to the script. |
+| `args` | No | Arguments to pass to the script, as a string (split on whitespace) or a list (each element taken verbatim). |
 | `elevated` | No | Whether to run the script with elevated privileges (`sudo`). Default is `false`. |
 | `asUser` | No | Run the script as another account: `sudo -u <user>`. Ignored when `elevated: true`, since sudo cannot do both at once; RWR warns and runs elevated. |
 | `log` | No | Log name for script output. |
@@ -135,9 +135,40 @@ The Scripts blueprint supports the following fields:
 
 ### How RWR runs the arguments
 
-RWR divides the `args` string at each space. It then sends each part to the
-script as one argument. The value `--verbose --out /tmp` becomes three
-arguments.
+`args` takes either a string or a list.
+
+A **string** is divided at each run of whitespace - spaces, tabs, newlines -
+and each part is sent to the script as one argument. The value
+`--verbose --out /tmp` becomes three arguments.
+
+```yaml
+args: "--verbose --out /tmp"
+```
+
+A **list** sends each element exactly as written, spaces and all. This is the
+only way to pass an argument that contains whitespace, because RWR runs no
+shell and quoting inside the string form has no effect:
+
+```yaml
+args: ["--message", "hello world", "--out", "/tmp/my reports"]
+```
+
+The list form works in every blueprint format:
+
+```json
+"args": ["--message", "hello world"]
+```
+
+```toml
+args = ["--message", "hello world"]
+```
+
+```cue
+args: ["--message", "hello world"]
+```
+
+Every element of a list must be a string. A value such as `args: [8080]` is
+refused in every format, so quote it: `args: ["8080"]`.
 
 RWR does not use a shell to run the script. The shell characters keep their
 literal value. These characters have no special function:

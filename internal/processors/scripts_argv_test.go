@@ -135,3 +135,266 @@ scripts:
 		t.Errorf("staged script = %q, want a .ps1 extension - powershell -File refuses anything else", got)
 	}
 }
+
+// runScriptArgs runs one script blueprint and returns the argv the executor
+// saw, minus the script path that always leads it.
+func runScriptArgs(t *testing.T, format, blueprint string) []string {
+	t.Helper()
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "setup.sh")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/bash\necho hi\n"), 0o700); err != nil {
+		t.Fatalf("writing script: %v", err)
+	}
+
+	if err := ProcessScripts([]byte(blueprint), dir, format, scriptOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls, want 1: %v", len(rec.Calls), rec.Calls)
+	}
+	return rec.Calls[0].Args[1:]
+}
+
+func argsEqual(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// The reason the list form exists. Splitting on whitespace means an argument
+// that contains whitespace cannot be written at all: quoting inside the string
+// does not help, because no shell ever parses the value. A list element is
+// taken verbatim.
+func TestProcessScripts_ListArgsKeepArgumentsContainingSpaces(t *testing.T) {
+	got := runScriptArgs(t, "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: ["--message", "hello world", "--out", "/tmp/a b"]
+`)
+
+	want := []string{"--message", "hello world", "--out", "/tmp/a b"}
+	if !argsEqual(got, want) {
+		t.Fatalf("args = %#v, want %#v", got, want)
+	}
+}
+
+// The list form has to work in every blueprint format, not just the one it was
+// written against. CUE rides the JSON decode path.
+func TestProcessScripts_ListArgsInEveryFormat(t *testing.T) {
+	want := []string{"--message", "hello world"}
+
+	cases := map[string]string{
+		"yaml": `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: ["--message", "hello world"]
+`,
+		"json": `{"scripts":[{"name":"setup.sh","action":"run","source":".","exec":"bash","args":["--message","hello world"]}]}`,
+		"toml": `
+[[scripts]]
+name = "setup.sh"
+action = "run"
+source = "."
+exec = "bash"
+args = ["--message", "hello world"]
+`,
+		"cue": `
+scripts: [{
+	name:   "setup.sh"
+	action: "run"
+	source: "."
+	exec:   "bash"
+	args: ["--message", "hello world"]
+}]
+`,
+	}
+
+	for format, blueprint := range cases {
+		t.Run(format, func(t *testing.T) {
+			if got := runScriptArgs(t, format, blueprint); !argsEqual(got, want) {
+				t.Fatalf("args = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
+// The string form keeps splitting on whitespace in every format too: existing
+// blueprints depend on it, and nothing else does that splitting now that
+// commands are argv.
+func TestProcessScripts_StringArgsStillSplitInEveryFormat(t *testing.T) {
+	want := []string{"--verbose", "--out", "/tmp/out"}
+
+	cases := map[string]string{
+		"yaml": `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: "--verbose --out /tmp/out"
+`,
+		"json": `{"scripts":[{"name":"setup.sh","action":"run","source":".","exec":"bash","args":"--verbose --out /tmp/out"}]}`,
+		"toml": `
+[[scripts]]
+name = "setup.sh"
+action = "run"
+source = "."
+exec = "bash"
+args = "--verbose --out /tmp/out"
+`,
+		"cue": `
+scripts: [{
+	name:   "setup.sh"
+	action: "run"
+	source: "."
+	exec:   "bash"
+	args:   "--verbose --out /tmp/out"
+}]
+`,
+	}
+
+	for format, blueprint := range cases {
+		t.Run(format, func(t *testing.T) {
+			if got := runScriptArgs(t, format, blueprint); !argsEqual(got, want) {
+				t.Fatalf("args = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
+// An omitted or empty args field adds nothing, rather than an empty argument
+// that the script would see as a real (blank) parameter.
+func TestProcessScripts_EmptyArgsAddNothing(t *testing.T) {
+	for name, args := range map[string]string{
+		"omitted":      "",
+		"empty string": `    args: ""` + "\n",
+		"whitespace":   `    args: "   "` + "\n",
+		"empty list":   `    args: []` + "\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := runScriptArgs(t, "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+`+args)
+			if len(got) != 0 {
+				t.Fatalf("args = %#v, want none", got)
+			}
+		})
+	}
+}
+
+// scriptDecodeErr runs one blueprint and returns the error, if any.
+func scriptDecodeErr(t *testing.T, format, blueprint string) error {
+	t.Helper()
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	return ProcessScripts([]byte(blueprint), t.TempDir(), format, scriptOSInfo(), &types.InitConfig{})
+}
+
+// The formats have to agree about what args means, and this is the table that
+// says so.
+//
+// yaml.v3 coerces any scalar into a string on the way into a []string, so
+// `args: [1, true]` decoded happily as ["1", "true"] while JSON, TOML and CUE
+// all rejected the same blueprint - and YAML itself rejected the bare scalar
+// `args: 42`, so it did not agree with itself either. A blueprint has to mean
+// the same thing whichever format it is written in.
+//
+// The error text is deliberately not asserted: four different decoders produce
+// four different messages, and pinning them would test the libraries rather
+// than rwr's contract.
+func TestProcessScripts_InvalidArgsAreRejectedInEveryFormat(t *testing.T) {
+	cases := []struct {
+		name      string
+		format    string
+		blueprint string
+	}{
+		{"yaml list with numbers", "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: [1, true, 2.5]
+`},
+		{"json list with numbers", "json",
+			`{"scripts":[{"name":"setup.sh","action":"run","source":".","exec":"bash","args":[1,true]}]}`},
+		{"toml list with numbers", "toml", `
+[[scripts]]
+name = "setup.sh"
+action = "run"
+source = "."
+exec = "bash"
+args = [1, true]
+`},
+		{"cue list with numbers", "cue", `
+scripts: [{name: "setup.sh", action: "run", source: ".", exec: "bash", args: [1, true]}]
+`},
+		{"yaml list with a null", "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: ["--flag", null]
+`},
+		{"yaml list with a nested list", "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: ["--flag", ["nested"]]
+`},
+		{"yaml scalar number", "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: 42
+`},
+		{"json scalar number", "json",
+			`{"scripts":[{"name":"setup.sh","action":"run","source":".","exec":"bash","args":42}]}`},
+		{"toml scalar number", "toml", `
+[[scripts]]
+name = "setup.sh"
+action = "run"
+source = "."
+exec = "bash"
+args = 42
+`},
+		{"cue scalar number", "cue", `
+scripts: [{name: "setup.sh", action: "run", source: ".", exec: "bash", args: 42}]
+`},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := scriptDecodeErr(t, tt.format, tt.blueprint); err == nil {
+				t.Fatal("a non-string args value was accepted")
+			}
+		})
+	}
+}
