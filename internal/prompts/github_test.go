@@ -13,13 +13,20 @@ func TestValidateGitHubToken(t *testing.T) {
 		token   string
 		wantErr string
 	}{
-		{name: "personal access token", token: "ghp_abcdef1234567890"},
+		// The one that mattered: fine-grained PATs are what GitHub's
+		// "Generate new token" offers first, so this was the common case
+		// being refused.
+		{name: "fine-grained personal access token", token: "github_pat_11ABCDEFG0abcdef1234567890"},
+		{name: "classic personal access token", token: "ghp_abcdef1234567890"},
 		{name: "oauth token", token: "gho_abcdef1234567890"},
 		{name: "user-to-server token", token: "ghu_abcdef1234567890"},
+		// A GitHub App installation token, which is what a CI job hands to
+		// rwr. Previously refused; that was characterisation of the
+		// implementation rather than a decision about App tokens.
+		{name: "server-to-server token", token: "ghs_abcdef1234567890"},
 		{name: "empty", token: "", wantErr: "cannot be empty"},
-		{name: "no recognised prefix", token: "abcdef1234567890", wantErr: "invalid GitHub token format"},
-		{name: "server-to-server tokens are not accepted", token: "ghs_abcdef", wantErr: "invalid GitHub token format"},
-		{name: "prefix must lead", token: "xghp_abcdef", wantErr: "invalid GitHub token format"},
+		{name: "no recognised prefix", token: "abcdef1234567890", wantErr: "does not look like a GitHub token"},
+		{name: "prefix must lead", token: "xghp_abcdef", wantErr: "does not look like a GitHub token"},
 	}
 
 	for _, tt := range tests {
@@ -99,4 +106,33 @@ func TestFormsBuildAgainstHuhV2(t *testing.T) {
 			t.Fatal("huh.NewForm returned nil for the confirm")
 		}
 	})
+}
+
+// The rejection has to name what would be accepted. "invalid GitHub token
+// format" left an operator holding a real, correctly-scoped token with
+// nothing to act on.
+func TestValidateGitHubTokenErrorNamesTheAcceptedPrefixes(t *testing.T) {
+	err := validateGitHubToken("not-a-token")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	for _, prefix := range gitHubTokenPrefixes {
+		if !strings.Contains(err.Error(), prefix) {
+			t.Errorf("error does not mention %q: %v", prefix, err)
+		}
+	}
+}
+
+// The message must not echo the value back: it is a credential, and the
+// operator already knows what they pasted.
+func TestValidateGitHubTokenErrorOmitsTheValue(t *testing.T) {
+	const pasted = "definitely-a-secret-value"
+
+	err := validateGitHubToken(pasted)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if strings.Contains(err.Error(), pasted) {
+		t.Errorf("error repeats the pasted credential: %v", err)
+	}
 }

@@ -55,7 +55,8 @@ func PromptGitHubAuthMethod() (GitHubAuthChoice, error) {
 }
 
 // PromptGitHubToken displays a secure input form for a GitHub personal access token.
-// It validates that the token starts with a recognized prefix (ghp_, gho_, ghu_).
+// It validates that the token starts with a prefix GitHub issues; see
+// gitHubTokenPrefixes.
 func PromptGitHubToken() (string, error) {
 	var token string
 
@@ -78,17 +79,37 @@ func PromptGitHubToken() (string, error) {
 	return token, nil
 }
 
-// validateGitHubToken checks that a pasted value looks like a GitHub personal
-// access token: non-empty and carrying a recognised prefix (ghp_ personal, gho_
-// OAuth, ghu_ user-to-server).
+// gitHubTokenPrefixes are the token forms GitHub issues today.
+//
+// github_pat_ is the one whose absence actually hurt: fine-grained personal
+// access tokens are what "Generate new token" offers first, so the common case
+// was an operator pasting a valid, correctly-scoped token and being told it was
+// invalid. ghs_ covers GitHub App installation tokens, which is what a CI job
+// hands to rwr.
+//
+// Order matters for the message only; HasPrefix is exact either way.
+var gitHubTokenPrefixes = []string{
+	"github_pat_", // fine-grained personal access token
+	"ghp_",        // classic personal access token
+	"gho_",        // OAuth token, what the device flow returns
+	"ghu_",        // user-to-server token
+	"ghs_",        // server-to-server (GitHub App installation) token
+}
+
+// validateGitHubToken checks that a pasted value looks like a GitHub token:
+// non-empty and carrying a prefix GitHub actually issues.
 func validateGitHubToken(s string) error {
 	if s == "" {
 		return fmt.Errorf("token cannot be empty")
 	}
-	if !strings.HasPrefix(s, "ghp_") && !strings.HasPrefix(s, "gho_") && !strings.HasPrefix(s, "ghu_") {
-		return fmt.Errorf("invalid GitHub token format")
+	for _, prefix := range gitHubTokenPrefixes {
+		if strings.HasPrefix(s, prefix) {
+			return nil
+		}
 	}
-	return nil
+	// Name the accepted prefixes. "invalid GitHub token format" told an
+	// operator holding a real token nothing about what was wrong with it.
+	return fmt.Errorf("does not look like a GitHub token; expected one starting with %s", strings.Join(gitHubTokenPrefixes, ", "))
 }
 
 // PromptAndSaveGitHubToken collects a GitHub token via interactive prompt
