@@ -1,0 +1,329 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# FynxLabs/rwr
+# Validate with `@coderabbitai configuration` on a PR.
+
+language: "en-US"
+
+# Anti-Slop is an Early Access feature. Without this it does not run,
+# even though the UI toggle shows "Enabled".
+early_access: true
+
+reviews:
+  profile: "chill"
+
+  request_changes_workflow: false
+
+  high_level_summary: true
+  high_level_summary_in_walkthrough: false
+  collapse_walkthrough: true
+
+  # Noise reduction.
+  poem: false
+  in_progress_fortune: false
+  sequence_diagrams: false
+  related_prs: false
+  suggested_reviewers: false
+  review_details: false
+
+  auto_review:
+    enabled: true
+
+    auto_incremental_review: false
+    auto_pause_after_reviewed_commits: 3
+
+    drafts: false
+
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+
+    # renovate.json is in the repo. These would otherwise burn reviews.
+    ignore_usernames:
+      - "renovate[bot]"
+      - "dependabot[bot]"
+      - "github-actions[bot]"
+
+  # Files CodeRabbit already skips by default and are NOT listed here:
+  # go.sum (**/*.sum), *.png, *.svg, *.log, *.map, *.tfstate, dist/,
+  # node_modules/, all **/generated/** and **/gen/** variants.
+  path_filters:
+    # docs/ and README.md are deliberately NOT filtered. They are in scope
+    # for every behavior change. See path_instructions below.
+    #
+    # Archived OpenSpec proposals. Immutable history, pure prose.
+    - "!openspec/changes/archive/**"
+    # Test fixtures. Generated or intentionally malformed input.
+    - "!internal/processors/testdata/**"
+
+  path_instructions:
+    - path: "internal/processors/**"
+      instructions: |
+        Processors execute a blueprint: packages, files, services, git repos,
+        templates, and the bootstrap path. They run with elevated privileges
+        on a user's real machine, so a wrong action is destructive.
+        - Flag any operation that is not idempotent. Re-running a blueprint
+          must converge, not stack side effects.
+        - Flag actions that ignore dry-run. Dry-run must perform zero writes,
+          zero installs, and zero command execution with side effects.
+        - Flag unchecked errors on a step that later steps assume succeeded.
+        - Flag file writes that clobber user data without backup or an
+          explicit overwrite intent from the blueprint.
+        - Flag template variable expansion that could interpolate untrusted
+          blueprint content into a shell command.
+
+    - path: "internal/system/**"
+      instructions: |
+        This package shells out, elevates, downloads, and touches the
+        filesystem across Linux, macOS, and Windows.
+        - Flag command construction that concatenates user or blueprint input
+          into a shell string instead of passing argv.
+        - Flag privilege elevation that is broader or longer-lived than the
+          single operation needs.
+        - Flag downloads that skip checksum or signature verification.
+        - Flag archive extraction without path traversal (zip-slip) guards.
+        - Flag symlink-following on paths where the *_nofollow_* variants
+          exist for a reason.
+        - Flag os-specific behavior added to only one of the unix/windows
+          file pairs.
+
+    - path: "internal/credentials/**"
+      instructions: |
+        Handles keyring access and credential prompting.
+        Treat every leak path as high severity.
+        - Flag any credential written to disk, logs, env, or state.
+        - Flag secrets reaching command arguments, where they land in the
+          process table.
+        - Flag credentials outliving the operation that needed them.
+
+    - path: "internal/state/**"
+      instructions: |
+        State drives what rwr considers already applied.
+        - Flag writes that are not atomic. A partial write must not leave
+          unreadable or half-applied state.
+        - Flag state schema changes without a migration or version bump.
+        - Flag concurrent access to shared state.
+
+    - path: "internal/validate/**"
+      instructions: |
+        Validation is the gate between a user blueprint and privileged
+        execution.
+        - Flag fail-open behavior. A validation error must stop the run.
+        - Flag validation that is bypassable by an alternate config path.
+
+    - path: "{internal/tui/**,internal/prompts/**}"
+      instructions: |
+        Bubble Tea and huh. Focus on correctness, not style.
+        - Flag blocking I/O inside Update or View.
+        - Flag goroutines writing model state instead of sending messages.
+        - Flag missing handling of terminal resize or non-TTY environments.
+
+    - path: "{internal/types/**,cmd/**}"
+      instructions: |
+        - Flag CLI flags or config keys added without a docs/ update.
+        - Flag breaking changes to blueprint schema types without a schema
+          version bump. See docs/schema-versioning.md.
+
+    - path: "{.github/workflows/**,.github/scripts/**}"
+      instructions: |
+        - Flag unpinned or float-tag action references.
+        - Flag `permissions:` broader than the job needs.
+        - Flag pull_request_target combined with checkout of PR head.
+        - Flag script injection via ${{ }} interpolation into run blocks.
+        - Flag any download path that skips checksum or cosign verification.
+
+    - path: "{install.sh,install.ps1}"
+      instructions: |
+        These are curl-to-shell install scripts. Users pipe them into a
+        privileged shell.
+        - Flag unquoted variable expansion and missing `set -euo pipefail`.
+        - Flag downloads without checksum or signature verification.
+        - Flag writes outside the documented install prefix.
+        - Flag behavior that differs between the sh and ps1 versions.
+
+    - path: "{docs/**,README.md}"
+      instructions: |
+        Docs are how users write blueprints. Treat drift between docs and
+        code as a defect, not a nit.
+        - Flag config keys, CLI flags, or blueprint fields documented here
+          that do not exist in the code on this branch.
+        - Flag examples that would fail against the current binary.
+        - Flag documented defaults that disagree with the code.
+        - Flag documentation of unshipped behavior.
+
+    - path: "examples/**"
+      instructions: |
+        Example blueprints are copy-pasted by users onto real machines.
+        - Flag examples using a processor field or action that no longer
+          exists.
+        - Flag examples that would run a destructive action without dry-run
+          being viable first.
+
+    - path: "**/*_test.go"
+      instructions: |
+        - Flag tests that assert on error strings instead of error types.
+        - Flag missing t.Parallel where the test is independent.
+        - Flag shared mutable state between subtests.
+        - Flag table tests missing the failure and boundary cases.
+        - Flag tests that touch the real filesystem, network, or package
+          managers instead of using internal/exectest or t.TempDir.
+
+  pre_merge_checks:
+    title:
+      mode: "warning"
+      requirements: |
+        Conventional-commit style prefix (feat/fix/docs/refactor/test/chore),
+        under 72 characters, describes the change not the file touched.
+    description:
+      mode: "warning"
+    issue_assessment:
+      mode: "warning"
+    docstrings:
+      mode: "off"
+
+    custom_checks:
+      - name: "OpenSpec for non-trivial changes"
+        mode: "warning"
+        instructions: |
+          Non-trivial work needs an OpenSpec change.
+          FAIL if the PR adds or changes behavior in internal/processors/**,
+          internal/system/**, internal/types/**, or cmd/** without touching
+          openspec/changes/** or openspec/specs/**.
+          PASS for pure refactors, test-only changes, dependency bumps,
+          docs, and CI config.
+
+      - name: "Docs updated with behavior"
+        mode: "warning"
+        instructions: |
+          Docs must ship with the behavior they describe.
+          FAIL if the PR does any of the following without a matching change
+          under docs/ or in README.md:
+            - adds, renames, or removes a blueprint field in internal/types/**
+            - adds or changes a CLI command or flag in cmd/**
+            - adds or changes a processor action in internal/processors/**
+            - changes package manager or provider support in
+              internal/system/definitions/**
+            - changes state or schema version semantics
+          PASS for internal refactors with no user-visible change, test-only
+          changes, dependency bumps, and CI config.
+
+      - name: "No new secret storage"
+        mode: "warning"
+        instructions: |
+          FAIL if the PR introduces code that writes a credential, token, or
+          private key to disk, environment, logs, or rwr state outside the
+          existing keyring paths in internal/credentials.
+          PASS otherwise.
+
+  slop_detection:
+    enabled: true
+    label: "slop"
+
+  tools:
+    golangci-lint:
+      enabled: true
+      config_file: ".golangci.yml"
+
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    shellcheck:
+      enabled: true
+    psscriptanalyzer:
+      enabled: true
+    gitleaks:
+      enabled: true
+    trufflehog:
+      enabled: true
+    yamllint:
+      enabled: true
+
+    # docs/ is in review scope, so prose tooling earns its place.
+    markdownlint:
+      enabled: true
+    languagetool:
+      enabled: true
+      level: "default"
+
+    # Overlaps govulncheck.
+    osvScanner:
+      enabled: false
+
+    # No source of these languages in the repo.
+    hadolint:
+      enabled: false
+    eslint:
+      enabled: false
+    biome:
+      enabled: false
+    oxc:
+      enabled: false
+    reactDoctor:
+      enabled: false
+    stylelint:
+      enabled: false
+    htmlhint:
+      enabled: false
+    ruff:
+      enabled: false
+    flake8:
+      enabled: false
+    pylint:
+      enabled: false
+    rubocop:
+      enabled: false
+    brakeman:
+      enabled: false
+    phpstan:
+      enabled: false
+    phpmd:
+      enabled: false
+    phpcs:
+      enabled: false
+    detekt:
+      enabled: false
+    swiftlint:
+      enabled: false
+    pmd:
+      enabled: false
+    clang:
+      enabled: false
+    cppcheck:
+      enabled: false
+    fbinfer:
+      enabled: false
+    luacheck:
+      enabled: false
+    prismaLint:
+      enabled: false
+    sqlfluff:
+      enabled: false
+    squawk:
+      enabled: false
+    shopifyThemeCheck:
+      enabled: false
+    smartyLint:
+      enabled: false
+    emberTemplateLint:
+      enabled: false
+    blinter:
+      enabled: false
+    fortitudeLint:
+      enabled: false
+    circleci:
+      enabled: false
+
+chat:
+  allow_non_org_members: false
+  auto_reply: true
+
+knowledge_base:
+  learnings:
+    scope: "local"
+  issues:
+    scope: "local"
+  code_guidelines:
+    enabled: true
+  web_search:
+    enabled: true
