@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // Applies folds the journal into applied entries: OK applies only, the
@@ -14,13 +15,28 @@ import (
 // history recorded before the event log survives it.
 func Applies(configDir string) ([]Entry, error) {
 	var entries []Entry
-	reversed := map[string]bool{}
+	// applyPos[i] is the journal position of entries[i]. The log is append
+	// only, so position is time: it is what lets a reversal be compared
+	// against the apply it is meant to undo.
+	var applyPos []int
+	// reversedAt holds the position of the most recent reverse per identity,
+	// not merely the fact that one exists. A reversal only cancels an apply
+	// that came before it: apply, uninstall, re-apply leaves the file on disk
+	// and the record has to say so.
+	reversedAt := map[string]int{}
+	position := 0
 
 	legacy, err := legacyEntries(configDir)
 	if err != nil {
 		return nil, err
 	}
-	entries = append(entries, legacy...)
+	// v1 records predate the event log, so every one of them sorts before
+	// every journal event.
+	for _, entry := range legacy {
+		entries = append(entries, entry)
+		applyPos = append(applyPos, position)
+		position++
+	}
 
 	file, err := os.Open(JournalPath(configDir)) // #nosec G304 -- rwr's own state directory
 	if err == nil {
@@ -34,6 +50,9 @@ func Applies(configDir string) ([]Entry, error) {
 			if json.Unmarshal(scanner.Bytes(), &event) != nil {
 				continue
 			}
+			// Every parsed event advances position, including the run and
+			// finish events, so positions stay strictly ordered.
+			position++
 			switch event.Kind {
 			case "apply":
 				if event.OK {
@@ -42,20 +61,24 @@ func Applies(configDir string) ([]Entry, error) {
 						Identity: event.Identity, Detail: event.Detail,
 						Outcome: event.Outcome, OK: event.OK, Elevated: event.Elevated,
 					})
+					applyPos = append(applyPos, position)
 				}
 			case "reverse":
-				reversed[event.Processor+"\x00"+identityString(event.Identity)] = true
+				reversedAt[Key(event.Processor, event.Identity)] = position
 			}
 		}
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	// Latest apply per identity wins; reversal marks apply to the identity.
+	// Latest apply per identity wins. The latest entry is the one kept, so
+	// its guard values (a file's sha256) are the ones consumers see - the
+	// hash of the content actually on disk after the most recent apply,
+	// which is what a hash-guarded delete needs.
 	latest := map[string]int{}
 	var order []string
 	for i, entry := range entries {
-		key := entry.Processor + "\x00" + identityString(entry.Identity)
+		key := Key(entry.Processor, entry.Identity)
 		if _, seen := latest[key]; !seen {
 			order = append(order, key)
 		}
@@ -63,8 +86,16 @@ func Applies(configDir string) ([]Entry, error) {
 	}
 	folded := make([]Entry, 0, len(order))
 	for _, key := range order {
-		entry := entries[latest[key]]
-		entry.Reversed = entry.Reversed || reversed[entry.Processor+"\x00"+identityString(entry.Identity)]
+		index := latest[key]
+		entry := entries[index]
+		// Reversed only when the reversal came after the apply being kept.
+		// Treating any reversal as cancelling the identity forever meant
+		// `rwr all`, `rwr uninstall`, `rwr all` left every re-applied unit
+		// looking reversed: uninstall would not offer to remove it again and
+		// status did not count it, while the thing was sitting on disk.
+		if pos, ok := reversedAt[key]; ok && pos > applyPos[index] {
+			entry.Reversed = true
+		}
 		folded = append(folded, entry)
 	}
 	return folded, nil
@@ -85,18 +116,44 @@ func Unreversed(configDir string) ([]Entry, error) {
 	return kept, nil
 }
 
-// identityString renders an identity deterministically for keying.
-func identityString(identity map[string]string) string {
+// guardKeys are identity entries that describe the state a unit was left in
+// rather than which unit it is.
+//
+// They travel inside Identity because consumers need them next to the thing
+// they guard: uninstall refuses to delete a file whose content no longer
+// matches the recorded sha256. But two applies that differ only in a guard are
+// the same unit, and folding has to say so.
+//
+// Including sha256 in the fold key meant re-applying a file with changed
+// content produced a brand new identity. The previous entry never folded away
+// and stayed unreversed forever, so the journal accreted one permanent entry
+// per content version, `rwr uninstall` planned N deletes for one path (N-1
+// reporting "already absent"), and `rwr status` could report a live file as
+// stale.
+var guardKeys = map[string]bool{"sha256": true}
+
+// Key renders the identifying part of an identity deterministically, so the
+// same unit keys the same way across runs and across a reversal.
+func Key(processor string, identity map[string]string) string {
 	keys := make([]string, 0, len(identity))
 	for k := range identity {
+		if guardKeys[k] {
+			continue
+		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	s := ""
+
+	var b strings.Builder
+	b.WriteString(processor)
+	b.WriteString("\x00")
 	for _, k := range keys {
-		s += k + "=" + identity[k] + ";"
+		b.WriteString(k)
+		b.WriteString("=")
+		b.WriteString(identity[k])
+		b.WriteString(";")
 	}
-	return s
+	return b.String()
 }
 
 // legacyEntries reads the v1 per-run record files this format replaced.
