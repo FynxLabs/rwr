@@ -5,7 +5,7 @@ go 1.26
 require (
 	charm.land/bubbletea/v2 v2.0.8
 	charm.land/huh/v2 v2.0.3
-	charm.land/lipgloss/v2 v2.0.5
+	charm.land/lipgloss/v2 v2.0.6
 	charm.land/log/v2 v2.0.0
 	cuelang.org/go v0.17.1
 	github.com/BurntSushi/toml v1.6.0
@@ -33,8 +33,8 @@ require (
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7 // indirect
-	github.com/charmbracelet/x/ansi v0.11.7 // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260811164956-006e29f97886 // indirect
+	github.com/charmbracelet/x/ansi v0.11.8 // indirect
 	github.com/charmbracelet/x/exp/ordered v0.1.0 // indirect
 	github.com/charmbracelet/x/exp/strings v0.1.0 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
@@ -61,7 +61,7 @@ require (
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
-	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
+	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mattn/go-runewidth v0.0.27 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
