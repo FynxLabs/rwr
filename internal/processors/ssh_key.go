@@ -266,11 +266,23 @@ func setAsRWRSSHKey(keyPath string) error {
 		return fmt.Errorf("error reading private key file: %v", err)
 	}
 
-	// Encode the private key as base64
+	// Encode the private key as base64. helpers.getSSHAuthMethod decodes this
+	// form; it is also what --ssh-key accepts, so the two agree.
 	encodedKey := base64.StdEncoding.EncodeToString(privateKey)
 
 	// Set the encoded key in Viper configuration
 	viper.Set("repository.ssh_private_key", encodedKey)
+
+	// The file is about to hold a private key, and viper writes at 0644 with
+	// no way to ask for less. Pre-creating it at 0600 means the key is never
+	// on disk world-readable, not even for the length of the write. The
+	// GitHub token path has done this since #234; this one still wrote first
+	// and tightened afterwards, on the more sensitive of the two secrets.
+	if path := viper.ConfigFileUsed(); path != "" {
+		if err := helpers.PrecreateSecureConfigFile(path); err != nil {
+			return err
+		}
+	}
 
 	// Write the updated configuration to file
 	err = viper.WriteConfig()
@@ -278,7 +290,8 @@ func setAsRWRSSHKey(keyPath string) error {
 		return fmt.Errorf("error writing updated configuration: %v", err)
 	}
 
-	// viper writes at 0644, and this file now contains the private key.
+	// Belt and braces: ConfigFileUsed is empty when no config was loaded, so
+	// WriteConfig may have created the file itself at 0644.
 	if err := helpers.SecureConfigFile(viper.ConfigFileUsed()); err != nil {
 		return fmt.Errorf("error restricting configuration permissions: %w", err)
 	}

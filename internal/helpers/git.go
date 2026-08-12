@@ -1,8 +1,10 @@
 package helpers
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io/fs"
 	neturl "net/url"
 	"os"
 	"path/filepath"
@@ -157,25 +159,90 @@ func getHTTPAuthMethod(rawURL string, initConfig *types.InitConfig) (transport.A
 	}, nil
 }
 
+// sshKeyMaterial decides whether a configured ssh key value is the key itself
+// rather than a path to it, and returns the PEM bytes when it is.
+//
+// Two forms count as the key itself:
+//
+//   - the PEM as written, which contains newlines (an "ssh-" prefix is
+//     accepted too, though that is a public key and go-git will reject it
+//     later with a better message than a stat failure would).
+//   - base64 of that PEM. This is the form set_as_rwr_ssh_key writes into
+//     repository.ssh_private_key and the form --ssh-key documents, and
+//     nothing decoded it: base64 has no newlines and no "ssh-" prefix, so it
+//     fell through to the file-path branch and rwr tried to open the blob as
+//     a filename. set_as_rwr_ssh_key produced a config value that could never
+//     authenticate anything.
+//
+// The decode has to prove itself: a bare filename can be valid base64 by
+// accident, so the decoded bytes must actually look like a key before they are
+// treated as one, and anything else stays a path.
+func sshKeyMaterial(value string) ([]byte, bool) {
+	if strings.Contains(value, "\n") || strings.HasPrefix(value, "ssh-") {
+		log.Debugf("Using the SSH key material as supplied")
+		return []byte(value), true
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(value))
+	if err != nil {
+		return nil, false
+	}
+	if !looksLikeSSHKey(decoded) {
+		return nil, false
+	}
+	log.Debugf("Using base64-encoded SSH key material")
+	return decoded, true
+}
+
+// looksLikeSSHKey reports whether bytes are plausibly an SSH key, so a path
+// that happens to decode as base64 is not mistaken for one.
+func looksLikeSSHKey(data []byte) bool {
+	text := string(data)
+	return strings.Contains(text, "PRIVATE KEY") || strings.HasPrefix(text, "ssh-")
+}
+
+// truncateForError keeps a bad ssh key value out of the log at full length: it
+// may be the key itself, and the point of the message is which value was
+// rejected, not what it contained.
+func truncateForError(value string) string {
+	const max = 32
+	if len(value) <= max {
+		return value
+	}
+	return value[:max] + "..."
+}
+
 func getSSHAuthMethod(initConfig *types.InitConfig) (transport.AuthMethod, error) {
 	// Use the specified SSH key or try to find a suitable key
 	sshKeyValue := initConfig.Variables.Flags.SSHKey
 
-	// Check if the value is a Base64-encoded key or a file path
+	// The value is key material (raw or base64) or a path to a key file.
 	if sshKeyValue != "" {
-		// If the value contains newlines or begins with "ssh-", it's likely a Base64-encoded key
-		if strings.Contains(sshKeyValue, "\n") || strings.HasPrefix(sshKeyValue, "ssh-") {
-			log.Debugf("Using Base64-encoded SSH key")
-			auth, err := ssh.NewPublicKeys("git", []byte(sshKeyValue), "")
+		if material, ok := sshKeyMaterial(sshKeyValue); ok {
+			auth, err := ssh.NewPublicKeys("git", material, "")
 			if err != nil {
-				return nil, fmt.Errorf("error creating SSH authentication from Base64 key: %w", err)
+				return nil, fmt.Errorf("error creating SSH authentication from the supplied key: %w", err)
 			}
 			return auth, nil
 		}
 
-		// Treat as a file path
-		if _, err := os.Stat(sshKeyValue); os.IsNotExist(err) {
-			return nil, fmt.Errorf("specified SSH key file does not exist: %s", sshKeyValue)
+		// Treat as a file path. Any stat failure disqualifies it, not just
+		// ENOENT: a base64 blob that failed to decode stats as ENAMETOOLONG,
+		// and reporting that as "error creating SSH authentication from file:
+		// open LS0tLS1CRUdJTi...: file name too long" told the operator
+		// nothing about what was actually wrong.
+		//
+		// The PathError's own Err is what gets wrapped, never the PathError
+		// itself: its message repeats the whole path, and when this value is
+		// key material rather than a path that is the private key going into
+		// an error string.
+		if _, err := os.Stat(sshKeyValue); err != nil {
+			reason := err
+			var pathErr *fs.PathError
+			if errors.As(err, &pathErr) {
+				reason = pathErr.Err
+			}
+			return nil, fmt.Errorf("ssh key %q is neither a readable file nor recognisable key material: %w", truncateForError(sshKeyValue), reason)
 		}
 
 		auth, err := ssh.NewPublicKeysFromFile("git", sshKeyValue, "")
