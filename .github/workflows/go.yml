@@ -53,16 +53,22 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: ./scripts/coverage-gate.sh coverage.out
 
-      # The same run on macOS and Windows, reporting only.
-      #
-      # The suite has never executed on either platform, and a good deal of it
-      # assumes POSIX behaviour - unix file modes, /bin/bash, path separators.
-      # Gating on it immediately would paint master red for reasons unrelated to
-      # whatever change is being reviewed. This surfaces the failures so they can
-      # be triaged and skipped or fixed at their source; delete continue-on-error
-      # once that is done, so the platforms rwr provisions are really tested.
-      - name: Test (macOS/Windows, not yet gating)
-        if: matrix.os != 'ubuntu-latest'
+      # macOS gates. The suite passes there now: the two failures that kept it
+      # from gating were both fixtures describing a machine that cannot exist
+      # (a Mac with no package manager at all), not platform gaps in the code.
+      # Contributors on a Mac run this same suite in the hk pre-push hook, so a
+      # non-gating macOS leg meant CI was weaker than the hook they already run.
+      - name: Test (macOS)
+        if: matrix.os == 'macos-latest'
+        run: go test -race -v ./...
+
+      # Windows is still reporting only. A good deal of the suite assumes POSIX
+      # behaviour - unix file modes, /bin/bash, path separators - and nobody has
+      # triaged what that costs there yet. This surfaces the failures so they can
+      # be fixed at their source; delete continue-on-error once that is done, so
+      # every platform rwr provisions is really tested.
+      - name: Test (Windows, not yet gating)
+        if: matrix.os == 'windows-latest'
         continue-on-error: true
         run: go test -race -v ./...
 

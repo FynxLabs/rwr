@@ -61,6 +61,7 @@ func TestAll_HeadlessOutputUnchanged(t *testing.T) {
 	osInfo := &types.OSInfo{}
 	osInfo.System.OS = runtime.GOOS
 	osInfo.Tools.Bash = types.ToolInfo{Exists: true, Bin: "/bin/bash"}
+	givePackageManager(osInfo, bin)
 
 	if err := All(initConfig, osInfo, []string{"packages", "scripts"}); err != nil {
 		t.Fatalf("All: %v", err)
@@ -120,6 +121,7 @@ func TestAll_NonInteractiveCollectsErrorsAndContinues(t *testing.T) {
 	osInfo := &types.OSInfo{}
 	osInfo.System.OS = runtime.GOOS
 	osInfo.Tools.Bash = types.ToolInfo{Exists: true, Bin: "/bin/bash"}
+	givePackageManager(osInfo, "sh")
 
 	err := All(initConfig, osInfo, []string{"scripts", "files"})
 	if err == nil {
