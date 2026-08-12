@@ -11,6 +11,7 @@ import (
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/credentials"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
 )
@@ -43,7 +44,9 @@ func PromptGitHubAuthMethod() (GitHubAuthChoice, error) {
 		),
 	)
 
-	err := form.Run()
+	// Through the terminal lease, never bare: a form that reads stdin while
+	// the TUI owns it freezes the run (and ctrl-c with it).
+	err := reporting.WithTerminal(form.Run)
 	if err != nil {
 		return "", fmt.Errorf("authentication prompt failed: %w", err)
 	}
@@ -67,7 +70,7 @@ func PromptGitHubToken() (string, error) {
 		),
 	)
 
-	err := form.Run()
+	err := reporting.WithTerminal(form.Run)
 	if err != nil {
 		return "", fmt.Errorf("token entry failed: %w", err)
 	}
@@ -188,7 +191,7 @@ func PromptConfirmTokenReplace() (bool, error) {
 		),
 	)
 
-	err := form.Run()
+	err := reporting.WithTerminal(form.Run)
 	if err != nil {
 		return false, fmt.Errorf("confirmation prompt failed: %w", err)
 	}

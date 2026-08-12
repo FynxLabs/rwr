@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -41,6 +42,10 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	openJournal(initConfig.Init.Location)
 	defer closeJournal()
 
+	// Imported blueprint files resolve templates against the same variables
+	// as the files that import them (see helpers.SetTemplateVariables).
+	defer helpers.SetTemplateVariables(&initConfig.Variables)()
+
 	log.Debugf("ForceBootstrap: %v", initConfig.Variables.Flags.ForceBootstrap)
 
 	if system.IsDryRun() {
@@ -55,8 +60,12 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		return fmt.Errorf("error initializing blueprints: %w", err)
 	}
 
-	// Check if macOS and no package manager is installed
-	if osInfo.System.OS == types.OSDarwin {
+	// Check if macOS and no package manager is installed. A tree that declares
+	// packageManagers in its init file has already said what to install - the
+	// ProcessPackageManagers call below handles those (installing any that are
+	// missing), so the ask-and-install fallback is only for trees that declare
+	// nothing.
+	if osInfo.System.OS == types.OSDarwin && len(initConfig.PackageManagers) == 0 {
 		// Check if any package manager is installed
 		hasPackageManager := false
 		for _, pm := range osInfo.PackageManager.Managers {
@@ -69,6 +78,9 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		if !hasPackageManager {
 			log.Info("No package manager detected on macOS. Installing one is required to proceed.")
 
+			// PromptUserChoice runs under the terminal lease, so it is safe
+			// both headless and under the TUI (the dashboard suspends around
+			// it instead of deadlocking the stdin read).
 			var chosenPM string
 			if initConfig.Variables.Flags.Interactive {
 				chosenPM = system.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
@@ -138,6 +150,22 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	// Process each blueprint in order
 	for _, processor := range blueprintRunOrder {
 		if files, ok := fileOrder[processor]; ok {
+			// One ProcStarted per processor, one ProcFinished when its files
+			// are done. Started used to fire once per FILE, and Finished was
+			// never emitted at all - so the dashboard showed every processor
+			// that had ever started as still running, forever.
+			procStarted := time.Now()
+			reporting.SetCurrentProcessor(processor)
+			reporting.Emit(reporting.ProcStarted{Processor: processor, Files: len(files)})
+			var procErr error
+			// Every abort between ProcStarted and the loop's end must emit
+			// the matching ProcFinished, or the display counts this
+			// processor as running forever - spinner, clock, taskbar
+			// progress all wrong on the final frame.
+			fatal := func(ferr error) error {
+				reporting.Emit(reporting.ProcFinished{Processor: processor, Err: ferr, Dur: time.Since(procStarted)})
+				return ferr
+			}
 			for _, file := range files {
 				blueprintFile := filepath.Join(initConfig.Init.Location, file)
 				log.Debugf("Processing blueprint file: %s", blueprintFile)
@@ -153,17 +181,17 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				// outright on an extensionless file.
 				format, err := helpers.FormatForPath(blueprintFile)
 				if err != nil {
-					return err
+					return fatal(err)
 				}
 
 				blueprintData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 				if err != nil {
-					return fmt.Errorf("error reading blueprint file %s: %w", blueprintFile, err)
+					return fatal(fmt.Errorf("error reading blueprint file %s: %w", blueprintFile, err))
 				}
 
 				resolvedBlueprint, err := helpers.ResolveTemplate(blueprintData, initConfig.Variables)
 				if err != nil {
-					return fmt.Errorf("error resolving variables in %s: %w", processor, err)
+					return fatal(fmt.Errorf("error resolving variables in %s: %w", processor, err))
 				}
 
 				// A multi-type file (content-routed into several buckets) is cut
@@ -171,53 +199,73 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				// through untouched and keep strict decode's typo protection.
 				resolvedBlueprint, format, err = subsetForProcessor(resolvedBlueprint, format, processor)
 				if err != nil {
-					return fmt.Errorf("error preparing %s for the %s processor: %w", blueprintFile, processor, err)
+					return fatal(fmt.Errorf("error preparing %s for the %s processor: %w", blueprintFile, processor, err))
 				}
 
-				// One event instead of ten near-identical log lines; the
-				// LogReporter renders exactly what those lines printed. The
-				// processor stamp is what attributes every captured log line
-				// without touching the ten processor files.
-				reporting.SetCurrentProcessor(processor)
-				reporting.Emit(reporting.ProcStarted{Processor: processor, Files: len(files)})
-
-				switch processor {
-				case types.BlueprintTypeRepositories:
-					err = ProcessRepositories(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case types.BlueprintTypePackages:
-					err = ProcessPackages(resolvedBlueprint, nil, blueprintDir, format, osInfo, initConfig)
-				case types.BlueprintTypeFiles:
-					err = ProcessFiles(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case types.BlueprintTypeServices:
-					err = ProcessServices(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case types.BlueprintTypeUsers:
-					err = ProcessUsers(resolvedBlueprint, blueprintDir, format, initConfig)
-				case types.BlueprintTypeGit:
-					err = ProcessGitRepositories(resolvedBlueprint, blueprintDir, format, initConfig)
-				case types.BlueprintTypeScripts:
-					err = ProcessScripts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case types.BlueprintTypeSSHKeys:
-					err = ProcessSSHKeys(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case types.BlueprintTypeFonts:
-					err = ProcessFonts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-				case types.BlueprintTypeConfiguration:
-					err = ProcessConfiguration(resolvedBlueprint, blueprintDir, format, initConfig)
-				default:
-					reporting.Emit(reporting.ProcSkipped{Processor: processor, Reason: "unknown processor"})
-					continue
-				}
-
-				if err != nil {
-					// Interactive runs halt so the operator can react; a
-					// headless run pushes through, collects, and exits
-					// nonzero - the first error aborting used to leave every
-					// later processor silently unrun in CI.
-					if initConfig.Variables.Flags.Interactive {
-						return fmt.Errorf("error processing %s: %w", processor, err)
+				dispatch := func() error {
+					switch processor {
+					case types.BlueprintTypeRepositories:
+						return ProcessRepositories(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
+					case types.BlueprintTypePackages:
+						return ProcessPackages(resolvedBlueprint, nil, blueprintDir, format, osInfo, initConfig)
+					case types.BlueprintTypeFiles:
+						return ProcessFiles(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
+					case types.BlueprintTypeServices:
+						return ProcessServices(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
+					case types.BlueprintTypeUsers:
+						return ProcessUsers(resolvedBlueprint, blueprintDir, format, initConfig)
+					case types.BlueprintTypeGit:
+						return ProcessGitRepositories(resolvedBlueprint, blueprintDir, format, initConfig)
+					case types.BlueprintTypeScripts:
+						return ProcessScripts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
+					case types.BlueprintTypeSSHKeys:
+						return ProcessSSHKeys(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
+					case types.BlueprintTypeFonts:
+						return ProcessFonts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
+					case types.BlueprintTypeConfiguration:
+						return ProcessConfiguration(resolvedBlueprint, blueprintDir, format, initConfig)
+					default:
+						reporting.Emit(reporting.ProcSkipped{Processor: processor, Reason: "unknown processor"})
+						return nil
 					}
-					stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
+				}
+
+				for {
+					err = dispatch()
+					if err == nil {
+						break
+					}
+					if !initConfig.Variables.Flags.Interactive {
+						// Headless pushes through, collects, and exits
+						// nonzero - the first error aborting used to leave
+						// every later processor silently unrun in CI.
+						if procErr == nil {
+							procErr = err
+						}
+						stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
+						break
+					}
+					// Interactive halts and asks: retry re-runs this file
+					// (providers are idempotent, so completed items skip fast
+					// and only the failures re-attempt), skip records the
+					// error and moves on, abort ends the run.
+					switch reporting.RequestHalt(processor, err) {
+					case reporting.HaltRetry:
+						log.Warnf("Retrying %s after error: %v", processor, err)
+						continue
+					case reporting.HaltSkip:
+						log.Warnf("Skipping past %s error: %v", processor, err)
+						if procErr == nil {
+							procErr = err
+						}
+						stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
+					default: // abort
+						return fatal(fmt.Errorf("error processing %s: %w", processor, err))
+					}
+					break
 				}
 			}
+			reporting.Emit(reporting.ProcFinished{Processor: processor, Err: procErr, Dur: time.Since(procStarted)})
 		}
 	}
 

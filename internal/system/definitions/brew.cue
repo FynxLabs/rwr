@@ -3,6 +3,16 @@ package providers
 providers: "brew": {
  "name": "brew",
  "elevated": false,
+ // Homebrew 6 made "ask mode" the default: every install stops at a
+ // "Do you want to proceed? [y/n]" prompt, which deadlocks an automated
+ // run. HOMEBREW_NO_ASK restores unattended installs (older brew ignores
+ // it; a -y flag would be rejected by older brew as an unknown option).
+ // NONINTERACTIVE does the same for Homebrew's official install.sh used
+ // by the bootstrap steps below (it skips the "Press RETURN" prompt).
+ "environment": {
+  "HOMEBREW_NO_ASK": "1",
+  "NONINTERACTIVE": "1"
+ },
  "detection": {
   "binary": "brew",
   "files": [
@@ -109,6 +119,20 @@ providers: "brew": {
       "tap",
       "{{ .URL }}"
      ]
+    },
+    // Homebrew 6 refuses to load formulae/casks from untrusted third-party
+    // taps until `brew trust` records them. Declaring the tap in a blueprint
+    // IS the operator's trust decision, so trust follows the tap. Optional:
+    // older brew has no trust command and must not fail the add.
+    {
+     "action": "command",
+     "exec": "brew",
+     "args": [
+      "trust",
+      "--tap",
+      "{{ .URL }}"
+     ],
+     "optional": true
     }
    ]
   },

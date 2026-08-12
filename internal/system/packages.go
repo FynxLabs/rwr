@@ -46,9 +46,10 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Install each package
 	log.Debugf("Installing OpenSSL packages with %s: %v", provider.Name, packages)
 	installCmd := types.Command{
-		Exec:     provider.BinPath,
-		Args:     append(strings.Fields(provider.Commands.Install), packages...),
-		Elevated: provider.Elevated,
+		Exec:      provider.BinPath,
+		Args:      append(strings.Fields(provider.Commands.Install), packages...),
+		Elevated:  provider.Elevated,
+		Variables: provider.Environment,
 	}
 
 	if err := RunCommand(installCmd, initConfig.Variables.Flags.Debug); err != nil {
@@ -99,9 +100,10 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 	// Install each package
 	log.Debugf("Installing build essential packages with %s: %v", provider.Name, packages)
 	installCmd := types.Command{
-		Exec:     provider.BinPath,
-		Args:     append(strings.Fields(provider.Commands.Install), packages...),
-		Elevated: provider.Elevated,
+		Exec:      provider.BinPath,
+		Args:      append(strings.Fields(provider.Commands.Install), packages...),
+		Elevated:  provider.Elevated,
+		Variables: provider.Environment,
 	}
 
 	if err := RunCommand(installCmd, initConfig.Variables.Flags.Debug); err != nil {

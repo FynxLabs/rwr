@@ -613,3 +613,44 @@ func TestProcessPackages_NamesWinsOverName(t *testing.T) {
 		t.Errorf("missing installs %v; recorded %v", want, installed)
 	}
 }
+
+// A package entry whose declared package_manager is not available must land in
+// the failure ledger, not be silently skipped: a machine without cargo used to
+// "successfully" run a tree whose entire cargo file installed nothing, and the
+// run exited 0. The run keeps going (other entries still process) but the
+// ledger puts the miss in the exit code.
+func TestProcessPackages_UnavailableManagerIsFailure(t *testing.T) {
+	useTestProvider(t)
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+	resetFailures()
+	t.Cleanup(resetFailures)
+
+	data := []byte("packages:\n" +
+		"  - name: bandwhich\n    action: install\n    package_manager: cargo\n" +
+		"  - name: vim\n    action: install\n    package_manager: pacman\n")
+	if err := ProcessPackages(data, nil, t.TempDir(), "yaml", newTestOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessPackages: %v", err)
+	}
+
+	err := failureError()
+	if err == nil {
+		t.Fatal("unavailable package manager was not recorded as a failure")
+	}
+	if !strings.Contains(err.Error(), "cargo") || !strings.Contains(err.Error(), "bandwhich") {
+		t.Fatalf("failure does not name the manager and package: %v", err)
+	}
+
+	// The available-manager entry still ran: the miss must not abort the rest.
+	var sawVim bool
+	for _, call := range rec.Calls {
+		for _, arg := range call.Args {
+			if arg == "vim" {
+				sawVim = true
+			}
+		}
+	}
+	if !sawVim {
+		t.Fatalf("pacman entry did not run after the cargo failure; calls: %v", rec.Calls)
+	}
+}

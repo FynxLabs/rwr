@@ -24,12 +24,21 @@ func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting blueprint run order: %w", err)
 	}
-	plan.Order = order
 
 	location := initConfig.Init.Location
 	fileOrder, err := GetBlueprintFileOrder(location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error getting blueprint file order: %w", err)
+	}
+
+	// The plan's order carries only the processors this tree configures. The
+	// executor already skips processors with no files; keeping them in the
+	// plan just rendered phantom rows (a tree with no ssh_keys blueprints
+	// showed an ssh_keys processor pending forever).
+	for _, processor := range order {
+		if _, ok := fileOrder[processor]; ok {
+			plan.Order = append(plan.Order, processor)
+		}
 	}
 
 	for processor, files := range fileOrder {

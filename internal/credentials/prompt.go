@@ -6,6 +6,7 @@ import (
 
 	"charm.land/huh/v2"
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"golang.org/x/term"
 )
 
@@ -35,7 +36,7 @@ var promptForCredential = func(name, description string) (string, error) {
 				}),
 		),
 	)
-	if err := form.Run(); err != nil {
+	if err := reporting.WithTerminal(form.Run); err != nil {
 		return "", fmt.Errorf("prompt for credential %q failed: %w", name, err)
 	}
 	return value, nil
@@ -57,7 +58,7 @@ var offerKeyringSave = func(name, value string) {
 				Value(&confirm),
 		),
 	)
-	if err := form.Run(); err != nil || !confirm {
+	if err := reporting.WithTerminal(form.Run); err != nil || !confirm {
 		return
 	}
 	if err := SaveToKeyring(name, value); err != nil {

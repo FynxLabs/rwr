@@ -4,9 +4,42 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/types"
 )
+
+// importVariables are the template variables imported blueprint files resolve
+// against. The run entry points set them once (the executor seam pattern);
+// without this, an imported file's `{{ .User.home }}` stayed literal - the
+// top-level file went through ResolveTemplate in the run loop, but imports
+// were read and decoded raw, and rwr created a directory literally named
+// "{{ .User.home }}" in the working directory.
+var (
+	importVarsMu    sync.RWMutex
+	importVariables *types.Variables
+)
+
+// SetTemplateVariables installs the variables imports resolve against
+// (nil clears). Returns a restore func for tests.
+func SetTemplateVariables(vars *types.Variables) (restore func()) {
+	importVarsMu.Lock()
+	previous := importVariables
+	importVariables = vars
+	importVarsMu.Unlock()
+	return func() {
+		importVarsMu.Lock()
+		importVariables = previous
+		importVarsMu.Unlock()
+	}
+}
+
+func templateVariables() *types.Variables {
+	importVarsMu.RLock()
+	defer importVarsMu.RUnlock()
+	return importVariables
+}
 
 // ResolveImports expands `import:` entries into the items they name, following
 // imports that the imported files declare in turn.
@@ -63,6 +96,17 @@ func resolveImports[T any](
 		data, err := os.ReadFile(fullPath) // #nosec G304 -- path is inside the operator's own blueprint tree; containment added in PR8
 		if err != nil {
 			return nil, fmt.Errorf("error reading import file %s: %w", fullPath, err)
+		}
+
+		// Imported files get the same template resolution the importing file
+		// got in the run loop - `{{ .User.home }}` in an imported blueprint
+		// must not survive to execution as a literal path.
+		if vars := templateVariables(); vars != nil {
+			resolved, resolveErr := ResolveTemplate(data, *vars)
+			if resolveErr != nil {
+				return nil, fmt.Errorf("error resolving variables in import %s: %w", fullPath, resolveErr)
+			}
+			data = resolved
 		}
 
 		// The imported file's own extension decides its format; the importing

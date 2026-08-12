@@ -10,8 +10,16 @@ import (
 // and the resource enumeration the lanes count. It cannot run earlier -
 // bootstrap can install the package manager later blueprints depend on, so
 // detecting providers before it produces wrong lanes.
-func ResolveStage2(plan *types.Plan) {
-	for name, provider := range system.GetAvailableProviders() {
+//
+// osInfo picks the default provider for entries that do not pin a
+// package_manager (nil falls back to the alphabetically first available).
+// The plan must name the provider the executor will actually use: keying
+// unpinned entries on "" put them in an "items" lane that no runtime
+// LaneUpdate (which keys on the resolved provider) ever touched, so the
+// checklist showed a full brew bar and a ghost pending lane forever.
+func ResolveStage2(plan *types.Plan, osInfo *types.OSInfo) {
+	available := system.GetAvailableProviders()
+	for name, provider := range available {
 		plan.Providers = append(plan.Providers, types.ProviderState{
 			Name:      name,
 			Available: true,
@@ -19,9 +27,14 @@ func ResolveStage2(plan *types.Plan) {
 		})
 	}
 
+	defaultProvider := ""
+	if provider, ok := defaultProviderFor(osInfo, available); ok {
+		defaultProvider = provider.Name
+	}
+
 	for processor, files := range plan.Files {
 		for _, file := range files {
-			plan.Resources = append(plan.Resources, enumerateResources(processor, file)...)
+			plan.Resources = append(plan.Resources, enumerateResources(processor, file, defaultProvider)...)
 		}
 	}
 }
@@ -29,11 +42,17 @@ func ResolveStage2(plan *types.Plan) {
 // enumerateResources lists the planned units of work one resolved file
 // declares. Decode failures return nothing here: stage 1 already reported
 // them as diagnostics, and stage 2 must not duplicate the noise.
-func enumerateResources(processor string, file types.ResolvedFile) []types.Resource {
+// defaultProvider fills in for package/repository entries that do not pin a
+// package_manager, matching what the executor will resolve at run time.
+func enumerateResources(processor string, file types.ResolvedFile, defaultProvider string) []types.Resource {
+	usesProviders := processor == types.BlueprintTypePackages || processor == types.BlueprintTypeRepositories
 	var resources []types.Resource
 	add := func(provider, name, action string) {
 		if name == "" {
 			return
+		}
+		if provider == "" && usesProviders {
+			provider = defaultProvider
 		}
 		resources = append(resources, types.Resource{
 			Processor: processor,

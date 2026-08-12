@@ -39,7 +39,7 @@ routed interactively into the tree (--into). Diff never touches the system.`,
 			if err != nil {
 				return err
 			}
-			processors.ResolveStage2(plan)
+			processors.ResolveStage2(plan, app.OSInfo)
 			applies, err := state.Applies(viper.GetString("rwr.configdir"))
 			if err != nil {
 				return err

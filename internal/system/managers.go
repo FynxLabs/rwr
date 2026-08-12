@@ -41,7 +41,7 @@ func setDefaultManager(osInfo *types.OSInfo, preferred []string) {
 	for _, name := range preferred {
 		if pm, ok := osInfo.PackageManager.Managers[name]; ok && pm.Bin != "" {
 			osInfo.PackageManager.Default = pm
-			log.Infof("Set %s as default package manager", pm.Name)
+			log.Debugf("Set %s as default package manager", pm.Name)
 			return
 		}
 	}
@@ -55,7 +55,7 @@ func setDefaultManager(osInfo *types.OSInfo, preferred []string) {
 	for _, name := range names {
 		if pm := osInfo.PackageManager.Managers[name]; pm.Bin != "" {
 			osInfo.PackageManager.Default = pm
-			log.Infof("Set %s as default package manager", pm.Name)
+			log.Debugf("Set %s as default package manager", pm.Name)
 			return
 		}
 	}

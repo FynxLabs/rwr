@@ -290,6 +290,13 @@ func initializeSystemInfo(app *AppConfig, selectedProcessors ...string) error {
 	}
 
 	app.OSInfo = system.DetectOS()
+
+	// The detected system feeds the blueprint template variables. They were
+	// never wired: every `{{ .System.osArch }}` in a blueprint rendered
+	// against empty strings, so arch-conditional templates always took their
+	// else branch - a users blueprint chose the Intel homebrew path for the
+	// login shell on an Apple Silicon machine and broke every new terminal.
+	app.InitConfig.Variables.System = app.OSInfo.System
 	return nil
 }
 

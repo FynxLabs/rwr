@@ -96,6 +96,11 @@ type ActionStep struct {
 	// was dropped and mutually exclusive steps all ran - flatpak added a remote
 	// both --user and --system, chocolatey added a source twice.
 	Condition string `toml:"condition,omitempty"`
+	// Optional marks a step whose failure is logged but does not fail the
+	// action. For steps that only exist on some tool versions: brew 6's
+	// `brew trust` does not exist on older brew, and the tap add must not
+	// fail there because the trust step after it cannot run.
+	Optional bool `toml:"optional,omitempty"`
 }
 
 // GetCorePackagesForDistro returns the appropriate core packages for a given distribution
