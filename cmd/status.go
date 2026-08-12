@@ -25,7 +25,7 @@ mutates and never elevates. Exits 1 on drift.`,
 			if err != nil {
 				return err
 			}
-			processors.ResolveStage2(plan)
+			processors.ResolveStage2(plan, app.OSInfo)
 			applies, err := state.Applies(viper.GetString("rwr.configdir"))
 			if err != nil {
 				return err

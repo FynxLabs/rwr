@@ -167,10 +167,10 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 				Args:      step.Args,
 				Elevated:  provider.Elevated,
 				Variables: provider.Environment,
-				// Same routing as packages: the terminal is handed over only on
-				// an explicit per-item `interactive: true` or when sudo may
-				// prompt - not for every step of every repository.
-				Interactive: helpers.ResolveInteractive(repo.Interactive, initConfig.Variables.Flags.Interactive && provider.Elevated),
+				// Same routing as packages: terminal handover only on an
+				// explicit per-item `interactive: true`; sudo's password is
+				// served by ensureSudoCredentials before captured commands.
+				Interactive: helpers.ResolveInteractive(repo.Interactive, false),
 				// chocolatey's --password and cargo's login token are accepted
 				// only as arguments, so they cannot move to stdin. They can at
 				// least be kept out of the debug and dry-run log lines, which

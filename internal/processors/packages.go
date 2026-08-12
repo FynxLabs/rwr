@@ -176,22 +176,22 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 			}
 
 			// Execute command directly with environment variables
-			elevated := provider.Elevated || pkg.Elevated
 			cmd := types.Command{
 				Exec: provider.BinPath,
 				Args: args,
 				// The provider decides whether its package manager needs elevation;
 				// a blueprint may ask for it on top (a user-scoped manager invoked
 				// against a system path), but may not take it away.
-				Elevated:  elevated,
+				Elevated:  provider.Elevated || pkg.Elevated,
 				Variables: provider.Environment,
-				// Terminal handover only when this command can actually need
-				// one: an explicit per-item `interactive: true`, or sudo that
-				// may prompt for a password. Routing EVERY package through the
-				// terminal (the old behavior under the default interactive
-				// run) suspended the TUI per package and splattered raw
-				// package-manager output across the dashboard.
-				Interactive: helpers.ResolveInteractive(pkg.Interactive, initConfig.Variables.Flags.Interactive && elevated),
+				// Terminal handover only on an explicit per-item
+				// `interactive: true`. Routing every package through the
+				// terminal suspended the TUI per package and splattered raw
+				// package-manager output across the dashboard - and the one
+				// legitimate need, sudo's password prompt, is served by
+				// ensureSudoCredentials validating before captured elevated
+				// commands run.
+				Interactive: helpers.ResolveInteractive(pkg.Interactive, false),
 			}
 			started := time.Now()
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {

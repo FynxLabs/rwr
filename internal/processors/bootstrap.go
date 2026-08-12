@@ -34,7 +34,19 @@ func RunBootstrap(initConfig *types.InitConfig, osInfo *types.OSInfo) error {
 	// path has already set it by the time bootstrap runs.
 	defer helpers.SetTemplateVariables(&initConfig.Variables)()
 
-	return ProcessBootstrap(bootstrapFile, initConfig, osInfo)
+	// The standalone entry owns its exit code: recorded step failures
+	// (record-and-continue paths like a failed SSH-key upload) must reach
+	// it, or `rwr bootstrap` exits 0 for a bootstrap the code itself
+	// considered failed and refused to mark. All() keeps its own ledger
+	// check at run end, so this stays out of ProcessBootstrap.
+	failuresBefore := failureCount()
+	if err := ProcessBootstrap(bootstrapFile, initConfig, osInfo); err != nil {
+		return err
+	}
+	if failed := failureCount() - failuresBefore; failed > 0 {
+		return fmt.Errorf("bootstrap finished with %d failed step(s)", failed)
+	}
+	return nil
 }
 
 // ProcessBootstrap runs one-time system bootstrap operations including packages,

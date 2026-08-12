@@ -8,6 +8,7 @@ package reporting
 import (
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"charm.land/log/v2"
@@ -176,12 +177,57 @@ func Set(r Reporter) (restore func()) {
 // Emit sends an event to the active reporter.
 func Emit(event Event) { current.Emit(event) }
 
+// terminalLost, when set, is closed by the TUI runner the moment the
+// dashboard program exits. Bubbletea silently drops Sends once its context
+// is cancelled, so a blocking event emitted in the window between program
+// exit and the reporter swap would leave its waiter blocked forever - the
+// waiters below select on this and fall back to the headless behavior.
+var (
+	terminalLostMu sync.RWMutex
+	terminalLost   chan struct{}
+)
+
+// SetTerminalLost installs the channel the TUI runner closes on program
+// exit (nil clears). Returns a restore func.
+func SetTerminalLost(ch chan struct{}) (restore func()) {
+	terminalLostMu.Lock()
+	previous := terminalLost
+	terminalLost = ch
+	terminalLostMu.Unlock()
+	return func() {
+		terminalLostMu.Lock()
+		terminalLost = previous
+		terminalLostMu.Unlock()
+	}
+}
+
+// TerminalLost returns the current lost-channel; nil (which never fires in
+// a select) when no dashboard is running.
+func TerminalLost() <-chan struct{} {
+	terminalLostMu.RLock()
+	defer terminalLostMu.RUnlock()
+	return terminalLost
+}
+
 // RequestHalt reports an interactive processor error and blocks until the
 // operator (or the LogReporter's abort default) decides what happens next.
+// If the dashboard dies before answering, the headless default (abort) is
+// taken rather than blocking forever on a dropped Send.
 func RequestHalt(processor string, err error) HaltDecision {
 	decision := make(chan HaltDecision, 1)
 	Emit(HaltReq{Processor: processor, Err: err, Decision: decision})
-	return <-decision
+	select {
+	case d := <-decision:
+		return d
+	case <-TerminalLost():
+		// The answer may have raced the program's death; prefer it.
+		select {
+		case d := <-decision:
+			return d
+		default:
+			return HaltAbort
+		}
+	}
 }
 
 // WithTerminal runs fn with exclusive use of the real terminal. Headless it
@@ -193,5 +239,18 @@ func RequestHalt(processor string, err error) HaltDecision {
 func WithTerminal(fn func() error) error {
 	done := make(chan error, 1)
 	Emit(TerminalFunc{Run: fn, Done: done})
-	return <-done
+	select {
+	case err := <-done:
+		return err
+	case <-TerminalLost():
+		// The answer may have raced the program's death; prefer it. If the
+		// Send was dropped, the terminal is free now - run directly, which
+		// is the headless behavior.
+		select {
+		case err := <-done:
+			return err
+		default:
+			return fn()
+		}
+	}
 }

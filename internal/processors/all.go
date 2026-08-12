@@ -158,6 +158,14 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 			reporting.SetCurrentProcessor(processor)
 			reporting.Emit(reporting.ProcStarted{Processor: processor, Files: len(files)})
 			var procErr error
+			// Every abort between ProcStarted and the loop's end must emit
+			// the matching ProcFinished, or the display counts this
+			// processor as running forever - spinner, clock, taskbar
+			// progress all wrong on the final frame.
+			fatal := func(ferr error) error {
+				reporting.Emit(reporting.ProcFinished{Processor: processor, Err: ferr, Dur: time.Since(procStarted)})
+				return ferr
+			}
 			for _, file := range files {
 				blueprintFile := filepath.Join(initConfig.Init.Location, file)
 				log.Debugf("Processing blueprint file: %s", blueprintFile)
@@ -173,17 +181,17 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				// outright on an extensionless file.
 				format, err := helpers.FormatForPath(blueprintFile)
 				if err != nil {
-					return err
+					return fatal(err)
 				}
 
 				blueprintData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
 				if err != nil {
-					return fmt.Errorf("error reading blueprint file %s: %w", blueprintFile, err)
+					return fatal(fmt.Errorf("error reading blueprint file %s: %w", blueprintFile, err))
 				}
 
 				resolvedBlueprint, err := helpers.ResolveTemplate(blueprintData, initConfig.Variables)
 				if err != nil {
-					return fmt.Errorf("error resolving variables in %s: %w", processor, err)
+					return fatal(fmt.Errorf("error resolving variables in %s: %w", processor, err))
 				}
 
 				// A multi-type file (content-routed into several buckets) is cut
@@ -191,7 +199,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				// through untouched and keep strict decode's typo protection.
 				resolvedBlueprint, format, err = subsetForProcessor(resolvedBlueprint, format, processor)
 				if err != nil {
-					return fmt.Errorf("error preparing %s for the %s processor: %w", blueprintFile, processor, err)
+					return fatal(fmt.Errorf("error preparing %s for the %s processor: %w", blueprintFile, processor, err))
 				}
 
 				dispatch := func() error {
@@ -252,8 +260,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 						}
 						stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
 					default: // abort
-						reporting.Emit(reporting.ProcFinished{Processor: processor, Err: err, Dur: time.Since(procStarted)})
-						return fmt.Errorf("error processing %s: %w", processor, err)
+						return fatal(fmt.Errorf("error processing %s: %w", processor, err))
 					}
 					break
 				}

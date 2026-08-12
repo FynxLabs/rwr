@@ -20,6 +20,7 @@ import (
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
+	"golang.org/x/term"
 )
 
 // buildCommand creates an *exec.Cmd from the given types.Command.
@@ -85,33 +86,68 @@ var (
 	sudoValidatedAt time.Time
 )
 
-// ensureSudoCredentials makes sure sudo can run without prompting. When the
-// cached credentials have expired, the password prompt runs as its own
-// terminal handover (`sudo -v`), so under the TUI the dashboard suspends
-// cleanly instead of painting over the prompt.
-func ensureSudoCredentials() error {
+// ensureSudoCredentials tries to make sure sudo can run without prompting.
+// When the cached credentials have expired and a real terminal exists, the
+// password prompt runs as its own terminal handover (`sudo -v`), so under
+// the TUI the dashboard suspends cleanly instead of painting over the
+// prompt. Best effort by design: without a tty (CI), or when validation
+// fails (a command-scoped NOPASSWD rule makes `sudo -v` itself want a
+// password), the command proceeds and fails or succeeds on its own terms,
+// exactly as it did before validation existed.
+func ensureSudoCredentials() {
 	sudoValidateMu.Lock()
 	defer sudoValidateMu.Unlock()
 
 	if time.Since(sudoValidatedAt) < time.Minute {
-		return nil
+		return
 	}
 
 	// Cheap probe: -n never prompts, it just reports whether the cache holds.
 	probe := exec.Command("sudo", "-n", "-v")
 	if err := probe.Run(); err == nil {
 		sudoValidatedAt = time.Now()
-		return nil
+		return
+	}
+
+	// No terminal, no prompt: leave it to the command (CI runs are
+	// NOPASSWD or root, where sudo never needed a tty in the first place).
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return
 	}
 
 	// Cache expired: ask for the password on the real terminal.
-	done := make(chan error, 1)
-	reporting.Emit(reporting.TerminalReq{Cmd: exec.Command("sudo", "-v"), Done: done})
-	if err := <-done; err != nil {
-		return err
+	if err := runOnTerminal(exec.Command("sudo", "-v")); err != nil {
+		log.Debugf("sudo validation inconclusive (%v); running the command anyway", err)
+		return
 	}
 	sudoValidatedAt = time.Now()
-	return nil
+}
+
+// runOnTerminal hands cmd the real terminal via the display layer, falling
+// back to direct wiring if the dashboard dies before servicing the request -
+// bubbletea drops Sends after its context cancels, and a dropped TerminalReq
+// would otherwise block its waiter forever.
+func runOnTerminal(command *exec.Cmd) error {
+	done := make(chan error, 1)
+	reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done})
+	select {
+	case err := <-done:
+		return err
+	case <-reporting.TerminalLost():
+		select {
+		case err := <-done:
+			return err
+		default:
+			// The terminal is free now: wire it directly, exactly as the
+			// LogReporter would have.
+			if command.Stdin == nil {
+				command.Stdin = os.Stdin
+			}
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			return command.Run()
+		}
+	}
 }
 
 // dryRunMode controls whether commands are actually executed.
@@ -163,9 +199,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		// reporter: LogReporter wires os.Std* exactly as this code used to;
 		// a TUI suspends itself around the child instead. This path also
 		// serves per-item `interactive: true` inside non-interactive runs.
-		done := make(chan error, 1)
-		reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done})
-		if err := <-done; err != nil {
+		if err := runOnTerminal(command); err != nil {
 			log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
 			return err
 		}
@@ -176,11 +210,12 @@ func runCommand(cmd types.Command, debug bool) error {
 	// password from /dev/tty, straight past the captured pipes - under the
 	// TUI the prompt and the dashboard then fight over the terminal and the
 	// dashboard eats half the password. Validate credentials first, through
-	// a proper terminal handover when the cache has expired.
+	// a proper terminal handover when the cache has expired. Advisory only:
+	// a failed validation must not fail the command - `sudo -v` is not
+	// command-scoped, so a NOPASSWD rule for just this command makes
+	// validation want a password the command itself never needs.
 	if (cmd.Elevated || cmd.AsUser != "") && runtime.GOOS != "windows" {
-		if err := ensureSudoCredentials(); err != nil {
-			return fmt.Errorf("sudo authentication failed: %w", err)
-		}
+		ensureSudoCredentials()
 	}
 	{
 		// Under the TUI, captured stderr also streams into the log view (the

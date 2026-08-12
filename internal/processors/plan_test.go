@@ -51,7 +51,7 @@ func TestResolveStage2_ProvidersAndResources(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveStage1: %v", err)
 	}
-	ResolveStage2(plan)
+	ResolveStage2(plan, nil)
 
 	foundProvider := false
 	for _, p := range plan.Providers {

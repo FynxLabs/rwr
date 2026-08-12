@@ -61,7 +61,7 @@ func runWithTUI(app *AppConfig, order []string) error {
 	if err != nil {
 		return err
 	}
-	processors.ResolveStage2(plan)
+	processors.ResolveStage2(plan, app.OSInfo)
 	if order == nil {
 		order = plan.Order
 	} else {
@@ -77,6 +77,12 @@ func runWithTUI(app *AppConfig, order []string) error {
 
 	restore := reporting.Set(tui.NewReporter(program))
 	defer restore()
+
+	// Closed the moment the program exits: blocking events emitted in the
+	// window before the reporter swap select on this and fall back to their
+	// headless behavior instead of waiting forever on a dropped Send.
+	lost := make(chan struct{})
+	defer reporting.SetTerminalLost(lost)()
 
 	runErr := make(chan error, 1)
 	go func() {
@@ -97,11 +103,16 @@ func runWithTUI(app *AppConfig, order []string) error {
 	// The dashboard is gone; if the run is still going (the program exited
 	// early - a stray quit, a crash), events must not vanish into a dead
 	// program: halts would deadlock and prompts would freeze. Restore the
-	// LogReporter NOW, not at function return, so the rest of the run streams
-	// headless and finishes.
+	// FULL headless state NOW, not at function return: reporter, formatter,
+	// output, level, command sink - leaving the sink installed routed later
+	// command output into a store nobody renders, and the "(stderr in the
+	// log above)" error branch pointed at a log nobody can see.
+	close(lost)
 	restore()
 	log.SetFormatter(log.TextFormatter)
 	log.SetOutput(os.Stderr)
+	log.SetLevel(prevLevel)
+	reporting.SetCommandSink(nil)
 	if programErr != nil {
 		return fmt.Errorf("dashboard error: %w", programErr)
 	}

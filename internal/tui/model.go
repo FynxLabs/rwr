@@ -56,6 +56,12 @@ type Lane struct {
 	Total    int
 	Status   types.Status
 
+	// Progress trackers are per blueprint file, so their counts reset when a
+	// processor's next file starts; doneBase/lastDone accumulate across files
+	// so the bar never jumps backwards mid-processor.
+	doneBase int
+	lastDone int
+
 	spring   harmonica.Spring
 	fill     float64
 	velocity float64
@@ -277,7 +283,19 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 				lane = &Lane{Provider: name, spring: harmonica.NewSpring(harmonica.FPS(8), 6.0, 0.9)}
 				m.procs[i].Lanes[name] = lane
 			}
-			lane.Done, lane.Total, lane.Status = ev.Done, ev.Total, ev.Status
+			// Counts accumulate across a processor's blueprint files: each
+			// file gets its own tracker starting at zero, and overwriting
+			// with the new file's counts made the bar jump backwards and
+			// replaced the plan's cross-file denominator.
+			if ev.Done < lane.lastDone {
+				lane.doneBase += lane.lastDone
+			}
+			lane.lastDone = ev.Done
+			lane.Done = lane.doneBase + ev.Done
+			if total := lane.doneBase + ev.Total; total > lane.Total {
+				lane.Total = total
+			}
+			lane.Status = ev.Status
 		}
 	case reporting.ResourceDone:
 		// Move the matching planned resource to its outcome so Summary
