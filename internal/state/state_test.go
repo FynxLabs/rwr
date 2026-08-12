@@ -34,6 +34,8 @@ func finalize(t *testing.T, w *Writer) {
 }
 
 func TestJournal_Lifecycle(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	w, err := NewWriter(dir, "tree", false)
 	if err != nil {
@@ -71,6 +73,8 @@ func TestJournal_Lifecycle(t *testing.T) {
 }
 
 func TestJournal_DryRunWritesNothing(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	w, err := NewWriter(dir, "tree", true)
 	if err != nil || w != nil {
@@ -89,6 +93,8 @@ func TestJournal_DryRunWritesNothing(t *testing.T) {
 // A reversal is an appended event; the reversed apply folds out of
 // Unreversed and stays visible in Applies.
 func TestJournal_ReversalIsAnEvent(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	w := newWriter(t, dir, "tree")
 	identity := map[string]string{"name": "rc", "dest": "/tmp/rc"}
@@ -124,6 +130,8 @@ func TestJournal_ReversalIsAnEvent(t *testing.T) {
 // re-applied unit after an uninstall. Reversal is now ordered against the
 // apply it cancels; see TestJournal_ReapplyAfterReversalIsLiveAgain.
 func TestJournal_LatestApplyWins(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok",
@@ -143,6 +151,8 @@ func TestJournal_LatestApplyWins(t *testing.T) {
 
 // v1 per-run record files still read; their reversed marks are honored.
 func TestLegacyV1RecordsFoldIn(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	runs := filepath.Join(dir, "state", "runs")
 	if err := os.MkdirAll(runs, 0o700); err != nil {
@@ -180,6 +190,8 @@ func TestLegacyV1RecordsFoldIn(t *testing.T) {
 // one permanent entry per content version, `rwr uninstall` planned a delete
 // for each of them, and `rwr status` could call a live file stale.
 func TestJournal_FileReapplyWithNewContentFoldsToOneEntry(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
@@ -209,6 +221,8 @@ func TestJournal_FileReapplyWithNewContentFoldsToOneEntry(t *testing.T) {
 // identity it saw, and a re-apply before that reversal must not leave a
 // stale-hashed twin behind that looks unreversed.
 func TestJournal_ReversalMatchesAcrossAContentChange(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
@@ -234,6 +248,8 @@ func TestJournal_ReversalMatchesAcrossAContentChange(t *testing.T) {
 // Two genuinely different files stay two units: dropping the guard from the
 // key must not collapse anything that is actually distinct.
 func TestJournal_DistinctDestinationsStayDistinct(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
@@ -262,6 +278,8 @@ func TestJournal_DistinctDestinationsStayDistinct(t *testing.T) {
 // carried a content hash that made each apply a different key; folding on the
 // destination removed that accident, so the ordering has to be real.
 func TestJournal_ReapplyAfterReversalIsLiveAgain(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	identity := map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "aaa"}
 
@@ -294,6 +312,8 @@ func TestJournal_ReapplyAfterReversalIsLiveAgain(t *testing.T) {
 // is every processor other than files. This case was wrong before the fold
 // keyed on identifying fields too, so it is not a files-only concern.
 func TestJournal_ReapplyAfterReversalIsLiveAgainForPackages(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	identity := map[string]string{"name": "git", "provider": "pacman"}
 
@@ -322,6 +342,8 @@ func TestJournal_ReapplyAfterReversalIsLiveAgainForPackages(t *testing.T) {
 // really does cancel it, or uninstall would keep offering to remove things it
 // already removed.
 func TestJournal_ReversalAfterTheLastApplyStillCancelsIt(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	identity := map[string]string{"name": "git", "provider": "pacman"}
 
