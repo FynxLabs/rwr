@@ -7,8 +7,10 @@ type Script struct {
 	Exec     string   `mapstructure:"exec" yaml:"exec" json:"exec" toml:"exec"`
 	Source   string   `mapstructure:"source,omitempty" yaml:"source,omitempty" json:"source,omitempty" toml:"source,omitempty"`
 	Content  string   `mapstructure:"content,omitempty" yaml:"content,omitempty" json:"content,omitempty" toml:"content,omitempty"`
-	Args     string   `mapstructure:"args,omitempty" yaml:"args,omitempty" json:"args,omitempty" toml:"args,omitempty"`
-	Elevated bool     `mapstructure:"elevated,omitempty" yaml:"elevated,omitempty" json:"elevated,omitempty" toml:"elevated,omitempty"`
+	// Args is a string (split on whitespace) or a list (taken verbatim).
+	// See ScriptArgs.
+	Args     ScriptArgs `mapstructure:"args,omitempty" yaml:"args,omitempty" json:"args,omitempty" toml:"args,omitempty"`
+	Elevated bool       `mapstructure:"elevated,omitempty" yaml:"elevated,omitempty" json:"elevated,omitempty" toml:"elevated,omitempty"`
 	// AsUser runs the script as another account (sudo -u). Elevated takes
 	// precedence when both are set, since sudo cannot do both at once.
 	AsUser      string `mapstructure:"asUser,omitempty" yaml:"asUser,omitempty" json:"asUser,omitempty" toml:"asUser,omitempty"`
