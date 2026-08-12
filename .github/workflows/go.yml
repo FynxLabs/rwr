@@ -53,16 +53,29 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: ./scripts/coverage-gate.sh coverage.out
 
-      # The same run on macOS and Windows, reporting only.
+      # macOS gates. The suite passes there now: the two failures that kept it
+      # advisory were both fixtures describing a machine that cannot exist (a
+      # Mac with no package manager at all), fixed in #256, and nothing else in
+      # the suite has surfaced since.
       #
-      # The suite has never executed on either platform, and a good deal of it
-      # assumes POSIX behaviour - unix file modes, /bin/bash, path separators.
-      # Gating on it immediately would paint master red for reasons unrelated to
-      # whatever change is being reviewed. This surfaces the failures so they can
-      # be triaged and skipped or fixed at their source; delete continue-on-error
-      # once that is done, so the platforms rwr provisions are really tested.
-      - name: Test (macOS/Windows, not yet gating)
-        if: matrix.os != 'ubuntu-latest'
+      # This matters beyond CI. hk's pre-push hook runs `go test -race ./...`,
+      # so contributors on a Mac already gate on this suite locally; leaving the
+      # macOS leg advisory made CI weaker than the hook they run before every
+      # push, on the platform rwr has most recently been hardened for.
+      - name: Test (macOS)
+        if: matrix.os == 'macos-latest'
+        run: go test -race -v ./...
+
+      # Windows is still reporting only.
+      #
+      # A good deal of the suite assumes POSIX behaviour - unix file modes,
+      # /bin/bash, path separators - and nobody has triaged what that costs
+      # there. Gating on an unmeasured suite would paint master red for reasons
+      # unrelated to whatever change is being reviewed. This surfaces the
+      # failures so they can be fixed at their source; delete continue-on-error
+      # once that is done, so every platform rwr provisions is really tested.
+      - name: Test (Windows, not yet gating)
+        if: matrix.os == 'windows-latest'
         continue-on-error: true
         run: go test -race -v ./...
 
