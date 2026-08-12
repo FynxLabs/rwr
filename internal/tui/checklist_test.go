@@ -83,3 +83,35 @@ func TestPrompting_HaltDecisions(t *testing.T) {
 		}
 	}
 }
+
+// Fresh-machine ghost lane: stage 2 planned unpinned entries into an "items"
+// lane because no provider existed yet; the first runtime LaneUpdate for the
+// resolved provider re-keys that lane instead of leaving it pending forever
+// next to the real one.
+func TestLaneUpdate_RekeysGhostItemsLane(t *testing.T) {
+	plan := &types.Plan{
+		Order: []string{"packages"},
+		Resources: []types.Resource{
+			{Processor: "packages", Provider: "", Name: "jq", Action: "install", Status: types.StatusPlanned},
+			{Processor: "packages", Provider: "", Name: "fd", Action: "install", Status: types.StatusPlanned},
+		},
+	}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+
+	if _, has := m.procs[0].Lanes["items"]; !has {
+		t.Fatal("plan lane for unpinned entries missing")
+	}
+
+	m.apply(reporting.LaneUpdate{Processor: "packages", Provider: "brew", Done: 1, Total: 2, Status: types.StatusOK})
+
+	if _, has := m.procs[0].Lanes["items"]; has {
+		t.Fatal("ghost items lane survived the first provider update")
+	}
+	lane, has := m.procs[0].Lanes["brew"]
+	if !has {
+		t.Fatal("re-keyed brew lane missing")
+	}
+	if lane.Done != 1 || lane.Total != 2 {
+		t.Fatalf("re-keyed lane counts = %d/%d, want 1/2", lane.Done, lane.Total)
+	}
+}

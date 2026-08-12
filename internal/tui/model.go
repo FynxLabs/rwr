@@ -2,8 +2,10 @@ package tui
 
 import (
 	"io"
+	"os/exec"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -280,8 +282,22 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 			}
 			lane, ok := m.procs[i].Lanes[name]
 			if !ok {
-				lane = &Lane{Provider: name, spring: harmonica.NewSpring(harmonica.FPS(8), 6.0, 0.9)}
-				m.procs[i].Lanes[name] = lane
+				// Fresh-machine case: stage 2 ran before the package manager
+				// was installed, so unpinned entries planned into an "items"
+				// lane no runtime update will ever key. When the first real
+				// provider update arrives and the untouched "items" lane is
+				// the processor's only one, it IS those entries - re-key it
+				// instead of leaving a ghost pending at 0/N forever.
+				if ghost, has := m.procs[i].Lanes["items"]; has && name != "items" &&
+					len(m.procs[i].Lanes) == 1 && ghost.Done == 0 && ghost.doneBase == 0 {
+					delete(m.procs[i].Lanes, "items")
+					ghost.Provider = name
+					m.procs[i].Lanes[name] = ghost
+					lane = ghost
+				} else {
+					lane = &Lane{Provider: name, spring: harmonica.NewSpring(harmonica.FPS(8), 6.0, 0.9)}
+					m.procs[i].Lanes[name] = lane
+				}
 			}
 			// Counts accumulate across a processor's blueprint files: each
 			// file gets its own tracker starting at zero, and overwriting
@@ -317,9 +333,13 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 		}
 	case reporting.TerminalReq:
 		m.state = Suspended
-		cmd := ev.Cmd
 		done := ev.Done
-		return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		// The claim is taken inside the exec itself (which bubbletea runs
+		// inline on the event loop, where the program cannot die mid-way):
+		// claiming any earlier risks the program exiting between claim and
+		// exec, leaving a claimed-but-never-serviced request whose waiter
+		// blocks forever.
+		return tea.Exec(claimedExec{cmd: ev.Cmd, claim: ev.Claim}, func(err error) tea.Msg {
 			done <- err
 			return execDone{}
 		})
@@ -340,11 +360,18 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 	case reporting.TerminalFunc:
 		// Same handover as TerminalReq, for in-process interactions (huh
 		// forms, raw prompts): the program releases the terminal, the
-		// interaction runs on it, the dashboard resumes after.
+		// interaction runs on it, the dashboard resumes after. Claimed at
+		// run time for the same reason as TerminalReq above.
 		m.state = Suspended
 		run := ev.Run
+		claim := ev.Claim
 		done := ev.Done
-		return tea.Exec(funcExec(run), func(err error) tea.Msg {
+		return tea.Exec(funcExec(func() error {
+			if !reporting.TryClaim(claim) {
+				return nil // the waiter's fallback already ran it
+			}
+			return run()
+		}), func(err error) tea.Msg {
 			done <- err
 			return execDone{}
 		})
@@ -362,6 +389,41 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 }
 
 type execDone struct{}
+
+// claimedExec wraps an *exec.Cmd as a tea.ExecCommand whose Run first takes
+// the request's claim: if the waiter's terminal-lost fallback already ran
+// the command, Run is a no-op instead of a second execution. The io setters
+// mirror bubbletea's own osExecCommand (fill only when unset, so a preset
+// Stdin survives).
+type claimedExec struct {
+	cmd   *exec.Cmd
+	claim *atomic.Bool
+}
+
+func (c claimedExec) Run() error {
+	if !reporting.TryClaim(c.claim) {
+		return nil
+	}
+	return c.cmd.Run()
+}
+
+func (c claimedExec) SetStdin(r io.Reader) {
+	if c.cmd.Stdin == nil {
+		c.cmd.Stdin = r
+	}
+}
+
+func (c claimedExec) SetStdout(w io.Writer) {
+	if c.cmd.Stdout == nil {
+		c.cmd.Stdout = w
+	}
+}
+
+func (c claimedExec) SetStderr(w io.Writer) {
+	if c.cmd.Stderr == nil {
+		c.cmd.Stderr = w
+	}
+}
 
 // funcExec adapts a plain func to tea.ExecCommand so tea.Exec can hand the
 // terminal to an in-process interaction. The io setters are no-ops: the
@@ -494,25 +556,28 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Prompting: r/R retry, s skip, q abort - these exist only at a halt.
+	// The claim guarantees exactly one answer: if the terminal-lost
+	// fallback already aborted this halt, the keypress must not answer too.
 	if m.state == Prompting && m.halt != nil {
-		switch msg.String() {
-		case "r", "R":
-			m.halt.Decision <- reporting.HaltRetry
+		answer := func(d reporting.HaltDecision) {
+			if reporting.TryClaim(m.halt.Claim) {
+				m.halt.Decision <- d
+			}
 			m.halt = nil
 			m.state = Running
+		}
+		switch msg.String() {
+		case "r", "R":
+			answer(reporting.HaltRetry)
 			m.levelFilter = ""
 			return m, nil
 		case "s":
-			m.halt.Decision <- reporting.HaltSkip
-			m.halt = nil
-			m.state = Running
+			answer(reporting.HaltSkip)
 			m.levelFilter = ""
 			return m, nil
 		case "q", "ctrl+c":
 			// Abort the run; the summary follows via RunFinished.
-			m.halt.Decision <- reporting.HaltAbort
-			m.halt = nil
-			m.state = Running
+			answer(reporting.HaltAbort)
 			return m, nil
 		}
 		return m, nil

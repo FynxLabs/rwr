@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"charm.land/log/v2"
@@ -65,14 +66,19 @@ type TerminalReq struct {
 	Processor string
 	Cmd       *exec.Cmd
 	Done      chan error
+	// Claim makes the request run-once: the servicer and the waiter's
+	// terminal-lost fallback CAS it, and only the winner executes. Without
+	// it, a quit racing the exec callback could run the request twice.
+	Claim *atomic.Bool
 }
 
 // TerminalFunc asks the display layer to lend the real terminal to an
 // in-process interaction - a huh form, a raw stdin prompt. The TerminalReq
 // counterpart for code that runs in this process rather than a child.
 type TerminalFunc struct {
-	Run  func() error
-	Done chan error
+	Run   func() error
+	Done  chan error
+	Claim *atomic.Bool
 }
 
 // HaltDecision is the operator's answer to an interactive halt.
@@ -92,6 +98,16 @@ type HaltReq struct {
 	Processor string
 	Err       error
 	Decision  chan HaltDecision
+	// Claim is CAS'd by whoever answers - the operator's keypress or the
+	// terminal-lost fallback - so a decision is made exactly once.
+	Claim *atomic.Bool
+}
+
+// TryClaim reports whether the caller won the right to service a claimable
+// request. A nil claim (an event constructed directly, e.g. in tests) is
+// always claimable.
+func TryClaim(claim *atomic.Bool) bool {
+	return claim == nil || claim.CompareAndSwap(false, true)
 }
 
 // RunFinished carries the collected step errors of a push-through run.
@@ -143,6 +159,9 @@ func (LogReporter) Emit(event Event) {
 	case TerminalReq:
 		// The pre-event direct wiring: the command owns the real terminal.
 		// stderr is deliberately not captured (sudo's prompt lives there).
+		if !TryClaim(e.Claim) {
+			return
+		}
 		if e.Cmd.Stdin == nil {
 			e.Cmd.Stdin = os.Stdin
 		}
@@ -151,10 +170,16 @@ func (LogReporter) Emit(event Event) {
 		e.Done <- e.Cmd.Run()
 	case TerminalFunc:
 		// Headless the terminal is already free; just run the interaction.
+		if !TryClaim(e.Claim) {
+			return
+		}
 		e.Done <- e.Run()
 	case HaltReq:
 		// Headless interactive keeps its historical behavior: the first
 		// processor error aborts the run.
+		if !TryClaim(e.Claim) {
+			return
+		}
 		e.Decision <- HaltAbort
 	case ProcFinished, LaneUpdate, ResourceDone, RunFinished:
 		// The streaming output never printed these as their own lines; the
@@ -215,18 +240,19 @@ func TerminalLost() <-chan struct{} {
 // taken rather than blocking forever on a dropped Send.
 func RequestHalt(processor string, err error) HaltDecision {
 	decision := make(chan HaltDecision, 1)
-	Emit(HaltReq{Processor: processor, Err: err, Decision: decision})
+	claim := &atomic.Bool{}
+	Emit(HaltReq{Processor: processor, Err: err, Decision: decision, Claim: claim})
 	select {
 	case d := <-decision:
 		return d
 	case <-TerminalLost():
-		// The answer may have raced the program's death; prefer it.
-		select {
-		case d := <-decision:
-			return d
-		default:
+		// Whoever wins the claim answers; losing it means an answer is
+		// already on its way (the claimant writes the buffered channel
+		// immediately after claiming), so waiting is safe.
+		if claim.CompareAndSwap(false, true) {
 			return HaltAbort
 		}
+		return <-decision
 	}
 }
 
@@ -238,19 +264,19 @@ func RequestHalt(processor string, err error) HaltDecision {
 // eating them, and ctrl-c dies with both.
 func WithTerminal(fn func() error) error {
 	done := make(chan error, 1)
-	Emit(TerminalFunc{Run: fn, Done: done})
+	claim := &atomic.Bool{}
+	Emit(TerminalFunc{Run: fn, Done: done, Claim: claim})
 	select {
 	case err := <-done:
 		return err
 	case <-TerminalLost():
-		// The answer may have raced the program's death; prefer it. If the
-		// Send was dropped, the terminal is free now - run directly, which
-		// is the headless behavior.
-		select {
-		case err := <-done:
-			return err
-		default:
+		// Run-once via the claim: if the dashboard already claimed this
+		// request, its exec callback runs independently of the program's
+		// lifetime and will write done - wait for it. Winning the claim
+		// means nobody ran fn; the terminal is free now, run it directly.
+		if claim.CompareAndSwap(false, true) {
 			return fn()
 		}
+		return <-done
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"charm.land/log/v2"
@@ -126,20 +127,21 @@ func ensureSudoCredentials() {
 // runOnTerminal hands cmd the real terminal via the display layer, falling
 // back to direct wiring if the dashboard dies before servicing the request -
 // bubbletea drops Sends after its context cancels, and a dropped TerminalReq
-// would otherwise block its waiter forever.
+// would otherwise block its waiter forever. The claim makes the request
+// run-once: losing it means a servicer is executing the command and its
+// callback will write done regardless of the program's lifetime, so waiting
+// is safe - and Run() is never called twice on the same *exec.Cmd.
 func runOnTerminal(command *exec.Cmd) error {
 	done := make(chan error, 1)
-	reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done})
+	claim := &atomic.Bool{}
+	reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done, Claim: claim})
 	select {
 	case err := <-done:
 		return err
 	case <-reporting.TerminalLost():
-		select {
-		case err := <-done:
-			return err
-		default:
-			// The terminal is free now: wire it directly, exactly as the
-			// LogReporter would have.
+		if claim.CompareAndSwap(false, true) {
+			// Nobody serviced it; the terminal is free now - wire it
+			// directly, exactly as the LogReporter would have.
 			if command.Stdin == nil {
 				command.Stdin = os.Stdin
 			}
@@ -147,6 +149,7 @@ func runOnTerminal(command *exec.Cmd) error {
 			command.Stderr = os.Stderr
 			return command.Run()
 		}
+		return <-done
 	}
 }
 
@@ -220,10 +223,13 @@ func runCommand(cmd types.Command, debug bool) error {
 	{
 		// Under the TUI, captured stderr also streams into the log view (the
 		// `≫` lines); the buffer still holds full text for the error path.
+		// Headless, it streams to the real stderr like the pre-TUI wiring
+		// did - package-manager output must land somewhere the operator
+		// (or their `> install.log` redirect) can see it.
 		if w := reporting.CommandOutputWriter(reporting.SrcStderr); w != nil {
 			command.Stderr = io.MultiWriter(&stderr, w)
 		} else {
-			command.Stderr = &stderr
+			command.Stderr = io.MultiWriter(&stderr, os.Stderr)
 		}
 		logFile, err := setOutputStreams(command, debug, cmd.LogName)
 		if err != nil {
@@ -300,6 +306,9 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 
 	// Under the TUI, command stdout is captured into the store so it renders
 	// in the log view at debug display level, instead of tearing the frame.
+	// Headless (no sink), it streams to the real stdout - the pre-TUI
+	// contract is that `rwr all > install.log` carries the package-manager
+	// output, and a nil writer here silently threw it away.
 	captured := reporting.CommandOutputWriter(reporting.SrcStdout)
 
 	if debug {
@@ -313,7 +322,11 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 	}
 
 	if logName == "" {
-		cmd.Stdout = captured // nil is fine: exec discards
+		if captured != nil {
+			cmd.Stdout = captured
+		} else {
+			cmd.Stdout = os.Stdout
+		}
 		return nil, nil
 	}
 
