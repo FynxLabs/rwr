@@ -136,3 +136,82 @@ func TestLegacyV1RecordsFoldIn(t *testing.T) {
 		t.Fatalf("unreversed = %+v", unreversed)
 	}
 }
+
+// A file re-applied with changed content is the same file, not a second one.
+//
+// The identity a files apply records is {name, dest, sha256}. Folding on the
+// whole map meant a content change produced a brand new key: the previous
+// entry never folded away and stayed unreversed forever. The journal accreted
+// one permanent entry per content version, `rwr uninstall` planned a delete
+// for each of them, and `rwr status` could call a live file stale.
+func TestJournal_FileReapplyWithNewContentFoldsToOneEntry(t *testing.T) {
+	dir := t.TempDir()
+	w, _ := NewWriter(dir, "tree", false)
+	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
+		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "aaa"}, Detail: "first"})
+	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
+		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "bbb"}, Detail: "second"})
+	_ = w.Finalize()
+
+	applies, err := Applies(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(applies) != 1 {
+		t.Fatalf("applies = %d entries, want 1 folded entry: %+v", len(applies), applies)
+	}
+	if applies[0].Detail != "second" {
+		t.Errorf("kept the wrong apply: %+v", applies[0])
+	}
+	// The surviving entry carries the latest guard, which is what a
+	// hash-guarded delete has to compare against.
+	if got := applies[0].Identity["sha256"]; got != "bbb" {
+		t.Errorf("sha256 = %q, want the most recent apply's hash", got)
+	}
+}
+
+// Reversal has to match across a content change too: uninstall records the
+// identity it saw, and a re-apply before that reversal must not leave a
+// stale-hashed twin behind that looks unreversed.
+func TestJournal_ReversalMatchesAcrossAContentChange(t *testing.T) {
+	dir := t.TempDir()
+	w, _ := NewWriter(dir, "tree", false)
+	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
+		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "aaa"}})
+	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
+		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "bbb"}})
+	_ = w.Finalize()
+
+	u, _ := NewWriter(dir, "", false)
+	// uninstall reverses what it read: the latest identity, hash included.
+	u.Reverse("files", map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "bbb"})
+	_ = u.Finalize()
+
+	unreversed, err := Unreversed(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(unreversed) != 0 {
+		t.Fatalf("unreversed = %+v, want nothing left to reverse", unreversed)
+	}
+}
+
+// Two genuinely different files stay two units: dropping the guard from the
+// key must not collapse anything that is actually distinct.
+func TestJournal_DistinctDestinationsStayDistinct(t *testing.T) {
+	dir := t.TempDir()
+	w, _ := NewWriter(dir, "tree", false)
+	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
+		Identity: map[string]string{"name": "rc", "dest": "/tmp/one", "sha256": "aaa"}})
+	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
+		Identity: map[string]string{"name": "rc", "dest": "/tmp/two", "sha256": "aaa"}})
+	_ = w.Finalize()
+
+	applies, err := Applies(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(applies) != 2 {
+		t.Fatalf("applies = %d, want 2 distinct destinations: %+v", len(applies), applies)
+	}
+}
