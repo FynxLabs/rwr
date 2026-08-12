@@ -153,3 +153,156 @@ func TestSSHAuthRejectsUnusableValueClearly(t *testing.T) {
 		t.Error("the error repeats the whole value; it may be a private key")
 	}
 }
+
+// wrapAt breaks a string into fixed-width lines, the way a hand-written or
+// tool-generated base64 blob usually arrives.
+func wrapAt(s string, width int, eol string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i += width {
+		end := i + width
+		if end > len(s) {
+			end = len(s)
+		}
+		b.WriteString(s[i:end])
+		b.WriteString(eol)
+	}
+	return b.String()
+}
+
+// Every base64 shape a hand-written --ssh-key value can arrive in.
+//
+// Column-wrapped base64 was the interesting one: it contains newlines, and the
+// classifier used to treat a newline as proof of raw PEM, so it went to go-git
+// as PEM and failed to parse. Go's decoder ignores embedded LF and CRLF, so it
+// would have decoded perfectly well - the value was rejected by the
+// classification, not by the encoding.
+func TestSSHAuthAcceptsEveryBase64Shape(t *testing.T) {
+	t.Parallel()
+
+	_, pem := generateKey(t)
+	std := base64.StdEncoding.EncodeToString(pem)
+
+	cases := map[string]string{
+		"unwrapped StdEncoding":   std,
+		"wrapped at 64 with LF":   wrapAt(std, 64, "\n"),
+		"wrapped at 64 with CRLF": wrapAt(std, 64, "\r\n"),
+		"wrapped at 76 with LF":   wrapAt(std, 76, "\n"),
+		"surrounded by space":     "  " + std + "\n",
+	}
+
+	for name, encoded := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if err := sshAuthFor(encoded); err != nil {
+				t.Errorf("%s rejected: %v", name, err)
+			}
+		})
+	}
+}
+
+// A PEM written on Windows has CRLF line endings, and is still the key.
+func TestSSHAuthAcceptsCRLFPEM(t *testing.T) {
+	t.Parallel()
+
+	_, pem := generateKey(t)
+	crlf := strings.ReplaceAll(string(pem), "\n", "\r\n")
+
+	if err := sshAuthFor(crlf); err != nil {
+		t.Errorf("CRLF PEM rejected: %v", err)
+	}
+}
+
+// A newline is not proof of key material. A path that somehow carries one is
+// still not a key, and must not be handed to the PEM parser.
+func TestSSHAuthDoesNotTreatANewlineAsKeyMaterial(t *testing.T) {
+	t.Parallel()
+
+	err := sshAuthFor("not-a-key\nnot-a-key-either")
+	if err == nil {
+		t.Fatal("a newline-containing non-key was accepted")
+	}
+	if !errors.Is(err, ErrUnusableSSHKey) {
+		t.Errorf("want ErrUnusableSSHKey, got: %v", err)
+	}
+}
+
+// paddedKeyLikePayload is PEM-shaped bytes chosen so the four base64 alphabets
+// actually disagree about it: its length is not a multiple of three (so the
+// unpadded encodings differ from the padded ones) and it contains bytes that
+// encode to "+" and "/" under the standard alphabet and to "-" and "_" under
+// the URL-safe one.
+//
+// A real ed25519 key will not do: its PEM is 411 bytes, a multiple of three,
+// with no bytes that diverge between the alphabets, so all four encodings
+// produce the identical string and a table of them tests one case four times.
+func paddedKeyLikePayload(t *testing.T) []byte {
+	t.Helper()
+
+	payload := append([]byte("-----BEGIN PRIVATE KEY-----\n"), 0xFF, 0xFE, 0xFD, 0xFB)
+	payload = append(payload, []byte("\n-----END PRIVATE KEY-----")...)
+	if len(payload)%3 == 0 {
+		payload = append(payload, '\n')
+	}
+
+	// The precondition this fixture exists for. If it ever stops holding, the
+	// table below silently stops testing anything.
+	if base64.StdEncoding.EncodeToString(payload) == base64.RawStdEncoding.EncodeToString(payload) {
+		t.Fatal("fixture no longer forces padding; the alphabets would not diverge")
+	}
+	if base64.StdEncoding.EncodeToString(payload) == base64.URLEncoding.EncodeToString(payload) {
+		t.Fatal("fixture no longer contains bytes that differ between the standard and URL alphabets")
+	}
+	return payload
+}
+
+// The classifier accepts all four base64 alphabets, padded and unpadded,
+// standard and URL-safe. Which one an operator's tooling emits is not
+// something rwr gets to choose.
+//
+// This drives sshKeyMaterial directly rather than going through go-git,
+// because the payload is PEM-shaped rather than a real key: the variation
+// under test is in the classification, and a real key cannot express it (see
+// paddedKeyLikePayload).
+func TestSSHKeyMaterialAcceptsEveryBase64Alphabet(t *testing.T) {
+	t.Parallel()
+
+	payload := paddedKeyLikePayload(t)
+
+	for name, encoding := range map[string]*base64.Encoding{
+		"StdEncoding":    base64.StdEncoding,
+		"RawStdEncoding": base64.RawStdEncoding,
+		"URLEncoding":    base64.URLEncoding,
+		"RawURLEncoding": base64.RawURLEncoding,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			decoded, ok := sshKeyMaterial(encoding.EncodeToString(payload))
+			if !ok {
+				t.Fatalf("%s-encoded key material was not recognised", name)
+			}
+			if string(decoded) != string(payload) {
+				t.Errorf("%s round-trip changed the bytes", name)
+			}
+		})
+	}
+}
+
+// Wrapping is orthogonal to the alphabet: a blob can arrive in either
+// alphabet at any column width.
+func TestSSHKeyMaterialAcceptsWrappedNonStandardAlphabets(t *testing.T) {
+	t.Parallel()
+
+	payload := paddedKeyLikePayload(t)
+	encoded := base64.RawURLEncoding.EncodeToString(payload)
+
+	for _, eol := range []string{"\n", "\r\n"} {
+		decoded, ok := sshKeyMaterial(wrapAt(encoded, 8, eol))
+		if !ok {
+			t.Fatalf("wrapped RawURLEncoding not recognised (eol %q)", eol)
+		}
+		if string(decoded) != string(payload) {
+			t.Errorf("wrapped RawURLEncoding round-trip changed the bytes (eol %q)", eol)
+		}
+	}
+}

@@ -166,18 +166,38 @@ func getHTTPAuthMethod(rawURL string, initConfig *types.InitConfig) (transport.A
 // carries only a truncated preview of the value.
 var ErrUnusableSSHKey = errors.New("ssh key is neither a readable file nor recognisable key material")
 
+// sshKeyEncodings are the base64 alphabets a hand-written --ssh-key value
+// might arrive in. Padded and unpadded, standard and URL-safe: which one an
+// operator's tooling emits is not something rwr gets to choose, and the cost
+// of trying all four is four failed string decodes.
+var sshKeyEncodings = []*base64.Encoding{
+	base64.StdEncoding,
+	base64.RawStdEncoding,
+	base64.URLEncoding,
+	base64.RawURLEncoding,
+}
+
 // sshKeyMaterial decides whether a configured ssh key value is the key itself
 // rather than a path to it, and returns the PEM bytes when it is.
 //
 // Two forms count as the key itself:
 //
-//   - the PEM as written. Every private key PEM is multi-line, so a newline is
-//     what identifies it.
-//   - base64 of that PEM. This is the form set_as_rwr_ssh_key writes into
+//   - the PEM as written, in any line ending.
+//   - base64 of that PEM, in any of the four alphabets above, wrapped at any
+//     column or not at all. This is the form set_as_rwr_ssh_key writes into
 //     repository.ssh_private_key and the form --ssh-key documents, and nothing
-//     decoded it: base64 has no newlines, so it fell through to the file-path
-//     branch and rwr tried to open the blob as a filename. set_as_rwr_ssh_key
-//     produced a config value that could never authenticate anything.
+//     decoded it at all until recently.
+//
+// One guard decides both: the bytes have to look like a private key. That is
+// what makes the classification honest in each direction.
+//
+//   - A newline does not identify key material. Testing for one caught
+//     column-wrapped base64 first and handed it to go-git as PEM, which it is
+//     not, because Go's base64 decoder ignores embedded LF and CRLF and would
+//     have decoded it perfectly well.
+//   - A successful decode does not identify key material either. A bare
+//     filename can be valid base64 by accident ("config" round-trips), so
+//     decoded bytes that are not a private key leave the value a path.
 //
 // An "ssh-" prefix deliberately does not count, though it used to. It only
 // ever matches a public key ("ssh-rsa AAAA..."), and this flow hands its bytes
@@ -187,24 +207,31 @@ var ErrUnusableSSHKey = errors.New("ssh key is neither a readable file nor recog
 // parsed as key data and failed with "ssh: no key found" instead of being
 // read.
 //
-// The decode has to prove itself: a bare filename can be valid base64 by
-// accident, so the decoded bytes must actually look like a private key before
-// they are treated as one, and anything else stays a path.
+// The raw form is checked first because a private key PEM cannot decode as
+// base64 under any of the four alphabets - it contains spaces, which none of
+// them ignore - so the order costs nothing and saves four decode attempts on
+// the common case.
 func sshKeyMaterial(value string) ([]byte, bool) {
-	if strings.Contains(value, "\n") {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil, false
+	}
+
+	if looksLikePrivateKey([]byte(trimmed)) {
 		log.Debugf("Using the SSH key material as supplied")
 		return []byte(value), true
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(value))
-	if err != nil {
-		return nil, false
+	for _, encoding := range sshKeyEncodings {
+		decoded, err := encoding.DecodeString(trimmed)
+		if err != nil || !looksLikePrivateKey(decoded) {
+			continue
+		}
+		log.Debugf("Using base64-encoded SSH key material")
+		return decoded, true
 	}
-	if !looksLikePrivateKey(decoded) {
-		return nil, false
-	}
-	log.Debugf("Using base64-encoded SSH key material")
-	return decoded, true
+
+	return nil, false
 }
 
 // looksLikePrivateKey reports whether bytes are plausibly a private key, so a
