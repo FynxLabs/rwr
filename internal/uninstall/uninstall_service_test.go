@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/state"
+	"github.com/fynxlabs/rwr/internal/status"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -26,6 +27,8 @@ func serviceEntry(name string, identity map[string]string) state.Entry {
 // skipped every service and said "not enabled or not queryable", even though
 // the processor has had a full launchd backend the whole time.
 func TestDisableServiceCommandPerPlatform(t *testing.T) {
+	t.Parallel()
+
 	cmd, ok := disableServiceCommand("nginx", serviceEntry("nginx", nil))
 
 	switch runtime.GOOS {
@@ -65,6 +68,8 @@ func TestDisableServiceCommandPrefersTheRecordedTarget(t *testing.T) {
 	if runtime.GOOS != types.OSDarwin {
 		t.Skip("launchd only")
 	}
+	t.Parallel()
+
 	entry := serviceEntry("nginx", map[string]string{"target": "/Users/me/Library/LaunchAgents/nginx.plist"})
 
 	cmd, ok := disableServiceCommand("nginx", entry)
@@ -80,36 +85,75 @@ func TestDisableServiceCommandPrefersTheRecordedTarget(t *testing.T) {
 // operator has to be able to tell them apart. They were one sentence -
 // "not enabled or not queryable" - which on macOS always meant the third and
 // never said so.
+//
+// The presence query is injected rather than asked of the host, or the test
+// could only assert "some reason": which one comes back depends on the
+// service manager the machine happens to run, and being able to reach each of
+// them is the point.
 func TestReverseServiceSkipReasonsAreDistinct(t *testing.T) {
-	if _, err := reverseService(serviceEntry("", nil)); err != nil {
-		t.Fatal(err)
+	if runtime.GOOS != types.OSLinux && runtime.GOOS != types.OSDarwin {
+		t.Skipf("%s has no service reversal; covered by the platform test", runtime.GOOS)
 	}
+
+	tests := []struct {
+		name  string
+		state status.Presence
+		want  string
+	}{
+		{name: "already disabled", state: status.Absent, want: "already disabled"},
+		{name: "unqueryable", state: status.Unknown, want: "cannot query the service; not disabling it blind"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer SetServiceStateForTest(func(string) status.Presence { return tt.state })()
+
+			reason, err := reverseService(serviceEntry("nginx", nil))
+			if err != nil {
+				t.Fatalf("a skip must not be an error: %v", err)
+			}
+			if reason != tt.want {
+				t.Errorf("reason = %q, want %q", reason, tt.want)
+			}
+		})
+	}
+}
+
+// A recorded entry with no name at all is its own case, and it must not reach
+// the service manager.
+func TestReverseServiceWithoutANameSkips(t *testing.T) {
+	defer SetServiceStateForTest(func(string) status.Presence {
+		t.Error("queried the service manager for an entry with no name")
+		return status.Unknown
+	})()
+
 	reason, err := reverseService(serviceEntry("", nil))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if reason != "no recorded service name" {
-		t.Errorf("missing name reason = %q", reason)
+		t.Errorf("reason = %q, want the missing-name reason", reason)
 	}
+}
 
-	// A name no service manager knows: on a platform with a reversal that is
-	// "already disabled" or an honest "cannot query"; on one without, it must
-	// name the platform rather than blaming the service.
-	reason, err = reverseService(serviceEntry("rwr-test-definitely-not-a-real-service", nil))
+// A platform with no reversal says so, and says which platform, rather than
+// implying the service was already disabled. It must decide that before it
+// consults the service manager, since there is nothing it could do with the
+// answer.
+func TestReverseServiceNamesAPlatformWithNoReversal(t *testing.T) {
+	if runtime.GOOS == types.OSLinux || runtime.GOOS == types.OSDarwin {
+		t.Skipf("%s has a service reversal", runtime.GOOS)
+	}
+	defer SetServiceStateForTest(func(string) status.Presence {
+		t.Error("queried the service manager on a platform with no reversal")
+		return status.Unknown
+	})()
+
+	reason, err := reverseService(serviceEntry("nginx", nil))
 	if err != nil {
-		t.Fatalf("reversing an absent service should skip, not fail: %v", err)
+		t.Fatal(err)
 	}
-	if reason == "" {
-		t.Fatal("an unknown service was not skipped")
-	}
-	switch runtime.GOOS {
-	case types.OSLinux, types.OSDarwin:
-		if strings.Contains(reason, "no service reversal on") {
-			t.Errorf("%s does have a service reversal, but reported %q", runtime.GOOS, reason)
-		}
-	default:
-		if !strings.Contains(reason, "no service reversal on "+runtime.GOOS) {
-			t.Errorf("reason = %q, want it to name the platform", reason)
-		}
+	if !strings.Contains(reason, "no service reversal on "+runtime.GOOS) {
+		t.Errorf("reason = %q, want it to name the platform", reason)
 	}
 }

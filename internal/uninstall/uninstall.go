@@ -224,6 +224,24 @@ func reverseGit(entry state.Entry) (string, error) {
 	return "", os.RemoveAll(target)
 }
 
+// serviceState is the presence query reverseService consults, as a var so a
+// test can decide the answer.
+//
+// Without it a test can only assert "some skip reason", because the real
+// answer depends on which service manager the machine happens to run. The
+// three reasons being distinguishable is the whole point of the change, so
+// the test has to be able to reach each of them.
+var serviceState = status.ServiceState
+
+// SetServiceStateForTest installs a presence query for the duration of a test
+// and returns the restore func, in the same shape as
+// system.SetProvidersForTest and credentials.SetRingForTest.
+func SetServiceStateForTest(query func(string) status.Presence) (restore func()) {
+	previous := serviceState
+	serviceState = query
+	return func() { serviceState = previous }
+}
+
 // reverseService disables a recorded service on the platform it was enabled
 // on.
 //
@@ -245,7 +263,7 @@ func reverseService(entry state.Entry) (string, error) {
 		return fmt.Sprintf("no service reversal on %s", runtime.GOOS), nil
 	}
 
-	switch status.ServiceState(name) {
+	switch serviceState(name) {
 	case status.Absent:
 		return "already disabled", nil
 	case status.Unknown:
