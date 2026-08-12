@@ -15,13 +15,28 @@ import (
 // history recorded before the event log survives it.
 func Applies(configDir string) ([]Entry, error) {
 	var entries []Entry
-	reversed := map[string]bool{}
+	// applyPos[i] is the journal position of entries[i]. The log is append
+	// only, so position is time: it is what lets a reversal be compared
+	// against the apply it is meant to undo.
+	var applyPos []int
+	// reversedAt holds the position of the most recent reverse per identity,
+	// not merely the fact that one exists. A reversal only cancels an apply
+	// that came before it: apply, uninstall, re-apply leaves the file on disk
+	// and the record has to say so.
+	reversedAt := map[string]int{}
+	position := 0
 
 	legacy, err := legacyEntries(configDir)
 	if err != nil {
 		return nil, err
 	}
-	entries = append(entries, legacy...)
+	// v1 records predate the event log, so every one of them sorts before
+	// every journal event.
+	for _, entry := range legacy {
+		entries = append(entries, entry)
+		applyPos = append(applyPos, position)
+		position++
+	}
 
 	file, err := os.Open(JournalPath(configDir)) // #nosec G304 -- rwr's own state directory
 	if err == nil {
@@ -35,6 +50,9 @@ func Applies(configDir string) ([]Entry, error) {
 			if json.Unmarshal(scanner.Bytes(), &event) != nil {
 				continue
 			}
+			// Every parsed event advances position, including the run and
+			// finish events, so positions stay strictly ordered.
+			position++
 			switch event.Kind {
 			case "apply":
 				if event.OK {
@@ -43,19 +61,20 @@ func Applies(configDir string) ([]Entry, error) {
 						Identity: event.Identity, Detail: event.Detail,
 						Outcome: event.Outcome, OK: event.OK, Elevated: event.Elevated,
 					})
+					applyPos = append(applyPos, position)
 				}
 			case "reverse":
-				reversed[Key(event.Processor, event.Identity)] = true
+				reversedAt[Key(event.Processor, event.Identity)] = position
 			}
 		}
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	// Latest apply per identity wins; reversal marks apply to the identity.
-	// The latest entry is the one kept, so its guard values (a file's sha256)
-	// are the ones consumers see - the hash of the content actually on disk
-	// after the most recent apply, which is what a hash-guarded delete needs.
+	// Latest apply per identity wins. The latest entry is the one kept, so
+	// its guard values (a file's sha256) are the ones consumers see - the
+	// hash of the content actually on disk after the most recent apply,
+	// which is what a hash-guarded delete needs.
 	latest := map[string]int{}
 	var order []string
 	for i, entry := range entries {
@@ -67,8 +86,16 @@ func Applies(configDir string) ([]Entry, error) {
 	}
 	folded := make([]Entry, 0, len(order))
 	for _, key := range order {
-		entry := entries[latest[key]]
-		entry.Reversed = entry.Reversed || reversed[Key(entry.Processor, entry.Identity)]
+		index := latest[key]
+		entry := entries[index]
+		// Reversed only when the reversal came after the apply being kept.
+		// Treating any reversal as cancelling the identity forever meant
+		// `rwr all`, `rwr uninstall`, `rwr all` left every re-applied unit
+		// looking reversed: uninstall would not offer to remove it again and
+		// status did not count it, while the thing was sitting on disk.
+		if pos, ok := reversedAt[key]; ok && pos > applyPos[index] {
+			entry.Reversed = true
+		}
 		folded = append(folded, entry)
 	}
 	return folded, nil

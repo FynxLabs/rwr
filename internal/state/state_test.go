@@ -88,12 +88,14 @@ func TestJournal_ReversalIsAnEvent(t *testing.T) {
 	}
 }
 
-// The latest apply per identity wins: re-applying after a reversal makes
-// the entry live again only if the reversal preceded the re-apply... a
-// reversal event marks the identity, so a later apply of the same identity
-// still shows reversed. That is the simple rule; a re-provisioned machine
-// writes new identities in practice (new run, same identity) and status
-// reads disk anyway. Documented by this test.
+// The latest apply per identity wins.
+//
+// This used to carry a caveat: a reversal marked the identity whatever the
+// order, so a later apply of the same identity still showed reversed, on the
+// reasoning that a re-provisioned machine writes new identities anyway. It
+// does not - a re-run writes the same identity - so that rule hid every
+// re-applied unit after an uninstall. Reversal is now ordered against the
+// apply it cancels; see TestJournal_ReapplyAfterReversalIsLiveAgain.
 func TestJournal_LatestApplyWins(t *testing.T) {
 	dir := t.TempDir()
 	w, _ := NewWriter(dir, "tree", false)
@@ -213,5 +215,97 @@ func TestJournal_DistinctDestinationsStayDistinct(t *testing.T) {
 	}
 	if len(applies) != 2 {
 		t.Fatalf("applies = %d, want 2 distinct destinations: %+v", len(applies), applies)
+	}
+}
+
+// apply, uninstall, apply again: the file is on disk, and the record has to
+// say so.
+//
+// A reversal used to cancel an identity forever, whatever order the events
+// arrived in. Re-provisioning after an uninstall therefore left every
+// re-applied unit looking reversed: `rwr uninstall` would not offer to remove
+// it a second time and `rwr status` did not count it, while the thing was
+// sitting right there. Files escaped this by accident, because their identity
+// carried a content hash that made each apply a different key; folding on the
+// destination removed that accident, so the ordering has to be real.
+func TestJournal_ReapplyAfterReversalIsLiveAgain(t *testing.T) {
+	dir := t.TempDir()
+	identity := map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "aaa"}
+
+	w, _ := NewWriter(dir, "tree", false)
+	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok", Identity: identity})
+	_ = w.Finalize()
+
+	u, _ := NewWriter(dir, "", false)
+	u.Reverse("files", identity)
+	_ = u.Finalize()
+
+	again, _ := NewWriter(dir, "tree", false)
+	again.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
+		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "bbb"}})
+	_ = again.Finalize()
+
+	live, err := Unreversed(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(live) != 1 {
+		t.Fatalf("the re-applied file is hidden by the earlier reversal: %+v", live)
+	}
+	if got := live[0].Identity["sha256"]; got != "bbb" {
+		t.Errorf("sha256 = %q, want the re-applied content", got)
+	}
+}
+
+// The same ordering rule for an identity that carries no guard at all, which
+// is every processor other than files. This case was wrong before the fold
+// keyed on identifying fields too, so it is not a files-only concern.
+func TestJournal_ReapplyAfterReversalIsLiveAgainForPackages(t *testing.T) {
+	dir := t.TempDir()
+	identity := map[string]string{"name": "git", "provider": "pacman"}
+
+	w, _ := NewWriter(dir, "tree", false)
+	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok", Identity: identity})
+	_ = w.Finalize()
+
+	u, _ := NewWriter(dir, "", false)
+	u.Reverse("packages", identity)
+	_ = u.Finalize()
+
+	again, _ := NewWriter(dir, "tree", false)
+	again.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok", Identity: identity})
+	_ = again.Finalize()
+
+	live, err := Unreversed(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(live) != 1 {
+		t.Fatalf("the reinstalled package is hidden by the earlier reversal: %+v", live)
+	}
+}
+
+// The other direction still holds: a reversal that comes after the last apply
+// really does cancel it, or uninstall would keep offering to remove things it
+// already removed.
+func TestJournal_ReversalAfterTheLastApplyStillCancelsIt(t *testing.T) {
+	dir := t.TempDir()
+	identity := map[string]string{"name": "git", "provider": "pacman"}
+
+	w, _ := NewWriter(dir, "tree", false)
+	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok", Identity: identity})
+	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok", Identity: identity})
+	_ = w.Finalize()
+
+	u, _ := NewWriter(dir, "", false)
+	u.Reverse("packages", identity)
+	_ = u.Finalize()
+
+	live, err := Unreversed(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(live) != 0 {
+		t.Fatalf("a reversal after the last apply did not cancel it: %+v", live)
 	}
 }
