@@ -4,6 +4,7 @@
 package status
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"regexp"
@@ -108,9 +109,19 @@ var validUnitName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.@:\\-]*$`)
 // ServiceState queries a service read-only on the current platform; other
 // platforms and query failures are Unknown.
 func ServiceState(name string) Presence {
-	if name == "" || runtime.GOOS != "linux" || !validUnitName.MatchString(name) {
+	if name == "" || !validUnitName.MatchString(name) {
 		return Unknown
 	}
+	switch runtime.GOOS {
+	case types.OSLinux:
+		return systemdState(name)
+	case types.OSDarwin:
+		return launchdState(name)
+	}
+	return Unknown
+}
+
+func systemdState(name string) Presence {
 	if _, err := exec.LookPath("systemctl"); err != nil {
 		return Unknown
 	}
@@ -126,4 +137,30 @@ func ServiceState(name string) Presence {
 		return Absent
 	}
 	return Unknown
+}
+
+// launchdState asks launchctl whether a label is loaded.
+//
+// `launchctl list <label>` prints the job's dictionary and exits zero when the
+// label is loaded, non-zero when it is not. That is the same verb the services
+// processor's own "status" action uses, so status and apply agree about what
+// "this service is here" means.
+//
+// Loaded, not enabled: launchd has no single is-enabled equivalent, and a job
+// that is loaded is the state `rwr services` produces with `launchctl load`.
+// Reporting Absent for a label launchctl does not know is honest; anything
+// less certain stays Unknown.
+func launchdState(name string) Presence {
+	if _, err := exec.LookPath("launchctl"); err != nil {
+		return Unknown
+	}
+	query := exec.Command("launchctl", "list", name) // #nosec G204 -- argv-exec'd read-only query; name validated against the unit-name pattern above
+	if err := query.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return Absent
+		}
+		return Unknown
+	}
+	return Present
 }

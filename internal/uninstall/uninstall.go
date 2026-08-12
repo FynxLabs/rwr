@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"charm.land/log/v2"
@@ -223,15 +224,80 @@ func reverseGit(entry state.Entry) (string, error) {
 	return "", os.RemoveAll(target)
 }
 
+// serviceState is the presence query reverseService consults, as a var so a
+// test can decide the answer.
+//
+// Without it a test can only assert "some skip reason", because the real
+// answer depends on which service manager the machine happens to run. The
+// three reasons being distinguishable is the whole point of the change, so
+// the test has to be able to reach each of them.
+var serviceState = status.ServiceState
+
+// SetServiceStateForTest installs a presence query for the duration of a test
+// and returns the restore func, in the same shape as
+// system.SetProvidersForTest and credentials.SetRingForTest.
+func SetServiceStateForTest(query func(string) status.Presence) (restore func()) {
+	previous := serviceState
+	serviceState = query
+	return func() { serviceState = previous }
+}
+
+// reverseService disables a recorded service on the platform it was enabled
+// on.
+//
+// Every skip used to read "not enabled or not queryable", which folded three
+// different situations into one sentence: the service really is already
+// disabled, the query could not answer, and the platform had no reversal at
+// all. On macOS it was always the third - ServiceState answered Unknown for
+// anything non-Linux, so uninstall skipped every service and told the operator
+// nothing about why, even though the services processor has had a full launchd
+// backend the whole time. Each case now says which one it is.
 func reverseService(entry state.Entry) (string, error) {
 	name := entry.Identity["name"]
-	if status.ServiceState(name) != status.Present {
-		return "not enabled or not queryable", nil
+	if name == "" {
+		return "no recorded service name", nil
 	}
-	cmd := types.Command{
-		Exec:     "systemctl",
-		Args:     []string{"disable", "--now", name},
-		Elevated: true,
+
+	cmd, ok := disableServiceCommand(name, entry)
+	if !ok {
+		return fmt.Sprintf("no service reversal on %s", runtime.GOOS), nil
 	}
+
+	switch serviceState(name) {
+	case status.Absent:
+		return "already disabled", nil
+	case status.Unknown:
+		return "cannot query the service; not disabling it blind", nil
+	}
+
 	return "", system.RunCommand(cmd, false)
+}
+
+// disableServiceCommand is the platform's "stop it and keep it stopped" verb,
+// taken from the same tools the services processor applies with, so uninstall
+// undoes what apply did rather than guessing at an equivalent.
+func disableServiceCommand(name string, entry state.Entry) (types.Command, bool) {
+	switch runtime.GOOS {
+	case types.OSLinux:
+		return types.Command{
+			Exec:     "systemctl",
+			Args:     []string{"disable", "--now", name},
+			Elevated: true,
+		}, true
+	case types.OSDarwin:
+		// The inverse of the processor's enable action, which is
+		// `launchctl load /Library/LaunchDaemons/<name>.plist`. The recorded
+		// target is preferred when the apply captured one, because a daemon
+		// can be installed somewhere else entirely.
+		plist := entry.Identity["target"]
+		if plist == "" {
+			plist = fmt.Sprintf("/Library/LaunchDaemons/%s.plist", name)
+		}
+		return types.Command{
+			Exec:     "launchctl",
+			Args:     []string{"unload", "-w", plist},
+			Elevated: entry.Elevated,
+		}, true
+	}
+	return types.Command{}, false
 }
