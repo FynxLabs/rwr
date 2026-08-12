@@ -189,18 +189,35 @@ func (LogReporter) Emit(event Event) {
 
 // current is the active reporter. Package state mirrors the executor seam in
 // internal/system: the run loop and runCommand emit without threading a
-// reporter through every processor signature.
-var current Reporter = LogReporter{}
+// reporter through every processor signature. Guarded by a mutex because the
+// TUI runner swaps it back to the LogReporter mid-run when the dashboard
+// exits early - the run goroutine reads it on every Emit, and an interface
+// value is two words, so an unsynchronized swap can tear.
+var (
+	currentMu sync.RWMutex
+	current   Reporter = LogReporter{}
+)
 
 // Set installs a reporter and returns a restore func (test/TUI seam).
 func Set(r Reporter) (restore func()) {
+	currentMu.Lock()
 	previous := current
 	current = r
-	return func() { current = previous }
+	currentMu.Unlock()
+	return func() {
+		currentMu.Lock()
+		current = previous
+		currentMu.Unlock()
+	}
 }
 
 // Emit sends an event to the active reporter.
-func Emit(event Event) { current.Emit(event) }
+func Emit(event Event) {
+	currentMu.RLock()
+	r := current
+	currentMu.RUnlock()
+	r.Emit(event)
+}
 
 // terminalLost, when set, is closed by the TUI runner the moment the
 // dashboard program exits. Bubbletea silently drops Sends once its context

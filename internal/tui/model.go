@@ -284,12 +284,13 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 			if !ok {
 				// Fresh-machine case: stage 2 ran before the package manager
 				// was installed, so unpinned entries planned into an "items"
-				// lane no runtime update will ever key. When the first real
-				// provider update arrives and the untouched "items" lane is
-				// the processor's only one, it IS those entries - re-key it
+				// lane no runtime update will ever key. Unpinned entries all
+				// resolve to the one default provider, so when a provider
+				// update arrives with no lane of its own and the "items" lane
+				// is untouched, that lane IS those entries - re-key it
 				// instead of leaving a ghost pending at 0/N forever.
 				if ghost, has := m.procs[i].Lanes["items"]; has && name != "items" &&
-					len(m.procs[i].Lanes) == 1 && ghost.Done == 0 && ghost.doneBase == 0 {
+					ghost.Done == 0 && ghost.doneBase == 0 {
 					delete(m.procs[i].Lanes, "items")
 					ghost.Provider = name
 					m.procs[i].Lanes[name] = ghost

@@ -115,3 +115,33 @@ func TestLaneUpdate_RekeysGhostItemsLane(t *testing.T) {
 		t.Fatalf("re-keyed lane counts = %d/%d, want 1/2", lane.Done, lane.Total)
 	}
 }
+
+// The mixed fresh-Mac layout: unpinned entries (default provider, planned as
+// "items" because no provider existed at stage 2) alongside entries pinned to
+// cargo. The first brew update must re-key the ghost even though the
+// processor already has a cargo lane.
+func TestLaneUpdate_RekeysGhostAmongPinnedLanes(t *testing.T) {
+	plan := &types.Plan{
+		Order: []string{"packages"},
+		Resources: []types.Resource{
+			{Processor: "packages", Provider: "", Name: "jq", Action: "install", Status: types.StatusPlanned},
+			{Processor: "packages", Provider: "cargo", Name: "eza", Action: "install", Status: types.StatusPlanned},
+		},
+	}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	if len(m.procs[0].Lanes) != 2 {
+		t.Fatalf("plan lanes = %d, want 2 (items + cargo)", len(m.procs[0].Lanes))
+	}
+
+	m.apply(reporting.LaneUpdate{Processor: "packages", Provider: "brew", Done: 1, Total: 1, Status: types.StatusOK})
+
+	if _, has := m.procs[0].Lanes["items"]; has {
+		t.Fatal("ghost items lane survived despite the pinned cargo lane")
+	}
+	if _, has := m.procs[0].Lanes["brew"]; !has {
+		t.Fatal("brew lane missing after re-key")
+	}
+	if _, has := m.procs[0].Lanes["cargo"]; !has {
+		t.Fatal("cargo lane lost")
+	}
+}

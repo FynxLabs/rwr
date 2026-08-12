@@ -247,13 +247,9 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if err := command.Run(); err != nil {
-		if reporting.CommandOutputWriter(reporting.SrcStderr) != nil {
-			// The TUI already streamed stderr live into the log view;
-			// embedding the whole blob again would render it twice.
-			log.Errorf("Error running command: %v (stderr in the log above)", err)
-		} else {
-			log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
-		}
+		// stderr was streamed live (to the log view under the TUI, to the
+		// real stderr headless); repeating the blob here renders it twice.
+		log.Errorf("Error running command: %v (stderr above)", err)
 		return err
 	}
 
