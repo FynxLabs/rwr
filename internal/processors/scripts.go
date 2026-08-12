@@ -70,14 +70,18 @@ func processScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *ty
 				track.item("", script.Name, script.Action, types.StatusFailed, err.Error(), time.Since(started))
 				// Scripts stop at the first failure, where packages, files and
 				// the rest record the failure and carry on. That difference is
-				// deliberate. A script is arbitrary code, the scripts in a file
+				// deliberate: a script is arbitrary code, the scripts in a file
 				// are usually ordered, and one that fails has very likely left
-				// the next one's prerequisites unmet. Returning also hands the
-				// error to All(), which is what offers the operator
-				// retry/skip/abort - and a retry re-runs the whole file, so
-				// stopping early is what keeps the already-succeeded scripts
-				// from running a second time. Nothing here can assume the
-				// idempotence that makes retry cheap for the other processors.
+				// the next one's prerequisites unmet. Stopping is what keeps
+				// the later scripts from running against that.
+				//
+				// Returning also hands the error to All(), which is what offers
+				// the operator retry/skip/abort. Note what retry costs here: it
+				// re-runs the whole file, so every script that already
+				// succeeded runs again. Nothing in this processor can assume
+				// the idempotence that makes that cheap for packages or files,
+				// which is a reason to keep the failed set small, not a reason
+				// to push on past a failure.
 				return fmt.Errorf("error running script %s: %w", script.Name, err)
 			}
 			log.Infof("Script %s executed successfully", script.Name)

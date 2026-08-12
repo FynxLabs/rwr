@@ -137,16 +137,17 @@ The Scripts blueprint supports the following fields:
 
 `args` takes either a string or a list.
 
-A **string** is divided at each space, and each part is sent to the script as
-one argument. The value `--verbose --out /tmp` becomes three arguments.
+A **string** is divided at each run of whitespace - spaces, tabs, newlines -
+and each part is sent to the script as one argument. The value
+`--verbose --out /tmp` becomes three arguments.
 
 ```yaml
 args: "--verbose --out /tmp"
 ```
 
 A **list** sends each element exactly as written, spaces and all. This is the
-only way to pass an argument that contains a space, because RWR runs no shell
-and quoting inside the string form has no effect:
+only way to pass an argument that contains whitespace, because RWR runs no
+shell and quoting inside the string form has no effect:
 
 ```yaml
 args: ["--message", "hello world", "--out", "/tmp/my reports"]
@@ -165,6 +166,9 @@ args = ["--message", "hello world"]
 ```cue
 args: ["--message", "hello world"]
 ```
+
+Every element of a list must be a string. A value such as `args: [8080]` is
+refused in every format, so quote it: `args: ["8080"]`.
 
 RWR does not use a shell to run the script. The shell characters keep their
 literal value. These characters have no special function:

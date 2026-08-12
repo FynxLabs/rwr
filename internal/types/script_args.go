@@ -39,9 +39,20 @@ func (a *ScriptArgs) UnmarshalYAML(node *yaml.Node) error {
 		*a = splitScriptArgs(node.Value)
 		return nil
 	case "!!seq":
-		var list []string
-		if err := node.Decode(&list); err != nil {
-			return fmt.Errorf("line %d: args list must contain only strings: %w", node.Line, err)
+		// Each element is checked rather than decoded straight into []string.
+		// yaml.v3 coerces any scalar to a string on the way in, so
+		// `args: [1, true]` decoded happily as ["1", "true"] while JSON, TOML
+		// and CUE all rejected the same blueprint - and YAML itself rejected
+		// the bare scalar `args: 42`, so it did not even agree with itself.
+		// The formats have to mean the same thing; the examples CI job exists
+		// to assert exactly that.
+		list := make([]string, 0, len(node.Content))
+		for i, element := range node.Content {
+			if element.Tag != "!!str" {
+				return fmt.Errorf("line %d: args[%d] must be a string; quote it if you meant the text %q",
+					element.Line, i, element.Value)
+			}
+			list = append(list, element.Value)
 		}
 		*a = list
 		return nil

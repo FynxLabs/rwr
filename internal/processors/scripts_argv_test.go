@@ -301,3 +301,100 @@ scripts:
 		})
 	}
 }
+
+// scriptDecodeErr runs one blueprint and returns the error, if any.
+func scriptDecodeErr(t *testing.T, format, blueprint string) error {
+	t.Helper()
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	return ProcessScripts([]byte(blueprint), t.TempDir(), format, scriptOSInfo(), &types.InitConfig{})
+}
+
+// The formats have to agree about what args means, and this is the table that
+// says so.
+//
+// yaml.v3 coerces any scalar into a string on the way into a []string, so
+// `args: [1, true]` decoded happily as ["1", "true"] while JSON, TOML and CUE
+// all rejected the same blueprint - and YAML itself rejected the bare scalar
+// `args: 42`, so it did not agree with itself either. A blueprint has to mean
+// the same thing whichever format it is written in.
+//
+// The error text is deliberately not asserted: four different decoders produce
+// four different messages, and pinning them would test the libraries rather
+// than rwr's contract.
+func TestProcessScripts_InvalidArgsAreRejectedInEveryFormat(t *testing.T) {
+	cases := []struct {
+		name      string
+		format    string
+		blueprint string
+	}{
+		{"yaml list with numbers", "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: [1, true, 2.5]
+`},
+		{"json list with numbers", "json",
+			`{"scripts":[{"name":"setup.sh","action":"run","source":".","exec":"bash","args":[1,true]}]}`},
+		{"toml list with numbers", "toml", `
+[[scripts]]
+name = "setup.sh"
+action = "run"
+source = "."
+exec = "bash"
+args = [1, true]
+`},
+		{"cue list with numbers", "cue", `
+scripts: [{name: "setup.sh", action: "run", source: ".", exec: "bash", args: [1, true]}]
+`},
+		{"yaml list with a null", "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: ["--flag", null]
+`},
+		{"yaml list with a nested list", "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: ["--flag", ["nested"]]
+`},
+		{"yaml scalar number", "yaml", `
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "bash"
+    args: 42
+`},
+		{"json scalar number", "json",
+			`{"scripts":[{"name":"setup.sh","action":"run","source":".","exec":"bash","args":42}]}`},
+		{"toml scalar number", "toml", `
+[[scripts]]
+name = "setup.sh"
+action = "run"
+source = "."
+exec = "bash"
+args = 42
+`},
+		{"cue scalar number", "cue", `
+scripts: [{name: "setup.sh", action: "run", source: ".", exec: "bash", args: 42}]
+`},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := scriptDecodeErr(t, tt.format, tt.blueprint); err == nil {
+				t.Fatal("a non-string args value was accepted")
+			}
+		})
+	}
+}
