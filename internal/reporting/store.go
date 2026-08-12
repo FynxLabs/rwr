@@ -205,13 +205,18 @@ func (s *Store) NewView(processor string) *View {
 }
 
 // Records returns the view's live records, dropping evicted Seqs lazily.
+// The lock covers the whole read: appendOne mutates view.idx under s.mu, and
+// the render tick calling this concurrently with the run goroutine's log
+// writes would otherwise race on the slice header - stale lengths (lines
+// silently missing from the viewport) or a re-slice clobbering an append.
 func (s *Store) Records(view *View) []LogRecord {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	oldest := uint64(0)
 	if len(s.buf) > 0 {
 		oldest = s.buf[0].Seq
 	}
-	s.mu.Unlock()
 
 	start := 0
 	for start < len(view.idx) && view.idx[start] < oldest {
@@ -221,9 +226,10 @@ func (s *Store) Records(view *View) []LogRecord {
 
 	out := make([]LogRecord, 0, len(view.idx))
 	for _, seq := range view.idx {
-		if record, ok := s.Get(seq); ok {
-			out = append(out, record)
+		if len(s.buf) == 0 || seq < s.buf[0].Seq || seq > s.seq {
+			continue
 		}
+		out = append(out, s.buf[seq-s.buf[0].Seq])
 	}
 	return out
 }

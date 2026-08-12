@@ -186,8 +186,6 @@ func runCommand(cmd types.Command, debug bool) error {
 	command := buildCommand(cmd)
 	setupCommandEnvironment(command, cmd)
 
-	var stderr bytes.Buffer
-
 	if cmd.Stdin != "" {
 		// Supplied input wins over the terminal even for an interactive command:
 		// the caller is feeding the tool something specific, and inheriting
@@ -203,7 +201,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		// a TUI suspends itself around the child instead. This path also
 		// serves per-item `interactive: true` inside non-interactive runs.
 		if err := runOnTerminal(command); err != nil {
-			log.Errorf("Error running command: %v\nStderr: %s", err, stderr.String())
+			log.Errorf("Error running command: %v (stderr above)", err)
 			return err
 		}
 		return nil
@@ -221,15 +219,15 @@ func runCommand(cmd types.Command, debug bool) error {
 		ensureSudoCredentials()
 	}
 	{
-		// Under the TUI, captured stderr also streams into the log view (the
-		// `≫` lines); the buffer still holds full text for the error path.
-		// Headless, it streams to the real stderr like the pre-TUI wiring
-		// did - package-manager output must land somewhere the operator
-		// (or their `> install.log` redirect) can see it.
+		// Under the TUI, captured stderr streams into the log view (the `≫`
+		// lines); headless it streams to the real stderr like the pre-TUI
+		// wiring did. No buffer: the error path points at the stream, and
+		// accumulating hundreds of KB of compiler progress just to discard
+		// it unread was pure memory overhead.
 		if w := reporting.CommandOutputWriter(reporting.SrcStderr); w != nil {
-			command.Stderr = io.MultiWriter(&stderr, w)
+			command.Stderr = w
 		} else {
-			command.Stderr = io.MultiWriter(&stderr, os.Stderr)
+			command.Stderr = os.Stderr
 		}
 		logFile, err := setOutputStreams(command, debug, cmd.LogName)
 		if err != nil {

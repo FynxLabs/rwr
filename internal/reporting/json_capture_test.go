@@ -75,3 +75,25 @@ func TestAppend_SplitsMultilineMessages(t *testing.T) {
 		}
 	}
 }
+
+// Records and Append race under real load (render tick vs run goroutine);
+// run with -race to catch slice-header tears on view.idx.
+func TestStore_ConcurrentAppendAndRecords(t *testing.T) {
+	store := NewStore(200)
+	view := store.NewView("")
+	stop := make(chan struct{})
+	go func() {
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+				store.Append(LogRecord{Msg: "line", Processor: "packages"})
+			}
+		}
+	}()
+	for i := 0; i < 500; i++ {
+		store.Records(view)
+	}
+	close(stop)
+}
