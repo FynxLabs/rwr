@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -134,6 +135,21 @@ var guardKeys = map[string]bool{"sha256": true}
 
 // Key renders the identifying part of an identity deterministically, so the
 // same unit keys the same way across runs and across a reversal.
+//
+// Fields are length-prefixed rather than delimited, because identity values
+// are arbitrary strings and one of them is a filesystem path. Joining them
+// with "=" and ";" was ambiguous: both of these render identically, and would
+// fold two different managed files into one entry, so one of them would never
+// be reversed and the other could be matched against the wrong content hash.
+//
+//	{"dest": "/tmp/a;name=x", "name": "y"}
+//	{"dest": "/tmp/a",        "name": "x;name=y"}
+//
+// Length prefixes make the encoding injective: no value can imitate the
+// structure around it, whatever characters it contains.
+//
+// The format is never written to disk. Keys are computed while folding and
+// discarded, so changing it does not affect journals already recorded.
 func Key(processor string, identity map[string]string) string {
 	keys := make([]string, 0, len(identity))
 	for k := range identity {
@@ -145,15 +161,19 @@ func Key(processor string, identity map[string]string) string {
 	sort.Strings(keys)
 
 	var b strings.Builder
-	b.WriteString(processor)
-	b.WriteString("\x00")
+	writeKeyField(&b, processor)
 	for _, k := range keys {
-		b.WriteString(k)
-		b.WriteString("=")
-		b.WriteString(identity[k])
-		b.WriteString(";")
+		writeKeyField(&b, k)
+		writeKeyField(&b, identity[k])
 	}
 	return b.String()
+}
+
+// writeKeyField appends one length-prefixed field: "<len>:<value>".
+func writeKeyField(b *strings.Builder, value string) {
+	b.WriteString(strconv.Itoa(len(value)))
+	b.WriteByte(':')
+	b.WriteString(value)
 }
 
 // legacyEntries reads the v1 per-run record files this format replaced.

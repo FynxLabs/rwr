@@ -6,6 +6,33 @@ import (
 	"testing"
 )
 
+// newWriter opens a journal for a test and fails loudly when it cannot.
+//
+// The tests used to discard the error from NewWriter and from Finalize. A
+// setup failure then produced an empty journal, Applies returned nothing, and
+// an assertion like "want nothing left to reverse" passed without any
+// reversal having been tested.
+func newWriter(t *testing.T, dir, location string) *Writer {
+	t.Helper()
+	w, err := NewWriter(dir, location, false)
+	if err != nil {
+		t.Fatalf("opening the journal: %v", err)
+	}
+	if w == nil {
+		t.Fatal("opening the journal returned no writer")
+	}
+	return w
+}
+
+// finalize closes a journal and fails when the close does not land, so a
+// half-written log cannot masquerade as an empty one.
+func finalize(t *testing.T, w *Writer) {
+	t.Helper()
+	if err := w.Finalize(); err != nil {
+		t.Fatalf("finalizing the journal: %v", err)
+	}
+}
+
 func TestJournal_Lifecycle(t *testing.T) {
 	dir := t.TempDir()
 	w, err := NewWriter(dir, "tree", false)
@@ -63,14 +90,14 @@ func TestJournal_DryRunWritesNothing(t *testing.T) {
 // Unreversed and stays visible in Applies.
 func TestJournal_ReversalIsAnEvent(t *testing.T) {
 	dir := t.TempDir()
-	w, _ := NewWriter(dir, "tree", false)
+	w := newWriter(t, dir, "tree")
 	identity := map[string]string{"name": "rc", "dest": "/tmp/rc"}
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok", Identity: identity})
-	_ = w.Finalize()
+	finalize(t, w)
 
-	u, _ := NewWriter(dir, "", false)
+	u := newWriter(t, dir, "")
 	u.Reverse("files", identity)
-	_ = u.Finalize()
+	finalize(t, u)
 
 	unreversed, err := Unreversed(dir)
 	if err != nil {
@@ -98,14 +125,17 @@ func TestJournal_ReversalIsAnEvent(t *testing.T) {
 // apply it cancels; see TestJournal_ReapplyAfterReversalIsLiveAgain.
 func TestJournal_LatestApplyWins(t *testing.T) {
 	dir := t.TempDir()
-	w, _ := NewWriter(dir, "tree", false)
+	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "git"}, Detail: "first"})
 	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "git"}, Detail: "second"})
-	_ = w.Finalize()
+	finalize(t, w)
 
-	applies, _ := Applies(dir)
+	applies, err := Applies(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(applies) != 1 || applies[0].Detail != "second" {
 		t.Fatalf("applies = %+v", applies)
 	}
@@ -133,7 +163,10 @@ func TestLegacyV1RecordsFoldIn(t *testing.T) {
 	if len(applies) != 2 {
 		t.Fatalf("applies = %+v", applies)
 	}
-	unreversed, _ := Unreversed(dir)
+	unreversed, err := Unreversed(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(unreversed) != 1 || unreversed[0].Identity["name"] != "git" {
 		t.Fatalf("unreversed = %+v", unreversed)
 	}
@@ -148,12 +181,12 @@ func TestLegacyV1RecordsFoldIn(t *testing.T) {
 // for each of them, and `rwr status` could call a live file stale.
 func TestJournal_FileReapplyWithNewContentFoldsToOneEntry(t *testing.T) {
 	dir := t.TempDir()
-	w, _ := NewWriter(dir, "tree", false)
+	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "aaa"}, Detail: "first"})
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "bbb"}, Detail: "second"})
-	_ = w.Finalize()
+	finalize(t, w)
 
 	applies, err := Applies(dir)
 	if err != nil {
@@ -177,17 +210,17 @@ func TestJournal_FileReapplyWithNewContentFoldsToOneEntry(t *testing.T) {
 // stale-hashed twin behind that looks unreversed.
 func TestJournal_ReversalMatchesAcrossAContentChange(t *testing.T) {
 	dir := t.TempDir()
-	w, _ := NewWriter(dir, "tree", false)
+	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "aaa"}})
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "bbb"}})
-	_ = w.Finalize()
+	finalize(t, w)
 
-	u, _ := NewWriter(dir, "", false)
+	u := newWriter(t, dir, "")
 	// uninstall reverses what it read: the latest identity, hash included.
 	u.Reverse("files", map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "bbb"})
-	_ = u.Finalize()
+	finalize(t, u)
 
 	unreversed, err := Unreversed(dir)
 	if err != nil {
@@ -202,12 +235,12 @@ func TestJournal_ReversalMatchesAcrossAContentChange(t *testing.T) {
 // key must not collapse anything that is actually distinct.
 func TestJournal_DistinctDestinationsStayDistinct(t *testing.T) {
 	dir := t.TempDir()
-	w, _ := NewWriter(dir, "tree", false)
+	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "rc", "dest": "/tmp/one", "sha256": "aaa"}})
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "rc", "dest": "/tmp/two", "sha256": "aaa"}})
-	_ = w.Finalize()
+	finalize(t, w)
 
 	applies, err := Applies(dir)
 	if err != nil {
@@ -232,18 +265,18 @@ func TestJournal_ReapplyAfterReversalIsLiveAgain(t *testing.T) {
 	dir := t.TempDir()
 	identity := map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "aaa"}
 
-	w, _ := NewWriter(dir, "tree", false)
+	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok", Identity: identity})
-	_ = w.Finalize()
+	finalize(t, w)
 
-	u, _ := NewWriter(dir, "", false)
+	u := newWriter(t, dir, "")
 	u.Reverse("files", identity)
-	_ = u.Finalize()
+	finalize(t, u)
 
-	again, _ := NewWriter(dir, "tree", false)
+	again := newWriter(t, dir, "tree")
 	again.Append(Entry{Processor: "files", Action: "create", OK: true, Outcome: "ok",
 		Identity: map[string]string{"name": "rc", "dest": "/tmp/rc", "sha256": "bbb"}})
-	_ = again.Finalize()
+	finalize(t, again)
 
 	live, err := Unreversed(dir)
 	if err != nil {
@@ -264,17 +297,17 @@ func TestJournal_ReapplyAfterReversalIsLiveAgainForPackages(t *testing.T) {
 	dir := t.TempDir()
 	identity := map[string]string{"name": "git", "provider": "pacman"}
 
-	w, _ := NewWriter(dir, "tree", false)
+	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok", Identity: identity})
-	_ = w.Finalize()
+	finalize(t, w)
 
-	u, _ := NewWriter(dir, "", false)
+	u := newWriter(t, dir, "")
 	u.Reverse("packages", identity)
-	_ = u.Finalize()
+	finalize(t, u)
 
-	again, _ := NewWriter(dir, "tree", false)
+	again := newWriter(t, dir, "tree")
 	again.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok", Identity: identity})
-	_ = again.Finalize()
+	finalize(t, again)
 
 	live, err := Unreversed(dir)
 	if err != nil {
@@ -292,14 +325,14 @@ func TestJournal_ReversalAfterTheLastApplyStillCancelsIt(t *testing.T) {
 	dir := t.TempDir()
 	identity := map[string]string{"name": "git", "provider": "pacman"}
 
-	w, _ := NewWriter(dir, "tree", false)
+	w := newWriter(t, dir, "tree")
 	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok", Identity: identity})
 	w.Append(Entry{Processor: "packages", Action: "install", OK: true, Outcome: "ok", Identity: identity})
-	_ = w.Finalize()
+	finalize(t, w)
 
-	u, _ := NewWriter(dir, "", false)
+	u := newWriter(t, dir, "")
 	u.Reverse("packages", identity)
-	_ = u.Finalize()
+	finalize(t, u)
 
 	live, err := Unreversed(dir)
 	if err != nil {
@@ -307,5 +340,70 @@ func TestJournal_ReversalAfterTheLastApplyStillCancelsIt(t *testing.T) {
 	}
 	if len(live) != 0 {
 		t.Fatalf("a reversal after the last apply did not cancel it: %+v", live)
+	}
+}
+
+// Identity values are arbitrary strings, and one of them is a filesystem path.
+// Joining fields with "=" and ";" was ambiguous: these two identities rendered
+// identically, which would fold two different managed files into one entry -
+// so one of them would never be reversed, and the other could be matched
+// against the wrong content hash on the way to a delete.
+func TestKey_DelimiterValuesDoNotCollide(t *testing.T) {
+	t.Parallel()
+
+	a := Key("files", map[string]string{"dest": "/tmp/a;name=x", "name": "y"})
+	b := Key("files", map[string]string{"dest": "/tmp/a", "name": "x;name=y"})
+
+	if a == b {
+		t.Fatalf("two distinct files collide onto one key: %q", a)
+	}
+}
+
+// The same ambiguity through the processor, and through a value that imitates
+// a length prefix rather than a delimiter.
+func TestKey_StructuralImitationDoesNotCollide(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		a, b string
+	}{
+		{
+			name: "processor absorbs a field",
+			a:    Key("files", map[string]string{"name": "x"}),
+			b:    Key("files\x004:name", map[string]string{}),
+		},
+		{
+			name: "value imitates a length prefix",
+			a:    Key("files", map[string]string{"name": "4:dest"}),
+			b:    Key("files", map[string]string{"name": "", "4": "dest"}),
+		},
+	}
+
+	for _, tt := range cases {
+		if tt.a == tt.b {
+			t.Errorf("%s: distinct identities collide onto %q", tt.name, tt.a)
+		}
+	}
+}
+
+// Keying has to be stable across calls, or the fold would scatter one unit
+// across several entries.
+func TestKey_IsStableAcrossCalls(t *testing.T) {
+	t.Parallel()
+
+	identity := map[string]string{"name": "rc", "dest": "/tmp/rc", "provider": "", "sha256": "aaa"}
+	first := Key("files", identity)
+
+	for range 10 {
+		if got := Key("files", identity); got != first {
+			t.Fatalf("Key is not deterministic: %q then %q", first, got)
+		}
+	}
+
+	// The guard is excluded, so a content change keys the same.
+	changed := map[string]string{"name": "rc", "dest": "/tmp/rc", "provider": "", "sha256": "bbb"}
+	if Key("files", changed) != first {
+		t.Error("a content change altered the identity key")
 	}
 }
