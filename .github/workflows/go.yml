@@ -326,5 +326,5 @@ jobs:
       # Fails on any known vulnerability reachable from our code paths.
       - name: govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
           govulncheck ./...
