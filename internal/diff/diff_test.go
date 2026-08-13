@@ -266,3 +266,99 @@ func TestEmitBlocks_ConfigsSharingAFilenameBothEmit(t *testing.T) {
 		}
 	}
 }
+
+// A journal entry accounts for one path, not for every file that happens to
+// share its basename.
+//
+// Naming a files entry after the file it carries is the convention, so a
+// journaled "init.lua" would otherwise suppress every other init.lua on the
+// machine - and half a dozen tools own one. Checking the recorded name before
+// the recorded path left exactly the basename collision this change exists to
+// remove.
+func TestCompute_AJournaledNameDoesNotHideAnotherPath(t *testing.T) {
+	t.Parallel()
+
+	machine := Machine{
+		Home: "/home/me",
+		Configs: []scan.ConfigResult{
+			{Path: "/home/me/.config/nvim/init.lua", Rel: ".config/nvim/init.lua"},
+			{Path: "/home/me/.config/wezterm/init.lua", Rel: ".config/wezterm/init.lua"},
+		},
+	}
+	// The recorded entry is named after its file and covers only the nvim one.
+	applies := []state.Entry{
+		{Processor: types.BlueprintTypeFiles,
+			Identity: map[string]string{"name": "init.lua", "dest": "/home/me/.config/nvim/init.lua"}},
+	}
+
+	changes := Compute(machine, &types.Plan{}, applies)
+	if len(changes) != 1 {
+		t.Fatalf("want only the unjournaled config as drift, got %d: %+v", len(changes), changes)
+	}
+	if changes[0].Path != "/home/me/.config/wezterm/init.lua" {
+		t.Errorf("reported the wrong config: %+v", changes[0])
+	}
+
+	// And it still reaches the paste-ready output.
+	out, err := EmitBlocks(changes, machine, "yaml")
+	if err != nil {
+		t.Fatalf("EmitBlocks: %v", err)
+	}
+	if !strings.Contains(out, "wezterm") {
+		t.Errorf("the unjournaled config is missing from --emit output:\n%s", out)
+	}
+	if strings.Contains(out, "nvim") {
+		t.Errorf("the journaled config was emitted as drift:\n%s", out)
+	}
+}
+
+// The same rule for checkouts: two repos can be cloned into directories with
+// the same base name.
+func TestCompute_AJournaledCheckoutNameDoesNotHideAnotherPath(t *testing.T) {
+	t.Parallel()
+
+	machine := Machine{
+		Home: "/home/me",
+		Git: []scan.GitCheckout{
+			{Path: "/home/me/work/rwr", URL: "git@github.com:FynxLabs/rwr.git"},
+			{Path: "/home/me/fork/rwr", URL: "git@github.com:someone/rwr.git"},
+		},
+	}
+	applies := []state.Entry{
+		{Processor: types.BlueprintTypeGit,
+			Identity: map[string]string{"name": "rwr", "target": "/home/me/work/rwr"}},
+	}
+
+	changes := Compute(machine, &types.Plan{}, applies)
+	if len(changes) != 1 {
+		t.Fatalf("want only the unjournaled checkout as drift, got %d: %+v", len(changes), changes)
+	}
+	if changes[0].Path != "/home/me/fork/rwr" {
+		t.Errorf("reported the wrong checkout: %+v", changes[0])
+	}
+}
+
+// Packages and services have no location, so a name is what identifies them
+// and the journal match has to keep working on it.
+func TestCompute_NameMatchingStillAppliesWithoutALocation(t *testing.T) {
+	t.Parallel()
+
+	machine := Machine{
+		Packages: []scan.PackageResult{{Provider: "pacman", Names: []string{"ripgrep", "fd"}}},
+		Services: []string{"sshd", "docker"},
+	}
+	applies := []state.Entry{
+		{Processor: types.BlueprintTypePackages, Identity: map[string]string{"name": "ripgrep"}},
+		{Processor: types.BlueprintTypeServices, Identity: map[string]string{"name": "sshd"}},
+	}
+
+	changes := Compute(machine, &types.Plan{}, applies)
+	if len(changes) != 2 {
+		t.Fatalf("want fd and docker as drift, got %d: %+v", len(changes), changes)
+	}
+	for _, change := range changes {
+		if change.Name == "ripgrep" || change.Name == "sshd" {
+			t.Errorf("a journaled name-identified resource was reported as drift: %+v", change)
+		}
+	}
+}

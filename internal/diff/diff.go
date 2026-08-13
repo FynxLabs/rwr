@@ -77,10 +77,24 @@ func Compute(machine Machine, plan *types.Plan, applies []state.Entry) []Change 
 	// or the journal accounts for it. location is the absolute path for the
 	// categories identified by one, and empty for the rest.
 	add := func(category, provider, name, location string) {
-		if desired[category][name] || applied[category+"\x00"+name] {
+		// The tree side offers nothing but a name, so that check is the same
+		// for every category.
+		if desired[category][name] {
 			return
 		}
-		if location != "" && appliedPaths[category+"\x00"+filepath.Clean(location)] {
+		if location != "" {
+			// Path only, never the name. Naming a files entry after the file
+			// it carries is the convention, so a journaled "init.lua" would
+			// otherwise suppress every other init.lua on the machine - and
+			// half a dozen tools own one. That is the same basename collision
+			// this change exists to remove; checking the name first would have
+			// left it in place through the other branch.
+			if appliedPaths[category+"\x00"+filepath.Clean(location)] {
+				return
+			}
+		} else if applied[category+"\x00"+name] {
+			// Packages and services have no location: a name is what
+			// identifies them, and the journal records the same one.
 			return
 		}
 		changes = append(changes, Change{Category: category, Provider: provider, Name: name, Path: location})
