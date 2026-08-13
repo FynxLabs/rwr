@@ -6,8 +6,11 @@ the delta as blueprint material - never an apply.
 The machine side comes from read-only scans: explicitly-installed packages
 per provider (`pacman -Qe`, `apt-mark showmanual`, …), operator-enabled
 services, git checkouts, and configs. The tree side is the resolved plan.
-Packages the [run journal](../state.md) shows a run applied never report as
-hand-added - the tree may have changed since, but you didn't install them.
+Anything the [run journal](../state.md) shows a run applied never reports as
+hand-added - the tree may have changed since, but you didn't put it there.
+Packages and services match by name; configs and checkouts match by the path
+the journal recorded, since a blueprint entry's name has nothing to do with
+where its file lands.
 
 ```bash
 # The readable list: + additions (hand-done), - removals (declared, gone)

@@ -139,3 +139,130 @@ func TestAppendEntries(t *testing.T) {
 		}
 	}
 }
+
+// A file rwr itself applied is not drift, and the journal is the only place
+// that says so.
+//
+// A files entry's blueprint name ("nvim-config") has nothing to do with the
+// path it lands on, so matching a scanned config against Identity["name"]
+// never hit: every dotfile rwr had applied came back as "on the machine, not
+// in the tree". The journal records where the thing actually went, which is
+// exactly what the scan found.
+func TestCompute_JournalPathsAccountForConfigsAndCheckouts(t *testing.T) {
+	t.Parallel()
+
+	machine := Machine{
+		Home:    "/home/me",
+		Configs: []scan.ConfigResult{{Path: "/home/me/.config/nvim/init.lua", Rel: ".config/nvim/init.lua", Known: true}},
+		Git:     []scan.GitCheckout{{Path: "/home/me/src/rwr", URL: "git@github.com:FynxLabs/rwr.git"}},
+	}
+	applies := []state.Entry{
+		{Processor: types.BlueprintTypeFiles,
+			Identity: map[string]string{"name": "nvim-config", "dest": "/home/me/.config/nvim/init.lua"}},
+		{Processor: types.BlueprintTypeGit,
+			Identity: map[string]string{"name": "rwr-checkout", "target": "/home/me/src/rwr"}},
+	}
+
+	if changes := Compute(machine, &types.Plan{}, applies); len(changes) != 0 {
+		t.Fatalf("rwr's own applies reported as drift: %+v", changes)
+	}
+}
+
+// The path comparison is by cleaned path, so a recorded trailing slash or a
+// "." segment still matches what the scan found.
+func TestCompute_JournalPathMatchIsPathAware(t *testing.T) {
+	t.Parallel()
+
+	machine := Machine{
+		Home: "/home/me",
+		Git:  []scan.GitCheckout{{Path: "/home/me/src/rwr", URL: "u"}},
+	}
+	applies := []state.Entry{
+		{Processor: types.BlueprintTypeGit, Identity: map[string]string{"target": "/home/me/src/./rwr/"}},
+	}
+
+	if changes := Compute(machine, &types.Plan{}, applies); len(changes) != 0 {
+		t.Fatalf("an unclean recorded path failed to match: %+v", changes)
+	}
+}
+
+// A recorded path only accounts for its own category. A checkout at a path
+// must not silence a config at that same path, or vice versa.
+func TestCompute_JournalPathsAreScopedToTheirCategory(t *testing.T) {
+	t.Parallel()
+
+	machine := Machine{
+		Home:    "/home/me",
+		Configs: []scan.ConfigResult{{Path: "/home/me/thing", Rel: "thing"}},
+	}
+	// The journal accounts for a *checkout* at that path, not a file.
+	applies := []state.Entry{
+		{Processor: types.BlueprintTypeGit, Identity: map[string]string{"target": "/home/me/thing"}},
+	}
+
+	changes := Compute(machine, &types.Plan{}, applies)
+	if len(changes) != 1 || changes[0].Category != types.BlueprintTypeFiles {
+		t.Fatalf("a git target silenced a config at the same path: %+v", changes)
+	}
+}
+
+// Everything the list reports as an addition has to be emittable, or
+// `rwr diff --emit` quietly hands back less than it just showed. Configs were
+// listed and then dropped - the category the command is most often used for.
+func TestEmitBlocks_IncludesEveryListedCategory(t *testing.T) {
+	t.Parallel()
+
+	machine := Machine{
+		Home:     "/home/me",
+		Packages: []scan.PackageResult{{Provider: "pacman", Names: []string{"ripgrep"}}},
+		Services: []string{"sshd"},
+		Git:      []scan.GitCheckout{{Path: "/home/me/src/rwr", URL: "git@github.com:FynxLabs/rwr.git"}},
+		Configs:  []scan.ConfigResult{{Path: "/home/me/.config/nvim/init.lua", Rel: ".config/nvim/init.lua", Known: true}},
+	}
+
+	changes := Compute(machine, &types.Plan{}, nil)
+	out, err := EmitBlocks(changes, machine, "yaml")
+	if err != nil {
+		t.Fatalf("EmitBlocks: %v", err)
+	}
+
+	// Every category the list reported must appear in the emitted blocks.
+	seen := map[string]bool{}
+	for _, change := range changes {
+		seen[change.Category] = true
+	}
+	for category := range seen {
+		if !strings.Contains(out, category+":") {
+			t.Errorf("category %q was listed as drift but is missing from --emit output:\n%s", category, out)
+		}
+	}
+}
+
+// Two configs can share a filename - half a dozen tools each own a "config" -
+// so the emitted block has to be found by path, not by name.
+func TestEmitBlocks_ConfigsSharingAFilenameBothEmit(t *testing.T) {
+	t.Parallel()
+
+	machine := Machine{
+		Home: "/home/me",
+		Configs: []scan.ConfigResult{
+			{Path: "/home/me/.config/nvim/init.lua", Rel: ".config/nvim/init.lua", Known: true},
+			{Path: "/home/me/.config/wezterm/init.lua", Rel: ".config/wezterm/init.lua", Known: true},
+		},
+	}
+
+	changes := Compute(machine, &types.Plan{}, nil)
+	if len(changes) != 2 {
+		t.Fatalf("expected both configs as drift, got %+v", changes)
+	}
+
+	out, err := EmitBlocks(changes, machine, "yaml")
+	if err != nil {
+		t.Fatalf("EmitBlocks: %v", err)
+	}
+	for _, want := range []string{"nvim", "wezterm"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("emitted output lost the %s config:\n%s", want, out)
+		}
+	}
+}
