@@ -92,6 +92,13 @@ package providers
 #Provider: {
 	name:      string
 	elevated?: bool
+	// escalates marks a provider that rwr runs unprivileged but which invokes
+	// sudo itself. brew is the case: it refuses to run as root, and a cask
+	// install shells out to sudo to write into /Applications. rwr warms the
+	// sudo credential cache before such a command, because that prompt reaches
+	// /dev/tty rather than the captured pipes and would otherwise hang the run
+	// invisibly under the dashboard.
+	escalates?: bool
 	detection: #Detection
 	commands: #Commands
 	repository?: #Repository

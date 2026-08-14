@@ -182,7 +182,12 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				// The provider decides whether its package manager needs elevation;
 				// a blueprint may ask for it on top (a user-scoped manager invoked
 				// against a system path), but may not take it away.
-				Elevated:  provider.Elevated || pkg.Elevated,
+				Elevated: provider.Elevated || pkg.Elevated,
+				// Declared by the provider: a manager rwr runs unprivileged
+				// that calls sudo itself, so the credential cache is warmed
+				// before it rather than after it has already hung on a prompt
+				// nobody could see.
+				Escalates: provider.Escalates,
 				Variables: provider.Environment,
 				// Terminal handover only on an explicit per-item
 				// `interactive: true`. Routing every package through the
