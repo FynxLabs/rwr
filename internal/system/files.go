@@ -206,11 +206,45 @@ func NewHTTPClient(timeout time.Duration) *http.Client {
 		Timeout: timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
-				return errors.New("stopped after 10 redirects")
+				return fmt.Errorf("%w: stopped after 10", ErrTooManyRedirects)
+			}
+			if err := refuseSchemeDowngrade(req, via); err != nil {
+				return err
 			}
 			return ValidateDownloadURL(req.URL.String())
 		},
 	}
+}
+
+// ErrInsecureRedirect reports a redirect that would leave TLS behind.
+var ErrInsecureRedirect = errors.New("refusing to follow an insecure redirect")
+
+// ErrTooManyRedirects reports a redirect chain that never terminates.
+var ErrTooManyRedirects = errors.New("too many redirects")
+
+// refuseSchemeDowngrade rejects a hop to http once any earlier hop was https.
+//
+// It has to run before ValidateDownloadURL, which permits http for loopback so
+// that local mirrors and tests keep working. That exemption is about the URL an
+// operator supplies deliberately; as a *redirect target* it is a hole, because
+// a remote server chooses it. An https response redirecting to
+// http://127.0.0.1 would otherwise be followed, and any local process can bind
+// a loopback port and read what arrives - including the device code rwr posts
+// to exchange for a GitHub token.
+//
+// The whole chain is checked rather than only the previous hop, so
+// https -> http is refused however many times it bounces on the way.
+func refuseSchemeDowngrade(req *http.Request, via []*http.Request) error {
+	if req.URL.Scheme != "http" {
+		return nil
+	}
+	for _, previous := range via {
+		if previous.URL.Scheme == "https" {
+			return fmt.Errorf("%w: %s redirected to %s, which is not encrypted",
+				ErrInsecureRedirect, previous.URL.Redacted(), req.URL.Redacted())
+		}
+	}
+	return nil
 }
 
 // HashFileSHA256 returns the hex sha256 of a file's content.

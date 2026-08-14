@@ -1,9 +1,11 @@
 package system
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -30,7 +32,7 @@ func TestHTTPClientRefusesADowngradeRedirect(t *testing.T) {
 		_ = resp.Body.Close()
 		t.Fatal("a redirect to plain http was followed")
 	}
-	if !strings.Contains(err.Error(), "refusing to download") {
+	if !errors.Is(err, ErrInsecureRedirect) && !strings.Contains(err.Error(), "refusing to download") {
 		t.Errorf("refused for the wrong reason: %v", err)
 	}
 }
@@ -83,7 +85,7 @@ func TestHTTPClientStopsAfterTenRedirects(t *testing.T) {
 		_ = resp.Body.Close()
 		t.Fatal("an endless redirect chain was followed")
 	}
-	if !strings.Contains(err.Error(), "stopped after 10 redirects") {
+	if !errors.Is(err, ErrTooManyRedirects) {
 		t.Errorf("stopped for the wrong reason: %v", err)
 	}
 }
@@ -97,5 +99,70 @@ func TestDownloadClientKeepsItsTimeout(t *testing.T) {
 	}
 	if DownloadClient.CheckRedirect == nil {
 		t.Error("DownloadClient lost its redirect policy")
+	}
+}
+
+// The loopback exemption in ValidateDownloadURL is about a URL an operator
+// supplies deliberately, so local mirrors keep working. As a redirect target it
+// is a hole: the remote server chooses it, and any local process can bind a
+// loopback port and read what arrives - including the device code rwr posts to
+// exchange for a GitHub token.
+//
+// The handler must never run.
+func TestHTTPClientRefusesADowngradeToLoopback(t *testing.T) {
+	t.Parallel()
+
+	var reached atomic.Bool
+	loopback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached.Store(true)
+		_, _ = w.Write([]byte("should never be served"))
+	}))
+	defer loopback.Close()
+
+	// httptest binds 127.0.0.1, so this is exactly the case the exemption
+	// would have allowed.
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, loopback.URL, http.StatusFound)
+	}))
+	defer origin.Close()
+
+	client := NewHTTPClient(5 * time.Second)
+	client.Transport = origin.Client().Transport
+
+	resp, err := client.Get(origin.URL) //nolint:bodyclose // the request must not succeed
+	if err == nil {
+		_ = resp.Body.Close()
+		t.Fatal("an https response redirected to http loopback and was followed")
+	}
+	if !errors.Is(err, ErrInsecureRedirect) {
+		t.Errorf("refused for the wrong reason: %v", err)
+	}
+	if reached.Load() {
+		t.Error("the cleartext loopback handler was reached")
+	}
+}
+
+// A request that starts on http may still redirect within http: the loopback
+// and local-mirror cases have to keep working when TLS was never in play.
+func TestHTTPClientAllowsHTTPToHTTPOnLoopback(t *testing.T) {
+	t.Parallel()
+
+	final := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer final.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, final.URL, http.StatusFound)
+	}))
+	defer origin.Close()
+
+	resp, err := NewHTTPClient(5 * time.Second).Get(origin.URL)
+	if err != nil {
+		t.Fatalf("an http-to-http loopback redirect was refused: %v", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
 	}
 }
