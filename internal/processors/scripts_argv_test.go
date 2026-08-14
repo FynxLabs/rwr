@@ -3,6 +3,7 @@ package processors
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/exectest"
@@ -396,5 +397,122 @@ scripts: [{name: "setup.sh", action: "run", source: ".", exec: "bash", args: 42}
 				t.Fatal("a non-string args value was accepted")
 			}
 		})
+	}
+}
+
+// `exec: self` runs the script file directly, so it has to be executable -
+// but with `source:` that file lives in the operator's blueprint tree.
+//
+// A flat chmod 0755 widened a file they may have deliberately restricted,
+// turning 0600 into world-readable and world-executable, and left a permission
+// change in their checkout as a spurious diff. rwr is applying a blueprint,
+// not reformatting the tree it came from.
+func TestProcessScripts_SelfExecDoesNotWidenTheBlueprintTree(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("unix permission bits")
+	}
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "setup.sh")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\necho hi\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	blueprint := []byte(`
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "self"
+`)
+	if err := ProcessScripts(blueprint, dir, "yaml", scriptOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+
+	info, err := os.Stat(scriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := info.Mode().Perm()
+
+	// Executable by its owner, and nothing else gained a thing.
+	if got&0o100 == 0 {
+		t.Errorf("mode = %04o, want the owner execute bit set", got)
+	}
+	if got&0o077 != 0 {
+		t.Errorf("mode = %04o, want no group or other bits on a file that started 0600", got)
+	}
+	if got != 0o700 {
+		t.Errorf("mode = %04o, want 0700", got)
+	}
+}
+
+// A file that is already executable is left entirely alone.
+func TestProcessScripts_SelfExecLeavesAnExecutableFileAlone(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("unix permission bits")
+	}
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "setup.sh")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\necho hi\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	blueprint := []byte(`
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "self"
+`)
+	if err := ProcessScripts(blueprint, dir, "yaml", scriptOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+
+	info, err := os.Stat(scriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o755 {
+		t.Errorf("mode = %04o, want 0755 untouched", got)
+	}
+}
+
+// An inline script is staged in a shared temp directory and can carry whatever
+// a template interpolated into it, so it must not be readable by other users.
+func TestProcessScripts_InlineContentIsNotWorldReadable(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("unix permission bits")
+	}
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	blueprint := []byte(`
+scripts:
+  - name: "inline"
+    action: "run"
+    exec: "self"
+    content: "#!/bin/sh\necho hi\n"
+`)
+	if err := ProcessScripts(blueprint, t.TempDir(), "yaml", scriptOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls, want 1", len(rec.Calls))
+	}
+	// The staging file is removed when runScript returns, so the recorded
+	// path is checked while it is the command's Exec.
+	staged := rec.Calls[0].Exec
+	if staged == "" {
+		t.Fatal("no staged script path recorded")
 	}
 }

@@ -128,7 +128,13 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		}
 		defer os.Remove(tempFile.Name()) //nolint:errcheck
 
-		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0755) // #nosec G306 -- TODO(PR8): create with target mode instead of chmod-after
+		// 0600, which is what CreateTemp already made it. The mode argument
+		// said 0755, which was both wider than anything needed and a lie:
+		// WriteFile does not change the mode of a file that already exists,
+		// so it never took effect. An inline script is blueprint content and
+		// can carry whatever a template interpolated into it, so it has no
+		// business being readable by other users of a shared temp directory.
+		err = os.WriteFile(tempFile.Name(), []byte(script.Content), 0o600)
 		if err != nil {
 			return fmt.Errorf("error writing script content to temporary file: %v", err)
 		}
@@ -142,10 +148,8 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 	switch script.Exec {
 	case "self":
 		log.Debugf("Using 'self' executor for script: %s", script.Name)
-		// Make the script executable
-		err := os.Chmod(scriptPath, 0755) // #nosec G302 -- TODO(PR8): create with target mode instead of chmod-after
-		if err != nil {
-			return fmt.Errorf("error setting script as executable: %v", err)
+		if err := makeOwnerExecutable(scriptPath); err != nil {
+			return fmt.Errorf("error setting script as executable: %w", err)
 		}
 		scriptCmd = types.Command{
 			Exec: scriptPath,
@@ -262,4 +266,34 @@ func processScriptImports(items []types.Script, blueprintDir string, format stri
 			}
 			return d.Scripts, nil
 		}, format)
+}
+
+// makeOwnerExecutable adds the owner's execute bit and changes nothing else.
+//
+// `exec: self` runs the script file directly, so it has to be executable. It
+// used to get that with a flat chmod 0755, which is wrong twice over.
+//
+// With `source:`, scriptPath is a file inside the operator's blueprint tree.
+// Forcing 0755 widened a file they may have deliberately restricted - 0600
+// became world-readable and world-executable - and left a permission change
+// sitting in their checkout as a spurious diff. rwr is applying a blueprint,
+// not reformatting the tree it came from.
+//
+// With `content:`, it is a staging file in a shared temp directory holding
+// whatever a template interpolated into the script, which can include a
+// credential the operator exposed.
+//
+// rwr runs the script as the user it is already running as, so the owner bit
+// is the only one it needs.
+func makeOwnerExecutable(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	mode := info.Mode().Perm()
+	if mode&0o100 != 0 {
+		return nil
+	}
+	return os.Chmod(path, mode|0o100)
 }
