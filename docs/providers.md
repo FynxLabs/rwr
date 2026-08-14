@@ -46,7 +46,8 @@ A filesystem override in TOML looks like this:
 ```toml
 [provider]
 name = "provider-name"  # Unique identifier
-elevated = false       # Whether root/admin privileges are needed
+elevated = false       # Whether RWR runs this provider under sudo
+escalates = false      # Whether the provider calls sudo itself (see below)
 
 [provider.detection]
 binary = "binary-name" # Main executable to check for
@@ -322,9 +323,34 @@ To contribute a provider to RWR itself, author it in CUE under
 and rejects invalid definitions. That's it: no export step, nothing else to
 regenerate.
 
+### `elevated` and `escalates`
+
+These answer two different questions, and a provider can need one without the
+other.
+
+`elevated = true` means **RWR** runs the provider under sudo. Use it for
+system-wide package managers such as `pacman` or `apt`.
+
+`escalates = true` means the provider **calls sudo itself** while RWR runs it
+unprivileged. Homebrew is the case: it refuses to run as root, so it must have
+`elevated = false`, and a cask install still shells out to sudo to write into
+`/Applications`.
+
+That distinction matters because of where the password prompt goes. RWR
+captures a command's output through pipes, but sudo reads its password from
+`/dev/tty` instead - so a prompt from a provider RWR did not know would
+escalate is invisible under the dashboard, and the run hangs on a password
+nobody was asked for. Declaring `escalates` makes RWR warm sudo's credential
+cache first, through a proper terminal handover, so the install never prompts.
+
+Only set it on providers you have actually seen escalate. Setting it on one
+that does not will ask for a password on runs that never need root.
+
 ## Best Practices
 
 - Use `elevated = true` for system-wide package managers
+- Use `escalates = true` for a provider RWR runs unprivileged that calls sudo
+  itself, such as Homebrew
 - Include all relevant detection files
 - Document command flags in comments
 - Use consistent repository paths
