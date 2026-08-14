@@ -225,6 +225,14 @@ func runCommand(cmd types.Command, debug bool) error {
 		// a TUI suspends itself around the child instead. This path also
 		// serves per-item `interactive: true` inside non-interactive runs.
 		if err := runOnTerminal(command); err != nil {
+			// An interactive command reaches the terminal directly, so a
+			// cancelled one comes back as its kill status rather than through
+			// the context. Without this it reports "signal: killed" and gets
+			// logged as an error, which is the same contract break the
+			// captured path guards against below.
+			if Cancelled() {
+				return ErrCancelled
+			}
 			log.Errorf("Error running command: %v (stderr above)", err)
 			return err
 		}

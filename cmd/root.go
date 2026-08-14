@@ -441,6 +441,14 @@ func Execute() {
 	// in raw mode and the keystroke arrives as a key event rather than SIGINT,
 	// and headless nothing was listening either. There was no way to stop a
 	// run once it started.
+	// The run becomes cancellable before cobra does anything, and stays so for
+	// the process's whole life. Starting it inside All() left a window over all
+	// of PersistentPreRunE - config load, OS detection, manifest selection,
+	// cloning the blueprint repo - during which a signal found no cancel to
+	// call, and All() then installed a fresh context that had never heard about
+	// it. Cloning a large tree is exactly the slow step someone interrupts.
+	defer system.BeginRun()()
+
 	stop := installSignalHandler()
 	defer stop()
 

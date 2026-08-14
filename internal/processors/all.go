@@ -39,9 +39,9 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	var stepErrs []types.StepError
 
 	resetFailures()
-	// The run becomes cancellable here and stops being so when it returns, so
-	// a second run in the same process does not inherit a cancelled context.
-	defer system.BeginRun()()
+	// Cancellation is started by Execute, before cobra runs, so a signal that
+	// arrives during initialization is not lost. Starting it here would
+	// replace that context and discard a cancellation already requested.
 	openJournal(initConfig.Init.Location)
 	defer closeJournal()
 

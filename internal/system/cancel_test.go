@@ -3,7 +3,6 @@ package system
 import (
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -85,34 +84,63 @@ func TestCancelKillsGrandchildren(t *testing.T) {
 	}
 	defer BeginRun()()
 
-	// The child writes its grandchild's pid and then waits. If the group is
-	// killed the grandchild dies with it; if only the direct child is killed,
-	// the grandchild keeps running and its marker file keeps growing.
+	// The child forks a grandchild that appends to a marker forever. If the
+	// group is killed the grandchild dies with it; if only the direct child is
+	// killed, the grandchild keeps running and the marker keeps growing.
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "alive")
-	script := "sh -c 'while : ; do echo tick >> " + marker + " ; sleep 0.1 ; done' & echo $! ; wait"
+	script := "sh -c 'while : ; do echo tick >> " + marker + " ; sleep 0.05 ; done' & wait"
 
+	result := make(chan error, 1)
 	go func() {
-		_ = RunCommand(types.Command{Exec: "sh", Args: []string{"-c", script}}, false)
+		result <- RunCommand(types.Command{Exec: "sh", Args: []string{"-c", script}}, false)
 	}()
 
-	time.Sleep(500 * time.Millisecond)
-	Cancel()
-	time.Sleep(500 * time.Millisecond)
-
-	before, err := os.ReadFile(marker) // #nosec G304 -- test-owned temp path
-	if err != nil {
-		t.Skipf("grandchild never started, nothing to assert: %v", err)
+	// Wait for the grandchild to actually be running rather than sleeping a
+	// guessed interval. Cancelling before it starts would leave nothing to
+	// assert, and the test would pass by skipping the thing it exists for.
+	if !waitFor(2*time.Second, func() bool {
+		data, err := os.ReadFile(marker) // #nosec G304 -- test-owned temp path
+		return err == nil && len(data) > 0
+	}) {
+		t.Fatal("the grandchild never started, so this test would prove nothing")
 	}
-	time.Sleep(700 * time.Millisecond)
+
+	Cancel()
+
+	// The command itself has to come back, or the kill did not reach it.
+	select {
+	case <-result:
+	case <-time.After(20 * time.Second):
+		t.Fatal("cancelling did not stop the command")
+	}
+
+	// Let anything that survived keep writing, then compare.
+	settled, err := os.ReadFile(marker) // #nosec G304 -- test-owned temp path
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(500 * time.Millisecond)
 	after, err := os.ReadFile(marker) // #nosec G304 -- test-owned temp path
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(after) > len(before) {
-		t.Errorf("the grandchild outlived cancellation: marker grew from %d to %d bytes", len(before), len(after))
+	if len(after) > len(settled) {
+		t.Errorf("the grandchild outlived cancellation: marker grew from %d to %d bytes", len(settled), len(after))
 	}
+}
+
+// waitFor polls until done returns true, or the deadline passes.
+func waitFor(limit time.Duration, done func() bool) bool {
+	deadline := time.Now().Add(limit)
+	for time.Now().Before(deadline) {
+		if done() {
+			return true
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	return false
 }
 
 // A command killed by cancellation exits non-zero like any other failure.
@@ -141,17 +169,5 @@ func TestKilledCommandReportsCancellationNotFailure(t *testing.T) {
 		}
 	case <-time.After(20 * time.Second):
 		t.Fatal("cancelling did not stop the running command")
-	}
-}
-
-// Sanity: the helper is wired to real process groups, not silently a no-op.
-func TestCommandsGetTheirOwnProcessGroup(t *testing.T) {
-	if runtime.GOOS == types.OSWindows {
-		t.Skip("process groups are posix")
-	}
-	built := exec.Command("true")
-	intoOwnProcessGroup(built)
-	if built.SysProcAttr == nil || !built.SysProcAttr.Setpgid {
-		t.Fatal("commands are not placed in their own process group")
 	}
 }
