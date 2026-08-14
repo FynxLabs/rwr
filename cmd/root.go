@@ -8,8 +8,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/fynxlabs/rwr/internal/helpers"
@@ -434,8 +436,61 @@ func loadConfig(app *AppConfig) error {
 // This is the main entry point for the CLI application and should be called from main.
 // It exits with status code 1 if an error occurs.
 func Execute() {
+	// rwr had no signal handling at all: ctrl-c reached a run that installs
+	// software as root and did nothing, because under the dashboard the tty is
+	// in raw mode and the keystroke arrives as a key event rather than SIGINT,
+	// and headless nothing was listening either. There was no way to stop a
+	// run once it started.
+	// The run becomes cancellable before cobra does anything, and stays so for
+	// the process's whole life. Starting it inside All() left a window over all
+	// of PersistentPreRunE - config load, OS detection, manifest selection,
+	// cloning the blueprint repo - during which a signal found no cancel to
+	// call, and All() then installed a fresh context that had never heard about
+	// it. Cloning a large tree is exactly the slow step someone interrupts.
+	defer system.BeginRun()()
+
+	stop := installSignalHandler()
+	defer stop()
+
 	app := NewAppConfig()
 	if err := NewRootCmd(app).Execute(); err != nil {
 		log.Fatalf("%v", err)
+	}
+}
+
+// installSignalHandler cancels the run on the first interrupt and gives up on
+// being graceful at the second.
+//
+// The first signal cancels: the running command's process group is killed and
+// nothing new starts, so rwr still gets to finalize its journal and print what
+// it managed to do. An operator who presses ctrl-c twice has decided they do
+// not care about any of that, and the second one exits immediately - a wedged
+// child holding the terminal must not be able to trap someone in a run they
+// have twice asked to end.
+func installSignalHandler() (stop func()) {
+	signals := make(chan os.Signal, 2)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-signals:
+		case <-done:
+			return
+		}
+		log.Warnf("Interrupted: stopping the run. Press ctrl-c again to exit immediately.")
+		system.Cancel()
+
+		select {
+		case <-signals:
+			log.Warnf("Interrupted again: exiting now.")
+			os.Exit(130) // 128 + SIGINT, the shell convention
+		case <-done:
+		}
+	}()
+
+	return func() {
+		signal.Stop(signals)
+		close(done)
 	}
 }

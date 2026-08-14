@@ -29,7 +29,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ">=1.26.5"
+          go-version: ">=1.26.6"
 
       - name: Build
         run: go build -v ./...
@@ -100,7 +100,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ">=1.26.5"
+          go-version: ">=1.26.6"
 
       - name: Build every release target
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
@@ -131,7 +131,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ">=1.26.5"
+          go-version: ">=1.26.6"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
@@ -162,7 +162,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ">=1.26.5"
+          go-version: ">=1.26.6"
 
       # Same version the module depends on; `go run` needs no extra installer.
       - name: cue vet
@@ -180,7 +180,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ">=1.26.5"
+          go-version: ">=1.26.6"
 
       # Reads .golangci.yml from the repo root, so this runs the same rules as
       # `golangci-lint run` locally - there is no second copy of the config to drift.
@@ -245,7 +245,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ">=1.26.5"
+          go-version: ">=1.26.6"
 
       # Asserts every example parses in its declared format, resolves without
       # referencing a template variable that does not exist, decodes strictly
@@ -311,7 +311,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ">=1.26.5"
+          go-version: ">=1.26.6"
 
       # gosec runs with #nosec annotations honored. Every suppression in the tree is
       # scoped to its rule id and carries a justification; the ones marked TODO(PRn)

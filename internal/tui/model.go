@@ -12,6 +12,7 @@ import (
 	"charm.land/log/v2"
 	"github.com/charmbracelet/harmonica"
 	"github.com/fynxlabs/rwr/internal/reporting"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	zone "github.com/lrstanley/bubblezone/v2"
 )
@@ -135,6 +136,9 @@ type Model struct {
 	noNotify      bool
 
 	runLogPath string
+	// cancelled records that the operator stopped the run, so the summary
+	// can say so rather than presenting a truncated run as a finished one.
+	cancelled  bool
 	summaryTab int
 
 	// scrollOffset is lines back from the tail (0 = follow); manualHeight is
@@ -586,6 +590,17 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "q", "ctrl+c":
+		// Cancel the run, do not merely close the window over it.
+		//
+		// These used to be tea.Quit alone: the dashboard went away and the run
+		// carried on installing as root, with its output landing on a terminal
+		// the display had left in raw mode. An operator pressing ctrl-c is
+		// asking rwr to stop, and had no way to make that happen.
+		//
+		// Quit follows, so the summary is not what the operator waits for
+		// after asking to leave.
+		m.cancelled = true
+		system.Cancel()
 		return m, tea.Quit
 	case "j", "down":
 		m.pinned = true

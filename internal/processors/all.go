@@ -39,6 +39,9 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	var stepErrs []types.StepError
 
 	resetFailures()
+	// Cancellation is started by Execute, before cobra runs, so a signal that
+	// arrives during initialization is not lost. Starting it here would
+	// replace that context and discard a cancellation already requested.
 	openJournal(initConfig.Init.Location)
 	defer closeJournal()
 
@@ -202,6 +205,14 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 					return fatal(fmt.Errorf("error preparing %s for the %s processor: %w", blueprintFile, processor, err))
 				}
 
+				// Checked per file rather than only per command: a cancelled
+				// run should stop reading and decoding blueprints too, not
+				// grind through the rest of the tree refusing one command at a
+				// time.
+				if system.Cancelled() {
+					break
+				}
+
 				dispatch := func() error {
 					switch processor {
 					case types.BlueprintTypeRepositories:
@@ -292,6 +303,16 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	}
 
 	reporting.Emit(reporting.RunFinished{Errs: stepErrs})
+
+	// A cancelled run is not a failed one. Whatever was in flight when the
+	// operator stopped it was killed and reported as an error by the
+	// processors that were mid-item, and listing those as failures says rwr
+	// broke when in fact it was told to stop. The exit code still says the run
+	// did not complete.
+	if system.Cancelled() {
+		log.Warnf("Run cancelled before it finished; anything already applied is recorded in the run journal")
+		return system.ErrCancelled
+	}
 
 	// Collected processor errors from a push-through run: each was reported
 	// when it happened; the run's exit code has to carry them too.
