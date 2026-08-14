@@ -485,15 +485,35 @@ scripts:
 	}
 }
 
+// statOnRun records the mode of the command's Exec while the command is being
+// handled. The staging file is removed as soon as runScript returns, so it can
+// only be inspected from inside the executor.
+type statOnRun struct {
+	mode os.FileMode
+	seen bool
+}
+
+func (s *statOnRun) Run(cmd types.Command, _ bool) error {
+	if info, err := os.Stat(cmd.Exec); err == nil {
+		s.mode, s.seen = info.Mode().Perm(), true
+	}
+	return nil
+}
+
+func (s *statOnRun) Output(cmd types.Command, debug bool) (string, error) {
+	return "", s.Run(cmd, debug)
+}
+
 // An inline script is staged in a shared temp directory and can carry whatever
-// a template interpolated into it, so it must not be readable by other users.
-func TestProcessScripts_InlineContentIsNotWorldReadable(t *testing.T) {
+// a template interpolated into it, including a credential the operator exposed
+// to blueprints. Nobody else on the machine has any business reading it.
+func TestProcessScripts_InlineContentIsNotReadableByOthers(t *testing.T) {
 	if runtime.GOOS == types.OSWindows {
 		t.Skip("unix permission bits")
 	}
 
-	rec := exectest.New()
-	defer system.SetExecutor(rec)()
+	stat := &statOnRun{}
+	defer system.SetExecutor(stat)()
 
 	blueprint := []byte(`
 scripts:
@@ -506,13 +526,64 @@ scripts:
 		t.Fatalf("ProcessScripts: %v", err)
 	}
 
-	if len(rec.Calls) != 1 {
-		t.Fatalf("recorded %d calls, want 1", len(rec.Calls))
+	if !stat.seen {
+		t.Fatal("the staging file was never stat'd; the test proves nothing")
 	}
-	// The staging file is removed when runScript returns, so the recorded
-	// path is checked while it is the command's Exec.
-	staged := rec.Calls[0].Exec
-	if staged == "" {
-		t.Fatal("no staged script path recorded")
+	if stat.mode&0o077 != 0 {
+		t.Errorf("staged script mode = %04o, want no group or other bits", stat.mode)
+	}
+	if stat.mode&0o100 == 0 {
+		t.Errorf("staged script mode = %04o, want it executable by its owner", stat.mode)
+	}
+}
+
+// Adding the execute bit must not take anything away.
+//
+// os.FileMode.Perm() returns the nine permission bits only, so chmodding to
+// Perm()|0o100 silently clears setuid, setgid and sticky - rwr would strip a
+// property of the operator's file as a side effect of making it runnable,
+// which is the same class of unasked-for change as the flat 0755 this
+// replaced. Asserted on the mode arithmetic rather than through the
+// filesystem, because a test cannot rely on the OS honouring setgid on a
+// scratch file.
+func TestExecutableMode_PreservesEverythingElse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   os.FileMode
+		want os.FileMode
+	}{
+		{name: "owner only", in: 0o600, want: 0o700},
+		{name: "group readable", in: 0o640, want: 0o740},
+		{name: "world readable", in: 0o644, want: 0o744},
+		{name: "already executable", in: 0o755, want: 0o755},
+		{name: "setgid is kept", in: 0o600 | os.ModeSetgid, want: 0o700 | os.ModeSetgid},
+		{name: "setuid is kept", in: 0o600 | os.ModeSetuid, want: 0o700 | os.ModeSetuid},
+		{name: "sticky is kept", in: 0o600 | os.ModeSticky, want: 0o700 | os.ModeSticky},
+		{
+			name: "all three are kept",
+			in:   0o640 | os.ModeSetuid | os.ModeSetgid | os.ModeSticky,
+			want: 0o740 | os.ModeSetuid | os.ModeSetgid | os.ModeSticky,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := executableMode(tt.in); got != tt.want {
+				t.Errorf("executableMode(%v) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+// The type bits of a mode are not permissions and must not survive into a
+// chmod argument.
+func TestExecutableMode_DropsTypeBits(t *testing.T) {
+	t.Parallel()
+
+	if got := executableMode(os.ModeDir | 0o600); got&os.ModeDir != 0 {
+		t.Errorf("executableMode kept a type bit: %v", got)
 	}
 }

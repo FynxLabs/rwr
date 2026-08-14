@@ -291,9 +291,26 @@ func makeOwnerExecutable(path string) error {
 		return err
 	}
 
-	mode := info.Mode().Perm()
-	if mode&0o100 != 0 {
+	mode := info.Mode()
+	if mode.Perm()&ownerExecute != 0 {
 		return nil
 	}
-	return os.Chmod(path, mode|0o100)
+	return os.Chmod(path, executableMode(mode))
+}
+
+// ownerExecute is the only bit rwr adds: it runs the script as the user it is
+// already running as.
+const ownerExecute = 0o100
+
+// executableMode is mode with the owner's execute bit added and everything
+// else preserved.
+//
+// The special bits have to be carried across explicitly. os.FileMode.Perm()
+// returns the nine permission bits only, so chmodding to Perm()|0o100 would
+// silently clear setuid, setgid and sticky from a script that had them - rwr
+// would be stripping a property of the operator's file as a side effect of
+// making it runnable, which is the same class of unasked-for change as the
+// flat 0755 this replaced.
+func executableMode(mode os.FileMode) os.FileMode {
+	return mode&(os.ModePerm|os.ModeSetuid|os.ModeSetgid|os.ModeSticky) | ownerExecute
 }
