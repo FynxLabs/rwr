@@ -184,14 +184,33 @@ func ValidateDownloadURL(raw string) error {
 //   - a timeout, so a stalled mirror fails the step instead of hanging the
 //     whole run forever. Generous, because font archives run to hundreds of MB
 //     on slow links; it exists to bound a hang, not to race the download.
-var DownloadClient = &http.Client{
-	Timeout: 15 * time.Minute,
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 10 {
-			return errors.New("stopped after 10 redirects")
-		}
-		return ValidateDownloadURL(req.URL.String())
-	},
+var DownloadClient = NewHTTPClient(15 * time.Minute)
+
+// NewHTTPClient returns a client that re-validates every redirect hop with
+// ValidateDownloadURL, with a caller-chosen timeout.
+//
+// The redirect policy is the point. Validating only the URL a caller passes in
+// is worthless the moment the server answers with a 302 to plain http: the
+// default client follows it silently, and whatever was protected by TLS is not
+// any more.
+//
+// That matters beyond downloads, which is why this is separate from
+// DownloadClient. Go strips Authorization when a redirect crosses to a
+// different host, but not when it merely drops https for http on the same one -
+// so a bare client following such a hop puts the GitHub token rwr sends to
+// api.github.com on the wire in cleartext. The timeout is a parameter because
+// a font archive and an API call want very different ones; the redirect policy
+// is not, because nothing wants a worse one.
+func NewHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			return ValidateDownloadURL(req.URL.String())
+		},
+	}
 }
 
 // HashFileSHA256 returns the hex sha256 of a file's content.
