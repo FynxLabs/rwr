@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -26,7 +27,11 @@ var shorthandPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(/[^@
 
 // probeClient answers "does this raw URL exist" during shorthand resolution.
 // A var so tests can point probes at their own server without waiting 10s.
-var probeClient = &http.Client{Timeout: 10 * time.Second}
+// probeClient re-validates redirects like every other fetch rwr makes: an
+// init source resolves by following the server's answer, and a 302 to plain
+// http would otherwise decide where the blueprint tree comes from over an
+// unauthenticated connection.
+var probeClient = system.NewHTTPClient(10 * time.Second)
 
 // ResolveInitSource turns whatever the operator gave as the init source into
 // the one form Initialize consumes: an existing local file path, or an
