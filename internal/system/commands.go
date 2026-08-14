@@ -41,21 +41,40 @@ import (
 // sudo: Elevated is a no-op there and the process must already be elevated, which
 // matches the previous behavior of running through `cmd /C` without any elevation.
 func buildCommand(cmd types.Command) *exec.Cmd {
+	built := spawn(cmd)
+	// Cancelling the run kills the command's whole process group, not just the
+	// process rwr spawned: `brew install` is a shell that forks curl and git,
+	// and `sudo pacman` is sudo with pacman underneath. Killing only the direct
+	// child orphans the real work, which carries on holding the terminal it
+	// inherited.
+	intoOwnProcessGroup(built)
+	built.Cancel = func() error { return terminateProcessGroup(built) }
+	// Bound how long a killed command's pipes are held. Without it, a child
+	// that leaks a descriptor to a grandchild keeps Wait blocked and the
+	// cancellation the operator asked for never completes.
+	built.WaitDelay = 5 * time.Second
+	return built
+}
+
+// spawn builds the *exec.Cmd for a command, before cancellation is wired onto
+// it. Every path goes through CommandContext so the run's context can kill it.
+func spawn(cmd types.Command) *exec.Cmd {
+	ctx := RunContext()
 	if runtime.GOOS != "windows" {
 		if cmd.Elevated {
 			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.LogArgs())
-			return exec.Command("sudo", append([]string{"--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
+			return exec.CommandContext(ctx, "sudo", append([]string{"--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
 		if cmd.AsUser != "" {
 			log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.LogArgs())
-			return exec.Command("sudo", append([]string{"-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
+			return exec.CommandContext(ctx, "sudo", append([]string{"-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
 	} else if cmd.Elevated {
 		log.Debugf("Elevated requested on Windows; running in-process (no sudo equivalent): %v %v", cmd.Exec, cmd.LogArgs())
 	}
 
 	log.Debugf("Running command: %v %v", cmd.Exec, cmd.LogArgs())
-	return exec.Command(cmd.Exec, cmd.Args...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
+	return exec.CommandContext(ctx, cmd.Exec, cmd.Args...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 }
 
 // setupCommandEnvironment configures the environment variables and PATH for the
@@ -178,6 +197,11 @@ func RunCommand(cmd types.Command, debug bool) error {
 
 // runCommand is the real implementation behind osExecutor.Run.
 func runCommand(cmd types.Command, debug bool) error {
+	// Refuse before spawning, so a cancelled run stops rather than launching
+	// every remaining command only to have each one killed.
+	if Cancelled() {
+		return ErrCancelled
+	}
 	if dryRunMode {
 		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.LogArgs(), " "))
 		return nil
@@ -245,6 +269,12 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if err := command.Run(); err != nil {
+		// A command killed by cancellation exits non-zero like any failure.
+		// Reporting it as one would fill the summary with "signal: killed"
+		// for work the operator deliberately stopped.
+		if Cancelled() {
+			return ErrCancelled
+		}
 		// stderr was streamed live (to the log view under the TUI, to the
 		// real stderr headless); repeating the blob here renders it twice.
 		log.Errorf("Error running command: %v (stderr above)", err)
@@ -264,6 +294,9 @@ func RunCommandOutput(cmd types.Command, debug bool) (string, error) {
 
 // runCommandOutput is the real implementation behind osExecutor.Output.
 func runCommandOutput(cmd types.Command, debug bool) (string, error) {
+	if Cancelled() {
+		return "", ErrCancelled
+	}
 	if dryRunMode {
 		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.LogArgs(), " "))
 		return "", nil
@@ -282,6 +315,9 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 
 	err := command.Run()
 	if err != nil {
+		if Cancelled() {
+			return "", ErrCancelled
+		}
 		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
 		log.Error(errMsg)
 		return "", err
