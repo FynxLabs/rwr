@@ -2,8 +2,12 @@ package types
 
 // Provider represents a package manager provider.
 type Provider struct {
-	Name         string                          `toml:"name"`
-	Elevated     bool                            `toml:"elevated"`
+	Name     string `toml:"name"`
+	Elevated bool   `toml:"elevated"`
+	// Escalates marks a provider rwr runs unprivileged that calls sudo itself.
+	// See Command.Escalates: brew must not be run as root, and still needs a
+	// warm sudo cache before a cask install prompts on /dev/tty.
+	Escalates    bool                            `toml:"escalates"`
 	Detection    DetectionConfig                 `toml:"detection"`
 	Commands     CommandConfig                   `toml:"commands"`
 	Repository   RepositoryConfig                `toml:"repository"`

@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -652,5 +653,45 @@ func TestProcessPackages_UnavailableManagerIsFailure(t *testing.T) {
 	}
 	if !sawVim {
 		t.Fatalf("pacman entry did not run after the cargo failure; calls: %v", rec.Calls)
+	}
+}
+
+// A provider that escalates internally has to carry that onto the command, or
+// the sudo credential cache is never warmed for it and the run hangs on an
+// invisible password prompt during the install.
+func TestProcessPackages_EscalatingProviderMarksTheCommand(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+	defer system.SetProvidersForTest(map[string]*types.Provider{
+		"brew": {
+			Name: "brew",
+			// As the real definition has it: brew refuses to run as root, and
+			// still shells out to sudo for a cask.
+			Elevated:  false,
+			Escalates: true,
+			Detection: types.DetectionConfig{Binary: "sh", Distributions: []string{runtime.GOOS}},
+			Commands:  types.CommandConfig{Install: "install"},
+		},
+	})()
+
+	blueprint := []byte(`
+packages:
+  - name: "brave-browser"
+    action: "install"
+    package_manager: "brew"
+`)
+	if err := ProcessPackages(blueprint, nil, t.TempDir(), "yaml", &types.OSInfo{}, &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessPackages: %v", err)
+	}
+
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls, want 1: %v", len(rec.Calls), rec.Calls)
+	}
+	call := rec.Calls[0]
+	if call.Elevated {
+		t.Error("brew was elevated; it refuses to run as root")
+	}
+	if !call.Escalates {
+		t.Error("the command is not marked as escalating, so sudo will not be pre-validated for it")
 	}
 }

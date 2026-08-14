@@ -16,10 +16,13 @@ type Call struct {
 	Exec     string
 	Args     []string
 	Elevated bool
-	AsUser   string
-	LogName  string
-	Vars     map[string]string
-	Stdin    string
+	// Escalates records a command rwr runs unprivileged that calls sudo
+	// itself, which decides whether the credential cache is warmed first.
+	Escalates bool
+	AsUser    string
+	LogName   string
+	Vars      map[string]string
+	Stdin     string
 }
 
 // Argv is the full argument vector as the target program would receive it:
@@ -62,13 +65,14 @@ func (r *Recorder) record(cmd types.Command) {
 	args := make([]string, len(cmd.Args))
 	copy(args, cmd.Args)
 	r.Calls = append(r.Calls, Call{
-		Exec:     cmd.Exec,
-		Args:     args,
-		Elevated: cmd.Elevated,
-		AsUser:   cmd.AsUser,
-		LogName:  cmd.LogName,
-		Vars:     cmd.Variables,
-		Stdin:    cmd.Stdin,
+		Exec:      cmd.Exec,
+		Args:      args,
+		Elevated:  cmd.Elevated,
+		Escalates: cmd.Escalates,
+		AsUser:    cmd.AsUser,
+		LogName:   cmd.LogName,
+		Vars:      cmd.Variables,
+		Stdin:     cmd.Stdin,
 	})
 }
 

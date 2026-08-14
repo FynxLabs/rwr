@@ -3,6 +3,10 @@ package providers
 providers: "brew": {
  "name": "brew",
  "elevated": false,
+    // brew refuses to run as root, but a cask install shells out to sudo to
+    // write into /Applications. Without warming the credential cache first,
+    // that prompt lands on /dev/tty behind the dashboard and the run hangs.
+    "escalates": true,
  // Homebrew 6 made "ask mode" the default: every install stops at a
  // "Do you want to proceed? [y/n]" prompt, which deadlocks an automated
  // run. HOMEBREW_NO_ASK restores unattended installs (older brew ignores

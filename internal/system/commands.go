@@ -114,6 +114,21 @@ var (
 // fails (a command-scoped NOPASSWD rule makes `sudo -v` itself want a
 // password), the command proceeds and fails or succeeds on its own terms,
 // exactly as it did before validation existed.
+// wantsSudoCredentials reports whether a command should have sudo's credential
+// cache warmed before it runs.
+//
+// Escalates is the case the elevation flags alone miss: a command rwr runs
+// unprivileged that calls sudo itself. brew refuses to run as root, so
+// Elevated is false and validation never ran, and then a cask install shelled
+// out to sudo, prompted on /dev/tty behind the dashboard, and hung the run
+// with no visible prompt.
+func wantsSudoCredentials(cmd types.Command) bool {
+	if runtime.GOOS == "windows" {
+		return false
+	}
+	return cmd.Elevated || cmd.AsUser != "" || cmd.Escalates
+}
+
 func ensureSudoCredentials() {
 	sudoValidateMu.Lock()
 	defer sudoValidateMu.Unlock()
@@ -247,7 +262,14 @@ func runCommand(cmd types.Command, debug bool) error {
 	// a failed validation must not fail the command - `sudo -v` is not
 	// command-scoped, so a NOPASSWD rule for just this command makes
 	// validation want a password the command itself never needs.
-	if (cmd.Elevated || cmd.AsUser != "") && runtime.GOOS != "windows" {
+	// Escalates covers the case this guard used to miss entirely: a command
+	// rwr runs unprivileged that calls sudo itself. brew is the example - it
+	// refuses to run as root, so Elevated is false and validation never ran,
+	// and then a cask install shelled out to sudo, prompted on /dev/tty behind
+	// the dashboard, and hung the run with no visible prompt. Earlier casks in
+	// the same run succeeded only because the credential cache was still warm
+	// from something else.
+	if wantsSudoCredentials(cmd) {
 		ensureSudoCredentials()
 	}
 	{

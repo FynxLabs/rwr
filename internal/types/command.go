@@ -15,6 +15,19 @@ type Command struct {
 	Interactive bool              `mapstructure:"interactive" yaml:"interactive" json:"interactive" toml:"interactive"`
 	Elevated    bool              `mapstructure:"elevated" yaml:"elevated" json:"elevated" toml:"elevated"`
 
+	// Escalates marks a command rwr runs unprivileged that calls sudo itself.
+	//
+	// It is not the same as Elevated and cannot be derived from it. Homebrew
+	// refuses to run as root, so rwr must not elevate it - but a cask install
+	// shells out to sudo to write into /Applications. sudo reads that password
+	// from /dev/tty, straight past the pipes rwr captured, so under the
+	// dashboard the prompt is invisible and the run hangs on a password nobody
+	// was asked for.
+	//
+	// Not a blueprint field: it is a property of the tool, declared by the
+	// provider definition.
+	Escalates bool `mapstructure:"-" yaml:"-" json:"-" toml:"-"`
+
 	// Stdin is fed to the command on standard input. It is deliberately not a
 	// blueprint field: it exists so secrets can be handed to a tool without
 	// appearing in argv, where every local user can read them out of `ps` and
