@@ -15,6 +15,11 @@ import (
 // does not catch that, because it does not build tests - `go vet ./...` does,
 // which is what CI runs.
 func TestCommandsGetTheirOwnProcessGroup(t *testing.T) {
+	// Safe to parallelise where the rest of this package's cancellation tests
+	// are not: it touches only a local exec.Cmd, never the package's run
+	// context, which the others cancel.
+	t.Parallel()
+
 	built := exec.Command("true")
 	intoOwnProcessGroup(built)
 	if built.SysProcAttr == nil || !built.SysProcAttr.Setpgid {
