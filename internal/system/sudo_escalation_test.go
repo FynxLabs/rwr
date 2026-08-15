@@ -1,10 +1,12 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -135,5 +137,58 @@ func TestSudoProbeRetriesWhileCold(t *testing.T) {
 	}
 	if calls != 3 {
 		t.Errorf("probe ran %d times, want one per call while the cache is cold", calls)
+	}
+}
+
+// A probe that never returns must not take the run with it.
+//
+// -n means sudo will not prompt, but that is not the same as sudo returning:
+// a policy lookup can block underneath it, and the probe holds
+// sudoValidateMu while it runs. Unbounded, a stall there is not one slow
+// command but every command after it, waiting on a mutex nobody releases.
+func TestSudoProbeIsBounded(t *testing.T) {
+	t.Parallel()
+
+	if sudoProbeTimeout <= 0 {
+		t.Fatal("the sudo probe has no deadline")
+	}
+	if sudoProbeTimeout > 30*time.Second {
+		t.Errorf("sudoProbeTimeout = %v, too long to hold every later command behind", sudoProbeTimeout)
+	}
+}
+
+// A probe that timed out is a cold cache, not a warm one. Reading a deadline
+// as success would send the command down the captured path, straight back to
+// the invisible prompt this all exists to avoid.
+func TestSudoTimeoutReadsAsColdCache(t *testing.T) {
+	defer SetSudoProbeForTest(func() error { return context.DeadlineExceeded })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	if sudoCredentialsCached() {
+		t.Error("a timed-out probe was read as a warm cache")
+	}
+}
+
+// The lock is not held past the probe: a slow one delays its own caller and
+// nobody else's next attempt.
+func TestSudoProbeDoesNotHoldTheLockAfterReturning(t *testing.T) {
+	defer SetSudoProbeForTest(func() error { return nil })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	sudoCredentialsCached()
+
+	done := make(chan struct{})
+	go func() {
+		resetSudoThrottleForTest()
+		sudoCredentialsCached()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("sudoValidateMu was still held after the probe returned")
 	}
 }

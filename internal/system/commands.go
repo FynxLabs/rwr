@@ -7,6 +7,7 @@ package system
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -145,10 +146,21 @@ func mayPromptForSudo(cmd types.Command) bool {
 // turn the probe back into the thing this replaced.
 var sudoProbeArgs = []string{"sudo", "-n", "-v"}
 
+// sudoProbeTimeout bounds the probe.
+//
+// -n means sudo will not prompt, but that is not the same as sudo returning.
+// A policy lookup can block underneath it - PAM against a directory server,
+// NSS resolving a group over the network - and the probe holds
+// sudoValidateMu while it runs, so a stall there is not one slow command but
+// every command after it, waiting on a mutex that is never released.
+const sudoProbeTimeout = 10 * time.Second
+
 // sudoProbe runs the probe. A var so a test can substitute one that does not
 // depend on the host's sudo policy or credential state.
 var sudoProbe = func() error {
-	return exec.Command(sudoProbeArgs[0], sudoProbeArgs[1:]...).Run() // #nosec G204 -- fixed argv, not input
+	ctx, cancel := context.WithTimeout(context.Background(), sudoProbeTimeout)
+	defer cancel()
+	return exec.CommandContext(ctx, sudoProbeArgs[0], sudoProbeArgs[1:]...).Run() // #nosec G204 -- fixed argv, not input
 }
 
 // SetSudoProbeForTest substitutes the probe and returns the restore func.
