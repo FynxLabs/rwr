@@ -121,7 +121,7 @@ The Scripts blueprint supports the following fields:
 | `import` | Yes, if `name` is not provided | Path to import script definitions from another file (relative to blueprint directory) |
 | `profiles` | No | List of profiles this script belongs to. If empty, script always runs (base item). |
 | `action` | Yes | The action to perform with the script. Currently, only `run` is supported. |
-| `exec` | No | The program that runs the script: `bash`, `python`, `ruby`, `perl`, `lua`, `powershell`, or `self`. The default is `bash` on Linux and macOS, and `powershell` on Windows. `self` runs the script file directly |
+| `exec` | No | The program that runs the script: `bash`, `python`, `ruby`, `perl`, `lua`, `powershell`, or `self`. The default is `bash` on Linux and macOS, and `powershell` on Windows. `self` runs the script file directly, adding the owner's execute bit if the file does not already have it |
 | `source` | No | The path to the script file (relative to blueprint directory). |
 | `content` | No | The inline content of the script. |
 | `args` | No | Arguments to pass to the script, as a string (split on whitespace) or a list (each element taken verbatim). |

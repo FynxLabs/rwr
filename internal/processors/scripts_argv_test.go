@@ -3,6 +3,7 @@ package processors
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/exectest"
@@ -396,5 +397,196 @@ scripts: [{name: "setup.sh", action: "run", source: ".", exec: "bash", args: 42}
 				t.Fatal("a non-string args value was accepted")
 			}
 		})
+	}
+}
+
+// `exec: self` runs the script file directly, so it has to be executable -
+// but with `source:` that file lives in the operator's blueprint tree.
+//
+// A flat chmod 0755 widened a file they may have deliberately restricted,
+// turning 0600 into world-readable and world-executable, and left a permission
+// change in their checkout as a spurious diff. rwr is applying a blueprint,
+// not reformatting the tree it came from.
+func TestProcessScripts_SelfExecDoesNotWidenTheBlueprintTree(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("unix permission bits")
+	}
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "setup.sh")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\necho hi\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	blueprint := []byte(`
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "self"
+`)
+	if err := ProcessScripts(blueprint, dir, "yaml", scriptOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+
+	info, err := os.Stat(scriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := info.Mode().Perm()
+
+	// Executable by its owner, and nothing else gained a thing.
+	if got&0o100 == 0 {
+		t.Errorf("mode = %04o, want the owner execute bit set", got)
+	}
+	if got&0o077 != 0 {
+		t.Errorf("mode = %04o, want no group or other bits on a file that started 0600", got)
+	}
+	if got != 0o700 {
+		t.Errorf("mode = %04o, want 0700", got)
+	}
+}
+
+// A file that is already executable is left entirely alone.
+func TestProcessScripts_SelfExecLeavesAnExecutableFileAlone(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("unix permission bits")
+	}
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "setup.sh")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/sh\necho hi\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	blueprint := []byte(`
+scripts:
+  - name: "setup.sh"
+    action: "run"
+    source: "."
+    exec: "self"
+`)
+	if err := ProcessScripts(blueprint, dir, "yaml", scriptOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+
+	info, err := os.Stat(scriptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o755 {
+		t.Errorf("mode = %04o, want 0755 untouched", got)
+	}
+}
+
+// statOnRun records the mode of the command's Exec while the command is being
+// handled. The staging file is removed as soon as runScript returns, so it can
+// only be inspected from inside the executor.
+type statOnRun struct {
+	mode os.FileMode
+	seen bool
+}
+
+func (s *statOnRun) Run(cmd types.Command, _ bool) error {
+	if info, err := os.Stat(cmd.Exec); err == nil {
+		s.mode, s.seen = info.Mode().Perm(), true
+	}
+	return nil
+}
+
+func (s *statOnRun) Output(cmd types.Command, debug bool) (string, error) {
+	return "", s.Run(cmd, debug)
+}
+
+// An inline script is staged in a shared temp directory and can carry whatever
+// a template interpolated into it, including a credential the operator exposed
+// to blueprints. Nobody else on the machine has any business reading it.
+func TestProcessScripts_InlineContentIsNotReadableByOthers(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("unix permission bits")
+	}
+
+	stat := &statOnRun{}
+	defer system.SetExecutor(stat)()
+
+	blueprint := []byte(`
+scripts:
+  - name: "inline"
+    action: "run"
+    exec: "self"
+    content: "#!/bin/sh\necho hi\n"
+`)
+	if err := ProcessScripts(blueprint, t.TempDir(), "yaml", scriptOSInfo(), &types.InitConfig{}); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+
+	if !stat.seen {
+		t.Fatal("the staging file was never stat'd; the test proves nothing")
+	}
+	if stat.mode&0o077 != 0 {
+		t.Errorf("staged script mode = %04o, want no group or other bits", stat.mode)
+	}
+	if stat.mode&0o100 == 0 {
+		t.Errorf("staged script mode = %04o, want it executable by its owner", stat.mode)
+	}
+}
+
+// Adding the execute bit must not take anything away.
+//
+// os.FileMode.Perm() returns the nine permission bits only, so chmodding to
+// Perm()|0o100 silently clears setuid, setgid and sticky - rwr would strip a
+// property of the operator's file as a side effect of making it runnable,
+// which is the same class of unasked-for change as the flat 0755 this
+// replaced. Asserted on the mode arithmetic rather than through the
+// filesystem, because a test cannot rely on the OS honouring setgid on a
+// scratch file.
+func TestExecutableMode_PreservesEverythingElse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   os.FileMode
+		want os.FileMode
+	}{
+		// The floor: a file nobody can do anything with still only gains the
+		// one bit rwr needs to run it.
+		{name: "no permissions at all", in: 0o000, want: 0o100},
+		{name: "owner only", in: 0o600, want: 0o700},
+		{name: "group readable", in: 0o640, want: 0o740},
+		{name: "world readable", in: 0o644, want: 0o744},
+		{name: "already executable", in: 0o755, want: 0o755},
+		{name: "setgid is kept", in: 0o600 | os.ModeSetgid, want: 0o700 | os.ModeSetgid},
+		{name: "setuid is kept", in: 0o600 | os.ModeSetuid, want: 0o700 | os.ModeSetuid},
+		{name: "sticky is kept", in: 0o600 | os.ModeSticky, want: 0o700 | os.ModeSticky},
+		{
+			name: "all three are kept",
+			in:   0o640 | os.ModeSetuid | os.ModeSetgid | os.ModeSticky,
+			want: 0o740 | os.ModeSetuid | os.ModeSetgid | os.ModeSticky,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := executableMode(tt.in); got != tt.want {
+				t.Errorf("executableMode(%v) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+// The type bits of a mode are not permissions and must not survive into a
+// chmod argument.
+func TestExecutableMode_DropsTypeBits(t *testing.T) {
+	t.Parallel()
+
+	if got := executableMode(os.ModeDir | 0o600); got&os.ModeDir != 0 {
+		t.Errorf("executableMode kept a type bit: %v", got)
 	}
 }
