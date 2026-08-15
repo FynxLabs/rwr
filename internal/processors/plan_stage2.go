@@ -47,7 +47,7 @@ func ResolveStage2(plan *types.Plan, osInfo *types.OSInfo) {
 func enumerateResources(processor string, file types.ResolvedFile, defaultProvider string) []types.Resource {
 	usesProviders := processor == types.BlueprintTypePackages || processor == types.BlueprintTypeRepositories
 	var resources []types.Resource
-	add := func(provider, name, action string) {
+	addAt := func(provider, name, action, location string) {
 		if name == "" {
 			return
 		}
@@ -58,10 +58,12 @@ func enumerateResources(processor string, file types.ResolvedFile, defaultProvid
 			Processor: processor,
 			Provider:  provider,
 			Name:      name,
+			Location:  location,
 			Action:    action,
 			Status:    types.StatusPlanned,
 		})
 	}
+	add := func(provider, name, action string) { addAt(provider, name, action, "") }
 
 	switch processor {
 	case types.BlueprintTypePackages:
@@ -97,11 +99,19 @@ func enumerateResources(processor string, file types.ResolvedFile, defaultProvid
 				names = []string{f.Name}
 			}
 			for _, name := range names {
-				add("", name, f.Action)
+				location := ""
+				if f.Target != "" {
+					location = resolveTargetPath(f.Target, name)
+				}
+				addAt("", name, f.Action, location)
 			}
 		}
 		for _, tmpl := range d.Templates {
-			add("", tmpl.Name, "template")
+			location := ""
+			if tmpl.Target != "" {
+				location = resolveTargetPath(tmpl.Target, tmpl.Name)
+			}
+			addAt("", tmpl.Name, "template", location)
 		}
 		for _, dir := range d.Directories {
 			names := dir.Names
@@ -109,7 +119,11 @@ func enumerateResources(processor string, file types.ResolvedFile, defaultProvid
 				names = []string{dir.Name}
 			}
 			for _, name := range names {
-				add("", name, dir.Action)
+				location := ""
+				if dir.Target != "" {
+					location = system.ExpandPath(resolveTargetPath(dir.Target, name))
+				}
+				addAt("", name, dir.Action, location)
 			}
 		}
 	case types.BlueprintTypeServices:
@@ -126,7 +140,7 @@ func enumerateResources(processor string, file types.ResolvedFile, defaultProvid
 			return nil
 		}
 		for _, repo := range d.Repos {
-			add("", repo.Name, repo.Action)
+			addAt("", repo.Name, repo.Action, system.ExpandPath(repo.Path))
 		}
 	case types.BlueprintTypeScripts:
 		var d types.ScriptData

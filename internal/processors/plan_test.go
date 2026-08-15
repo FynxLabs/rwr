@@ -77,3 +77,29 @@ func TestResolveStage2_ProvidersAndResources(t *testing.T) {
 		t.Errorf("resources missing: %v (got %+v)", want, plan.Resources)
 	}
 }
+
+func TestEnumerateResourcesCarriesLocationIdentity(t *testing.T) {
+	dir := t.TempDir()
+	files := enumerateResources(types.BlueprintTypeFiles, types.ResolvedFile{
+		Format:   "yaml",
+		Resolved: []byte("files:\n  - name: init.lua\n    action: create\n    target: " + filepath.ToSlash(dir) + "/\n"),
+	}, "")
+	if len(files) != 1 {
+		t.Fatalf("file resources = %d, want 1", len(files))
+	}
+	if want := filepath.Join(dir, "init.lua"); files[0].Location != want {
+		t.Errorf("file location = %q, want %q", files[0].Location, want)
+	}
+
+	checkout := filepath.Join(dir, "checkout")
+	git := enumerateResources(types.BlueprintTypeGit, types.ResolvedFile{
+		Format:   "yaml",
+		Resolved: []byte("git:\n  - name: source\n    action: clone\n    path: " + filepath.ToSlash(checkout) + "\n"),
+	}, "")
+	if len(git) != 1 {
+		t.Fatalf("git resources = %d, want 1", len(git))
+	}
+	if git[0].Location != checkout {
+		t.Errorf("git location = %q, want %q", git[0].Location, checkout)
+	}
+}

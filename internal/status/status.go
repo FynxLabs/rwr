@@ -2,6 +2,7 @@ package status
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -41,7 +42,7 @@ func Rows(plan *types.Plan, applies []state.Entry, querier *Querier) []Row {
 	unreversed := map[string]*state.Entry{}
 	for i := range applies {
 		entry := &applies[i]
-		key := entry.Processor + "\x00" + entry.Identity["name"]
+		key := entryStatusKey(*entry)
 		recorded[key] = entry
 		if !entry.Reversed {
 			unreversed[key] = entry
@@ -51,7 +52,7 @@ func Rows(plan *types.Plan, applies []state.Entry, querier *Querier) []Row {
 	var rows []Row
 	seen := map[string]bool{}
 	for _, resource := range plan.Resources {
-		key := resource.Processor + "\x00" + resource.Name
+		key := resourceStatusKey(resource)
 		seen[key] = true
 		rows = append(rows, classify(resource, recorded[key], querier))
 	}
@@ -75,6 +76,30 @@ func Rows(plan *types.Plan, applies []state.Entry, querier *Querier) []Row {
 		})
 	}
 	return rows
+}
+
+// Files and git checkouts are identified by where they live, not by a display
+// name that can legitimately repeat. Packages, services, and the remaining
+// locationless resources retain name matching.
+func resourceStatusKey(resource types.Resource) string {
+	if resource.Location != "" && (resource.Processor == types.BlueprintTypeFiles || resource.Processor == types.BlueprintTypeGit) {
+		return resource.Processor + "\x00path\x00" + filepath.Clean(resource.Location)
+	}
+	return resource.Processor + "\x00name\x00" + resource.Name
+}
+
+func entryStatusKey(entry state.Entry) string {
+	location := ""
+	switch entry.Processor {
+	case types.BlueprintTypeFiles:
+		location = entry.Identity["dest"]
+	case types.BlueprintTypeGit:
+		location = entry.Identity["target"]
+	}
+	if location != "" {
+		return entry.Processor + "\x00path\x00" + filepath.Clean(location)
+	}
+	return entry.Processor + "\x00name\x00" + entry.Identity["name"]
 }
 
 // classify decides one desired resource's verdict.

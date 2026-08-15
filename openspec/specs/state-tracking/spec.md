@@ -43,3 +43,27 @@ matches the record, and SHALL refuse to uninstall when no run record exists.
 - **THEN** it exits with an error explaining that nothing was recorded, and
   changes nothing
 
+### Requirement: Status matches location-identified resources by path
+
+RWR SHALL match planned files and git checkouts to journal entries by their
+category-scoped, cleaned destination or target path. It SHALL NOT use a file or
+checkout's display name as its identity when a location is available. Packages,
+services, and other resources without a location SHALL continue to match by
+name.
+
+The same location SHALL flow through planned and completed resource events so
+the TUI updates the correct row when display names repeat.
+
+#### Scenario: Two managed files have the same name
+
+- **GIVEN** two planned files named `init.lua` at different destinations
+- **AND** one destination exists while the other is missing
+- **WHEN** `rwr status` joins the plan to the journal
+- **THEN** each row is classified from its own destination
+- **AND** neither journal entry overwrites or hides the other
+
+#### Scenario: A same-named file completes under the TUI
+
+- **GIVEN** two planned file resources share a name and have different destinations
+- **WHEN** one completed-resource event arrives with its destination
+- **THEN** only the planned resource at that destination receives the outcome
