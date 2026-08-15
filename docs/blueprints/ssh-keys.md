@@ -140,7 +140,7 @@ If `github_title` is provided, it will be used as the title for the SSH key on G
 
 ## Setting the RWR SSH Key
 
-If `set_as_rwr_ssh_key` is set to `true`, RWR will set this key as the default SSH key for RWR operations. This key will be used for private git clones and other SSH-based operations within RWR. The private key will be base64 encoded and stored in the RWR configuration file.
+If `set_as_rwr_ssh_key` is set to `true`, RWR will set this key as the default SSH key for RWR operations. This key will be used for private git clones and other SSH-based operations within RWR. The private key is base64 encoded and saved to the OS keyring. If no keyring backend is available, RWR warns and falls back to the owner-only (`0600`) configuration file for compatibility with existing installations.
 
 > [!NOTE]
 > Only one key should be set as the RWR SSH key. If multiple keys are set, the last one processed will be used.

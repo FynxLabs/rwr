@@ -260,9 +260,10 @@ unless named in `exposeCredentials`, and redacted in logs.
 RWR SHALL NOT write a managed credential's value to a plaintext file at rest.
 Persistence SHALL use the operating system keyring, and only with the
 operator's consent. When no keyring backend is available, RWR SHALL decline to
-persist and say so, rather than fall back to a plaintext file - except the
-pre-existing GitHub-token config-file path, which SHALL warn with the file
-path when used.
+persist and say so, rather than fall back to a plaintext file - except the two
+pre-existing built-in config-file paths for the GitHub token and SSH private
+key, which SHALL be restricted to `0600` and SHALL warn with the file path when
+used.
 
 #### Scenario: Device-flow token persisted with a keyring available
 
@@ -270,3 +271,24 @@ path when used.
 - **THEN** the token is saved to the keyring and no plaintext file gains the
   token value
 
+#### Scenario: Generated SSH key persisted with a keyring available
+
+- **WHEN** an SSH-key blueprint selects `set_as_rwr_ssh_key`
+- **AND** an OS keyring backend is available
+- **THEN** the base64 private key is saved under `ssh_private_key` in the keyring
+- **AND** no plaintext file gains the key value
+- **AND** any older plaintext config value is cleared
+
+#### Scenario: Built-in SSH key resolves from the keyring
+
+- **GIVEN** no SSH key flag or config value is set
+- **AND** the keyring contains `ssh_private_key`
+- **WHEN** built-in credentials resolve
+- **THEN** the keyring value becomes the SSH key used by git authentication
+
+#### Scenario: SSH keyring backend is unavailable
+
+- **WHEN** an SSH-key blueprint selects `set_as_rwr_ssh_key`
+- **AND** no OS keyring backend is available
+- **THEN** RWR warns that it is using the compatibility fallback
+- **AND** writes the base64 key only to the owner-readable (`0600`) config file
