@@ -3,15 +3,16 @@ package system
 import (
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// The guard decides whether sudo's credential cache is warmed before a command
-// runs. Getting it wrong is not a cosmetic failure: an un-warmed command that
-// calls sudo internally prompts on /dev/tty, behind the dashboard, and the run
-// hangs with no visible prompt.
-func TestSudoValidationCoversCommandsThatEscalateThemselves(t *testing.T) {
+// The guard decides which commands get the terminal when sudo is not already
+// cached, so that a password prompt the work itself makes is visible rather
+// than hidden behind the dashboard. It never causes rwr to ask on its own
+// account.
+func TestSudoTerminalHandoverCoversCommandsThatEscalateThemselves(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS == types.OSWindows {
@@ -50,9 +51,32 @@ func TestSudoValidationCoversCommandsThatEscalateThemselves(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := wantsSudoCredentials(tt.cmd); got != tt.want {
-				t.Errorf("wantsSudoCredentials = %v, want %v", got, tt.want)
+			if got := mayPromptForSudo(tt.cmd); got != tt.want {
+				t.Errorf("mayPromptForSudo = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// rwr must never ask for a password on its own account.
+//
+// It used to run `sudo -v` before any command that might escalate, which meant
+// a prompt per minute through a run of ordinary formulae that never touch
+// root. The probe replacing it uses -n, which answers from the cache or fails
+// and never prompts.
+func TestSudoProbeNeverPrompts(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("no sudo on windows")
+	}
+
+	// Whatever the machine's cache state, the probe has to return promptly
+	// rather than sit on a password prompt.
+	done := make(chan bool, 1)
+	go func() { done <- sudoCredentialsCached() }()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the sudo probe blocked; it must never prompt")
 	}
 }

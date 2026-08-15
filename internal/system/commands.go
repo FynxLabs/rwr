@@ -21,7 +21,6 @@ import (
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
-	"golang.org/x/term"
 )
 
 // buildCommand creates an *exec.Cmd from the given types.Command.
@@ -122,40 +121,37 @@ var (
 // Elevated is false and validation never ran, and then a cask install shelled
 // out to sudo, prompted on /dev/tty behind the dashboard, and hung the run
 // with no visible prompt.
-func wantsSudoCredentials(cmd types.Command) bool {
+func mayPromptForSudo(cmd types.Command) bool {
 	if runtime.GOOS == "windows" {
 		return false
 	}
 	return cmd.Elevated || cmd.AsUser != "" || cmd.Escalates
 }
 
-func ensureSudoCredentials() {
+// sudoCredentialsCached reports whether sudo would run without asking.
+//
+// It never prompts, and that is the whole point. rwr used to run `sudo -v`
+// itself before any command that might escalate, which meant asking for a
+// password on its own account - and since brew decides cask or formula on its
+// own, and the provider has one install verb for both, "might" was every
+// package. A run of ordinary formulae queued a password prompt a minute for a
+// privilege it never used.
+//
+// `-n` makes sudo answer from the credential cache or fail, without a prompt.
+// The throttle is on the probe rather than on the asking: spawning sudo per
+// package is wasteful and the answer does not change second to second.
+func sudoCredentialsCached() bool {
 	sudoValidateMu.Lock()
 	defer sudoValidateMu.Unlock()
 
 	if time.Since(sudoValidatedAt) < time.Minute {
-		return
+		return true
 	}
-
-	// Cheap probe: -n never prompts, it just reports whether the cache holds.
-	probe := exec.Command("sudo", "-n", "-v")
-	if err := probe.Run(); err == nil {
-		sudoValidatedAt = time.Now()
-		return
-	}
-
-	// No terminal, no prompt: leave it to the command (CI runs are
-	// NOPASSWD or root, where sudo never needed a tty in the first place).
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return
-	}
-
-	// Cache expired: ask for the password on the real terminal.
-	if err := runOnTerminal(exec.Command("sudo", "-v")); err != nil {
-		log.Debugf("sudo validation inconclusive (%v); running the command anyway", err)
-		return
+	if err := exec.Command("sudo", "-n", "-v").Run(); err != nil {
+		return false
 	}
 	sudoValidatedAt = time.Now()
+	return true
 }
 
 // runOnTerminal hands cmd the real terminal via the display layer, falling
@@ -254,23 +250,30 @@ func runCommand(cmd types.Command, debug bool) error {
 		return nil
 	}
 
-	// A captured elevated command can still make sudo prompt: sudo reads the
-	// password from /dev/tty, straight past the captured pipes - under the
-	// TUI the prompt and the dashboard then fight over the terminal and the
-	// dashboard eats half the password. Validate credentials first, through
-	// a proper terminal handover when the cache has expired. Advisory only:
-	// a failed validation must not fail the command - `sudo -v` is not
-	// command-scoped, so a NOPASSWD rule for just this command makes
-	// validation want a password the command itself never needs.
-	// Escalates covers the case this guard used to miss entirely: a command
-	// rwr runs unprivileged that calls sudo itself. brew is the example - it
-	// refuses to run as root, so Elevated is false and validation never ran,
-	// and then a cask install shelled out to sudo, prompted on /dev/tty behind
-	// the dashboard, and hung the run with no visible prompt. Earlier casks in
-	// the same run succeeded only because the credential cache was still warm
-	// from something else.
-	if wantsSudoCredentials(cmd) {
-		ensureSudoCredentials()
+	// A captured command that reaches sudo prompts on /dev/tty, straight past
+	// the pipes rwr captured, so under the dashboard the prompt is invisible
+	// and the run hangs on a password nobody was asked for. That is what hung
+	// a cask install.
+	//
+	// Asking first was the wrong answer to it. rwr cannot tell which brew
+	// command will need root - brew decides cask or formula itself, and the
+	// provider declares one install verb for both - so asking up front asked
+	// on every package, and a formula never needs it.
+	if mayPromptForSudo(cmd) && !sudoCredentialsCached() {
+		// Nothing here asks for a password. If sudo is already cached the
+		// command runs captured as usual and never prompts. If it is not, this
+		// one command gets the terminal, so that if the work itself turns out
+		// to need a password the prompt is visible and answerable - and the
+		// credential it establishes covers the rest of the run.
+		log.Debugf("sudo not cached; running %s on the terminal so any prompt it makes is visible", cmd.Exec)
+		if err := runOnTerminal(command); err != nil {
+			if Cancelled() {
+				return ErrCancelled
+			}
+			log.Errorf("Error running command: %v (stderr above)", err)
+			return err
+		}
+		return nil
 	}
 	{
 		// Under the TUI, captured stderr streams into the log view (the `≫`
