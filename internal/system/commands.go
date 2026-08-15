@@ -140,6 +140,32 @@ func mayPromptForSudo(cmd types.Command) bool {
 // `-n` makes sudo answer from the credential cache or fail, without a prompt.
 // The throttle is on the probe rather than on the asking: spawning sudo per
 // package is wasteful and the answer does not change second to second.
+// sudoProbeArgs is the probe rwr runs. -n is the whole contract: it makes sudo
+// answer from the credential cache or fail, and never prompt. Losing it would
+// turn the probe back into the thing this replaced.
+var sudoProbeArgs = []string{"sudo", "-n", "-v"}
+
+// sudoProbe runs the probe. A var so a test can substitute one that does not
+// depend on the host's sudo policy or credential state.
+var sudoProbe = func() error {
+	return exec.Command(sudoProbeArgs[0], sudoProbeArgs[1:]...).Run() // #nosec G204 -- fixed argv, not input
+}
+
+// SetSudoProbeForTest substitutes the probe and returns the restore func.
+func SetSudoProbeForTest(probe func() error) (restore func()) {
+	previous := sudoProbe
+	sudoProbe = probe
+	return func() { sudoProbe = previous }
+}
+
+// resetSudoThrottleForTest clears the probe throttle so a test observes the
+// probe rather than a cached answer from an earlier one.
+func resetSudoThrottleForTest() {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	sudoValidatedAt = time.Time{}
+}
+
 func sudoCredentialsCached() bool {
 	sudoValidateMu.Lock()
 	defer sudoValidateMu.Unlock()
@@ -147,7 +173,7 @@ func sudoCredentialsCached() bool {
 	if time.Since(sudoValidatedAt) < time.Minute {
 		return true
 	}
-	if err := exec.Command("sudo", "-n", "-v").Run(); err != nil {
+	if err := sudoProbe(); err != nil {
 		return false
 	}
 	sudoValidatedAt = time.Now()

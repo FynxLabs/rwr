@@ -1,9 +1,10 @@
 package system
 
 import (
+	"errors"
 	"runtime"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -60,23 +61,79 @@ func TestSudoTerminalHandoverCoversCommandsThatEscalateThemselves(t *testing.T) 
 
 // rwr must never ask for a password on its own account.
 //
-// It used to run `sudo -v` before any command that might escalate, which meant
-// a prompt per minute through a run of ordinary formulae that never touch
-// root. The probe replacing it uses -n, which answers from the cache or fails
-// and never prompts.
-func TestSudoProbeNeverPrompts(t *testing.T) {
-	if runtime.GOOS == types.OSWindows {
-		t.Skip("no sudo on windows")
+// -n is the whole contract: it makes sudo answer from the credential cache or
+// fail, and never prompt. Asserting only that the probe returns quickly does
+// not pin that - on a host that cannot prompt at all, a bare `sudo -v` also
+// returns immediately, so such a test passes with -n removed.
+func TestSudoProbeIsNonInteractive(t *testing.T) {
+	t.Parallel()
+
+	if got := strings.Join(sudoProbeArgs, " "); got != "sudo -n -v" {
+		t.Fatalf("probe = %q, want exactly \"sudo -n -v\"", got)
 	}
+}
 
-	// Whatever the machine's cache state, the probe has to return promptly
-	// rather than sit on a password prompt.
-	done := make(chan bool, 1)
-	go func() { done <- sudoCredentialsCached() }()
+// A cold cache is reported as cold, and does not prompt on the way there.
+func TestSudoCredentialsCachedWhenTheProbeFails(t *testing.T) {
+	defer SetSudoProbeForTest(func() error { return errors.New("a password is required") })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
 
-	select {
-	case <-done:
-	case <-time.After(10 * time.Second):
-		t.Fatal("the sudo probe blocked; it must never prompt")
+	if sudoCredentialsCached() {
+		t.Error("a failing probe was read as a warm cache")
+	}
+}
+
+// A warm cache is reported as warm, so the command runs captured and the
+// dashboard is not torn down for nothing.
+func TestSudoCredentialsCachedWhenTheProbeSucceeds(t *testing.T) {
+	defer SetSudoProbeForTest(func() error { return nil })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	if !sudoCredentialsCached() {
+		t.Error("a succeeding probe was read as a cold cache")
+	}
+}
+
+// The probe is throttled, so a run of a hundred packages does not spawn a
+// hundred sudo processes to ask a question whose answer does not change second
+// to second.
+func TestSudoProbeIsThrottled(t *testing.T) {
+	var calls int
+	defer SetSudoProbeForTest(func() error {
+		calls++
+		return nil
+	})()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	for range 10 {
+		sudoCredentialsCached()
+	}
+	if calls != 1 {
+		t.Errorf("probe ran %d times for 10 commands, want 1", calls)
+	}
+}
+
+// A cold cache is not throttled into looking warm: the answer has to be
+// re-asked until it changes, or the first cold command would be the only one
+// ever given the terminal.
+func TestSudoProbeRetriesWhileCold(t *testing.T) {
+	var calls int
+	defer SetSudoProbeForTest(func() error {
+		calls++
+		return errors.New("a password is required")
+	})()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	for range 3 {
+		if sudoCredentialsCached() {
+			t.Fatal("a failing probe was read as a warm cache")
+		}
+	}
+	if calls != 3 {
+		t.Errorf("probe ran %d times, want one per call while the cache is cold", calls)
 	}
 }
