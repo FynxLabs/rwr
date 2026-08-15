@@ -97,6 +97,40 @@ leaves the run blocked with no indication of what it waits for.
 - **WHEN** an interactive elevated command runs and `sudo` requires a password
 - **THEN** the prompt appears on the terminal and the operator can answer it
 
+### Requirement: Sudo readiness checks never prompt or delay cancellation
+
+Before running a command that is elevated, runs as another user, or may invoke
+`sudo` itself, RWR SHALL check the sudo credential cache using exactly
+`sudo -n -v`. The check SHALL NOT prompt for a password.
+
+The check SHALL use the active run context and a bounded timeout. Cancelling the
+run SHALL cancel an in-flight check immediately. RWR SHALL briefly cache both a
+warm and a cold result so a stalled policy backend cannot impose its full timeout
+once per package.
+
+A cached cold result SHALL NOT be treated as warm. Every command that may invoke
+sudo while the result is cold SHALL receive the real terminal, so any password
+prompt made by the command itself remains visible and answerable.
+
+#### Scenario: Sudo credentials are not cached
+
+- **WHEN** `sudo -n -v` reports that credentials are not cached
+- **THEN** RWR does not ask for a password itself
+- **AND** each potentially escalating command receives the real terminal
+
+#### Scenario: The sudo policy backend stalls
+
+- **WHEN** the non-interactive sudo check reaches its timeout
+- **THEN** the result is cached briefly as cold
+- **AND** adjacent package commands do not each repeat the stalled check
+- **AND** those commands still receive the real terminal
+
+#### Scenario: The operator cancels during the sudo check
+
+- **WHEN** the operator cancels the run while the sudo check is blocked
+- **THEN** the check stops through the run context without waiting for its
+  fallback timeout
+
 ### Requirement: A command's log file stays open while the command runs
 
 When a command declares `LogName` and debug output is off, RWR SHALL open that file

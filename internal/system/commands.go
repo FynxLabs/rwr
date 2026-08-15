@@ -98,25 +98,18 @@ func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 	command.Env = env
 }
 
-// sudoValidatedAt throttles credential validation: sudo's cache lives for
-// minutes, so re-checking before every one of hundreds of elevated commands
-// would be pure overhead.
+// The latest probe result is cached briefly whether it was warm or cold. A
+// failed policy lookup is no more likely to change between adjacent packages
+// than a successful one, and retrying a ten-second timeout for every package
+// turns the bound into an unbounded run-level delay. A cached cold result still
+// sends every potentially escalating command to the terminal, so a password
+// prompt made by the command itself remains visible.
 var (
-	sudoValidateMu  sync.Mutex
-	sudoValidatedAt time.Time
+	sudoValidateMu sync.Mutex
+	sudoProbedAt   time.Time
+	sudoProbeWarm  bool
 )
 
-// ensureSudoCredentials tries to make sure sudo can run without prompting.
-// When the cached credentials have expired and a real terminal exists, the
-// password prompt runs as its own terminal handover (`sudo -v`), so under
-// the TUI the dashboard suspends cleanly instead of painting over the
-// prompt. Best effort by design: without a tty (CI), or when validation
-// fails (a command-scoped NOPASSWD rule makes `sudo -v` itself want a
-// password), the command proceeds and fails or succeeds on its own terms,
-// exactly as it did before validation existed.
-// wantsSudoCredentials reports whether a command should have sudo's credential
-// cache warmed before it runs.
-//
 // Escalates is the case the elevation flags alone miss: a command rwr runs
 // unprivileged that calls sudo itself. brew refuses to run as root, so
 // Elevated is false and validation never ran, and then a cask install shelled
@@ -138,9 +131,6 @@ func mayPromptForSudo(cmd types.Command) bool {
 // package. A run of ordinary formulae queued a password prompt a minute for a
 // privilege it never used.
 //
-// `-n` makes sudo answer from the credential cache or fail, without a prompt.
-// The throttle is on the probe rather than on the asking: spawning sudo per
-// package is wasteful and the answer does not change second to second.
 // sudoProbeArgs is the probe rwr runs. -n is the whole contract: it makes sudo
 // answer from the credential cache or fail, and never prompt. Losing it would
 // turn the probe back into the thing this replaced.
@@ -155,16 +145,16 @@ var sudoProbeArgs = []string{"sudo", "-n", "-v"}
 // every command after it, waiting on a mutex that is never released.
 const sudoProbeTimeout = 10 * time.Second
 
-// sudoProbe runs the probe. A var so a test can substitute one that does not
-// depend on the host's sudo policy or credential state.
-var sudoProbe = func() error {
-	ctx, cancel := context.WithTimeout(context.Background(), sudoProbeTimeout)
-	defer cancel()
+// sudoProbe runs the probe. Its context is rooted in the run context so ctrl-c
+// interrupts a blocked PAM/NSS lookup immediately instead of waiting for the
+// probe deadline. A var lets tests substitute a probe without touching the
+// host's sudo policy or credential state.
+var sudoProbe = func(ctx context.Context) error {
 	return exec.CommandContext(ctx, sudoProbeArgs[0], sudoProbeArgs[1:]...).Run() // #nosec G204 -- fixed argv, not input
 }
 
 // SetSudoProbeForTest substitutes the probe and returns the restore func.
-func SetSudoProbeForTest(probe func() error) (restore func()) {
+func SetSudoProbeForTest(probe func(context.Context) error) (restore func()) {
 	previous := sudoProbe
 	sudoProbe = probe
 	return func() { sudoProbe = previous }
@@ -175,21 +165,23 @@ func SetSudoProbeForTest(probe func() error) (restore func()) {
 func resetSudoThrottleForTest() {
 	sudoValidateMu.Lock()
 	defer sudoValidateMu.Unlock()
-	sudoValidatedAt = time.Time{}
+	sudoProbedAt = time.Time{}
+	sudoProbeWarm = false
 }
 
 func sudoCredentialsCached() bool {
 	sudoValidateMu.Lock()
 	defer sudoValidateMu.Unlock()
 
-	if time.Since(sudoValidatedAt) < time.Minute {
-		return true
+	if time.Since(sudoProbedAt) < time.Minute {
+		return sudoProbeWarm
 	}
-	if err := sudoProbe(); err != nil {
-		return false
-	}
-	sudoValidatedAt = time.Now()
-	return true
+
+	ctx, cancel := context.WithTimeout(RunContext(), sudoProbeTimeout)
+	defer cancel()
+	sudoProbeWarm = sudoProbe(ctx) == nil
+	sudoProbedAt = time.Now()
+	return sudoProbeWarm
 }
 
 // runOnTerminal hands cmd the real terminal via the display layer, falling
