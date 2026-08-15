@@ -340,11 +340,18 @@ That distinction matters because of where the password prompt goes. RWR
 captures a command's output through pipes, but sudo reads its password from
 `/dev/tty` instead - so a prompt from a provider RWR did not know would
 escalate is invisible under the dashboard, and the run hangs on a password
-nobody was asked for. Declaring `escalates` makes RWR warm sudo's credential
-cache first, through a proper terminal handover, so the install never prompts.
+nobody was asked for.
 
-Only set it on providers you have actually seen escalate. Setting it on one
-that does not will ask for a password on runs that never need root.
+RWR never asks for a password on its own account. Declaring `escalates` only
+changes what happens when sudo is **not** already cached: that command is given
+the real terminal, so if the work itself turns out to need a password the
+prompt is visible and answerable. When sudo is already cached, nothing changes
+and nothing prompts.
+
+That matters because RWR cannot predict which command will need root. Homebrew
+decides cask or formula on its own and the provider declares one install verb
+for both, so a formula install - which never touches root - is
+indistinguishable up front. Asking in advance would ask on every package.
 
 ## Best Practices
 
