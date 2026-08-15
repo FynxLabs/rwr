@@ -554,6 +554,9 @@ func TestExecutableMode_PreservesEverythingElse(t *testing.T) {
 		in   os.FileMode
 		want os.FileMode
 	}{
+		// The floor: a file nobody can do anything with still only gains the
+		// one bit rwr needs to run it.
+		{name: "no permissions at all", in: 0o000, want: 0o100},
 		{name: "owner only", in: 0o600, want: 0o700},
 		{name: "group readable", in: 0o640, want: 0o740},
 		{name: "world readable", in: 0o644, want: 0o744},
