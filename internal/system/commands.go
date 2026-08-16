@@ -65,11 +65,11 @@ func spawn(cmd types.Command) *exec.Cmd {
 	if runtime.GOOS != "windows" {
 		if cmd.Elevated {
 			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.LogArgs())
-			return exec.CommandContext(ctx, "sudo", append([]string{"--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
+			return exec.CommandContext(ctx, "sudo", append([]string{"-n", "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
 		if cmd.AsUser != "" {
 			log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.LogArgs())
-			return exec.CommandContext(ctx, "sudo", append([]string{"-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
+			return exec.CommandContext(ctx, "sudo", append([]string{"-n", "-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
 	} else if cmd.Elevated {
 		log.Debugf("Elevated requested on Windows; running in-process (no sudo equivalent): %v %v", cmd.Exec, cmd.LogArgs())
@@ -411,6 +411,16 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 	if dryRunMode {
 		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.LogArgs(), " "))
 		return "", nil
+	}
+	if mayPromptForSudo(cmd) {
+		if err := ensureSudoCredentials(); err != nil {
+			if Cancelled() {
+				return "", ErrCancelled
+			}
+			if !errors.Is(err, errNoSudoTerminal) {
+				return "", fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
+			}
+		}
 	}
 
 	command := buildCommand(cmd)

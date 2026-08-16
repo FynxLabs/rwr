@@ -148,7 +148,7 @@ func TestBuildCommand_ShellMetacharactersAreNotInterpreted(t *testing.T) {
 				Elevated: true,
 			})
 
-			want := []string{"sudo", "--", "pacman", "-S", payload}
+			want := []string{"sudo", "-n", "--", "pacman", "-S", payload}
 			if !equalArgs(argv, want) {
 				t.Fatalf("argv = %#v, want %#v", argv, want)
 			}
@@ -215,17 +215,17 @@ func TestBuildCommand_Elevation(t *testing.T) {
 		{
 			name: "elevated prefixes sudo with -- terminator",
 			cmd:  types.Command{Exec: "apt", Args: []string{"install", "jq"}, Elevated: true},
-			want: []string{"sudo", "--", "apt", "install", "jq"},
+			want: []string{"sudo", "-n", "--", "apt", "install", "jq"},
 		},
 		{
 			name: "as-user uses sudo -u",
 			cmd:  types.Command{Exec: "paru", Args: []string{"-S", "jq"}, AsUser: "levi"},
-			want: []string{"sudo", "-u", "levi", "--", "paru", "-S", "jq"},
+			want: []string{"sudo", "-n", "-u", "levi", "--", "paru", "-S", "jq"},
 		},
 		{
 			name: "elevated wins over as-user",
 			cmd:  types.Command{Exec: "apt", Args: []string{"update"}, Elevated: true, AsUser: "levi"},
-			want: []string{"sudo", "--", "apt", "update"},
+			want: []string{"sudo", "-n", "--", "apt", "update"},
 		},
 	}
 
