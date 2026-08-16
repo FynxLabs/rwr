@@ -8,6 +8,7 @@ package system
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
+	"golang.org/x/term"
 )
 
 // buildCommand creates an *exec.Cmd from the given types.Command.
@@ -110,6 +112,12 @@ var (
 	sudoProbeWarm  bool
 )
 
+// ErrSudoAuthentication reports that a command requiring sudo could not be
+// authenticated through the controlled masked prompt.
+var ErrSudoAuthentication = errors.New("sudo authentication failed")
+
+var errNoSudoTerminal = errors.New("sudo credentials are not cached and no terminal is available")
+
 // Escalates is the case the elevation flags alone miss: a command rwr runs
 // unprivileged that calls sudo itself. brew refuses to run as root, so
 // Elevated is false and validation never ran, and then a cask install shelled
@@ -124,12 +132,9 @@ func mayPromptForSudo(cmd types.Command) bool {
 
 // sudoCredentialsCached reports whether sudo would run without asking.
 //
-// It never prompts, and that is the whole point. rwr used to run `sudo -v`
-// itself before any command that might escalate, which meant asking for a
-// password on its own account - and since brew decides cask or formula on its
-// own, and the provider has one install verb for both, "might" was every
-// package. A run of ordinary formulae queued a password prompt a minute for a
-// privilege it never used.
+// It never prompts. A cold result is handled separately by the controlled
+// masked authentication path, and only for a command known to need or invoke
+// sudo. Homebrew formulae are classified before this point and never reach it.
 //
 // sudoProbeArgs is the probe rwr runs. -n is the whole contract: it makes sudo
 // answer from the credential cache or fail, and never prompt. Losing it would
@@ -153,11 +158,54 @@ var sudoProbe = func(ctx context.Context) error {
 	return exec.CommandContext(ctx, sudoProbeArgs[0], sudoProbeArgs[1:]...).Run() // #nosec G204 -- fixed argv, not input
 }
 
+func sudoValidationCommand(ctx context.Context, input []byte) *exec.Cmd {
+	command := exec.CommandContext(ctx, "sudo", "-S", "-p", "", "-v") // #nosec G204 -- fixed argv
+	command.Stdin = bytes.NewReader(input)
+	command.Stdout = io.Discard
+	command.Stderr = os.Stderr
+	return command
+}
+
+var sudoAuthenticate = func(ctx context.Context) error {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return errNoSudoTerminal
+	}
+	return reporting.WithTerminal(func() error {
+		_, _ = fmt.Fprint(os.Stderr, "sudo password: ")
+		password, err := term.ReadPassword(int(os.Stdin.Fd()))
+		_, _ = fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return fmt.Errorf("reading sudo password: %w", err)
+		}
+		defer func() {
+			for i := range password {
+				password[i] = 0
+			}
+		}()
+
+		input := make([]byte, len(password)+1)
+		copy(input, password)
+		input[len(input)-1] = '\n'
+		defer func() {
+			for i := range input {
+				input[i] = 0
+			}
+		}()
+		return sudoValidationCommand(ctx, input).Run()
+	})
+}
+
 // SetSudoProbeForTest substitutes the probe and returns the restore func.
 func SetSudoProbeForTest(probe func(context.Context) error) (restore func()) {
 	previous := sudoProbe
 	sudoProbe = probe
 	return func() { sudoProbe = previous }
+}
+
+func SetSudoAuthenticateForTest(authenticate func(context.Context) error) (restore func()) {
+	previous := sudoAuthenticate
+	sudoAuthenticate = authenticate
+	return func() { sudoAuthenticate = previous }
 }
 
 // resetSudoThrottleForTest clears the probe throttle so a test observes the
@@ -182,6 +230,21 @@ func sudoCredentialsCached() bool {
 	sudoProbeWarm = sudoProbe(ctx) == nil
 	sudoProbedAt = time.Now()
 	return sudoProbeWarm
+}
+
+func ensureSudoCredentials() error {
+	if sudoCredentialsCached() {
+		return nil
+	}
+	if err := sudoAuthenticate(RunContext()); err != nil {
+		return err
+	}
+
+	sudoValidateMu.Lock()
+	sudoProbeWarm = true
+	sudoProbedAt = time.Now()
+	sudoValidateMu.Unlock()
+	return nil
 }
 
 // runOnTerminal hands cmd the real terminal via the display layer, falling
@@ -257,6 +320,16 @@ func runCommand(cmd types.Command, debug bool) error {
 		// os.Stdin instead would hang waiting for a human.
 		command.Stdin = strings.NewReader(cmd.Stdin)
 	}
+	if mayPromptForSudo(cmd) {
+		if err := ensureSudoCredentials(); err != nil {
+			if Cancelled() {
+				return ErrCancelled
+			}
+			if !errors.Is(err, errNoSudoTerminal) {
+				return fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
+			}
+		}
+	}
 
 	if cmd.Interactive {
 		// Interactive commands must reach the terminal directly - capturing
@@ -280,31 +353,6 @@ func runCommand(cmd types.Command, debug bool) error {
 		return nil
 	}
 
-	// A captured command that reaches sudo prompts on /dev/tty, straight past
-	// the pipes rwr captured, so under the dashboard the prompt is invisible
-	// and the run hangs on a password nobody was asked for. That is what hung
-	// a cask install.
-	//
-	// Asking first was the wrong answer to it. rwr cannot tell which brew
-	// command will need root - brew decides cask or formula itself, and the
-	// provider declares one install verb for both - so asking up front asked
-	// on every package, and a formula never needs it.
-	if mayPromptForSudo(cmd) && !sudoCredentialsCached() {
-		// Nothing here asks for a password. If sudo is already cached the
-		// command runs captured as usual and never prompts. If it is not, this
-		// one command gets the terminal, so that if the work itself turns out
-		// to need a password the prompt is visible and answerable - and the
-		// credential it establishes covers the rest of the run.
-		log.Debugf("sudo not cached; running %s on the terminal so any prompt it makes is visible", cmd.Exec)
-		if err := runOnTerminal(command); err != nil {
-			if Cancelled() {
-				return ErrCancelled
-			}
-			log.Errorf("Error running command: %v (stderr above)", err)
-			return err
-		}
-		return nil
-	}
 	{
 		// Under the TUI, captured stderr streams into the log view (the `≫`
 		// lines); headless it streams to the real stderr like the pre-TUI

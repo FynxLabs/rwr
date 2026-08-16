@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -76,6 +77,21 @@ func TestSudoProbeIsNonInteractive(t *testing.T) {
 	}
 }
 
+func TestSudoValidationKeepsPasswordOutOfArgv(t *testing.T) {
+	t.Parallel()
+
+	password := []byte("correct horse battery staple\n")
+	command := sudoValidationCommand(context.Background(), password)
+	if want := []string{"sudo", "-S", "-p", "", "-v"}; !slices.Equal(command.Args, want) {
+		t.Fatalf("validation argv = %q, want %q", command.Args, want)
+	}
+	for _, arg := range command.Args {
+		if strings.Contains(arg, "correct horse") {
+			t.Fatal("password appeared in sudo argv")
+		}
+	}
+}
+
 // A cold cache is reported as cold, and does not prompt on the way there.
 func TestSudoCredentialsCachedWhenTheProbeFails(t *testing.T) {
 	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("a password is required") })()
@@ -141,16 +157,21 @@ func TestSudoProbeIsThrottledWhileCold(t *testing.T) {
 	}
 }
 
-// Throttling a cold probe must only spare the probe process. It must not route
-// later commands back through captured execution, where a password prompt made
-// by the command would disappear behind the dashboard.
-func TestThrottledColdProbeStillHandsEveryCommandTheTerminal(t *testing.T) {
+// A cold probe authenticates once through the controlled password path. The
+// actual commands remain captured, so raw package and user-management output
+// cannot collide with the dashboard.
+func TestColdProbeAuthenticatesOnceAndKeepsCommandsCaptured(t *testing.T) {
 	if runtime.GOOS == types.OSWindows {
 		t.Skip("no sudo on windows")
 	}
 
 	defer SetSudoProbeForTest(func(context.Context) error {
 		return errors.New("a password is required")
+	})()
+	var authentications int
+	defer SetSudoAuthenticateForTest(func(context.Context) error {
+		authentications++
+		return nil
 	})()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
@@ -169,8 +190,42 @@ func TestThrottledColdProbeStillHandsEveryCommandTheTerminal(t *testing.T) {
 			handovers++
 		}
 	}
-	if handovers != 2 {
-		t.Errorf("terminal handovers = %d, want one for each cold command", handovers)
+	if authentications != 1 {
+		t.Errorf("authentications = %d, want one", authentications)
+	}
+	if handovers != 0 {
+		t.Errorf("command terminal handovers = %d, want none", handovers)
+	}
+}
+
+func TestSudoAuthenticationFailureStopsTheCommand(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("no sudo on windows")
+	}
+
+	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
+	defer SetSudoAuthenticateForTest(func(context.Context) error { return errors.New("denied") })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	err := RunCommand(types.Command{Exec: "true", Elevated: true}, false)
+	if !errors.Is(err, ErrSudoAuthentication) {
+		t.Fatalf("RunCommand error = %v, want ErrSudoAuthentication", err)
+	}
+}
+
+func TestNoTerminalLeavesCommandScopedNopasswdPathAvailable(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("no sudo on windows")
+	}
+
+	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
+	defer SetSudoAuthenticateForTest(func(context.Context) error { return errNoSudoTerminal })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	if err := runCommand(types.Command{Exec: "true", Escalates: true}, false); err != nil {
+		t.Fatalf("headless command was rejected before its own policy could run: %v", err)
 	}
 }
 

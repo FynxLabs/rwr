@@ -289,6 +289,21 @@ func TestDarwinUserArgv(t *testing.T) {
 	}
 }
 
+func TestDarwinModifyDoesNotHandNonInteractiveDsclToTerminal(t *testing.T) {
+	rec := platform(t, "darwin", true, true, "")
+	config := newTestInitConfig()
+	config.Variables.Flags.Interactive = true
+
+	if err := modifyUserDarwin(types.User{Name: "levi", NewShell: "/opt/homebrew/bin/fish"}, config); err != nil {
+		t.Fatalf("modifyUserDarwin: %v", err)
+	}
+	for _, call := range rec.Find("dscl") {
+		if call.Interactive {
+			t.Fatalf("noninteractive dscl command was handed the terminal: %v", call)
+		}
+	}
+}
+
 // macOS accepts no crypt hash, so the cleartext rule must not leak onto it.
 func TestDarwinPasswordAcceptsCleartext(t *testing.T) {
 	rec := platform(t, "darwin", true, false, "")

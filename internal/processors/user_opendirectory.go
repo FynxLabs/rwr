@@ -121,7 +121,7 @@ func createUserDarwin(user types.User, initConfig *types.InitConfig) error {
 		realName = user.Name
 	}
 
-	interactive := helpers.ResolveInteractive(user.Interactive, initConfig.Variables.Flags.Interactive)
+	interactive := helpers.ResolveInteractive(user.Interactive, false)
 
 	if commandExists("sysadminctl") {
 		cmd := types.Command{
@@ -231,7 +231,7 @@ func modifyUserDarwin(user types.User, initConfig *types.InitConfig) error {
 		attrs = append(attrs, [2]string{"NFSHomeDirectory", user.Home})
 	}
 
-	interactive := helpers.ResolveInteractive(user.Interactive, initConfig.Variables.Flags.Interactive)
+	interactive := helpers.ResolveInteractive(user.Interactive, false)
 
 	for _, attr := range attrs {
 		cmd := types.Command{
@@ -301,7 +301,7 @@ func removeUserDarwin(user types.User, initConfig *types.InitConfig) error {
 		return nil
 	}
 
-	interactive := helpers.ResolveInteractive(user.Interactive, initConfig.Variables.Flags.Interactive)
+	interactive := helpers.ResolveInteractive(user.Interactive, false)
 
 	if commandExists("sysadminctl") {
 		// sysadminctl deletes the home directory unless told otherwise, which is

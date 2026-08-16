@@ -342,12 +342,12 @@ captures a command's output through pipes, but sudo reads its password from
 escalate is invisible under the dashboard, and the run hangs on a password
 nobody was asked for.
 
-RWR never asks for a password on its own account. For Homebrew, RWR narrows the
-provider-wide declaration to cask operations using explicit `--cask` or local
-`brew info --json=v2` metadata. Formula operations remain captured in the TUI.
-When a cask may need sudo and credentials are not cached, only that command is
-given the real terminal so its own prompt is visible and answerable. If metadata
-cannot classify a package, RWR fails safe and preserves the terminal handoff.
+For Homebrew, RWR narrows the provider-wide declaration to cask operations using
+explicit `--cask` or local `brew info --json=v2` metadata. Formula operations
+remain captured in the TUI. When an operation really may need sudo and
+credentials are not cached, RWR uses a masked terminal prompt to validate sudo
+once, then runs the actual command captured inside the TUI. If metadata cannot
+classify a package, RWR fails safe and treats it as potentially escalating.
 
 ## Best Practices
 
