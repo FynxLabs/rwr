@@ -100,7 +100,7 @@ func Initialize(initFilePath string, flags types.Flags, selectedProcessors ...st
 
 	// Write the processed init file to the temporary directory
 	processedInitFile := filepath.Join(tempDir, "init-processed"+fileExt)
-	err = os.WriteFile(processedInitFile, processedInit, 0600) // #nosec G703 -- process-owned temporary directory
+	err = os.WriteFile(processedInitFile, processedInit, 0644) // #nosec G306 G703 -- generated non-secret init inside a process-owned temporary directory
 	if err != nil {
 		return nil, fmt.Errorf("error writing processed init file: %w", err)
 	}
@@ -152,7 +152,9 @@ func Initialize(initFilePath string, flags types.Flags, selectedProcessors ...st
 	}
 
 	// Set the blueprints location
-	setBlueprintsLocation(&initConfig, initFilePath)
+	if err := setBlueprintsLocation(&initConfig, initFilePath); err != nil {
+		return nil, err
+	}
 
 	// Apply the credential opt-in before anything reads variables or spawns a
 	// command, so the choice is in effect for the whole run.
@@ -223,12 +225,12 @@ func convertTomlToYaml(data []byte) ([]byte, string, error) {
 	return yamlData, ".yaml", nil
 }
 
-func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
+func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) error {
 	// Handle Git target setup if needed
 	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
 		resolvedTarget := system.ExpandPath(initConfig.Init.Git.Target)
 		if err := os.MkdirAll(resolvedTarget, 0755); err != nil { // #nosec G301 -- TODO: blueprint-target directory; create with the requested mode
-			log.Warnf("Failed to create blueprint directory: %v", err)
+			return fmt.Errorf("failed to create blueprint directory %s: %w", resolvedTarget, err)
 		}
 	}
 
@@ -243,6 +245,7 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) {
 	}
 
 	log.Debugf("Blueprints location set to: %s", initConfig.Init.Location)
+	return nil
 }
 
 func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {

@@ -273,6 +273,33 @@ func TestDownloadFile_TargetOutsideTempDir(t *testing.T) {
 	assertNoStagingLeftovers(t, dir, "downloaded.gpg")
 }
 
+func TestOpenFileNoFollowRejectsFinalSymlink(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows os.OpenFile has no O_NOFOLLOW equivalent")
+	}
+
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside")
+	link := filepath.Join(dir, "link")
+	if err := os.WriteFile(outside, []byte("original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+
+	file, err := OpenFileNoFollow(link, os.O_WRONLY|os.O_TRUNC, 0)
+	if err == nil {
+		_ = file.Close()
+		t.Fatal("OpenFileNoFollow followed a final-component symlink")
+	}
+	content, readErr := os.ReadFile(outside)
+	if readErr != nil || string(content) != "original" {
+		t.Fatalf("outside content = %q, err = %v; want unchanged", content, readErr)
+	}
+}
+
 func TestDownloadFile_ErrorRemovesStagingFile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nope", http.StatusNotFound)

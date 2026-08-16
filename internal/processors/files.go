@@ -311,7 +311,7 @@ func createFile(file types.File, targetPath string) error {
 	// The mode is carried into the open so the content is never readable by anyone
 	// the blueprint did not name - a later chmod would leave a window in which a
 	// rendered credential sat on disk world-readable.
-	f, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, mode) // #nosec G304 G703 -- path is operator-supplied blueprint/config input
+	f, err := system.OpenFileNoFollow(targetPath, os.O_CREATE|os.O_WRONLY, mode)
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}

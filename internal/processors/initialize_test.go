@@ -148,6 +148,21 @@ blueprints:
 	}
 }
 
+func TestSetBlueprintsLocationReturnsGitTargetCreationFailure(t *testing.T) {
+	t.Parallel()
+
+	blocker := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blocker, []byte("block"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	config := &types.InitConfig{}
+	config.Init.Git = &types.GitOptions{Target: filepath.Join(blocker, "checkout")}
+
+	if err := setBlueprintsLocation(config, filepath.Join(t.TempDir(), "init.yaml")); err == nil {
+		t.Fatal("setBlueprintsLocation = nil, want target-directory error")
+	}
+}
+
 func TestInitialize_MissingFile(t *testing.T) {
 	flags := types.Flags{
 		Debug: true,

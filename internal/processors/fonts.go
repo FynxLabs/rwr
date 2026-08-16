@@ -351,12 +351,23 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 			if err != nil {
 				return extracted, err
 			}
+			tempPath := tempFile.Name()
+			defer func() {
+				if err := os.Remove(tempPath); err != nil && !os.IsNotExist(err) {
+					log.Debugf("removing temporary font file %s: %v", tempPath, err)
+				}
+			}()
 			if err := tempFile.Close(); err != nil {
 				return extracted, fmt.Errorf("error closing temp file: %w", err)
 			}
 
-			// Write the font data to the temporary file
-			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755) // #nosec G302 -- TODO: create with target mode instead of chmod-after
+			// Fonts installed system-wide must remain readable by every user.
+			// OpenFile's mode is ignored for this already-created temporary file,
+			// so set the mode explicitly before CopyFile preserves it.
+			if err := os.Chmod(tempPath, 0644); err != nil { // #nosec G302 -- installed fonts must be readable by non-owner users
+				return extracted, fmt.Errorf("error setting temporary font permissions: %w", err)
+			}
+			tempFile, err = system.OpenFileNoFollow(tempPath, os.O_WRONLY, 0)
 			if err != nil {
 				return extracted, err
 			}

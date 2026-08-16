@@ -27,6 +27,12 @@ import (
 // never widen the permissions of a file that may hold credentials.
 const defaultFileMode os.FileMode = 0644
 
+// OpenFileNoFollow opens path while refusing a symlink as the final component
+// on platforms that support that guarantee.
+func OpenFileNoFollow(path string, flags int, mode os.FileMode) (*os.File, error) {
+	return os.OpenFile(path, flags|noFollow, mode) // #nosec G304 -- caller supplies an operator-controlled path; no-follow is the boundary provided here
+}
+
 // tempFileNextTo creates a staging file in the target's own directory.
 //
 // It has to be that directory and not os.TempDir(): /tmp is tmpfs on most Linux
@@ -297,7 +303,7 @@ func downloadFileContent(url, filePath string) error {
 	}
 
 	// Create the file
-	file, err := os.Create(filePath) // #nosec G304 -- path is operator-supplied blueprint/config input
+	file, err := OpenFileNoFollow(filePath, os.O_WRONLY|os.O_TRUNC, 0)
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}
@@ -625,7 +631,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 			return fmt.Errorf("error moving file with elevated privileges: %v", err)
 		}
 	} else {
-		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode()) // #nosec G304 -- path is operator-supplied blueprint/config input
+		targetFile, err := OpenFileNoFollow(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode())
 		if err != nil {
 			return fmt.Errorf("error creating target file: %v", err)
 		}
