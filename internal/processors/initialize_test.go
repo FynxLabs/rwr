@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -160,6 +161,21 @@ func TestSetBlueprintsLocationReturnsGitTargetCreationFailure(t *testing.T) {
 
 	if err := setBlueprintsLocation(config, filepath.Join(t.TempDir(), "init.yaml")); err == nil {
 		t.Fatal("setBlueprintsLocation = nil, want target-directory error")
+	}
+}
+
+func TestSetBlueprintsLocationDryRunDoesNotCreateGitTarget(t *testing.T) {
+	system.SetDryRun(true)
+	t.Cleanup(func() { system.SetDryRun(false) })
+
+	target := filepath.Join(t.TempDir(), "checkout")
+	config := &types.InitConfig{}
+	config.Init.Git = &types.GitOptions{Target: target}
+	if err := setBlueprintsLocation(config, filepath.Join(t.TempDir(), "init.yaml")); err != nil {
+		t.Fatalf("setBlueprintsLocation: %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("dry-run created Git target or returned unexpected stat error: %v", err)
 	}
 }
 

@@ -30,7 +30,7 @@ const defaultFileMode os.FileMode = 0644
 // OpenFileNoFollow opens path while refusing a symlink as the final component
 // on platforms that support that guarantee.
 func OpenFileNoFollow(path string, flags int, mode os.FileMode) (*os.File, error) {
-	return os.OpenFile(path, flags|noFollow, mode) // #nosec G304 -- caller supplies an operator-controlled path; no-follow is the boundary provided here
+	return openFileNoFollow(path, flags, mode)
 }
 
 // tempFileNextTo creates a staging file in the target's own directory.
@@ -93,7 +93,7 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 	}
 	defer sourceFile.Close() //nolint:errcheck
 
-	targetFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|noFollow, mode) // #nosec G304 -- path is operator-supplied blueprint/config input
+	targetFile, err := OpenFileNoFollow(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
 	if err != nil {
 		return fmt.Errorf("error creating target file: %v", err)
 	}
@@ -641,15 +641,17 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		if err != nil {
 			return fmt.Errorf("error copying file: %v", err)
 		}
+		if runtime.GOOS != "windows" {
+			if err := targetFile.Chmod(sourceInfo.Mode()); err != nil {
+				return fmt.Errorf("error setting file permissions: %v", err)
+			}
+		}
 	}
 
-	// Preserve file mode on Unix-like systems
-	if runtime.GOOS != "windows" {
-		if elevated {
-			err = setFilePermissionsElevated(target, sourceInfo.Mode())
-		} else {
-			err = os.Chmod(target, sourceInfo.Mode())
-		}
+	// Elevated writes no longer have an open destination descriptor, so their
+	// permission update remains a separate privileged operation.
+	if runtime.GOOS != "windows" && elevated {
+		err = setFilePermissionsElevated(target, sourceInfo.Mode())
 		if err != nil {
 			return fmt.Errorf("error setting file permissions: %v", err)
 		}

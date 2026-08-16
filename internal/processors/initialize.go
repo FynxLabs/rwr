@@ -227,7 +227,7 @@ func convertTomlToYaml(data []byte) ([]byte, string, error) {
 
 func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) error {
 	// Handle Git target setup if needed
-	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" {
+	if initConfig.Init.Git != nil && initConfig.Init.Git.Target != "" && !system.IsDryRun() {
 		resolvedTarget := system.ExpandPath(initConfig.Init.Git.Target)
 		if err := os.MkdirAll(resolvedTarget, 0755); err != nil { // #nosec G301 -- TODO: blueprint-target directory; create with the requested mode
 			return fmt.Errorf("failed to create blueprint directory %s: %w", resolvedTarget, err)

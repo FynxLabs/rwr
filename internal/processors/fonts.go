@@ -352,21 +352,22 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 				return extracted, err
 			}
 			tempPath := tempFile.Name()
-			defer func() {
+			cleanupTemp := func() {
 				if err := os.Remove(tempPath); err != nil && !os.IsNotExist(err) {
 					log.Debugf("removing temporary font file %s: %v", tempPath, err)
 				}
-			}()
+			}
+			defer func() { cleanupTemp() }()
+			if err := tempFile.Chmod(0644); err != nil { // #nosec G302 -- installed fonts must be readable by non-owner users
+				return extracted, fmt.Errorf("error setting temporary font permissions: %w", err)
+			}
 			if err := tempFile.Close(); err != nil {
 				return extracted, fmt.Errorf("error closing temp file: %w", err)
 			}
 
 			// Fonts installed system-wide must remain readable by every user.
-			// OpenFile's mode is ignored for this already-created temporary file,
-			// so set the mode explicitly before CopyFile preserves it.
-			if err := os.Chmod(tempPath, 0644); err != nil { // #nosec G302 -- installed fonts must be readable by non-owner users
-				return extracted, fmt.Errorf("error setting temporary font permissions: %w", err)
-			}
+			// The mode was set through the original descriptor before it closed;
+			// reopen without following a replacement final-component symlink.
 			tempFile, err = system.OpenFileNoFollow(tempPath, os.O_WRONLY, 0)
 			if err != nil {
 				return extracted, err
@@ -401,6 +402,7 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 			if err != nil {
 				return extracted, fmt.Errorf("error copying font file to destination: %v", err)
 			}
+			cleanupTemp()
 			extracted++
 		}
 	}

@@ -275,9 +275,6 @@ func TestDownloadFile_TargetOutsideTempDir(t *testing.T) {
 
 func TestOpenFileNoFollowRejectsFinalSymlink(t *testing.T) {
 	t.Parallel()
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows os.OpenFile has no O_NOFOLLOW equivalent")
-	}
 
 	dir := t.TempDir()
 	outside := filepath.Join(dir, "outside")
@@ -286,7 +283,7 @@ func TestOpenFileNoFollowRejectsFinalSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(outside, link); err != nil {
-		t.Fatal(err)
+		t.Skipf("cannot create test symlink: %v", err)
 	}
 
 	file, err := OpenFileNoFollow(link, os.O_WRONLY|os.O_TRUNC, 0)

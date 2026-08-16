@@ -277,6 +277,10 @@ with the provider's privileges - root, for every system package manager - and th
 destination is a template rendered against blueprint values, so an unchecked
 destination would be a root-privileged write to an arbitrary path.
 
+File creation and replacement SHALL reject a final destination that is a symlink
+or Windows reparse point. Permission changes SHALL be applied through the opened
+destination descriptor so a path replacement cannot redirect the change.
+
 #### Scenario: Adding an apt repository
 
 - **WHEN** an apt repository is added
@@ -428,7 +432,8 @@ RWR SHALL fail when the resulting directory is empty.
 
 In dry-run mode RWR SHALL report the sync it would perform and SHALL touch neither
 disk nor network, because cloning and pulling go directly to the filesystem rather
-than through the command executor where dry-run is otherwise enforced.
+than through the command executor where dry-run is otherwise enforced. This
+includes not creating the declared clone target or any parent directories.
 
 #### Scenario: First run on a new machine
 
@@ -821,6 +826,10 @@ outside the destination. An entry whose path resolves outside the destination
 directory SHALL fail the extraction. A single entry decompressing past 64 MB
 SHALL fail as a suspected decompression bomb - archives arrive xz-compressed
 from the network, and real font faces are single-digit MB.
+
+Each extracted font face SHALL be staged with mode `0644`, copied to its final
+destination, and have its staging file removed immediately after that copy.
+Failed copies SHALL still clean up their staging files before the run returns.
 
 An archive that produced zero font faces SHALL be a failure, not a success.
 After an install or removal RWR SHALL refresh the font cache, elevated only for
