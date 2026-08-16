@@ -104,14 +104,16 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 		}
 		return fmt.Errorf("error copying file: %v", err)
 	}
-	if err := targetFile.Close(); err != nil {
-		return fmt.Errorf("error closing target file: %v", err)
-	}
-
 	if runtime.GOOS != "windows" {
-		if err := os.Chmod(target, mode); err != nil {
+		if err := targetFile.Chmod(mode); err != nil {
+			if cerr := targetFile.Close(); cerr != nil {
+				log.Debugf("Closing %s after a failed chmod: %v", target, cerr)
+			}
 			return fmt.Errorf("error setting file permissions: %v", err)
 		}
+	}
+	if err := targetFile.Close(); err != nil {
+		return fmt.Errorf("error closing target file: %v", err)
 	}
 	return nil
 }

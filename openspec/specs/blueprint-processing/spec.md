@@ -718,7 +718,9 @@ For `dconf`, RWR SHALL resolve the entry's `file` relative to the blueprint
 directory and feed its content to `dconf load /` on standard input - commands
 run without a shell, so a `<` in argv is data, not a redirection. An entry with
 `run_once: true` SHALL be skipped when its bootstrap marker file exists, and
-the marker SHALL be written only after a successful apply.
+the marker SHALL be written only after a successful apply. A marker-write
+failure SHALL stop the run with an error rather than reporting success without
+recording the run-once state.
 
 For `gsettings`, RWR SHALL check that each key is writable before setting it,
 and SHALL record a per-key ledger failure - and continue with the remaining
