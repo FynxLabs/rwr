@@ -3,8 +3,11 @@ package status
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
+	"github.com/fynxlabs/rwr/internal/display"
 	"github.com/fynxlabs/rwr/internal/state"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -35,6 +38,35 @@ func TestFileState(t *testing.T) {
 	}
 	if got := FileState("", "x"); got != Unknown {
 		t.Fatalf("empty dest = %s, want unknown", got)
+	}
+}
+
+func TestRenderAlignsAndTruncatesUnicodeNames(t *testing.T) {
+	t.Parallel()
+
+	rendered := Render([]Row{
+		{Processor: "packages", Name: strings.Repeat("界", 21), Class: InSync, Note: "wide"},
+		{Processor: "packages", Name: "café", Class: Missing, Note: "accent"},
+	}, true)
+	lines := strings.Split(strings.TrimSpace(rendered), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("lines = %d, want 3:\n%s", len(lines), rendered)
+	}
+	for _, line := range lines[1:] {
+		note := "wide"
+		if strings.Contains(line, "accent") {
+			note = "accent"
+		}
+		prefix, _, ok := strings.Cut(line, note)
+		if !ok {
+			t.Fatalf("line is missing note %q: %s", note, line)
+		}
+		if width := display.Width(prefix); width != 67 {
+			t.Fatalf("note %q starts at display column %d, want 67:\n%s", note, width, rendered)
+		}
+	}
+	if !utf8.ValidString(rendered) {
+		t.Fatalf("rendered output is not valid UTF-8:\n%s", rendered)
 	}
 }
 
