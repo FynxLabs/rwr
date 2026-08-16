@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -77,7 +78,7 @@ func TestSudoProbeIsNonInteractive(t *testing.T) {
 
 // A cold cache is reported as cold, and does not prompt on the way there.
 func TestSudoCredentialsCachedWhenTheProbeFails(t *testing.T) {
-	defer SetSudoProbeForTest(func() error { return errors.New("a password is required") })()
+	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("a password is required") })()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 
@@ -89,7 +90,7 @@ func TestSudoCredentialsCachedWhenTheProbeFails(t *testing.T) {
 // A warm cache is reported as warm, so the command runs captured and the
 // dashboard is not torn down for nothing.
 func TestSudoCredentialsCachedWhenTheProbeSucceeds(t *testing.T) {
-	defer SetSudoProbeForTest(func() error { return nil })()
+	defer SetSudoProbeForTest(func(context.Context) error { return nil })()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 
@@ -103,7 +104,7 @@ func TestSudoCredentialsCachedWhenTheProbeSucceeds(t *testing.T) {
 // to second.
 func TestSudoProbeIsThrottled(t *testing.T) {
 	var calls int
-	defer SetSudoProbeForTest(func() error {
+	defer SetSudoProbeForTest(func(context.Context) error {
 		calls++
 		return nil
 	})()
@@ -118,12 +119,12 @@ func TestSudoProbeIsThrottled(t *testing.T) {
 	}
 }
 
-// A cold cache is not throttled into looking warm: the answer has to be
-// re-asked until it changes, or the first cold command would be the only one
-// ever given the terminal.
-func TestSudoProbeRetriesWhileCold(t *testing.T) {
+// A cold result is throttled as cold, not converted to warm. Every caller still
+// hands its command the terminal, but a stalled policy backend is not retried
+// once per package.
+func TestSudoProbeIsThrottledWhileCold(t *testing.T) {
 	var calls int
-	defer SetSudoProbeForTest(func() error {
+	defer SetSudoProbeForTest(func(context.Context) error {
 		calls++
 		return errors.New("a password is required")
 	})()
@@ -135,8 +136,72 @@ func TestSudoProbeRetriesWhileCold(t *testing.T) {
 			t.Fatal("a failing probe was read as a warm cache")
 		}
 	}
-	if calls != 3 {
-		t.Errorf("probe ran %d times, want one per call while the cache is cold", calls)
+	if calls != 1 {
+		t.Errorf("probe ran %d times for 3 cold calls, want 1", calls)
+	}
+}
+
+// Throttling a cold probe must only spare the probe process. It must not route
+// later commands back through captured execution, where a password prompt made
+// by the command would disappear behind the dashboard.
+func TestThrottledColdProbeStillHandsEveryCommandTheTerminal(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("no sudo on windows")
+	}
+
+	defer SetSudoProbeForTest(func(context.Context) error {
+		return errors.New("a password is required")
+	})()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	rec := &recordingReporter{}
+	defer reporting.Set(rec)()
+	for range 2 {
+		if err := RunCommand(types.Command{Exec: "true", Escalates: true}, false); err != nil {
+			t.Fatalf("RunCommand: %v", err)
+		}
+	}
+
+	var handovers int
+	for _, event := range rec.events {
+		if _, ok := event.(reporting.TerminalReq); ok {
+			handovers++
+		}
+	}
+	if handovers != 2 {
+		t.Errorf("terminal handovers = %d, want one for each cold command", handovers)
+	}
+}
+
+// Cancellation is stronger than the fallback deadline: ctrl-c must stop a
+// blocked policy lookup now, not leave the run apparently frozen for ten more
+// seconds before it can return ErrCancelled.
+func TestSudoProbeStopsWhenTheRunIsCancelled(t *testing.T) {
+	started := make(chan struct{})
+	defer SetSudoProbeForTest(func(ctx context.Context) error {
+		close(started)
+		<-ctx.Done()
+		return ctx.Err()
+	})()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	release := BeginRun()
+	defer release()
+
+	result := make(chan bool, 1)
+	go func() { result <- sudoCredentialsCached() }()
+	<-started
+	Cancel()
+
+	select {
+	case warm := <-result:
+		if warm {
+			t.Fatal("a cancelled probe was read as a warm cache")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("sudo probe ignored run cancellation")
 	}
 }
 
@@ -161,7 +226,7 @@ func TestSudoProbeIsBounded(t *testing.T) {
 // as success would send the command down the captured path, straight back to
 // the invisible prompt this all exists to avoid.
 func TestSudoTimeoutReadsAsColdCache(t *testing.T) {
-	defer SetSudoProbeForTest(func() error { return context.DeadlineExceeded })()
+	defer SetSudoProbeForTest(func(context.Context) error { return context.DeadlineExceeded })()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 
@@ -173,7 +238,7 @@ func TestSudoTimeoutReadsAsColdCache(t *testing.T) {
 // The lock is not held past the probe: a slow one delays its own caller and
 // nobody else's next attempt.
 func TestSudoProbeDoesNotHoldTheLockAfterReturning(t *testing.T) {
-	defer SetSudoProbeForTest(func() error { return nil })()
+	defer SetSudoProbeForTest(func(context.Context) error { return nil })()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 
