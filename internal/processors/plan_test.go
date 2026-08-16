@@ -79,6 +79,8 @@ func TestResolveStage2_ProvidersAndResources(t *testing.T) {
 }
 
 func TestEnumerateResourcesCarriesLocationIdentity(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	files := enumerateResources(types.BlueprintTypeFiles, types.ResolvedFile{
 		Format:   "yaml",

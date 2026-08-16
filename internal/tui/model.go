@@ -330,8 +330,10 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 			if planned.Status != types.StatusPlanned || planned.Processor != res.Processor || planned.Name != res.Name {
 				continue
 			}
-			if planned.Location != "" && res.Location != "" && filepath.Clean(planned.Location) != filepath.Clean(res.Location) {
-				continue
+			if planned.Location != "" {
+				if res.Location == "" || filepath.Clean(planned.Location) != filepath.Clean(res.Location) {
+					continue
+				}
 			}
 			planned.Provider, planned.Status, planned.Detail, planned.Dur = res.Provider, res.Status, res.Detail, res.Dur
 			matched = true

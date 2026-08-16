@@ -86,6 +86,8 @@ func TestQueryNeverRunsNonListCommands(t *testing.T) {
 }
 
 func TestRowsClassification(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	present := filepath.Join(dir, "present")
 	if err := os.WriteFile(present, []byte("x"), 0o644); err != nil {
@@ -134,6 +136,8 @@ func TestRowsClassification(t *testing.T) {
 // A display name is not a file identity. Two tools can both manage an
 // init.lua, and the journal entry for one path must never classify the other.
 func TestRowsMatchSameNamedFilesByDestination(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	present := filepath.Join(dir, "nvim", "init.lua")
 	missing := filepath.Join(dir, "wezterm", "init.lua")
