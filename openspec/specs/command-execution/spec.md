@@ -110,13 +110,21 @@ timeout once per package.
 
 A cached cold result SHALL NOT be treated as warm. Every command that may invoke
 sudo while the result is cold SHALL receive the real terminal, so any password
-prompt made by the command itself remains visible and answerable.
+prompt made by the command itself remains visible and answerable. A provider-wide
+escalation declaration SHALL be narrowed when the operation can be classified:
+Homebrew formulae remain captured, while casks retain the terminal handoff.
 
 #### Scenario: Sudo credentials are not cached
 
 - **WHEN** `sudo -n -v` reports that credentials are not cached
 - **THEN** RWR does not ask for a password itself
 - **AND** each potentially escalating command receives the real terminal
+
+#### Scenario: A Homebrew formula with a cold sudo cache
+
+- **WHEN** Homebrew metadata classifies a package operation as a formula
+- **THEN** the command remains captured by the TUI
+- **AND** the dashboard is not suspended for that package
 
 #### Scenario: The sudo policy backend stalls
 

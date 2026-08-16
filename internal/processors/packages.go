@@ -1,8 +1,10 @@
 package processors
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +15,59 @@ import (
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
+
+func packageCommandEscalates(provider *types.Provider, args []string, name string, cache map[string]bool) bool {
+	if !provider.Escalates {
+		return false
+	}
+	if filepath.Base(provider.BinPath) != "brew" {
+		return true
+	}
+	for _, arg := range args {
+		switch arg {
+		case "--cask":
+			return true
+		case "--formula":
+			return false
+		}
+	}
+	if escalates, ok := cache[name]; ok {
+		return escalates
+	}
+
+	output, err := system.RunCommandOutput(types.Command{
+		Exec:      provider.BinPath,
+		Args:      []string{"info", "--json=v2", name},
+		Variables: provider.Environment,
+	}, false)
+	if err != nil {
+		cache[name] = true
+		return true
+	}
+	escalates, known := brewMetadataEscalates([]byte(output))
+	if !known {
+		escalates = true
+	}
+	cache[name] = escalates
+	return escalates
+}
+
+func brewMetadataEscalates(data []byte) (escalates, known bool) {
+	var metadata struct {
+		Formulae []json.RawMessage `json:"formulae"`
+		Casks    []json.RawMessage `json:"casks"`
+	}
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return false, false
+	}
+	if len(metadata.Casks) > 0 && len(metadata.Formulae) == 0 {
+		return true, true
+	}
+	if len(metadata.Formulae) > 0 && len(metadata.Casks) == 0 {
+		return false, true
+	}
+	return false, false
+}
 
 // ProcessPackages installs or removes packages based on blueprint definitions.
 // It supports two modes:
@@ -84,6 +139,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 		names    []string
 	}
 	var units []packageUnit
+	brewEscalationCache := make(map[string]bool)
 	track := newProgress(types.BlueprintTypePackages)
 	for _, pkg := range filteredPackages {
 		// Get provider
@@ -187,7 +243,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				// that calls sudo itself, so the credential cache is warmed
 				// before it rather than after it has already hung on a prompt
 				// nobody could see.
-				Escalates: provider.Escalates,
+				Escalates: packageCommandEscalates(provider, args, name, brewEscalationCache),
 				Variables: provider.Environment,
 				// Terminal handover only on an explicit per-item
 				// `interactive: true`. Routing every package through the
