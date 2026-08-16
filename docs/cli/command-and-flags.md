@@ -25,6 +25,9 @@ The following flags are available for all commands:
 | `--force-bootstrap` | Run the bootstrap process again |
 | `--version`, `-v` | Print the version and exit |
 
+Dry-run mode performs no setup writes: when an init file declares a Git
+blueprint source, RWR does not create its target directory or parent directories.
+
 ### The startup version check
 
 Unless `--skip-version-check` is given, RWR asks the GitHub releases API for the

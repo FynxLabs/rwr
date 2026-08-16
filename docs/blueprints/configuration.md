@@ -54,7 +54,9 @@ The dconf tool loads a dconf dump from a file (`dconf load /`).
 
 `run_once` applies to this tool: with it set, RWR writes a marker file named
 `configuration_<name>_bootstrap` into the run-once location and skips the entry
-on later runs.
+on later runs. The marker is written only after dconf applies successfully. If
+the marker cannot be written, the configuration processor returns an error so
+the run cannot report a durable run-once result that was never recorded.
 
 Example:
 

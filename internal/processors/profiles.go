@@ -63,7 +63,7 @@ func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
 			return nil
 		}
 
-		data, err := os.ReadFile(path) // #nosec G304 G122 -- read-only walk of the operator's own blueprint tree; containment added in PR8
+		data, err := os.ReadFile(path) // #nosec G304 G122 -- read-only walk of the operator's own blueprint tree
 		if err != nil {
 			log.Warnf("Could not read %s: %v", path, err)
 			return nil

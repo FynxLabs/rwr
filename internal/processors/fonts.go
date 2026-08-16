@@ -267,7 +267,7 @@ func downloadFontTarball(url, filepath string) error {
 		return fmt.Errorf("downloading %s: unexpected status %s", url, resp.Status)
 	}
 
-	out, err := os.Create(filepath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	out, err := os.Create(filepath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return err
 	}
@@ -309,7 +309,7 @@ func resolveTarEntryPath(destDir, name string) (string, error) {
 // returns how many it installed, so the caller can refuse to call an archive
 // that produced nothing a success.
 func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *types.OSInfo) (int, error) {
-	file, err := os.Open(tarballPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	file, err := os.Open(tarballPath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return 0, err
 	}
@@ -351,12 +351,24 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 			if err != nil {
 				return extracted, err
 			}
+			tempPath := tempFile.Name()
+			cleanupTemp := func() {
+				if err := os.Remove(tempPath); err != nil && !os.IsNotExist(err) {
+					log.Debugf("removing temporary font file %s: %v", tempPath, err)
+				}
+			}
+			defer func() { cleanupTemp() }()
+			if err := tempFile.Chmod(0644); err != nil { // #nosec G302 -- installed fonts must be readable by non-owner users
+				return extracted, fmt.Errorf("error setting temporary font permissions: %w", err)
+			}
 			if err := tempFile.Close(); err != nil {
 				return extracted, fmt.Errorf("error closing temp file: %w", err)
 			}
 
-			// Write the font data to the temporary file
-			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755) // #nosec G302 -- TODO(PR8): create with target mode instead of chmod-after
+			// Fonts installed system-wide must remain readable by every user.
+			// The mode was set through the original descriptor before it closed;
+			// reopen without following a replacement final-component symlink.
+			tempFile, err = system.OpenFileNoFollow(tempPath, os.O_WRONLY, 0)
 			if err != nil {
 				return extracted, err
 			}
@@ -390,6 +402,7 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 			if err != nil {
 				return extracted, fmt.Errorf("error copying font file to destination: %v", err)
 			}
+			cleanupTemp()
 			extracted++
 		}
 	}

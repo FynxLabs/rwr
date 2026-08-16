@@ -102,7 +102,7 @@ func validateImportWithVisited(importPath string, fieldPath string, blueprintDir
 	}
 
 	// Try to parse the imported file
-	importData, err := os.ReadFile(absPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	importData, err := os.ReadFile(absPath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		AddIssue(results, types.ValidationError,
 			fmt.Sprintf("Cannot read import file '%s' for %s: %v", importPath, fieldPath, err),

@@ -262,7 +262,7 @@ func generateSSHKey(sshKey types.SSHKey, initConfig *types.InitConfig) (string, 
 
 func setAsRWRSSHKey(keyPath string) error {
 	// Read the private key file
-	privateKey, err := os.ReadFile(keyPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	privateKey, err := os.ReadFile(keyPath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return fmt.Errorf("error reading private key file: %v", err)
 	}
@@ -563,7 +563,7 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 	// `path: ~/.ssh` failed and the error was swallowed as a skipped key.
 	sshPath := filepath.Join(system.ExpandPath(sshKey.Path), sshKey.Name)
 	publicKeyPath := sshPath + ".pub"
-	publicKeyBytes, err := os.ReadFile(publicKeyPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	publicKeyBytes, err := os.ReadFile(publicKeyPath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return fmt.Errorf("error reading public key file: %v", err)
 	}

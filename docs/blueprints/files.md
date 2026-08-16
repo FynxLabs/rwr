@@ -126,6 +126,10 @@ performs the requested action on the downloaded file.
 separator is read from the value you wrote, so `target: "~/.config/"` still
 behaves as a directory.
 
+Writes reject a final target that is a symlink or, on Windows, a reparse point.
+RWR also applies copied-file permissions through the already-open destination,
+so replacing the path during a copy cannot redirect the permission change.
+
 ## File modes
 
 `mode` is a permission mode, at most four octal digits (`0o7777`). It is applied

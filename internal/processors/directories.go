@@ -79,7 +79,7 @@ func copyDirectory(dir types.Directory, blueprintDir string, initConfig *types.I
 	source := filepath.Join(blueprintDir, dir.Source, dir.Name)
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, directoryMode(dir)); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
+	if err := os.MkdirAll(target, directoryMode(dir)); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input
 		return fmt.Errorf("error creating target directory: %w", err)
 	}
 
@@ -132,7 +132,7 @@ func deleteDirectory(dir types.Directory) error {
 func createDirectory(dir types.Directory) error {
 	target := filepath.Join(system.ExpandPath(dir.Target), dir.Name)
 
-	if err := os.MkdirAll(target, directoryMode(dir)); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
+	if err := os.MkdirAll(target, directoryMode(dir)); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input
 		return fmt.Errorf("error creating directory: %w", err)
 	}
 

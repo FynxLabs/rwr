@@ -56,6 +56,9 @@ hard-link members of the archive are skipped, and a member whose path would
 escape the font directory aborts the install. The font cache is then refreshed
 with `fc-cache -f -v`.
 
+Each extracted face is installed with mode `0644`. Its private staging file is
+removed as soon as that face has been copied, including when a later face fails.
+
 A name that does not match an archive in the release is a download failure, not
 a silent no-op.
 
