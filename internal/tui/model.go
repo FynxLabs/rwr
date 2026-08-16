@@ -578,6 +578,19 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.state = Running
 		}
 		switch msg.String() {
+		case "m":
+			m.mouseCapture = !m.mouseCapture
+			if !m.mouseCapture {
+				m.hovered = -1
+			}
+			return m, nil
+		case "y":
+			return m, tea.SetClipboard(strings.Join(m.plainLines(m.panelLogLines()), "\n"))
+		case "Y":
+			if m.runLogPath != "" {
+				return m, tea.SetClipboard(m.runLogPath)
+			}
+			return m, nil
 		case "r", "R":
 			answer(reporting.HaltRetry)
 			m.levelFilter = ""

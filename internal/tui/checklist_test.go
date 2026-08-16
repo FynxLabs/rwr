@@ -84,6 +84,22 @@ func TestPrompting_HaltDecisions(t *testing.T) {
 	}
 }
 
+func TestPrompting_AllowsMouseRelease(t *testing.T) {
+	plan := &types.Plan{Order: []string{"users"}}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.width, m.height = 100, 30
+	m.apply(reporting.HaltReq{Processor: "users", Err: errors.New("boom"), Decision: make(chan reporting.HaltDecision, 1)})
+	m.resumedAt = time.Now().Add(-time.Second)
+
+	m.key(tea.KeyPressMsg{Code: 'm', Text: "m"})
+	if m.mouseCapture {
+		t.Fatal("m did not release mouse capture while the halt prompt was active")
+	}
+	if m.state != Prompting || m.halt == nil {
+		t.Fatal("mouse toggle answered or dismissed the halt prompt")
+	}
+}
+
 // Fresh-machine ghost lane: stage 2 planned unpinned entries into an "items"
 // lane because no provider existed yet; the first runtime LaneUpdate for the
 // resolved provider re-keys that lane instead of leaving it pending forever

@@ -593,7 +593,7 @@ func (m *Model) viewRunning() string {
 			reason = display.Truncate(strings.ReplaceAll(m.halt.Err.Error(), "\n", " · "), m.width-40)
 		}
 		b.WriteString(style(m.theme.Danger).Render(" "+m.theme.Glyphs.Failed+" "+m.halt.Processor+" failed: "+reason) + "\n")
-		b.WriteString(style(m.theme.Warning).Render(" r retry · R redo processor · s skip · q abort"))
+		b.WriteString(style(m.theme.Warning).Render(" r retry · R redo processor · s skip · m mouse · y copy · q abort"))
 		return b.String()
 	}
 	b.WriteString(m.viewHelp(m.height < 20))
