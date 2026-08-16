@@ -148,6 +148,8 @@ func TestGitCheckouts(t *testing.T) {
 			t.Fatalf("git %v: %v %s", args, err, out)
 		}
 	}
+	t.Setenv("GIT_DIR", filepath.Join(t.TempDir(), "wrong.git"))
+	t.Setenv("GIT_WORK_TREE", t.TempDir())
 	checkouts := GitCheckouts([]string{root})
 	if len(checkouts) != 1 || checkouts[0].URL != "https://example.com/org/repo.git" {
 		t.Fatalf("checkouts = %+v", checkouts)
