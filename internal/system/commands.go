@@ -135,6 +135,9 @@ var (
 	// Some macOS sudo policies let the original command use the former but do
 	// not let a later, separately spawned sudo process reuse it.
 	sudoWarmFromPrompt bool
+	// Retained only for this run so separately-scoped sudo processes do not
+	// ask for the same password repeatedly. Callers receive disposable copies.
+	sudoRunPassword []byte
 )
 
 // ErrSudoAuthentication reports that a command requiring sudo could not be
@@ -240,6 +243,28 @@ func resetSudoThrottleForTest() {
 	sudoProbedAt = time.Time{}
 	sudoProbeWarm = false
 	sudoWarmFromPrompt = false
+	zeroBytes(sudoRunPassword)
+	sudoRunPassword = nil
+}
+
+func cacheSudoPassword(password []byte) {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	zeroBytes(sudoRunPassword)
+	sudoRunPassword = append([]byte(nil), password...)
+}
+
+func cachedSudoPassword() []byte {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	return append([]byte(nil), sudoRunPassword...)
+}
+
+func clearSudoPassword() {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	zeroBytes(sudoRunPassword)
+	sudoRunPassword = nil
 }
 
 func sudoCredentialsCached() bool {
@@ -281,6 +306,7 @@ func ensureSudoCredentials() error {
 	if err := sudoValidate(RunContext(), input); err != nil {
 		return err
 	}
+	cacheSudoPassword(input[:len(input)-1])
 
 	markSudoWarm(true)
 	return nil
@@ -312,12 +338,17 @@ func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
 	if runtime.GOOS == "windows" || (!cmd.Elevated && cmd.AsUser == "") || sudoCredentialsReusableByManagedCommand() {
 		return buildCommand(cmd), nil, nil
 	}
-	password, err := sudoPassword()
-	if err != nil {
-		if errors.Is(err, errNoSudoTerminal) {
-			return buildCommand(cmd), nil, nil
+	password := cachedSudoPassword()
+	if len(password) == 0 {
+		var err error
+		password, err = sudoPassword()
+		if err != nil {
+			if errors.Is(err, errNoSudoTerminal) {
+				return buildCommand(cmd), nil, nil
+			}
+			return nil, nil, fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
 		}
-		return nil, nil, fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
+		cacheSudoPassword(password)
 	}
 	input := passwordInput(password, cmd.Stdin)
 	zeroBytes(password)
@@ -425,6 +456,9 @@ func runCommand(cmd types.Command, debug bool) error {
 		// a TUI suspends itself around the child instead. This path also
 		// serves per-item `interactive: true` inside non-interactive runs.
 		if err := runOnTerminal(command); err != nil {
+			if sudoInput != nil {
+				clearSudoPassword()
+			}
 			// An interactive command reaches the terminal directly, so a
 			// cancelled one comes back as its kill status rather than through
 			// the context. Without this it reports "signal: killed" and gets
@@ -469,6 +503,9 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if err := command.Run(); err != nil {
+		if sudoInput != nil {
+			clearSudoPassword()
+		}
 		// A command killed by cancellation exits non-zero like any failure.
 		// Reporting it as one would fill the summary with "signal: killed"
 		// for work the operator deliberately stopped.
@@ -534,6 +571,9 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 
 	err = command.Run()
 	if err != nil {
+		if sudoInput != nil {
+			clearSudoPassword()
+		}
 		if Cancelled() {
 			return "", ErrCancelled
 		}

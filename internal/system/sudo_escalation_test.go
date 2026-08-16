@@ -229,7 +229,7 @@ func TestColdProbeAuthenticatesOnceAndKeepsCommandsCaptured(t *testing.T) {
 	}
 }
 
-func TestPromptWarmedCredentialIsNotReusedBySeparateManagedSudo(t *testing.T) {
+func TestPromptedPasswordIsReusedBySeparateManagedSudo(t *testing.T) {
 	if runtime.GOOS == types.OSWindows {
 		t.Skip("no sudo on windows")
 	}
@@ -252,11 +252,30 @@ func TestPromptWarmedCredentialIsNotReusedBySeparateManagedSudo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("commandForRun: %v", err)
 	}
-	if prompts != 2 {
-		t.Fatalf("password prompts = %d, want a separate prompt for the managed sudo command", prompts)
+	if prompts != 1 {
+		t.Fatalf("password prompts = %d, want the run-scoped password reused", prompts)
 	}
 	if !slices.Equal(command.Args, []string{"sudo", "-S", "-p", "", "--", "dscl"}) {
 		t.Fatalf("managed command argv = %q, want password-bound sudo", command.Args)
+	}
+}
+
+func TestRunLifecycleErasesCachedSudoPassword(t *testing.T) {
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	cacheSudoPassword([]byte("temporary secret"))
+	release := BeginRun()
+	if password := cachedSudoPassword(); len(password) != 0 {
+		zeroBytes(password)
+		t.Fatal("BeginRun retained a password from an earlier run")
+	}
+
+	cacheSudoPassword([]byte("current run secret"))
+	release()
+	if password := cachedSudoPassword(); len(password) != 0 {
+		zeroBytes(password)
+		t.Fatal("run release retained the current run password")
 	}
 }
 
