@@ -199,6 +199,9 @@ var sudoValidate = func(ctx context.Context, input []byte) error {
 }
 
 var sudoPassword = func() ([]byte, error) {
+	if reporting.SupportsInlinePrompts() {
+		return reporting.RequestSecret("sudo password")
+	}
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return nil, errNoSudoTerminal
 	}

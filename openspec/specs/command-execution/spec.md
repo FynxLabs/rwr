@@ -110,10 +110,12 @@ a cold result for one minute so a stalled policy backend cannot impose its full
 timeout once per package.
 
 A cached cold result SHALL NOT be treated as warm. Before a command that may
-invoke sudo, RWR SHALL collect a password through a masked terminal prompt and
-validate it with `sudo -S -v`. The password SHALL NOT appear in argv, logs, or
-terminal output and SHALL be cleared from its temporary byte buffers after use.
-The actual command SHALL remain captured by the TUI after validation.
+invoke sudo, RWR SHALL collect a password through a masked prompt inside an
+active TUI. When no TUI is active, RWR SHALL use the masked terminal fallback.
+It SHALL validate the password with `sudo -S -v`. The password SHALL NOT appear
+in argv, logs, or terminal output and SHALL be cleared from its temporary byte
+buffers after use. The actual command SHALL remain captured by the TUI after
+validation; collecting the password SHALL NOT suspend or replace the dashboard.
 
 A provider-wide escalation declaration SHALL be narrowed when the operation can
 be classified: Homebrew formulae remain captured without sudo validation, while
@@ -122,7 +124,7 @@ casks retain the secure validation step.
 #### Scenario: Sudo credentials are not cached
 
 - **WHEN** `sudo -n -v` reports that credentials are not cached
-- **THEN** RWR asks once through a masked terminal prompt
+- **THEN** RWR asks once through the TUI's masked prompt, or the masked terminal fallback when headless
 - **AND** validates the supplied password without placing it in argv
 - **AND** runs the actual command captured by the TUI
 

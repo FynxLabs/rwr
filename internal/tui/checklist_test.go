@@ -100,6 +100,57 @@ func TestPrompting_AllowsMouseRelease(t *testing.T) {
 	}
 }
 
+func TestPrompting_SecretStaysInsideTUIAndIsMasked(t *testing.T) {
+	plan := &types.Plan{Order: []string{"users"}}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.width, m.height = 100, 30
+	result := make(chan reporting.SecretResult, 1)
+	m.apply(reporting.SecretReq{Prompt: "sudo password", Result: result})
+
+	for _, r := range "s3cret" {
+		m.key(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	view := m.View().Content
+	if strings.Contains(view, "s3cret") {
+		t.Fatal("secret was rendered in the TUI")
+	}
+	if !strings.Contains(view, "••••••") {
+		t.Fatalf("masked input not rendered:\n%s", view)
+	}
+
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	answer := <-result
+	if answer.Err != nil || string(answer.Value) != "s3cret" {
+		t.Fatalf("secret result = (%q, %v)", answer.Value, answer.Err)
+	}
+	for i := range answer.Value {
+		answer.Value[i] = 0
+	}
+	if m.state != Running || m.secret != nil {
+		t.Fatal("secret prompt did not return the model to running")
+	}
+}
+
+func TestPrompting_ConfirmationStaysInsideTUI(t *testing.T) {
+	plan := &types.Plan{Order: []string{"files"}}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.width, m.height = 100, 30
+	result := make(chan reporting.ConfirmResult, 1)
+	m.apply(reporting.ConfirmReq{Prompt: "Overwrite existing file? /tmp/config", Result: result})
+
+	if view := m.View().Content; !strings.Contains(view, "Overwrite existing file?") {
+		t.Fatalf("confirmation not rendered:\n%s", view)
+	}
+	m.key(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	answer := <-result
+	if answer.Err != nil || !answer.Yes {
+		t.Fatalf("confirmation result = (%v, %v)", answer.Yes, answer.Err)
+	}
+	if m.state != Running || m.confirm != nil {
+		t.Fatal("confirmation did not return the model to running")
+	}
+}
+
 // Fresh-machine ghost lane: stage 2 planned unpinned entries into an "items"
 // lane because no provider existed yet; the first runtime LaneUpdate for the
 // resolved provider re-keys that lane instead of leaving it pending forever

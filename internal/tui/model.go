@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/log/v2"
@@ -152,7 +153,10 @@ type Model struct {
 	lastLogLines int  // log capacity of the last rendered panel
 
 	// halt is the pending interactive-halt request while state == Prompting.
-	halt *reporting.HaltReq
+	halt        *reporting.HaltReq
+	secret      *reporting.SecretReq
+	secretValue []rune
+	confirm     *reporting.ConfirmReq
 	// resumedAt is when the terminal last came back from a child process or
 	// a prompt entered Prompting; plain keys within the grace window after
 	// it are typeahead, not commands.
@@ -386,6 +390,17 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 			done <- err
 			return execDone{}
 		})
+	case reporting.SecretReq:
+		m.state = Prompting
+		m.secret = &ev
+		m.secretValue = nil
+		m.resumedAt = time.Time{}
+		return nil
+	case reporting.ConfirmReq:
+		m.state = Prompting
+		m.confirm = &ev
+		m.resumedAt = time.Time{}
+		return nil
 	case reporting.RunFinished:
 		// Append, not replace: All() emits its collected step errors when it
 		// reaches the end, and the runner emits a second RunFinished carrying
@@ -543,6 +558,59 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.state == Prompting && m.secret != nil {
+		finish := func(value []byte, err error) {
+			if reporting.TryClaim(m.secret.Claim) {
+				m.secret.Result <- reporting.SecretResult{Value: value, Err: err}
+			}
+			for i := range m.secretValue {
+				m.secretValue[i] = 0
+			}
+			m.secretValue = nil
+			m.secret = nil
+			m.state = Running
+		}
+		switch msg.String() {
+		case "enter":
+			value := make([]byte, 0, len(m.secretValue))
+			for _, r := range m.secretValue {
+				value = utf8.AppendRune(value, r)
+			}
+			finish(value, nil)
+		case "backspace":
+			if len(m.secretValue) > 0 {
+				m.secretValue[len(m.secretValue)-1] = 0
+				m.secretValue = m.secretValue[:len(m.secretValue)-1]
+			}
+		case "esc", "ctrl+c":
+			finish(nil, reporting.ErrPromptCancelled)
+		default:
+			if msg.Text != "" {
+				m.secretValue = append(m.secretValue, []rune(msg.Text)...)
+			}
+		}
+		return m, nil
+	}
+
+	if m.state == Prompting && m.confirm != nil {
+		finish := func(yes bool, err error) {
+			if reporting.TryClaim(m.confirm.Claim) {
+				m.confirm.Result <- reporting.ConfirmResult{Yes: yes, Err: err}
+			}
+			m.confirm = nil
+			m.state = Running
+		}
+		switch msg.String() {
+		case "y", "Y", "enter":
+			finish(true, nil)
+		case "n", "N":
+			finish(false, nil)
+		case "esc", "ctrl+c":
+			finish(false, reporting.ErrPromptCancelled)
+		}
+		return m, nil
+	}
+
 	// Typeahead grace: within 750ms of resuming from a terminal handover (or
 	// entering a halt prompt), plain keys are leftover input from the child -
 	// password characters, stray Enters - not commands. ctrl+c always works.

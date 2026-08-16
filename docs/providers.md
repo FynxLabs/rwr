@@ -345,7 +345,8 @@ nobody was asked for.
 For Homebrew, RWR narrows the provider-wide declaration to cask operations using
 explicit `--cask` or local `brew info --json=v2` metadata. Formula operations
 remain captured in the TUI. When an operation really may need sudo and
-credentials are not cached, RWR uses a masked terminal prompt to validate sudo
+credentials are not cached, RWR collects the masked password inside the TUI;
+headless runs fall back to a masked terminal prompt. RWR validates sudo
 once, then runs the actual command captured inside the TUI. If metadata cannot
 classify a package, RWR fails safe and treats it as potentially escalating.
 

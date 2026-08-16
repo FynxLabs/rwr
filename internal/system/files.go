@@ -720,17 +720,17 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 				// reading stdin over the dashboard tore the viewport and
 				// fought it for keystrokes.
 				if interactive {
-					var overwrite bool
-					promptErr := reporting.WithTerminal(func() error {
-						fmt.Printf("File '%s' already exists at the target location.\n", targetPath)
-						fmt.Printf("Diff:\n")
-						if diffErr := ShowDiff(path, targetPath); diffErr != nil {
-							log.Errorf("Failed to show diff: %v", diffErr)
-						}
-						var innerErr error
-						overwrite, innerErr = promptOverwrite()
-						return innerErr
-					})
+					writer := io.Writer(os.Stdout)
+					if captured := reporting.CommandOutputWriter(reporting.SrcStdout); captured != nil {
+						writer = captured
+					}
+					if _, writeErr := fmt.Fprintf(writer, "File %q already exists at the target location.\nDiff:\n", targetPath); writeErr != nil {
+						return fmt.Errorf("writing overwrite notice: %w", writeErr)
+					}
+					if diffErr := ShowDiffTo(writer, path, targetPath); diffErr != nil {
+						log.Errorf("Failed to show diff: %v", diffErr)
+					}
+					overwrite, promptErr := promptOverwrite(targetPath)
 					if promptErr != nil {
 						return promptErr
 					}
@@ -806,10 +806,17 @@ func LookupGID(group string) (int, error) {
 // log.Fatalf here bypassed the failure ledger and every deferred cleanup, and
 // interactive defaults to true, so a piped stdin hitting EOF killed the whole
 // run mid-flight.
-func promptOverwrite() (bool, error) {
+func promptOverwrite(path string) (bool, error) {
+	if reporting.SupportsInlinePrompts() {
+		return reporting.RequestConfirmation(fmt.Sprintf("Overwrite existing file? %s", path))
+	}
 	var input string
-	fmt.Print("Do you want to overwrite the file? (y/n): ")
-	if _, err := fmt.Scanln(&input); err != nil {
+	err := reporting.WithTerminal(func() error {
+		fmt.Print("Do you want to overwrite the file? (y/n): ")
+		_, err := fmt.Scanln(&input)
+		return err
+	})
+	if err != nil {
 		return false, fmt.Errorf("reading overwrite confirmation (run with --interactive=false to skip prompts): %w", err)
 	}
 	return strings.EqualFold(input, "y") || strings.EqualFold(input, "yes"), nil

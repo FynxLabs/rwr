@@ -596,6 +596,16 @@ func (m *Model) viewRunning() string {
 		b.WriteString(style(m.theme.Warning).Render(" r retry · R redo processor · s skip · m mouse · y copy · q abort"))
 		return b.String()
 	}
+	if m.state == Prompting && m.secret != nil {
+		b.WriteString(style(m.theme.Warning).Render(" "+m.secret.Prompt+": "+strings.Repeat("•", len(m.secretValue))) + "\n")
+		b.WriteString(style(m.theme.Muted).Render(" enter submit · esc cancel"))
+		return b.String()
+	}
+	if m.state == Prompting && m.confirm != nil {
+		b.WriteString(style(m.theme.Warning).Render(" "+display.Truncate(m.confirm.Prompt, m.width)) + "\n")
+		b.WriteString(style(m.theme.Muted).Render(" y yes · n no · esc cancel"))
+		return b.String()
+	}
 	b.WriteString(m.viewHelp(m.height < 20))
 	return b.String()
 }

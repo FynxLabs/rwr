@@ -6,6 +6,7 @@
 package reporting
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"sync"
@@ -20,6 +21,20 @@ import (
 type Reporter interface {
 	Emit(Event)
 }
+
+// SupportsInlinePrompts reports whether the active display can collect input
+// without releasing the terminal. The Bubble Tea reporter supports this;
+// LogReporter deliberately leaves the established terminal fallback intact.
+func SupportsInlinePrompts() bool {
+	currentMu.RLock()
+	r := current
+	currentMu.RUnlock()
+	provider, ok := r.(interface{ SupportsInlinePrompts() bool })
+	return ok && provider.SupportsInlinePrompts()
+}
+
+var ErrPromptUnavailable = errors.New("inline prompt unavailable")
+var ErrPromptCancelled = errors.New("prompt cancelled")
 
 // Event is one run occurrence. The concrete set below is closed by design:
 // the display layer switches over it.
@@ -81,6 +96,31 @@ type TerminalFunc struct {
 	Claim *atomic.Bool
 }
 
+type SecretResult struct {
+	Value []byte
+	Err   error
+}
+
+// SecretReq asks the active display to collect a masked value without handing
+// away the terminal. It is used only when SupportsInlinePrompts is true.
+type SecretReq struct {
+	Prompt string
+	Result chan SecretResult
+	Claim  *atomic.Bool
+}
+
+type ConfirmResult struct {
+	Yes bool
+	Err error
+}
+
+// ConfirmReq asks a yes/no question inside the active display.
+type ConfirmReq struct {
+	Prompt string
+	Result chan ConfirmResult
+	Claim  *atomic.Bool
+}
+
 // HaltDecision is the operator's answer to an interactive halt.
 type HaltDecision int
 
@@ -122,6 +162,8 @@ func (LaneUpdate) runEvent()   {}
 func (ResourceDone) runEvent() {}
 func (TerminalReq) runEvent()  {}
 func (TerminalFunc) runEvent() {}
+func (SecretReq) runEvent()    {}
+func (ConfirmReq) runEvent()   {}
 func (HaltReq) runEvent()      {}
 func (RunFinished) runEvent()  {}
 
@@ -174,6 +216,14 @@ func (LogReporter) Emit(event Event) {
 			return
 		}
 		e.Done <- e.Run()
+	case SecretReq:
+		if TryClaim(e.Claim) {
+			e.Result <- SecretResult{Err: ErrPromptUnavailable}
+		}
+	case ConfirmReq:
+		if TryClaim(e.Claim) {
+			e.Result <- ConfirmResult{Err: ErrPromptUnavailable}
+		}
 	case HaltReq:
 		// Headless interactive keeps its historical behavior: the first
 		// processor error aborts the run.
@@ -184,6 +234,44 @@ func (LogReporter) Emit(event Event) {
 	case ProcFinished, LaneUpdate, ResourceDone, RunFinished:
 		// The streaming output never printed these as their own lines; the
 		// processors' own log calls carry the detail.
+	}
+}
+
+func RequestSecret(prompt string) ([]byte, error) {
+	if !SupportsInlinePrompts() {
+		return nil, ErrPromptUnavailable
+	}
+	result := make(chan SecretResult, 1)
+	claim := &atomic.Bool{}
+	Emit(SecretReq{Prompt: prompt, Result: result, Claim: claim})
+	select {
+	case answer := <-result:
+		return answer.Value, answer.Err
+	case <-TerminalLost():
+		if claim.CompareAndSwap(false, true) {
+			return nil, ErrPromptUnavailable
+		}
+		answer := <-result
+		return answer.Value, answer.Err
+	}
+}
+
+func RequestConfirmation(prompt string) (bool, error) {
+	if !SupportsInlinePrompts() {
+		return false, ErrPromptUnavailable
+	}
+	result := make(chan ConfirmResult, 1)
+	claim := &atomic.Bool{}
+	Emit(ConfirmReq{Prompt: prompt, Result: result, Claim: claim})
+	select {
+	case answer := <-result:
+		return answer.Yes, answer.Err
+	case <-TerminalLost():
+		if claim.CompareAndSwap(false, true) {
+			return false, ErrPromptUnavailable
+		}
+		answer := <-result
+		return answer.Yes, answer.Err
 	}
 }
 
