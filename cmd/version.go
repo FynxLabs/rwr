@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -164,7 +165,7 @@ func checkForNewVersion(app *AppConfig) {
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "rwr/"+buildInfo.Version)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := system.NewHTTPClient(2 * time.Second).Do(req)
 	if err != nil {
 		log.Debugf("Version check failed: %v", err)
 		return
