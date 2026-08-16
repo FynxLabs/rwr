@@ -60,7 +60,7 @@ func TestPrompting_HaltDecisions(t *testing.T) {
 		m.width, m.height = 100, 30
 
 		decision := make(chan reporting.HaltDecision, 1)
-		m.apply(reporting.HaltReq{Processor: "packages", Err: errors.New("boom"), Decision: decision})
+		m.apply(reporting.HaltReq{Processor: "packages", Err: errors.New("boom"), Retryable: true, Decision: decision})
 		if m.state != Prompting {
 			t.Fatalf("state = %v after HaltReq, want Prompting", m.state)
 		}
@@ -88,7 +88,7 @@ func TestPrompting_AllowsMouseRelease(t *testing.T) {
 	plan := &types.Plan{Order: []string{"users"}}
 	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
 	m.width, m.height = 100, 30
-	m.apply(reporting.HaltReq{Processor: "users", Err: errors.New("boom"), Decision: make(chan reporting.HaltDecision, 1)})
+	m.apply(reporting.HaltReq{Processor: "users", Err: errors.New("boom"), Retryable: true, Decision: make(chan reporting.HaltDecision, 1)})
 	m.resumedAt = time.Now().Add(-time.Second)
 
 	m.key(tea.KeyPressMsg{Code: 'm', Text: "m"})
@@ -97,6 +97,33 @@ func TestPrompting_AllowsMouseRelease(t *testing.T) {
 	}
 	if m.state != Prompting || m.halt == nil {
 		t.Fatal("mouse toggle answered or dismissed the halt prompt")
+	}
+}
+
+func TestPrompting_FinalFailuresRequireAcknowledgement(t *testing.T) {
+	plan := &types.Plan{Order: []string{"run"}}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.width, m.height = 100, 30
+	decision := make(chan reporting.HaltDecision, 1)
+	m.apply(reporting.HaltReq{Processor: "run", Err: errors.New("operation failed"), Decision: decision})
+	m.resumedAt = time.Now().Add(-time.Second)
+
+	if view := m.View().Content; strings.Contains(view, "retry") {
+		t.Fatalf("final failure prompt offered unsafe retry:\n%s", view)
+	}
+	m.key(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	select {
+	case got := <-decision:
+		t.Fatalf("retry key answered non-retryable final prompt with %v", got)
+	default:
+	}
+	if m.state != Prompting {
+		t.Fatalf("retry key dismissed final prompt; state = %v", m.state)
+	}
+
+	m.key(tea.KeyPressMsg{Code: 's', Text: "s"})
+	if got := <-decision; got != reporting.HaltSkip {
+		t.Fatalf("acknowledge sent %v, want %v", got, reporting.HaltSkip)
 	}
 }
 

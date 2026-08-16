@@ -593,7 +593,11 @@ func (m *Model) viewRunning() string {
 			reason = display.Truncate(strings.ReplaceAll(m.halt.Err.Error(), "\n", " · "), m.width-40)
 		}
 		b.WriteString(style(m.theme.Danger).Render(" "+m.theme.Glyphs.Failed+" "+m.halt.Processor+" failed: "+reason) + "\n")
-		b.WriteString(style(m.theme.Warning).Render(" r retry · R redo processor · s skip · m mouse · y copy · q abort"))
+		help := " s acknowledge · m mouse · y copy · q abort"
+		if m.halt.Retryable {
+			help = " r retry · R redo processor · s skip · m mouse · y copy · q abort"
+		}
+		b.WriteString(style(m.theme.Warning).Render(help))
 		return b.String()
 	}
 	if m.state == Prompting && m.secret != nil {

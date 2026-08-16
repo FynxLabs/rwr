@@ -660,6 +660,9 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "r", "R":
+			if !m.halt.Retryable {
+				return m, nil
+			}
 			answer(reporting.HaltRetry)
 			m.levelFilter = ""
 			return m, nil

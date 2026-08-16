@@ -10,6 +10,7 @@ import (
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/exectest"
+	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -89,6 +90,60 @@ func TestAll_HeadlessOutputUnchanged(t *testing.T) {
 			t.Fatalf("output order wrong: %q appears before the previous marker:\n%s", want, out)
 		}
 		last = idx
+	}
+}
+
+type finalFailureReporter struct {
+	halt chan reporting.HaltReq
+}
+
+func (r finalFailureReporter) Emit(event reporting.Event) {
+	if halt, ok := event.(reporting.HaltReq); ok {
+		r.halt <- halt
+		if reporting.TryClaim(halt.Claim) {
+			halt.Decision <- reporting.HaltSkip
+		}
+	}
+}
+
+func TestAll_InteractiveLedgerFailuresWaitForDecision(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "files"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "files", "bad.yaml"), []byte("files:\n  - name: broken\n    action: copy\n    target: "+filepath.Join(dir, "out")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+	defer system.SetProvidersForTest(map[string]*types.Provider{})()
+	reporter := finalFailureReporter{halt: make(chan reporting.HaltReq, 1)}
+	defer reporting.Set(reporter)()
+
+	initConfig := &types.InitConfig{}
+	initConfig.Init.Location = dir
+	initConfig.Init.Format = "yaml"
+	initConfig.Variables.Flags.Interactive = true
+	initConfig.Variables.UserDefined = map[string]interface{}{}
+	osInfo := &types.OSInfo{}
+	osInfo.System.OS = runtime.GOOS
+	osInfo.PackageManager.Managers = map[string]types.PackageManagerInfo{"sh": {Name: "sh", Bin: "/bin/sh"}}
+
+	err := All(initConfig, osInfo, []string{"files"})
+	if err == nil {
+		t.Fatal("All returned nil despite the recorded file failure")
+	}
+	select {
+	case halt := <-reporter.halt:
+		if halt.Processor != "run" {
+			t.Fatalf("halt processor = %q, want run", halt.Processor)
+		}
+		if halt.Retryable {
+			t.Fatal("final ledger halt must not offer a full-run retry")
+		}
+	default:
+		t.Fatal("interactive ledger failure returned without requesting a decision")
 	}
 }
 

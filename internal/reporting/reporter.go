@@ -137,6 +137,7 @@ const (
 type HaltReq struct {
 	Processor string
 	Err       error
+	Retryable bool
 	Decision  chan HaltDecision
 	// Claim is CAS'd by whoever answers - the operator's keypress or the
 	// terminal-lost fallback - so a decision is made exactly once.
@@ -344,9 +345,20 @@ func TerminalLost() <-chan struct{} {
 // If the dashboard dies before answering, the headless default (abort) is
 // taken rather than blocking forever on a dropped Send.
 func RequestHalt(processor string, err error) HaltDecision {
+	return requestHalt(processor, err, true)
+}
+
+// RequestFinalHalt reports failures collected after all processors have run.
+// Retrying is deliberately unavailable because replaying the entire run could
+// repeat operations that already succeeded.
+func RequestFinalHalt(err error) HaltDecision {
+	return requestHalt("run", err, false)
+}
+
+func requestHalt(processor string, err error, retryable bool) HaltDecision {
 	decision := make(chan HaltDecision, 1)
 	claim := &atomic.Bool{}
-	Emit(HaltReq{Processor: processor, Err: err, Decision: decision, Claim: claim})
+	Emit(HaltReq{Processor: processor, Err: err, Retryable: retryable, Decision: decision, Claim: claim})
 	select {
 	case d := <-decision:
 		return d
