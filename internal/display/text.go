@@ -15,7 +15,10 @@ func Width(s string) int {
 
 // Truncate shortens s to width terminal cells and adds an ellipsis when needed.
 func Truncate(s string, width int) string {
-	if width <= 0 || Width(s) <= width {
+	if width <= 0 {
+		return ""
+	}
+	if Width(s) <= width {
 		return s
 	}
 	return ansi.Truncate(s, width, "…")

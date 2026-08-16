@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/fynxlabs/rwr/internal/display"
 	"github.com/fynxlabs/rwr/internal/state"
@@ -64,8 +65,8 @@ func TestRenderAlignsAndTruncatesUnicodeNames(t *testing.T) {
 			t.Fatalf("note %q starts at display column %d, want 67:\n%s", note, width, rendered)
 		}
 	}
-	if strings.Contains(rendered, "�") {
-		t.Fatalf("rendered output contains a split UTF-8 replacement rune:\n%s", rendered)
+	if !utf8.ValidString(rendered) {
+		t.Fatalf("rendered output is not valid UTF-8:\n%s", rendered)
 	}
 }
 
