@@ -180,9 +180,11 @@ and poll for the token at the server-provided interval (default five seconds),
 continuing on `authorization_pending` and backing off when GitHub answers
 `slow_down`. Polling SHALL give up after five minutes.
 
-The token obtained SHALL be saved to RWR's config file. A failure to save
-SHALL NOT discard the token: the run continues with it and tells the operator
-how to supply it directly next time.
+The token obtained SHALL be saved to the OS keyring when a backend is available,
+without writing it to a plaintext configuration file. When no keyring backend
+is available, RWR SHALL warn and use the owner-only (`0600`) configuration-file
+fallback. A failure to save SHALL NOT discard the token: the run continues with
+it and tells the operator how to supply it directly next time.
 
 When a different token is already stored and the run is interactive, RWR SHALL
 ask before replacing it, and declining SHALL keep the stored token. A manually
@@ -196,7 +198,8 @@ with an error listing the ways to supply one - `--gh-api-key`, `--gh-auth`, or
 #### Scenario: A device-flow login
 
 - **WHEN** `--gh-auth` runs and the operator authorizes the code in a browser
-- **THEN** RWR obtains the token, saves it to the config file, and uses it
+- **THEN** RWR obtains the token, persists it using the keyring-first policy,
+  and uses it
 
 #### Scenario: The operator never authorizes
 
@@ -277,7 +280,8 @@ used.
 - **AND** an OS keyring backend is available
 - **THEN** the base64 private key is saved under `ssh_private_key` in the keyring
 - **AND** no plaintext file gains the key value
-- **AND** any older plaintext config value is cleared
+- **AND** RWR attempts to clear any older plaintext config value
+- **AND** a cleanup failure is reported
 
 #### Scenario: Built-in SSH key resolves from the keyring
 
@@ -292,3 +296,10 @@ used.
 - **AND** no OS keyring backend is available
 - **THEN** RWR warns that it is using the compatibility fallback
 - **AND** writes the base64 key only to the owner-readable (`0600`) config file
+
+#### Scenario: SSH keyring write fails while a backend exists
+
+- **WHEN** an SSH-key blueprint selects `set_as_rwr_ssh_key`
+- **AND** the keyring backend is locked, denies access, or returns a transient error
+- **THEN** RWR reports the keyring error
+- **AND** does not write `repository.ssh_private_key` to the config file

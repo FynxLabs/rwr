@@ -94,9 +94,11 @@ This will:
 1. Display a device code (e.g., `ABCD-1234`)
 2. Prompt you to visit <https://github.com/login/device>
 3. Wait for you to authorize the application
-4. Save the token to your RWR config
+4. Save the token to the OS keyring, or to the owner-only (`0600`) RWR config
+   only when no keyring backend is available
 
-After this initial setup, future runs won't require `--gh-auth` as the token is saved in your config.
+After this initial setup, future runs won't require `--gh-auth` because the
+token is persisted in one of those stores.
 
 #### Using an Explicit Token
 

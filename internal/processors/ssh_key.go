@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -284,10 +285,12 @@ func setAsRWRSSHKey(keyPath string) error {
 		}
 		log.Infof("SSH key %s saved as the RWR SSH key in the OS keyring", keyPath)
 		return nil
-	} else {
+	} else if errors.Is(err, credentials.ErrKeyringUnavailable) {
 		log.Warnf("OS keyring unavailable (%v); saving the SSH private key to %s instead - "+
 			"it is stored in plaintext, readable only by your user (0600)",
 			err, viper.ConfigFileUsed())
+	} else {
+		return err
 	}
 
 	// Preserve the existing config-file fallback for machines without a usable

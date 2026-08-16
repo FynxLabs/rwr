@@ -20,6 +20,7 @@ import (
 type sshStoreKeyring struct {
 	entries     map[string]string
 	unavailable bool
+	setErr      error
 }
 
 func (r *sshStoreKeyring) Get(name string) (string, error) {
@@ -35,13 +36,28 @@ func (r *sshStoreKeyring) Get(name string) (string, error) {
 
 func (r *sshStoreKeyring) Set(name, value string) error {
 	if r.unavailable {
-		return errors.New("no keyring backend")
+		return credentials.ErrKeyringUnavailable
+	}
+	if r.setErr != nil {
+		return r.setErr
 	}
 	if r.entries == nil {
 		r.entries = map[string]string{}
 	}
 	r.entries[name] = value
 	return nil
+}
+
+func TestSetAsRWRSSHKeyDoesNotFallBackOnKeyringWriteFailure(t *testing.T) {
+	configPath := withConfigFile(t)
+	withSSHStoreKeyring(t, &sshStoreKeyring{setErr: errors.New("keyring is locked")})
+	keyPath := writeTestKey(t)
+
+	require.Error(t, setAsRWRSSHKey(keyPath))
+	assert.Empty(t, viper.GetString("repository.ssh_private_key"))
+	if raw, err := os.ReadFile(configPath); err == nil {
+		assert.NotContains(t, string(raw), "ssh_private_key")
+	}
 }
 
 func withSSHStoreKeyring(t *testing.T, ring credentials.Keyring) {

@@ -7,6 +7,8 @@ package credentials
 import (
 	"errors"
 	"fmt"
+	"os/exec"
+	"strings"
 
 	zkeyring "github.com/zalando/go-keyring"
 )
@@ -29,6 +31,11 @@ type Keyring interface {
 // backend that cannot be reached at all.
 var ErrKeyringNotFound = errors.New("keyring entry not found")
 
+// ErrKeyringUnavailable identifies machines with no usable OS keyring backend.
+// Callers may use a documented compatibility store only for this class of
+// failure; locked, denied, and transient backend failures must remain errors.
+var ErrKeyringUnavailable = errors.New("OS keyring backend unavailable")
+
 // Ring is the keyring in use. Tests swap in a fake; production keeps the OS
 // keyring (Secret Service / macOS Keychain / Windows Credential Manager).
 var Ring Keyring = osKeyring{}
@@ -44,7 +51,32 @@ func (osKeyring) Get(name string) (string, error) {
 }
 
 func (osKeyring) Set(name, value string) error {
-	return zkeyring.Set(keyringService, name, value)
+	err := zkeyring.Set(keyringService, name, value)
+	if keyringBackendUnavailable(err) {
+		return fmt.Errorf("%w: %v", ErrKeyringUnavailable, err)
+	}
+	return err
+}
+
+func keyringBackendUnavailable(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, exec.ErrNotFound) {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"cannot autolaunch d-bus",
+		"dbus-launch: executable file not found",
+		"no such file or directory: /run/user/",
+		"unsupported platform",
+	} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // FromKeyring reads a credential from the keyring. A missing entry or an
