@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/fynxlabs/rwr/internal/display"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
 )
@@ -206,7 +207,7 @@ func (m *Model) viewCollapsed() []string {
 				// newline in a checklist row breaks the whole height budget.
 				reason = strings.ReplaceAll(proc.Err.Error(), "\n", " · ")
 			}
-			lines = append(lines, row(style(m.theme.Danger).Render(truncate(reason, m.width-24))))
+			lines = append(lines, row(style(m.theme.Danger).Render(display.Truncate(reason, m.width-24))))
 			// Failed subtrees never fold: the lanes stay visible so the
 			// failing provider is identifiable at a glance.
 			if m.expanded && len(proc.Lanes) > 0 {
@@ -236,7 +237,7 @@ func (m *Model) viewCollapsed() []string {
 			style(m.theme.Success).Render(m.theme.Glyphs.Done),
 			style(m.theme.Subtext).Render(strings.Join(done, " · ")),
 			style(m.theme.Muted).Render(doneDur.Round(time.Millisecond*100).String()))
-		lines = append([]string{truncate(line, m.width)}, lines...)
+		lines = append([]string{display.Truncate(line, m.width)}, lines...)
 	}
 	return lines
 }
@@ -299,7 +300,7 @@ func (m *Model) viewPanel(height int) string {
 	// Log viewport: the per-processor view, with global filters on top.
 	logLines := m.filteredLines(height - laneCount - 2)
 	for _, line := range logLines {
-		b.WriteString(" " + truncate(line, m.width-4) + "\n")
+		b.WriteString(" " + display.Truncate(line, m.width-4) + "\n")
 	}
 
 	border := lipgloss.RoundedBorder()
@@ -520,7 +521,7 @@ func (m *Model) viewHelp(short bool) string {
 	if m.searching {
 		keys = " search: " + m.search + "▌"
 	}
-	return style(m.theme.Dim).Render(truncate(keys, m.width))
+	return style(m.theme.Dim).Render(display.Truncate(keys, m.width))
 }
 
 func (m *Model) viewResolving() string {
@@ -582,14 +583,14 @@ func (m *Model) viewRunning() string {
 			}
 		}
 		if len(pending) > 0 {
-			b.WriteString(style(m.theme.Dim).Render(truncate(" pending: "+strings.Join(pending, " "), m.width)) + "\n")
+			b.WriteString(style(m.theme.Dim).Render(display.Truncate(" pending: "+strings.Join(pending, " "), m.width)) + "\n")
 		}
 	}
 	if m.state == Prompting && m.halt != nil {
 		// The halt prompt replaces the help bar; r/R/s/q only exist here.
 		reason := ""
 		if m.halt.Err != nil {
-			reason = truncate(strings.ReplaceAll(m.halt.Err.Error(), "\n", " · "), m.width-40)
+			reason = display.Truncate(strings.ReplaceAll(m.halt.Err.Error(), "\n", " · "), m.width-40)
 		}
 		b.WriteString(style(m.theme.Danger).Render(" "+m.theme.Glyphs.Failed+" "+m.halt.Processor+" failed: "+reason) + "\n")
 		b.WriteString(style(m.theme.Warning).Render(" r retry · R redo processor · s skip · q abort"))
@@ -615,7 +616,7 @@ func (m *Model) viewSummary() string {
 			tabLine = append(tabLine, style(m.theme.Muted).Render(tab))
 		}
 	}
-	b.WriteString(" " + truncate(strings.Join(tabLine, "  "), m.width) + "\n\n")
+	b.WriteString(" " + display.Truncate(strings.Join(tabLine, "  "), m.width) + "\n\n")
 
 	// Planned is its own bucket: in dry-run vocabulary it is "would apply",
 	// but in a real run a resource still Planned at summary time NEVER RAN
@@ -645,7 +646,7 @@ func (m *Model) viewSummary() string {
 			fmt.Fprintf(&b, " %s %-14s %s\n",
 				style(m.theme.Danger).Render(m.theme.Glyphs.Failed),
 				stepErr.Processor,
-				truncate(stepErr.Err.Error(), m.width-20))
+				display.Truncate(stepErr.Err.Error(), m.width-20))
 		}
 	} else {
 		processor := tabs[m.summaryTab]
@@ -663,7 +664,11 @@ func (m *Model) viewSummary() string {
 				continue
 			}
 			glyph := m.statusGlyph(res.Status)
-			fmt.Fprintf(&b, " %s %-10s %-24s %s\n", glyph, res.Provider, truncate(res.Name, 24), res.Action)
+			fmt.Fprintf(&b, " %s %s %s %s\n", glyph,
+				display.PadRight(res.Provider, 10),
+				display.PadRight(display.Truncate(res.Name, 24), 24),
+				res.Action,
+			)
 			count++
 			if count > m.height-10 {
 				b.WriteString(style(m.theme.Dim).Render("  …") + "\n")
@@ -733,9 +738,9 @@ func (m *Model) viewCompact() string {
 	if failures > 0 {
 		statusLine += style(m.theme.Danger).Render(fmt.Sprintf(" %s%d", m.theme.Glyphs.Failed, failures))
 	}
-	b.WriteString(truncate(statusLine, m.width) + "\n")
+	b.WriteString(display.Truncate(statusLine, m.width) + "\n")
 	for _, line := range m.filteredLines(m.height - 2) {
-		b.WriteString(truncate(line, m.width) + "\n")
+		b.WriteString(display.Truncate(line, m.width) + "\n")
 	}
 	b.WriteString(m.viewHelp(true))
 	return b.String()
@@ -785,15 +790,4 @@ func renderFillBar(fraction float64, width int, glyphs Glyphs) string {
 	}
 	filled := int(fraction * float64(width))
 	return strings.Repeat(glyphs.BarFull, filled) + strings.Repeat(glyphs.BarEmpty, width-filled)
-}
-
-func truncate(s string, width int) string {
-	if width <= 0 || lipgloss.Width(s) <= width {
-		return s
-	}
-	runes := []rune(s)
-	if len(runes) <= width {
-		return s
-	}
-	return string(runes[:width-1]) + "…"
 }

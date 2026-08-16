@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/fynxlabs/rwr/internal/display"
 	"github.com/fynxlabs/rwr/internal/state"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -177,9 +178,14 @@ func providerFor(resource types.Resource, entry *state.Entry) string {
 // explanation footer.
 func Render(rows []Row, hasRecord bool) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%-14s %-40s %-10s %s\n", "PROCESSOR", "NAME", "STATE", "NOTE")
+	fmt.Fprintf(&b, "%s %s %s %s\n", display.PadRight("PROCESSOR", 14), display.PadRight("NAME", 40), display.PadRight("STATE", 10), "NOTE")
 	for _, row := range rows {
-		fmt.Fprintf(&b, "%-14s %-40s %-10s %s\n", row.Processor, truncate(row.Name, 40), row.Class, row.Note)
+		fmt.Fprintf(&b, "%s %s %s %s\n",
+			display.PadRight(row.Processor, 14),
+			display.PadRight(display.Truncate(row.Name, 40), 40),
+			display.PadRight(string(row.Class), 10),
+			row.Note,
+		)
 	}
 	if !hasRecord {
 		b.WriteString("\n(no run record: recorded-identity checks unavailable - run `rwr all` once to establish one)\n")
@@ -196,11 +202,4 @@ func Drifted(rows []Row) bool {
 		}
 	}
 	return false
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n-1] + "…"
 }
