@@ -8,7 +8,27 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/fynxlabs/rwr/internal/exectest"
 )
+
+func TestSetFilePermissionsElevatedUsesBSDCompatibleArgv(t *testing.T) {
+	rec := exectest.New()
+	defer SetExecutor(rec)()
+	if err := setFilePermissionsElevated("/Library/Fonts/Hack.ttf", 0o644); err != nil {
+		t.Fatalf("setFilePermissionsElevated: %v", err)
+	}
+	if len(rec.Calls) != 1 {
+		t.Fatalf("calls = %d, want 1", len(rec.Calls))
+	}
+	call := rec.Calls[0]
+	if got, want := strings.Join(call.Args, " "), "644 /Library/Fonts/Hack.ttf"; got != want {
+		t.Fatalf("chmod args = %q, want %q", got, want)
+	}
+	if !call.Elevated {
+		t.Fatal("chmod command was not elevated")
+	}
+}
 
 // Commands are argv now, so no shell expands a leading ~ on the way to a
 // program. Every blueprint path that reaches a command or a filesystem call has

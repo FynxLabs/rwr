@@ -653,11 +653,12 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 }
 
 func setFilePermissionsElevated(path string, mode os.FileMode) error {
-	// "--" so a path starting with "-" can never be read as a chmod option:
-	// the path comes from blueprint values, and the command runs as root.
+	// filepath targets are resolved before this point, so they are absolute and
+	// cannot be read as options. BSD chmod (macOS) does not accept GNU's `--`
+	// after MODE; it treats it as a filename and fails every elevated copy.
 	cmd := types.Command{
 		Exec:     "chmod",
-		Args:     []string{fmt.Sprintf("%o", mode), "--", path},
+		Args:     []string{fmt.Sprintf("%o", mode), path},
 		Elevated: true,
 	}
 	return RunCommand(cmd, false)

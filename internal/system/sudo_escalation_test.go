@@ -236,27 +236,36 @@ func TestPromptedPasswordIsReusedBySeparateManagedSudo(t *testing.T) {
 
 	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
 	var prompts int
+	var validations int
 	defer SetSudoPasswordForTest(func() ([]byte, error) {
 		prompts++
 		return []byte("test password"), nil
 	})()
-	defer SetSudoValidateForTest(func(context.Context, []byte) error { return nil })()
+	defer SetSudoValidateForTest(func(context.Context, []byte) error {
+		validations++
+		return nil
+	})()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 
 	if err := ensureSudoCredentials(); err != nil {
 		t.Fatalf("warming for self-escalating command: %v", err)
 	}
-	command, input, err := commandForRun(types.Command{Exec: "dscl", Elevated: true})
-	defer zeroBytes(input)
-	if err != nil {
-		t.Fatalf("commandForRun: %v", err)
+	for range 2 {
+		command, input, err := commandForRun(types.Command{Exec: "dscl", Elevated: true})
+		if err != nil {
+			t.Fatalf("commandForRun: %v", err)
+		}
+		if !slices.Equal(command.Args, []string{"sudo", "-S", "-p", "", "--", "dscl"}) {
+			t.Fatalf("managed command argv = %q, want password-bound sudo", command.Args)
+		}
+		zeroBytes(input)
 	}
 	if prompts != 1 {
 		t.Fatalf("password prompts = %d, want the run-scoped password reused", prompts)
 	}
-	if !slices.Equal(command.Args, []string{"sudo", "-S", "-p", "", "--", "dscl"}) {
-		t.Fatalf("managed command argv = %q, want password-bound sudo", command.Args)
+	if validations != 1 {
+		t.Fatalf("password validations = %d, want one", validations)
 	}
 }
 

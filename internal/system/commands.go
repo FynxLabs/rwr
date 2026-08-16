@@ -296,20 +296,32 @@ func ensureSudoCredentials() error {
 	if sudoCredentialsCached() {
 		return nil
 	}
-	password, err := sudoPassword()
+	password, err := validatedSudoPassword()
 	if err != nil {
 		return err
 	}
-	input := passwordInput(password, "")
 	zeroBytes(password)
-	defer zeroBytes(input)
-	if err := sudoValidate(RunContext(), input); err != nil {
-		return err
-	}
-	cacheSudoPassword(input[:len(input)-1])
-
 	markSudoWarm(true)
 	return nil
+}
+
+func validatedSudoPassword() ([]byte, error) {
+	if password := cachedSudoPassword(); len(password) != 0 {
+		return password, nil
+	}
+	password, err := sudoPassword()
+	if err != nil {
+		return nil, err
+	}
+	input := passwordInput(password, "")
+	defer zeroBytes(input)
+	if err := sudoValidate(RunContext(), input); err != nil {
+		zeroBytes(password)
+		clearSudoPassword()
+		return nil, err
+	}
+	cacheSudoPassword(password)
+	return password, nil
 }
 
 func markSudoWarm(fromPrompt bool) {
@@ -338,17 +350,12 @@ func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
 	if runtime.GOOS == "windows" || (!cmd.Elevated && cmd.AsUser == "") || sudoCredentialsReusableByManagedCommand() {
 		return buildCommand(cmd), nil, nil
 	}
-	password := cachedSudoPassword()
-	if len(password) == 0 {
-		var err error
-		password, err = sudoPassword()
-		if err != nil {
-			if errors.Is(err, errNoSudoTerminal) {
-				return buildCommand(cmd), nil, nil
-			}
-			return nil, nil, fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
+	password, err := validatedSudoPassword()
+	if err != nil {
+		if errors.Is(err, errNoSudoTerminal) {
+			return buildCommand(cmd), nil, nil
 		}
-		cacheSudoPassword(password)
+		return nil, nil, fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
 	}
 	input := passwordInput(password, cmd.Stdin)
 	zeroBytes(password)
@@ -456,9 +463,6 @@ func runCommand(cmd types.Command, debug bool) error {
 		// a TUI suspends itself around the child instead. This path also
 		// serves per-item `interactive: true` inside non-interactive runs.
 		if err := runOnTerminal(command); err != nil {
-			if sudoInput != nil {
-				clearSudoPassword()
-			}
 			// An interactive command reaches the terminal directly, so a
 			// cancelled one comes back as its kill status rather than through
 			// the context. Without this it reports "signal: killed" and gets
@@ -503,9 +507,6 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if err := command.Run(); err != nil {
-		if sudoInput != nil {
-			clearSudoPassword()
-		}
 		// A command killed by cancellation exits non-zero like any failure.
 		// Reporting it as one would fill the summary with "signal: killed"
 		// for work the operator deliberately stopped.
@@ -571,9 +572,6 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 
 	err = command.Run()
 	if err != nil {
-		if sudoInput != nil {
-			clearSudoPassword()
-		}
 		if Cancelled() {
 			return "", ErrCancelled
 		}
