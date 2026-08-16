@@ -86,25 +86,29 @@ func TestQueryNeverRunsNonListCommands(t *testing.T) {
 }
 
 func TestRowsClassification(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	present := filepath.Join(dir, "present")
 	if err := os.WriteFile(present, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	sum, _ := system.HashFileSHA256(present)
+	stale := filepath.Join(dir, "stale")
 
+	missing := filepath.Join(dir, "gone")
 	plan := &types.Plan{Resources: []types.Resource{
-		{Processor: types.BlueprintTypeFiles, Name: "present"},
-		{Processor: types.BlueprintTypeFiles, Name: "missing"},
+		{Processor: types.BlueprintTypeFiles, Name: "present", Location: present},
+		{Processor: types.BlueprintTypeFiles, Name: "missing", Location: missing},
 		{Processor: types.BlueprintTypeScripts, Name: "setup.sh"},
 	}}
 	applies := []state.Entry{
 		{Processor: types.BlueprintTypeFiles, OK: true, Outcome: "ok",
 			Identity: map[string]string{"name": "present", "dest": present, "sha256": sum}},
 		{Processor: types.BlueprintTypeFiles, OK: true, Outcome: "ok",
-			Identity: map[string]string{"name": "missing", "dest": filepath.Join(dir, "gone"), "sha256": sum}},
+			Identity: map[string]string{"name": "missing", "dest": missing, "sha256": sum}},
 		{Processor: types.BlueprintTypeFiles, OK: true, Outcome: "ok",
-			Identity: map[string]string{"name": "stale-one", "dest": present, "sha256": sum}},
+			Identity: map[string]string{"name": "stale-one", "dest": stale, "sha256": sum}},
 	}
 
 	rows := Rows(plan, applies, NewQuerier())
@@ -126,5 +130,42 @@ func TestRowsClassification(t *testing.T) {
 	}
 	if !Drifted(rows) {
 		t.Error("missing+stale rows did not count as drift")
+	}
+}
+
+// A display name is not a file identity. Two tools can both manage an
+// init.lua, and the journal entry for one path must never classify the other.
+func TestRowsMatchSameNamedFilesByDestination(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	present := filepath.Join(dir, "nvim", "init.lua")
+	missing := filepath.Join(dir, "wezterm", "init.lua")
+	if err := os.MkdirAll(filepath.Dir(present), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(present, []byte("live"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sum, err := system.HashFileSHA256(present)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := &types.Plan{Resources: []types.Resource{
+		{Processor: types.BlueprintTypeFiles, Name: "init.lua", Location: present},
+		{Processor: types.BlueprintTypeFiles, Name: "init.lua", Location: missing},
+	}}
+	applies := []state.Entry{
+		{Processor: types.BlueprintTypeFiles, Identity: map[string]string{"name": "init.lua", "dest": present, "sha256": sum}},
+		{Processor: types.BlueprintTypeFiles, Identity: map[string]string{"name": "init.lua", "dest": missing, "sha256": sum}},
+	}
+
+	rows := Rows(plan, applies, NewQuerier())
+	if len(rows) != 2 {
+		t.Fatalf("rows = %d, want 2: %+v", len(rows), rows)
+	}
+	if rows[0].Class != InSync || rows[1].Class != Missing {
+		t.Fatalf("classes = [%s, %s], want [in-sync, missing]", rows[0].Class, rows[1].Class)
 	}
 }

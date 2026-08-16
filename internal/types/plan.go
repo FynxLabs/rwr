@@ -43,10 +43,14 @@ type Resource struct {
 	Processor string
 	Provider  string // empty for files, services, git, scripts
 	Name      string // "neovim", "~/.config/nvim/"
-	Action    string // install, copy, enable, clone
-	Status    Status
-	Detail    string
-	Dur       time.Duration
+	// Location identifies resources whose name is not unique: the destination
+	// of a file/directory or the target of a git checkout. Empty for resources
+	// such as packages and services that are identified by name.
+	Location string
+	Action   string // install, copy, enable, clone
+	Status   Status
+	Detail   string
+	Dur      time.Duration
 }
 
 // Severity classifies a diagnostic.

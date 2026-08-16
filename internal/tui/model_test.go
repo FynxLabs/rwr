@@ -71,6 +71,55 @@ func TestModel_FramesRender(t *testing.T) {
 	}
 }
 
+func TestResourceDoneMatchesSameNamedFilesByLocation(t *testing.T) {
+	plan := &types.Plan{
+		Init:  &types.InitConfig{},
+		Order: []string{types.BlueprintTypeFiles},
+		Resources: []types.Resource{
+			{Processor: types.BlueprintTypeFiles, Name: "init.lua", Location: "/one/init.lua", Status: types.StatusPlanned},
+			{Processor: types.BlueprintTypeFiles, Name: "init.lua", Location: "/two/init.lua", Status: types.StatusPlanned},
+		},
+	}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.apply(reporting.ResourceDone{Resource: types.Resource{
+		Processor: types.BlueprintTypeFiles,
+		Name:      "init.lua",
+		Location:  "/two/init.lua",
+		Status:    types.StatusOK,
+	}})
+
+	if plan.Resources[0].Status != types.StatusPlanned {
+		t.Errorf("first same-named file status = %s, want planned", plan.Resources[0].Status)
+	}
+	if plan.Resources[1].Status != types.StatusOK {
+		t.Errorf("second same-named file status = %s, want ok", plan.Resources[1].Status)
+	}
+}
+
+func TestResourceDoneWithoutLocationDoesNotMatchLocationIdentifiedFiles(t *testing.T) {
+	plan := &types.Plan{
+		Init:  &types.InitConfig{},
+		Order: []string{types.BlueprintTypeFiles},
+		Resources: []types.Resource{
+			{Processor: types.BlueprintTypeFiles, Name: "init.lua", Location: "/one/init.lua", Status: types.StatusPlanned},
+			{Processor: types.BlueprintTypeFiles, Name: "init.lua", Location: "/two/init.lua", Status: types.StatusPlanned},
+		},
+	}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.apply(reporting.ResourceDone{Resource: types.Resource{
+		Processor: types.BlueprintTypeFiles,
+		Name:      "init.lua",
+		Status:    types.StatusOK,
+	}})
+
+	if plan.Resources[0].Status != types.StatusPlanned || plan.Resources[1].Status != types.StatusPlanned {
+		t.Fatalf("location-identified file statuses = [%s, %s], want both planned", plan.Resources[0].Status, plan.Resources[1].Status)
+	}
+	if len(plan.Resources) != 3 || plan.Resources[2].Status != types.StatusOK {
+		t.Fatalf("resources = %+v, want unmatched result appended", plan.Resources)
+	}
+}
+
 // Resize below either threshold trips compact mode live and back.
 func TestModel_CompactModeOnResize(t *testing.T) {
 	m := testModel(t)

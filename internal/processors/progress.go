@@ -58,10 +58,15 @@ func (p *progress) itemIdentity(provider, name, action string, status types.Stat
 	if status == types.StatusFailed {
 		p.failed[provider] = true
 	}
+	location := identity["dest"]
+	if location == "" {
+		location = identity["target"]
+	}
 	reporting.Emit(reporting.ResourceDone{Resource: types.Resource{
 		Processor: p.processor,
 		Provider:  provider,
 		Name:      name,
+		Location:  location,
 		Action:    action,
 		Status:    status,
 		Detail:    detail,

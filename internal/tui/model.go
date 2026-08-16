@@ -3,6 +3,7 @@ package tui
 import (
 	"io"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -328,6 +329,11 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 			planned := &m.plan.Resources[i]
 			if planned.Status != types.StatusPlanned || planned.Processor != res.Processor || planned.Name != res.Name {
 				continue
+			}
+			if planned.Location != "" {
+				if res.Location == "" || filepath.Clean(planned.Location) != filepath.Clean(res.Location) {
+					continue
+				}
 			}
 			planned.Provider, planned.Status, planned.Detail, planned.Dur = res.Provider, res.Status, res.Detail, res.Dur
 			matched = true
