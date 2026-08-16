@@ -279,7 +279,9 @@ destination would be a root-privileged write to an arbitrary path.
 
 File creation and replacement SHALL reject a final destination that is a symlink
 or Windows reparse point. Permission changes SHALL be applied through the opened
-destination descriptor so a path replacement cannot redirect the change.
+destination descriptor so a path replacement cannot redirect the change. For an
+elevated replacement, RWR SHALL set the mode through the private staging-file
+descriptor before the privileged move installs that same file.
 
 #### Scenario: Adding an apt repository
 

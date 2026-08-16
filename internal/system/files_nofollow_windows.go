@@ -28,15 +28,18 @@ func openFileNoFollow(path string, flags int, mode os.FileMode) (*os.File, error
 	}
 
 	creation := uint32(windows.OPEN_EXISTING)
+	truncateAfterOpen := false
 	switch {
 	case flags&(os.O_CREATE|os.O_EXCL) == os.O_CREATE|os.O_EXCL:
 		creation = windows.CREATE_NEW
 	case flags&(os.O_CREATE|os.O_TRUNC) == os.O_CREATE|os.O_TRUNC:
-		creation = windows.CREATE_ALWAYS
+		creation = windows.OPEN_ALWAYS
+		truncateAfterOpen = true
 	case flags&os.O_CREATE != 0:
 		creation = windows.OPEN_ALWAYS
 	case flags&os.O_TRUNC != 0:
-		creation = windows.TRUNCATE_EXISTING
+		creation = windows.OPEN_EXISTING
+		truncateAfterOpen = true
 	}
 
 	attrs := uint32(windows.FILE_ATTRIBUTE_NORMAL | windows.FILE_FLAG_OPEN_REPARSE_POINT)
@@ -58,5 +61,12 @@ func openFileNoFollow(path string, flags int, mode os.FileMode) (*os.File, error
 		_ = windows.CloseHandle(handle)
 		return nil, fmt.Errorf("refusing to open final-component reparse point: %s", path)
 	}
-	return os.NewFile(uintptr(handle), path), nil
+	file := os.NewFile(uintptr(handle), path)
+	if truncateAfterOpen {
+		if err := file.Truncate(0); err != nil {
+			_ = file.Close()
+			return nil, err
+		}
+	}
+	return file, nil
 }

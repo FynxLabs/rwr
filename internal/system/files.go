@@ -91,7 +91,11 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("error opening staged file: %v", err)
 	}
-	defer sourceFile.Close() //nolint:errcheck
+	defer func() {
+		if err := sourceFile.Close(); err != nil {
+			log.Debugf("closing staged source %s: %v", source, err)
+		}
+	}()
 
 	targetFile, err := OpenFileNoFollow(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
 	if err != nil {
@@ -261,7 +265,11 @@ func HashFileSHA256(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close() //nolint:errcheck
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Debugf("closing hashed file %s: %v", path, err)
+		}
+	}()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
@@ -589,7 +597,11 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
-	defer sourceFile.Close() //nolint:errcheck
+	defer func() {
+		if err := sourceFile.Close(); err != nil {
+			log.Debugf("closing copy source %s: %v", source, err)
+		}
+	}()
 
 	sourceInfo, err := sourceFile.Stat()
 	if err != nil {
@@ -616,14 +628,23 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		if err != nil {
 			return fmt.Errorf("error creating temporary file: %v", err)
 		}
-		defer os.Remove(tempFile.Name()) //nolint:errcheck
+		defer func() {
+			if err := os.Remove(tempFile.Name()); err != nil && !os.IsNotExist(err) {
+				log.Debugf("removing copy staging file %s: %v", tempFile.Name(), err)
+			}
+		}()
 
 		_, err = io.Copy(tempFile, sourceFile)
 		if err != nil {
 			return fmt.Errorf("error copying to temporary file: %v", err)
 		}
+		if runtime.GOOS != "windows" {
+			if err := tempFile.Chmod(sourceInfo.Mode()); err != nil {
+				return fmt.Errorf("error setting temporary file permissions: %v", err)
+			}
+		}
 
-		err = tempFile.Close() //nolint:errcheck
+		err = tempFile.Close()
 		if err != nil {
 			return fmt.Errorf("error closing temporary file: %v", err)
 		}
@@ -637,7 +658,11 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		if err != nil {
 			return fmt.Errorf("error creating target file: %v", err)
 		}
-		defer targetFile.Close() //nolint:errcheck
+		defer func() {
+			if err := targetFile.Close(); err != nil {
+				log.Debugf("closing copy target %s: %v", target, err)
+			}
+		}()
 
 		_, err = io.Copy(targetFile, sourceFile)
 		if err != nil {
@@ -650,27 +675,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		}
 	}
 
-	// Elevated writes no longer have an open destination descriptor, so their
-	// permission update remains a separate privileged operation.
-	if runtime.GOOS != "windows" && elevated {
-		err = setFilePermissionsElevated(target, sourceInfo.Mode())
-		if err != nil {
-			return fmt.Errorf("error setting file permissions: %v", err)
-		}
-	}
-
 	return nil
-}
-
-func setFilePermissionsElevated(path string, mode os.FileMode) error {
-	// "--" so a path starting with "-" can never be read as a chmod option:
-	// the path comes from blueprint values, and the command runs as root.
-	cmd := types.Command{
-		Exec:     "chmod",
-		Args:     []string{fmt.Sprintf("%o", mode), "--", path},
-		Elevated: true,
-	}
-	return RunCommand(cmd, false)
 }
 
 // ExpandPath replaces a leading "~" or "~/" in the path with the user's home
