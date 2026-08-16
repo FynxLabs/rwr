@@ -293,6 +293,27 @@ func TestResolveBuiltins(t *testing.T) {
 		}
 	})
 
+	t.Run("SSH flag wins over keyring", func(t *testing.T) {
+		withFakes(t, &fakeKeyring{entries: map[string]string{"ssh_private_key": "from-keyring"}}, false, nil)
+		flags := types.Flags{SSHKey: "from-flag"}
+		ResolveBuiltins(&flags)
+		if flags.SSHKey != "from-flag" {
+			t.Errorf("flags.SSHKey = %q, want the flag/config value", flags.SSHKey)
+		}
+	})
+
+	t.Run("keyring fills the SSH key field", func(t *testing.T) {
+		withFakes(t, &fakeKeyring{entries: map[string]string{"ssh_private_key": "from-keyring"}}, false, nil)
+		flags := types.Flags{}
+		ResolveBuiltins(&flags)
+		if flags.SSHKey != "from-keyring" {
+			t.Errorf("flags.SSHKey = %q, want the keyring key", flags.SSHKey)
+		}
+		if got, _ := types.CredentialValue("ssh_private_key"); got != "from-keyring" {
+			t.Errorf("resolved %q, want the keyring key", got)
+		}
+	})
+
 	t.Run("nothing configured is not an error", func(t *testing.T) {
 		withFakes(t, &fakeKeyring{}, false, nil)
 		t.Setenv("GITHUB_TOKEN", "")

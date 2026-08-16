@@ -16,6 +16,7 @@ import (
 type mapKeyring struct {
 	entries     map[string]string
 	unavailable bool
+	setErr      error
 }
 
 func (m *mapKeyring) Get(name string) (string, error) {
@@ -31,10 +32,28 @@ func (m *mapKeyring) Get(name string) (string, error) {
 
 func (m *mapKeyring) Set(name, value string) error {
 	if m.unavailable {
-		return errors.New("no keyring backend")
+		return credentials.ErrKeyringUnavailable
+	}
+	if m.setErr != nil {
+		return m.setErr
 	}
 	m.entries[name] = value
 	return nil
+}
+
+func TestSaveGitHubTokenDoesNotFallBackOnKeyringWriteFailure(t *testing.T) {
+	configFile := withSaveFixture(t, &mapKeyring{setErr: errors.New("keyring is locked")})
+
+	err := SaveGitHubTokenToConfig("gho_devicetoken", &types.InitConfig{})
+	if err == nil {
+		t.Fatal("SaveGitHubTokenToConfig = nil, want keyring error")
+	}
+	if got := viper.GetString("repository.gh_api_token"); got != "" {
+		t.Fatalf("config token = %q, want empty", got)
+	}
+	if raw, readErr := os.ReadFile(configFile); readErr == nil && strings.Contains(string(raw), "gho_devicetoken") {
+		t.Error("config file gained token after keyring write failure")
+	}
 }
 
 func withSaveFixture(t *testing.T, ring credentials.Keyring) string {

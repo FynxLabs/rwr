@@ -4,6 +4,7 @@
 package prompts
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -211,6 +212,9 @@ func SaveGitHubTokenToConfig(token string, initConfig *types.InitConfig) error {
 	if saveErr == nil {
 		log.Debugf("Token saved to the OS keyring")
 		return nil
+	}
+	if !errors.Is(saveErr, credentials.ErrKeyringUnavailable) {
+		return saveErr
 	}
 	log.Warnf("OS keyring unavailable (%v); saving the token to %s instead - "+
 		"it is stored in plaintext, readable only by your user (0600)",

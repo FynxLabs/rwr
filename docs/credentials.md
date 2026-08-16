@@ -55,12 +55,15 @@ under `exposeCredentials`, and the logs show `[redacted]` instead of the value.
 
 RWR persists a managed credential only in the OS keyring - Secret Service on
 Linux, Keychain on macOS, Credential Manager on Windows - and only when you
-agree. RWR never writes a managed credential to a plaintext file.
+agree. By default, RWR does not write a managed credential to a plaintext file.
 
-One exception is grandfathered: a GitHub token that an earlier RWR saved into
-the config file keeps working. New tokens from `--gh-auth` go to the keyring;
+The two built-in credentials retain their grandfathered config-file fallback:
+`repository.gh_api_token` and `repository.ssh_private_key` keep working. New
+GitHub tokens and keys selected by `set_as_rwr_ssh_key` go to the keyring first;
 when no keyring backend is available, RWR falls back to the config file at
-`0600` and warns with the file path.
+`0600` and warns with the file path. When a generated SSH key moves into the
+keyring successfully, RWR attempts to clear an older plaintext config value so
+it cannot override the new key on the next run. A cleanup failure is reported.
 
 ## How to permit a credential
 

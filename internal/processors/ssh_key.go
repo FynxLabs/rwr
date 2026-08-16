@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -269,10 +270,40 @@ func setAsRWRSSHKey(keyPath string) error {
 	// Encode the private key as base64. helpers.getSSHAuthMethod decodes this
 	// form; it is also what --ssh-key accepts, so the two agree.
 	encodedKey := base64.StdEncoding.EncodeToString(privateKey)
+	types.SetCredentialValue("ssh_private_key", encodedKey)
 
-	// Set the encoded key in Viper configuration
+	// Prefer the OS keyring so the private key never lands in a plaintext
+	// configuration file. If an older config already contains a key, clear it:
+	// config/flag values intentionally outrank the keyring on read, so leaving a
+	// stale copy would make this newly saved key unreachable on the next run.
+	if err := credentials.SaveToKeyring("ssh_private_key", encodedKey); err == nil {
+		if viper.GetString("repository.ssh_private_key") != "" {
+			viper.Set("repository.ssh_private_key", "")
+			if err := writeRWRSSHKeyConfig(); err != nil {
+				return fmt.Errorf("clearing plaintext SSH key after keyring save: %w", err)
+			}
+		}
+		log.Infof("SSH key %s saved as the RWR SSH key in the OS keyring", keyPath)
+		return nil
+	} else if errors.Is(err, credentials.ErrKeyringUnavailable) {
+		log.Warnf("OS keyring unavailable (%v); saving the SSH private key to %s instead - "+
+			"it is stored in plaintext, readable only by your user (0600)",
+			err, viper.ConfigFileUsed())
+	} else {
+		return err
+	}
+
+	// Preserve the existing config-file fallback for machines without a usable
+	// keyring. Existing installations already rely on this path.
 	viper.Set("repository.ssh_private_key", encodedKey)
+	if err := writeRWRSSHKeyConfig(); err != nil {
+		return err
+	}
+	log.Infof("SSH key %s set as RWR SSH Key", keyPath)
+	return nil
+}
 
+func writeRWRSSHKeyConfig() error {
 	// The file is about to hold a private key, and viper writes at 0644 with
 	// no way to ask for less. Pre-creating it at 0600 means the key is never
 	// on disk world-readable, not even for the length of the write. The
@@ -285,8 +316,7 @@ func setAsRWRSSHKey(keyPath string) error {
 	}
 
 	// Write the updated configuration to file
-	err = viper.WriteConfig()
-	if err != nil {
+	if err := viper.WriteConfig(); err != nil {
 		return fmt.Errorf("error writing updated configuration: %v", err)
 	}
 
@@ -296,7 +326,6 @@ func setAsRWRSSHKey(keyPath string) error {
 		return fmt.Errorf("error restricting configuration permissions: %w", err)
 	}
 
-	log.Infof("SSH key %s set as RWR SSH Key", keyPath)
 	return nil
 }
 

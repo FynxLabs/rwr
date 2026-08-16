@@ -144,5 +144,11 @@ func ResolveBuiltins(flags *types.Flags) {
 	}
 	if flags.SSHKey != "" {
 		types.SetCredentialValue("ssh_private_key", flags.SSHKey)
+	} else if value, ok := FromKeyring("ssh_private_key"); ok {
+		log.Debugf("SSH private key resolved from the OS keyring")
+		types.SetCredentialValue("ssh_private_key", value)
+		// Git authentication reads the flag field, so keyring material flows
+		// through the same path as --ssh-key and the config fallback.
+		flags.SSHKey = value
 	}
 }

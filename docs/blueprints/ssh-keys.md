@@ -94,9 +94,11 @@ This will:
 1. Display a device code (e.g., `ABCD-1234`)
 2. Prompt you to visit <https://github.com/login/device>
 3. Wait for you to authorize the application
-4. Save the token to your RWR config
+4. Save the token to the OS keyring, or to the owner-only (`0600`) RWR config
+   only when no keyring backend is available
 
-After this initial setup, future runs won't require `--gh-auth` as the token is saved in your config.
+After this initial setup, future runs won't require `--gh-auth` because the
+token is persisted in one of those stores.
 
 #### Using an Explicit Token
 
@@ -140,7 +142,7 @@ If `github_title` is provided, it will be used as the title for the SSH key on G
 
 ## Setting the RWR SSH Key
 
-If `set_as_rwr_ssh_key` is set to `true`, RWR will set this key as the default SSH key for RWR operations. This key will be used for private git clones and other SSH-based operations within RWR. The private key will be base64 encoded and stored in the RWR configuration file.
+If `set_as_rwr_ssh_key` is set to `true`, RWR will set this key as the default SSH key for RWR operations. This key will be used for private git clones and other SSH-based operations within RWR. The private key is base64 encoded and saved to the OS keyring. If no keyring backend is available, RWR warns and falls back to the owner-only (`0600`) configuration file for compatibility with existing installations.
 
 > [!NOTE]
 > Only one key should be set as the RWR SSH key. If multiple keys are set, the last one processed will be used.
