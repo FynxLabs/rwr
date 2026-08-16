@@ -130,6 +130,11 @@ var (
 	sudoValidateMu sync.Mutex
 	sudoProbedAt   time.Time
 	sudoProbeWarm  bool
+	// sudoWarmFromPrompt distinguishes a ticket RWR created for a
+	// self-escalating command from an ambient ticket proven by `sudo -n -v`.
+	// Some macOS sudo policies let the original command use the former but do
+	// not let a later, separately spawned sudo process reuse it.
+	sudoWarmFromPrompt bool
 )
 
 // ErrSudoAuthentication reports that a command requiring sudo could not be
@@ -234,6 +239,7 @@ func resetSudoThrottleForTest() {
 	defer sudoValidateMu.Unlock()
 	sudoProbedAt = time.Time{}
 	sudoProbeWarm = false
+	sudoWarmFromPrompt = false
 }
 
 func sudoCredentialsCached() bool {
@@ -247,8 +253,18 @@ func sudoCredentialsCached() bool {
 	ctx, cancel := context.WithTimeout(RunContext(), sudoProbeTimeout)
 	defer cancel()
 	sudoProbeWarm = sudoProbe(ctx) == nil
+	sudoWarmFromPrompt = false
 	sudoProbedAt = time.Now()
 	return sudoProbeWarm
+}
+
+func sudoCredentialsReusableByManagedCommand() bool {
+	if !sudoCredentialsCached() {
+		return false
+	}
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	return !sudoWarmFromPrompt
 }
 
 func ensureSudoCredentials() error {
@@ -266,13 +282,14 @@ func ensureSudoCredentials() error {
 		return err
 	}
 
-	markSudoWarm()
+	markSudoWarm(true)
 	return nil
 }
 
-func markSudoWarm() {
+func markSudoWarm(fromPrompt bool) {
 	sudoValidateMu.Lock()
 	sudoProbeWarm = true
+	sudoWarmFromPrompt = fromPrompt
 	sudoProbedAt = time.Now()
 	sudoValidateMu.Unlock()
 }
@@ -292,7 +309,7 @@ func zeroBytes(value []byte) {
 }
 
 func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
-	if runtime.GOOS == "windows" || (!cmd.Elevated && cmd.AsUser == "") || sudoCredentialsCached() {
+	if runtime.GOOS == "windows" || (!cmd.Elevated && cmd.AsUser == "") || sudoCredentialsReusableByManagedCommand() {
 		return buildCommand(cmd), nil, nil
 	}
 	password, err := sudoPassword()
@@ -420,7 +437,7 @@ func runCommand(cmd types.Command, debug bool) error {
 			return err
 		}
 		if sudoInput != nil {
-			markSudoWarm()
+			markSudoWarm(true)
 		}
 		return nil
 	}
@@ -464,7 +481,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		return err
 	}
 	if sudoInput != nil {
-		markSudoWarm()
+		markSudoWarm(true)
 	}
 
 	return nil
@@ -525,7 +542,7 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		return "", err
 	}
 	if sudoInput != nil {
-		markSudoWarm()
+		markSudoWarm(true)
 	}
 
 	return stdout.String(), nil

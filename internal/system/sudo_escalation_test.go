@@ -229,6 +229,37 @@ func TestColdProbeAuthenticatesOnceAndKeepsCommandsCaptured(t *testing.T) {
 	}
 }
 
+func TestPromptWarmedCredentialIsNotReusedBySeparateManagedSudo(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("no sudo on windows")
+	}
+
+	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
+	var prompts int
+	defer SetSudoPasswordForTest(func() ([]byte, error) {
+		prompts++
+		return []byte("test password"), nil
+	})()
+	defer SetSudoValidateForTest(func(context.Context, []byte) error { return nil })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	if err := ensureSudoCredentials(); err != nil {
+		t.Fatalf("warming for self-escalating command: %v", err)
+	}
+	command, input, err := commandForRun(types.Command{Exec: "dscl", Elevated: true})
+	defer zeroBytes(input)
+	if err != nil {
+		t.Fatalf("commandForRun: %v", err)
+	}
+	if prompts != 2 {
+		t.Fatalf("password prompts = %d, want a separate prompt for the managed sudo command", prompts)
+	}
+	if !slices.Equal(command.Args, []string{"sudo", "-S", "-p", "", "--", "dscl"}) {
+		t.Fatalf("managed command argv = %q, want password-bound sudo", command.Args)
+	}
+}
+
 func TestSudoAuthenticationFailureStopsTheCommand(t *testing.T) {
 	if runtime.GOOS == types.OSWindows {
 		t.Skip("no sudo on windows")
