@@ -92,6 +92,36 @@ func TestSudoValidationKeepsPasswordOutOfArgv(t *testing.T) {
 	}
 }
 
+func TestAuthenticatedCommandRunsTheTargetInThePasswordReceivingSudo(t *testing.T) {
+	t.Parallel()
+
+	command := buildAuthenticatedCommand(types.Command{
+		Exec:     "dscl",
+		Args:     []string{".", "-create", "/Users/levi", "UserShell", "/opt/homebrew/bin/fish"},
+		Elevated: true,
+	})
+	want := []string{"sudo", "-S", "-p", "", "--", "dscl", ".", "-create", "/Users/levi", "UserShell", "/opt/homebrew/bin/fish"}
+	if !slices.Equal(command.Args, want) {
+		t.Fatalf("authenticated argv = %q, want %q", command.Args, want)
+	}
+}
+
+func TestPasswordInputKeepsSecretOutOfArgvAndPreservesCommandInput(t *testing.T) {
+	t.Parallel()
+
+	password := []byte("correct horse battery staple")
+	input := passwordInput(password, "target input\n")
+	if got, want := string(input), "correct horse battery staple\ntarget input\n"; got != want {
+		t.Fatalf("stdin = %q, want %q", got, want)
+	}
+	command := buildAuthenticatedCommand(types.Command{Exec: "chpasswd", Elevated: true})
+	for _, arg := range command.Args {
+		if strings.Contains(arg, "correct horse") {
+			t.Fatal("password appeared in sudo argv")
+		}
+	}
+}
+
 // A cold cache is reported as cold, and does not prompt on the way there.
 func TestSudoCredentialsCachedWhenTheProbeFails(t *testing.T) {
 	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("a password is required") })()
@@ -169,10 +199,11 @@ func TestColdProbeAuthenticatesOnceAndKeepsCommandsCaptured(t *testing.T) {
 		return errors.New("a password is required")
 	})()
 	var authentications int
-	defer SetSudoAuthenticateForTest(func(context.Context) error {
+	defer SetSudoPasswordForTest(func() ([]byte, error) {
 		authentications++
-		return nil
+		return []byte("test password"), nil
 	})()
+	defer SetSudoValidateForTest(func(context.Context, []byte) error { return nil })()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 
@@ -204,7 +235,7 @@ func TestSudoAuthenticationFailureStopsTheCommand(t *testing.T) {
 	}
 
 	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
-	defer SetSudoAuthenticateForTest(func(context.Context) error { return errors.New("denied") })()
+	defer SetSudoPasswordForTest(func() ([]byte, error) { return nil, errors.New("denied") })()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 
@@ -220,7 +251,7 @@ func TestNoTerminalLeavesCommandScopedNopasswdPathAvailable(t *testing.T) {
 	}
 
 	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
-	defer SetSudoAuthenticateForTest(func(context.Context) error { return errNoSudoTerminal })()
+	defer SetSudoPasswordForTest(func() ([]byte, error) { return nil, errNoSudoTerminal })()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 

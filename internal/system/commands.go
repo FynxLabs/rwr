@@ -44,6 +44,27 @@ import (
 // matches the previous behavior of running through `cmd /C` without any elevation.
 func buildCommand(cmd types.Command) *exec.Cmd {
 	built := spawn(cmd)
+	configureCommandCancellation(built)
+	return built
+}
+
+// buildAuthenticatedCommand binds a freshly-read password to the exact sudo
+// process that runs the requested command. Some sudo policies do not make a
+// ticket created by a separate `sudo -v` available to the later process.
+func buildAuthenticatedCommand(cmd types.Command) *exec.Cmd {
+	ctx := RunContext()
+	var args []string
+	if cmd.Elevated {
+		args = append([]string{"-S", "-p", "", "--", cmd.Exec}, cmd.Args...)
+	} else {
+		args = append([]string{"-S", "-p", "", "-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)
+	}
+	built := exec.CommandContext(ctx, "sudo", args...) // #nosec G204 -- fixed sudo flags followed by discrete command argv
+	configureCommandCancellation(built)
+	return built
+}
+
+func configureCommandCancellation(built *exec.Cmd) {
 	// Cancelling the run kills the command's whole process group, not just the
 	// process rwr spawned: `brew install` is a shell that forks curl and git,
 	// and `sudo pacman` is sudo with pacman underneath. Killing only the direct
@@ -55,7 +76,6 @@ func buildCommand(cmd types.Command) *exec.Cmd {
 	// that leaks a descriptor to a grandchild keeps Wait blocked and the
 	// cancellation the operator asked for never completes.
 	built.WaitDelay = 5 * time.Second
-	return built
 }
 
 // spawn builds the *exec.Cmd for a command, before cancellation is wired onto
@@ -166,33 +186,26 @@ func sudoValidationCommand(ctx context.Context, input []byte) *exec.Cmd {
 	return command
 }
 
-var sudoAuthenticate = func(ctx context.Context) error {
+var sudoValidate = func(ctx context.Context, input []byte) error {
+	return sudoValidationCommand(ctx, input).Run()
+}
+
+var sudoPassword = func() ([]byte, error) {
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return errNoSudoTerminal
+		return nil, errNoSudoTerminal
 	}
-	return reporting.WithTerminal(func() error {
+	var password []byte
+	err := reporting.WithTerminal(func() error {
 		_, _ = fmt.Fprint(os.Stderr, "sudo password: ")
-		password, err := term.ReadPassword(int(os.Stdin.Fd()))
+		var err error
+		password, err = term.ReadPassword(int(os.Stdin.Fd()))
 		_, _ = fmt.Fprintln(os.Stderr)
 		if err != nil {
 			return fmt.Errorf("reading sudo password: %w", err)
 		}
-		defer func() {
-			for i := range password {
-				password[i] = 0
-			}
-		}()
-
-		input := make([]byte, len(password)+1)
-		copy(input, password)
-		input[len(input)-1] = '\n'
-		defer func() {
-			for i := range input {
-				input[i] = 0
-			}
-		}()
-		return sudoValidationCommand(ctx, input).Run()
+		return nil
 	})
+	return password, err
 }
 
 // SetSudoProbeForTest substitutes the probe and returns the restore func.
@@ -202,10 +215,16 @@ func SetSudoProbeForTest(probe func(context.Context) error) (restore func()) {
 	return func() { sudoProbe = previous }
 }
 
-func SetSudoAuthenticateForTest(authenticate func(context.Context) error) (restore func()) {
-	previous := sudoAuthenticate
-	sudoAuthenticate = authenticate
-	return func() { sudoAuthenticate = previous }
+func SetSudoPasswordForTest(prompt func() ([]byte, error)) (restore func()) {
+	previous := sudoPassword
+	sudoPassword = prompt
+	return func() { sudoPassword = previous }
+}
+
+func SetSudoValidateForTest(validate func(context.Context, []byte) error) (restore func()) {
+	previous := sudoValidate
+	sudoValidate = validate
+	return func() { sudoValidate = previous }
 }
 
 // resetSudoThrottleForTest clears the probe throttle so a test observes the
@@ -236,15 +255,56 @@ func ensureSudoCredentials() error {
 	if sudoCredentialsCached() {
 		return nil
 	}
-	if err := sudoAuthenticate(RunContext()); err != nil {
+	password, err := sudoPassword()
+	if err != nil {
+		return err
+	}
+	input := passwordInput(password, "")
+	zeroBytes(password)
+	defer zeroBytes(input)
+	if err := sudoValidate(RunContext(), input); err != nil {
 		return err
 	}
 
+	markSudoWarm()
+	return nil
+}
+
+func markSudoWarm() {
 	sudoValidateMu.Lock()
 	sudoProbeWarm = true
 	sudoProbedAt = time.Now()
 	sudoValidateMu.Unlock()
-	return nil
+}
+
+func passwordInput(password []byte, stdin string) []byte {
+	input := make([]byte, 0, len(password)+1+len(stdin))
+	input = append(input, password...)
+	input = append(input, '\n')
+	input = append(input, stdin...)
+	return input
+}
+
+func zeroBytes(value []byte) {
+	for i := range value {
+		value[i] = 0
+	}
+}
+
+func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
+	if runtime.GOOS == "windows" || (!cmd.Elevated && cmd.AsUser == "") || sudoCredentialsCached() {
+		return buildCommand(cmd), nil, nil
+	}
+	password, err := sudoPassword()
+	if err != nil {
+		if errors.Is(err, errNoSudoTerminal) {
+			return buildCommand(cmd), nil, nil
+		}
+		return nil, nil, fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
+	}
+	input := passwordInput(password, cmd.Stdin)
+	zeroBytes(password)
+	return buildAuthenticatedCommand(cmd), input, nil
 }
 
 // runOnTerminal hands cmd the real terminal via the display layer, falling
@@ -311,16 +371,25 @@ func runCommand(cmd types.Command, debug bool) error {
 		return nil
 	}
 
-	command := buildCommand(cmd)
+	command, sudoInput, err := commandForRun(cmd)
+	if err != nil {
+		return err
+	}
+	defer zeroBytes(sudoInput)
 	setupCommandEnvironment(command, cmd)
 
-	if cmd.Stdin != "" {
+	if sudoInput != nil {
+		command.Stdin = bytes.NewReader(sudoInput)
+		if cmd.Interactive {
+			command.Stdin = io.MultiReader(command.Stdin, os.Stdin)
+		}
+	} else if cmd.Stdin != "" {
 		// Supplied input wins over the terminal even for an interactive command:
 		// the caller is feeding the tool something specific, and inheriting
 		// os.Stdin instead would hang waiting for a human.
 		command.Stdin = strings.NewReader(cmd.Stdin)
 	}
-	if mayPromptForSudo(cmd) {
+	if cmd.Escalates && !cmd.Elevated && cmd.AsUser == "" {
 		if err := ensureSudoCredentials(); err != nil {
 			if Cancelled() {
 				return ErrCancelled
@@ -349,6 +418,9 @@ func runCommand(cmd types.Command, debug bool) error {
 			}
 			log.Errorf("Error running command: %v (stderr above)", err)
 			return err
+		}
+		if sudoInput != nil {
+			markSudoWarm()
 		}
 		return nil
 	}
@@ -391,6 +463,9 @@ func runCommand(cmd types.Command, debug bool) error {
 		log.Errorf("Error running command: %v (stderr above)", err)
 		return err
 	}
+	if sudoInput != nil {
+		markSudoWarm()
+	}
 
 	return nil
 }
@@ -412,7 +487,7 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.LogArgs(), " "))
 		return "", nil
 	}
-	if mayPromptForSudo(cmd) {
+	if cmd.Escalates && !cmd.Elevated && cmd.AsUser == "" {
 		if err := ensureSudoCredentials(); err != nil {
 			if Cancelled() {
 				return "", ErrCancelled
@@ -423,18 +498,24 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		}
 	}
 
-	command := buildCommand(cmd)
+	command, sudoInput, err := commandForRun(cmd)
+	if err != nil {
+		return "", err
+	}
+	defer zeroBytes(sudoInput)
 	setupCommandEnvironment(command, cmd)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if cmd.Stdin != "" {
+	if sudoInput != nil {
+		command.Stdin = bytes.NewReader(sudoInput)
+	} else if cmd.Stdin != "" {
 		command.Stdin = strings.NewReader(cmd.Stdin)
 	}
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 
-	err := command.Run()
+	err = command.Run()
 	if err != nil {
 		if Cancelled() {
 			return "", ErrCancelled
@@ -442,6 +523,9 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
 		log.Error(errMsg)
 		return "", err
+	}
+	if sudoInput != nil {
+		markSudoWarm()
 	}
 
 	return stdout.String(), nil
