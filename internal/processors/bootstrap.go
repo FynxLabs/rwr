@@ -71,7 +71,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	var err error
 
 	// Resolve variables in the blueprint file if templates are enabled
-	blueprintData, err = os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	blueprintData, err = os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		log.Errorf("Error reading blueprint file: %v", err)
 		return err

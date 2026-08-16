@@ -267,7 +267,7 @@ func downloadFontTarball(url, filepath string) error {
 		return fmt.Errorf("downloading %s: unexpected status %s", url, resp.Status)
 	}
 
-	out, err := os.Create(filepath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	out, err := os.Create(filepath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return err
 	}
@@ -309,7 +309,7 @@ func resolveTarEntryPath(destDir, name string) (string, error) {
 // returns how many it installed, so the caller can refuse to call an archive
 // that produced nothing a success.
 func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *types.OSInfo) (int, error) {
-	file, err := os.Open(tarballPath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	file, err := os.Open(tarballPath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return 0, err
 	}
@@ -356,7 +356,7 @@ func extractFontTarball(tarballPath, destDir string, elevated bool, osInfo *type
 			}
 
 			// Write the font data to the temporary file
-			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755) // #nosec G302 -- TODO(PR8): create with target mode instead of chmod-after
+			tempFile, err = os.OpenFile(tempFile.Name(), os.O_WRONLY, 0755) // #nosec G302 -- TODO: create with target mode instead of chmod-after
 			if err != nil {
 				return extracted, err
 			}

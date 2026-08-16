@@ -125,7 +125,7 @@ func processDconf(blueprintDir string, config types.Configuration, initConfig *t
 
 	if config.RunOnce {
 		log.Debugf("RunOnce Set: Write Bootstrap File %s", bootstrapFile)
-		if err := os.WriteFile(bootstrapFile, []byte{}, 0644); err != nil { // #nosec G306 -- TODO(PR8): create with target mode instead of chmod-after
+		if err := os.WriteFile(bootstrapFile, []byte{}, 0644); err != nil { // #nosec G306 -- TODO: create with target mode instead of chmod-after
 			log.Warnf("Failed to create dconf bootstrap file: %v", err)
 		}
 	}

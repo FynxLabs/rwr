@@ -187,7 +187,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 					return fatal(err)
 				}
 
-				blueprintData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+				blueprintData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input
 				if err != nil {
 					return fatal(fmt.Errorf("error reading blueprint file %s: %w", blueprintFile, err))
 				}

@@ -87,7 +87,7 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 	}
 	defer sourceFile.Close() //nolint:errcheck
 
-	targetFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|noFollow, mode) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	targetFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|noFollow, mode) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return fmt.Errorf("error creating target file: %v", err)
 	}
@@ -297,7 +297,7 @@ func downloadFileContent(url, filePath string) error {
 	}
 
 	// Create the file
-	file, err := os.Create(filePath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	file, err := os.Create(filePath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}
@@ -577,7 +577,7 @@ func lineNames(line, match string) bool {
 func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error {
 	log.Debugf("Copying file from %s to %s (elevated: %v)", source, target, elevated)
 
-	sourceFile, err := os.Open(source) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	sourceFile, err := os.Open(source) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
@@ -625,7 +625,7 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 			return fmt.Errorf("error moving file with elevated privileges: %v", err)
 		}
 	} else {
-		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode()) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode()) // #nosec G304 -- path is operator-supplied blueprint/config input
 		if err != nil {
 			return fmt.Errorf("error creating target file: %v", err)
 		}
