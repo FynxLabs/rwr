@@ -104,9 +104,9 @@ Before running a command that is elevated, runs as another user, or may invoke
 `sudo -n -v`. The check SHALL NOT prompt for a password.
 
 The check SHALL use the active run context and a bounded timeout. Cancelling the
-run SHALL cancel an in-flight check immediately. RWR SHALL briefly cache both a
-warm and a cold result so a stalled policy backend cannot impose its full timeout
-once per package.
+run SHALL cancel an in-flight check immediately. RWR SHALL cache both a warm and
+a cold result for one minute so a stalled policy backend cannot impose its full
+timeout once per package.
 
 A cached cold result SHALL NOT be treated as warm. Every command that may invoke
 sudo while the result is cold SHALL receive the real terminal, so any password
