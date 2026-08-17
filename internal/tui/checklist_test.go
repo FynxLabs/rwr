@@ -137,12 +137,19 @@ func TestPrompting_SecretStaysInsideTUIAndIsMasked(t *testing.T) {
 	for _, r := range "s3cret" {
 		m.key(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
-	view := m.View().Content
+	rendered := m.View()
+	view := rendered.Content
 	if strings.Contains(view, "s3cret") {
 		t.Fatal("secret was rendered in the TUI")
 	}
 	if !strings.Contains(view, "••••••") {
 		t.Fatalf("masked input not rendered:\n%s", view)
+	}
+	if !strings.Contains(view, "ADMINISTRATOR AUTHENTICATION REQUIRED") {
+		t.Fatalf("password modal title not rendered:\n%s", view)
+	}
+	if rendered.Cursor == nil || rendered.Cursor.Shape != tea.CursorBar {
+		t.Fatalf("password dialog has no real bar cursor: %#v", rendered.Cursor)
 	}
 
 	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -158,23 +165,74 @@ func TestPrompting_SecretStaysInsideTUIAndIsMasked(t *testing.T) {
 	}
 }
 
+func TestPrompting_ReengagesLiveProcessorFollow(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		event reporting.Event
+	}{
+		{name: "secret", event: reporting.SecretReq{Prompt: "sudo password", Result: make(chan reporting.SecretResult, 1)}},
+		{name: "confirmation", event: reporting.ConfirmReq{Prompt: "overwrite?", Result: make(chan reporting.ConfirmResult, 1)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := &types.Plan{Order: []string{"packages", "users"}}
+			m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+			m.width, m.height = 100, 30
+			m.apply(reporting.ProcStarted{Processor: "packages"})
+			m.cursor, m.pinned, m.scrollOffset = 0, true, 12
+			m.apply(reporting.ProcFinished{Processor: "packages"})
+			m.apply(reporting.ProcStarted{Processor: "users"})
+			if m.cursor != 0 {
+				t.Fatal("test setup did not preserve the pinned packages viewport")
+			}
+
+			m.apply(tc.event)
+			if m.pinned || m.cursor != 1 || m.scrollOffset != 0 {
+				t.Fatalf("prompt did not resume live follow: pinned=%v cursor=%d scroll=%d", m.pinned, m.cursor, m.scrollOffset)
+			}
+		})
+	}
+}
+
 func TestPrompting_ConfirmationStaysInsideTUI(t *testing.T) {
 	plan := &types.Plan{Order: []string{"files"}}
 	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
 	m.width, m.height = 100, 30
 	result := make(chan reporting.ConfirmResult, 1)
-	m.apply(reporting.ConfirmReq{Prompt: "Overwrite existing file? /tmp/config", Result: result})
+	m.apply(reporting.ConfirmReq{Prompt: "Overwrite existing file? /tmp/config", AllowAll: true, Result: result})
 
-	if view := m.View().Content; !strings.Contains(view, "Overwrite existing file?") {
-		t.Fatalf("confirmation not rendered:\n%s", view)
+	if view := m.View().Content; !strings.Contains(view, "Overwrite existing file?") || !strings.Contains(view, "ACTION REQUIRED") || !strings.Contains(strings.ToLower(view), "overwrite all") {
+		t.Fatalf("confirmation modal not rendered with all option:\n%s", view)
 	}
-	m.key(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	m.key(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	answer := <-result
-	if answer.Err != nil || !answer.Yes {
-		t.Fatalf("confirmation result = (%v, %v)", answer.Yes, answer.Err)
+	if answer.Err != nil || !answer.Yes || !answer.All {
+		t.Fatalf("confirmation result = (yes=%v, all=%v, err=%v)", answer.Yes, answer.All, answer.Err)
 	}
 	if m.state != Running || m.confirm != nil {
 		t.Fatal("confirmation did not return the model to running")
+	}
+}
+
+func TestPrompting_ConfirmationButtonsDefaultSafeAndNavigate(t *testing.T) {
+	newDialog := func() (*Model, chan reporting.ConfirmResult) {
+		result := make(chan reporting.ConfirmResult, 1)
+		m := New(mustTheme("rwr"), &types.Plan{Order: []string{"files"}}, reporting.NewStore(10), false, "")
+		m.width, m.height = 100, 30
+		m.apply(reporting.ConfirmReq{Prompt: "Overwrite?", AllowAll: true, Result: result})
+		return m, result
+	}
+
+	m, result := newDialog()
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if answer := <-result; answer.Yes || answer.All || answer.Err != nil {
+		t.Fatalf("default button was not safe Skip: %+v", answer)
+	}
+
+	m, result = newDialog()
+	m.key(tea.KeyPressMsg{Code: tea.KeyRight}) // Skip wraps to Overwrite.
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if answer := <-result; !answer.Yes || answer.All || answer.Err != nil {
+		t.Fatalf("button navigation did not select Overwrite: %+v", answer)
 	}
 }
 

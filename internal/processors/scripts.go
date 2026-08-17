@@ -221,8 +221,11 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 		}
 	}
 
-	// Set the interactive flag using per-blueprint override or global default
-	scriptCmd.Interactive = helpers.ResolveInteractive(script.Interactive, initConfig.Variables.Flags.Interactive)
+	// A script owns the terminal only when its blueprint explicitly says it
+	// reads input. The run-level interactive flag controls RWR's own prompts;
+	// inheriting it here suspended the dashboard for every ordinary script and
+	// made a non-interactive hang look like the TUI had disappeared.
+	scriptCmd.Interactive = script.Interactive != nil && *script.Interactive
 
 	log.Debugf("Running script command: %+v", scriptCmd)
 

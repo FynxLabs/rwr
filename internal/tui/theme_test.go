@@ -47,7 +47,7 @@ func TestResolveThemeUserFile(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "themes"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	toml := "accent = \"#123456\"\n"
+	toml := "accent = \"#123456\"\nmodal = \"#654321\"\n"
 	if err := os.WriteFile(filepath.Join(dir, "themes", "mine.toml"), []byte(toml), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -55,8 +55,8 @@ func TestResolveThemeUserFile(t *testing.T) {
 	if unknown != "" {
 		t.Fatalf("unknown = %q for an existing user theme", unknown)
 	}
-	if theme.Name != "mine" || theme.Accent != "#123456" {
-		t.Fatalf("user theme not loaded: name %q accent %q", theme.Name, theme.Accent)
+	if theme.Name != "mine" || theme.Accent != "#123456" || theme.Modal != "#654321" {
+		t.Fatalf("user theme not loaded: name %q accent %q modal %q", theme.Name, theme.Accent, theme.Modal)
 	}
 	// Unset fields inherit the rwr defaults.
 	if theme.Success != rwrTheme.Success {

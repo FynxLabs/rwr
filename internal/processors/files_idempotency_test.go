@@ -365,7 +365,7 @@ func TestDryRunPath_MatchesWhereCreateWrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := createFile(file, dryRunPath); err != nil {
+	if err := createFile(file, dryRunPath, &types.OSInfo{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(dryRunPath); err != nil {

@@ -43,6 +43,19 @@ func TestBeginRunResetsCancellation(t *testing.T) {
 	}
 }
 
+func TestBeginRunResetsOverwriteAll(t *testing.T) {
+	overwriteAll.Store(true)
+	release := BeginRun()
+	if overwriteAll.Load() {
+		t.Fatal("BeginRun retained overwrite-all from an earlier run")
+	}
+	overwriteAll.Store(true)
+	release()
+	if overwriteAll.Load() {
+		t.Fatal("run cleanup retained overwrite-all")
+	}
+}
+
 // The point of the whole change: a command already running is killed when the
 // run is cancelled, and does not have to finish first.
 func TestCancelKillsAnInFlightCommand(t *testing.T) {

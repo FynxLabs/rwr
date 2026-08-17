@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"charm.land/log/v2"
@@ -26,6 +27,8 @@ import (
 // An existing target keeps its own mode instead (see targetMode): a rewrite must
 // never widen the permissions of a file that may hold credentials.
 const defaultFileMode os.FileMode = 0644
+
+var overwriteAll atomic.Bool
 
 // tempFileNextTo creates a staging file in the target's own directory.
 //
@@ -719,7 +722,7 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 				// holds the terminal lease: printing a multi-line diff and
 				// reading stdin over the dashboard tore the viewport and
 				// fought it for keystrokes.
-				if interactive {
+				if interactive && !overwriteAll.Load() {
 					writer := io.Writer(os.Stdout)
 					if captured := reporting.CommandOutputWriter(reporting.SrcStdout); captured != nil {
 						writer = captured
@@ -808,16 +811,24 @@ func LookupGID(group string) (int, error) {
 // run mid-flight.
 func promptOverwrite(path string) (bool, error) {
 	if reporting.SupportsInlinePrompts() {
-		return reporting.RequestConfirmation(fmt.Sprintf("Overwrite existing file? %s", path))
+		yes, all, err := reporting.RequestConfirmationAll(fmt.Sprintf("Overwrite existing file? %s", path))
+		if all {
+			overwriteAll.Store(true)
+		}
+		return yes, err
 	}
 	var input string
 	err := reporting.WithTerminal(func() error {
-		fmt.Print("Do you want to overwrite the file? (y/n): ")
+		fmt.Print("Do you want to overwrite the file? (y/n/a=all): ")
 		_, err := fmt.Scanln(&input)
 		return err
 	})
 	if err != nil {
 		return false, fmt.Errorf("reading overwrite confirmation (run with --interactive=false to skip prompts): %w", err)
 	}
-	return strings.EqualFold(input, "y") || strings.EqualFold(input, "yes"), nil
+	all := strings.EqualFold(input, "a") || strings.EqualFold(input, "all")
+	if all {
+		overwriteAll.Store(true)
+	}
+	return all || strings.EqualFold(input, "y") || strings.EqualFold(input, "yes"), nil
 }

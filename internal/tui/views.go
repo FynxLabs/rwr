@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"image"
 	"regexp"
 	"sort"
 	"strings"
@@ -9,6 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/fynxlabs/rwr/internal/display"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -20,7 +23,15 @@ func (m *Model) View() tea.View {
 	// Scan registers the zone marks the renderers injected and strips their
 	// escape sequences; all-motion mouse mode is what delivers hover events.
 	// m toggles capture off so terminal-native selection and copy work.
-	view := tea.NewView(m.zones.Scan(m.render()))
+	content := m.render()
+	var cursor *tea.Cursor
+	if m.state == Prompting && m.secret != nil {
+		content, cursor = m.viewSecretDialog(content)
+	} else if m.state == Prompting && m.confirm != nil {
+		content, cursor = m.viewConfirmDialog(content)
+	}
+	view := tea.NewView(m.zones.Scan(content))
+	view.Cursor = cursor
 	if m.mouseCapture {
 		view.MouseMode = tea.MouseModeAllMotion
 	} else {
@@ -85,17 +96,98 @@ func (m *Model) render() string {
 	if m.width == 0 {
 		m.width = 80
 	}
+	var view string
 	if m.compact {
-		return m.viewCompact()
+		view = m.viewCompact()
+	} else {
+		switch m.state {
+		case Resolving:
+			view = m.viewResolving()
+		case SummaryState:
+			view = m.viewSummary()
+		default:
+			view = m.viewRunning()
+		}
 	}
-	switch m.state {
-	case Resolving:
-		return m.viewResolving()
-	case SummaryState:
-		return m.viewSummary()
-	default:
-		return m.viewRunning()
+	return view
+}
+
+func (m *Model) viewSecretDialog(background string) (string, *tea.Cursor) {
+	contentWidth := m.promptContentWidth()
+	visibleSecret := min(len(m.secretValue), max(1, contentWidth-1))
+	body := style(m.theme.Modal).Bold(true).Render(display.Truncate("ADMINISTRATOR AUTHENTICATION REQUIRED", contentWidth)) + "\n\n" +
+		style(m.theme.Text).Bold(true).Render(display.Truncate(m.secret.Prompt, contentWidth)) + "\n" +
+		style(m.theme.Accent).Bold(true).Render(strings.Repeat("•", visibleSecret)+" ") + "\n\n" +
+		style(m.theme.Subtext).Render("Enter submit  ·  Esc cancel")
+	return m.viewPromptDialog(background, body, &tea.Position{X: visibleSecret, Y: 3})
+}
+
+func (m *Model) viewConfirmDialog(background string) (string, *tea.Cursor) {
+	buttons := []string{
+		m.promptButton("Overwrite", 0, 'Y'),
 	}
+	if m.confirm.AllowAll {
+		buttons = append(buttons, m.promptButton("Overwrite All", 1, 'A'))
+		buttons = append(buttons, m.promptButton("Skip", 2, 'N'))
+	} else {
+		buttons = append(buttons, m.promptButton("No", 1, 'N'))
+	}
+	body := style(m.theme.Modal).Bold(true).Render("ACTION REQUIRED") + "\n\n" +
+		style(m.theme.Text).Bold(true).Render(ansi.Wrap(m.confirm.Prompt, m.promptContentWidth(), "")) + "\n\n" +
+		lipgloss.JoinHorizontal(lipgloss.Top, buttons...) + "\n\n" +
+		style(m.theme.Subtext).Render("←/→ select  ·  Enter confirm  ·  Esc cancel")
+	return m.viewPromptDialog(background, body, nil)
+}
+
+func (m *Model) promptButton(label string, index int, shortcut rune) string {
+	buttonStyle := style(m.theme.Muted).Padding(0, 2)
+	if m.confirmSelected == index {
+		buttonStyle = style(m.theme.Accent).Bold(true).Reverse(true).Padding(0, 2)
+	}
+	return buttonStyle.Render(fmt.Sprintf("%c %s", shortcut, label))
+}
+
+func (m *Model) promptContentWidth() int {
+	return max(8, min(62, m.width-4)-6)
+}
+
+func (m *Model) viewPromptDialog(background, body string, cursorOffset *tea.Position) (string, *tea.Cursor) {
+	width, height := m.width, m.height
+	if height <= 0 {
+		height = 24
+	}
+	modalWidth := min(62, width-4)
+	if modalWidth < 28 {
+		modalWidth = max(12, width-2)
+	}
+
+	border := lipgloss.DoubleBorder()
+	if m.theme.Glyphs.Done == "+" {
+		border = lipgloss.ASCIIBorder()
+	}
+	modal := lipgloss.NewStyle().
+		Border(border).
+		BorderForeground(lipgloss.Color(m.theme.Modal)).
+		Padding(1, 2).
+		Width(modalWidth - 2).
+		Render(body)
+
+	// Remove the dashboard's individual color escapes before dimming it so
+	// nested style resets cannot brighten parts of the background again.
+	dimmed := style(m.theme.Dim).Faint(true).Render(ansi.Strip(background))
+	screen := uv.NewScreenBuffer(width, height)
+	uv.NewStyledString(dimmed).Draw(screen, screen.Bounds())
+	x := max(0, (width-lipgloss.Width(modal))/2)
+	y := max(0, (height-lipgloss.Height(modal))/2)
+	area := image.Rect(x, y, min(width, x+lipgloss.Width(modal)), min(height, y+lipgloss.Height(modal)))
+	uv.NewStyledString(modal).Draw(screen, area)
+	var cursor *tea.Cursor
+	if cursorOffset != nil {
+		cursor = tea.NewCursor(x+3+cursorOffset.X, y+2+cursorOffset.Y)
+		cursor.Shape = tea.CursorBar
+		cursor.Color = lipgloss.Color(m.theme.Accent)
+	}
+	return screen.Render(), cursor
 }
 
 func (m *Model) glyphFor(state ProcState) (string, lipgloss.Style) {
@@ -507,21 +599,36 @@ func normalizeMsg(msg string) string {
 // help bar; collapses to `? help` when space is short.
 func (m *Model) viewHelp(short bool) string {
 	if short {
-		return style(m.theme.Dim).Render(" ? help")
+		return " " + m.viewKeyHint("?", "help")
 	}
 	// Arrows are what the bar advertises; vim keys work but are not required.
 	arrows := "↑↓"
 	if m.theme.Glyphs.Done == "+" {
 		arrows = "arrows"
 	}
-	keys := " " + arrows + " move · g follow · d level · e errors · o output · / search · +/- size · z zoom · x collapse · m mouse · ? help · q quit"
+	hints := [][2]string{
+		{arrows, "move"}, {"g", "follow"}, {"d", "level"}, {"e", "errors"},
+		{"o", "output"}, {"/", "search"}, {"+/-", "size"}, {"z", "zoom"},
+		{"x", "collapse"}, {"m", "mouse"}, {"?", "help"}, {"q", "quit"},
+	}
 	if !m.expanded {
-		keys = " " + arrows + " move · g follow · d level · e errors · o output · / search · +/- size · z zoom · x expand · m mouse · ? help · q quit"
+		hints[8][1] = "expand"
 	}
 	if m.searching {
-		keys = " search: " + m.search + "▌"
+		search := " " + style(m.theme.Modal).Bold(true).Render("search") + style(m.theme.Dim).Render(": "+m.search) + style(m.theme.Accent).Render("▌")
+		return display.Truncate(search, m.width)
 	}
-	return style(m.theme.Dim).Render(display.Truncate(keys, m.width))
+	parts := make([]string, 0, len(hints))
+	for _, hint := range hints {
+		parts = append(parts, m.viewKeyHint(hint[0], hint[1]))
+	}
+	return display.Truncate(" "+strings.Join(parts, style(m.theme.Dim).Render(" · ")), m.width)
+}
+
+// viewKeyHint gives the persistent navigation chrome the same violet used by
+// dialogs. Cyan remains reserved for live activity, focus, and text entry.
+func (m *Model) viewKeyHint(key, label string) string {
+	return style(m.theme.Modal).Bold(true).Render(key) + style(m.theme.Dim).Render(" "+label)
 }
 
 func (m *Model) viewResolving() string {
@@ -600,16 +707,6 @@ func (m *Model) viewRunning() string {
 		b.WriteString(style(m.theme.Warning).Render(help))
 		return b.String()
 	}
-	if m.state == Prompting && m.secret != nil {
-		b.WriteString(style(m.theme.Warning).Render(" "+m.secret.Prompt+": "+strings.Repeat("•", len(m.secretValue))) + "\n")
-		b.WriteString(style(m.theme.Muted).Render(" enter submit · esc cancel"))
-		return b.String()
-	}
-	if m.state == Prompting && m.confirm != nil {
-		b.WriteString(style(m.theme.Warning).Render(" "+display.Truncate(m.confirm.Prompt, m.width)) + "\n")
-		b.WriteString(style(m.theme.Muted).Render(" y yes · n no · esc cancel"))
-		return b.String()
-	}
 	b.WriteString(m.viewHelp(m.height < 20))
 	return b.String()
 }
@@ -625,7 +722,7 @@ func (m *Model) viewSummary() string {
 	var tabLine []string
 	for i, tab := range tabs {
 		if i == m.summaryTab {
-			tabLine = append(tabLine, style(m.theme.Accent).Bold(true).Underline(true).Render(tab))
+			tabLine = append(tabLine, style(m.theme.Modal).Bold(true).Underline(true).Render(tab))
 		} else {
 			tabLine = append(tabLine, style(m.theme.Muted).Render(tab))
 		}

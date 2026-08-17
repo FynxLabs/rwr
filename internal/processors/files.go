@@ -237,7 +237,7 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 		return deleteFile(targetPath)
 	case "create":
 		log.Debugf("Creating file: %s", targetPath)
-		return createFile(file, targetPath)
+		return createFile(file, targetPath, osInfo)
 	case "chmod":
 		log.Debugf("Changing file permissions: %s", targetPath)
 		return chmodFile(file, targetPath)
@@ -289,12 +289,54 @@ func deleteFile(target string) error {
 	return nil
 }
 
-func createFile(file types.File, targetPath string) error {
+func createFile(file types.File, targetPath string, osInfo *types.OSInfo) error {
 	log.Debugf("Creating file: %s", targetPath)
 
 	mode := defaultFileMode
 	if file.Mode.IsSet() {
 		mode = file.Mode.OSMode()
+	}
+
+	// Never open an elevated destination from the unprivileged process. Render
+	// the content into a private staging file, then let CopyFile create the
+	// destination directory and install it through the normal elevated command
+	// path. This also avoids briefly exposing rendered secrets with a wider mode.
+	if file.Elevated {
+		staged, err := os.CreateTemp("", "rwr-create-")
+		if err != nil {
+			return fmt.Errorf("error creating temporary file: %v", err)
+		}
+		stagedPath := staged.Name()
+		defer os.Remove(stagedPath) //nolint:errcheck
+
+		if err := staged.Chmod(mode); err != nil {
+			if closeErr := staged.Close(); closeErr != nil {
+				log.Debugf("error closing temporary file after chmod failure: %v", closeErr)
+			}
+			return fmt.Errorf("error setting temporary file permissions: %v", err)
+		}
+		if _, err := staged.WriteString(file.Content); err != nil {
+			if closeErr := staged.Close(); closeErr != nil {
+				log.Debugf("error closing temporary file after write failure: %v", closeErr)
+			}
+			return fmt.Errorf("error writing content to temporary file: %v", err)
+		}
+		if err := staged.Close(); err != nil {
+			return fmt.Errorf("error closing temporary file: %v", err)
+		}
+
+		if err := system.CopyFile(stagedPath, targetPath, true, osInfo); err != nil {
+			return fmt.Errorf("error installing elevated file: %v", err)
+		}
+		// CopyFile already carried the staging mode onto the target. Apply only
+		// ownership here so we do not invoke sudo for the same chmod twice.
+		attributes := file
+		attributes.Mode = 0
+		if err := applyFileAttributes(targetPath, attributes); err != nil {
+			return fmt.Errorf("error applying file attributes: %v", err)
+		}
+		log.Infof("File created and content written: %s", targetPath)
+		return nil
 	}
 
 	dirMode := defaultDirMode
@@ -440,6 +482,31 @@ func ensureSymlink(source, target string) error {
 }
 
 func applyFileAttributes(targetPath string, file types.File) error {
+	if file.Elevated {
+		if file.Mode.IsSet() {
+			cmd := types.Command{
+				Exec:     "chmod",
+				Args:     []string{fmt.Sprintf("%o", file.Mode.OSMode()), targetPath},
+				Elevated: true,
+			}
+			if err := system.RunCommand(cmd, false); err != nil {
+				return fmt.Errorf("error changing file permissions: %v", err)
+			}
+		}
+
+		if file.Owner != "" || file.Group != "" {
+			ownerGroup := file.Owner
+			if file.Group != "" {
+				ownerGroup += ":" + file.Group
+			}
+			cmd := types.Command{Exec: "chown", Args: []string{ownerGroup, targetPath}, Elevated: true}
+			if err := system.RunCommand(cmd, false); err != nil {
+				return fmt.Errorf("error changing file owner/group: %v", err)
+			}
+		}
+		return nil
+	}
+
 	if file.Mode.IsSet() {
 		if err := os.Chmod(targetPath, file.Mode.OSMode()); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input; containment added in PR8
 			return fmt.Errorf("error changing file permissions: %v", err)

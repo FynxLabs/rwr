@@ -111,14 +111,16 @@ type SecretReq struct {
 
 type ConfirmResult struct {
 	Yes bool
+	All bool
 	Err error
 }
 
 // ConfirmReq asks a yes/no question inside the active display.
 type ConfirmReq struct {
-	Prompt string
-	Result chan ConfirmResult
-	Claim  *atomic.Bool
+	Prompt   string
+	AllowAll bool
+	Result   chan ConfirmResult
+	Claim    *atomic.Bool
 }
 
 // HaltDecision is the operator's answer to an interactive halt.
@@ -258,21 +260,32 @@ func RequestSecret(prompt string) ([]byte, error) {
 }
 
 func RequestConfirmation(prompt string) (bool, error) {
+	yes, _, err := requestConfirmation(prompt, false)
+	return yes, err
+}
+
+// RequestConfirmationAll adds an "all remaining" choice for repeated
+// confirmations such as file overwrites.
+func RequestConfirmationAll(prompt string) (yes, all bool, err error) {
+	return requestConfirmation(prompt, true)
+}
+
+func requestConfirmation(prompt string, allowAll bool) (yes, all bool, err error) {
 	if !SupportsInlinePrompts() {
-		return false, ErrPromptUnavailable
+		return false, false, ErrPromptUnavailable
 	}
 	result := make(chan ConfirmResult, 1)
 	claim := &atomic.Bool{}
-	Emit(ConfirmReq{Prompt: prompt, Result: result, Claim: claim})
+	Emit(ConfirmReq{Prompt: prompt, AllowAll: allowAll, Result: result, Claim: claim})
 	select {
 	case answer := <-result:
-		return answer.Yes, answer.Err
+		return answer.Yes, answer.All, answer.Err
 	case <-TerminalLost():
 		if claim.CompareAndSwap(false, true) {
-			return false, ErrPromptUnavailable
+			return false, false, ErrPromptUnavailable
 		}
 		answer := <-result
-		return answer.Yes, answer.Err
+		return answer.Yes, answer.All, answer.Err
 	}
 }
 

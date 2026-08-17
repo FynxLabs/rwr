@@ -31,6 +31,7 @@ var (
 // second run in the same process starts uncancelled.
 func BeginRun() (release func()) {
 	clearSudoPassword()
+	overwriteAll.Store(false)
 	cancelMu.Lock()
 	defer cancelMu.Unlock()
 
@@ -39,6 +40,7 @@ func BeginRun() (release func()) {
 
 	return func() {
 		clearSudoPassword()
+		overwriteAll.Store(false)
 		cancelMu.Lock()
 		defer cancelMu.Unlock()
 		cancel()

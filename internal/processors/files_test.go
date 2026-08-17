@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fynxlabs/rwr/internal/exectest"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -970,6 +972,51 @@ func TestProcessFile_MetadataActionsNeedNoContentOrSource(t *testing.T) {
 			t.Fatal("processFile(copy without source) succeeded, want an error")
 		}
 	})
+}
+
+func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	target := "/etc/sudoers.d/kanata"
+	err := processFile(types.File{
+		Name:     "kanata.sudoers",
+		Action:   "create",
+		Content:  "levi ALL=(ALL) NOPASSWD: /usr/local/bin/kanata\n",
+		Target:   target,
+		Elevated: true,
+		Mode:     types.FileMode(0o440),
+		Owner:    "root",
+		Group:    "wheel",
+	}, t.TempDir(), &types.OSInfo{})
+	if err != nil {
+		t.Fatalf("processFile(elevated create): %v", err)
+	}
+
+	if len(rec.Calls) != 4 {
+		t.Fatalf("calls = %d, want 4: %v", len(rec.Calls), rec.Calls)
+	}
+	wants := []struct {
+		exec string
+		args []string
+	}{
+		{"mkdir", []string{"-p", "--", "/etc/sudoers.d"}},
+		{"mv", nil},
+		{"chmod", []string{"440", target}},
+		{"chown", []string{"root:wheel", target}},
+	}
+	for i, want := range wants {
+		call := rec.Calls[i]
+		if call.Exec != want.exec || !call.Elevated {
+			t.Errorf("call %d = %v, want elevated %s", i, call, want.exec)
+		}
+		if want.args != nil && strings.Join(call.Args, "\x00") != strings.Join(want.args, "\x00") {
+			t.Errorf("call %d args = %q, want %q", i, call.Args, want.args)
+		}
+	}
+	if got := rec.Calls[1].Args; len(got) != 3 || got[0] != "--" || got[2] != target || got[1] == target {
+		t.Errorf("mv args = %q, want staged source and target %q", got, target)
+	}
 }
 
 // A files entry with a URL source and a sha256 is verified before install; a

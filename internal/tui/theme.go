@@ -41,9 +41,9 @@ var asciiGlyphs = Glyphs{
 type Theme struct {
 	Name string
 
-	Text, Subtext, Muted, Dim              string
-	Accent, Success, Danger, Warning, Info string
-	Stdout, Stderr                         string
+	Text, Subtext, Muted, Dim                     string
+	Accent, Modal, Success, Danger, Warning, Info string
+	Stdout, Stderr                                string
 
 	Glyphs Glyphs
 }
@@ -52,7 +52,7 @@ type Theme struct {
 var rwrTheme = Theme{
 	Name: "rwr",
 	Text: "#FFFFFF", Subtext: "#D0D0D0", Muted: "#8A8A8A", Dim: "#585858",
-	Accent: "#00ADD8", Success: "#00A29C", Danger: "#CE3262", Warning: "#FDDD00", Info: "#5DC9E2",
+	Accent: "#00ADD8", Modal: "#789DFF", Success: "#00A29C", Danger: "#CE3262", Warning: "#FDDD00", Info: "#5DC9E2",
 	Stdout: "#B2B2B2", Stderr: "#D78787",
 	Glyphs: unicodeGlyphs,
 }
@@ -63,7 +63,7 @@ func catppuccinTheme(name string, flavour catppuccin.Flavor) Theme {
 		Name: name,
 		Text: flavour.Text().Hex, Subtext: flavour.Subtext1().Hex,
 		Muted: flavour.Overlay1().Hex, Dim: flavour.Surface2().Hex,
-		Accent: flavour.Blue().Hex, Success: flavour.Green().Hex,
+		Accent: flavour.Blue().Hex, Modal: flavour.Mauve().Hex, Success: flavour.Green().Hex,
 		Danger: flavour.Red().Hex, Warning: flavour.Yellow().Hex, Info: flavour.Sky().Hex,
 		Stdout: flavour.Subtext0().Hex, Stderr: flavour.Maroon().Hex,
 		Glyphs: unicodeGlyphs,
@@ -82,32 +82,32 @@ func builtinThemes() map[string]Theme {
 		"mocha":     catppuccinTheme("mocha", catppuccin.Mocha),
 		"nord": {
 			Name: "nord", Text: "#ECEFF4", Subtext: "#E5E9F0", Muted: "#7B88A1", Dim: "#4C566A",
-			Accent: "#88C0D0", Success: "#A3BE8C", Danger: "#BF616A", Warning: "#EBCB8B", Info: "#81A1C1",
+			Accent: "#88C0D0", Modal: "#B48EAD", Success: "#A3BE8C", Danger: "#BF616A", Warning: "#EBCB8B", Info: "#81A1C1",
 			Stdout: "#D8DEE9", Stderr: "#D08770", Glyphs: unicodeGlyphs,
 		},
 		"gruvbox": {
 			Name: "gruvbox", Text: "#EBDBB2", Subtext: "#D5C4A1", Muted: "#928374", Dim: "#665C54",
-			Accent: "#83A598", Success: "#B8BB26", Danger: "#FB4934", Warning: "#FABD2F", Info: "#8EC07C",
+			Accent: "#83A598", Modal: "#D3869B", Success: "#B8BB26", Danger: "#FB4934", Warning: "#FABD2F", Info: "#8EC07C",
 			Stdout: "#BDAE93", Stderr: "#FE8019", Glyphs: unicodeGlyphs,
 		},
 		"dracula": {
 			Name: "dracula", Text: "#F8F8F2", Subtext: "#E6E6E6", Muted: "#6272A4", Dim: "#44475A",
-			Accent: "#BD93F9", Success: "#50FA7B", Danger: "#FF5555", Warning: "#F1FA8C", Info: "#8BE9FD",
+			Accent: "#BD93F9", Modal: "#FF79C6", Success: "#50FA7B", Danger: "#FF5555", Warning: "#F1FA8C", Info: "#8BE9FD",
 			Stdout: "#CFCFC2", Stderr: "#FFB86C", Glyphs: unicodeGlyphs,
 		},
 		"tokyonight": {
 			Name: "tokyonight", Text: "#C0CAF5", Subtext: "#A9B1D6", Muted: "#565F89", Dim: "#3B4261",
-			Accent: "#7AA2F7", Success: "#9ECE6A", Danger: "#F7768E", Warning: "#E0AF68", Info: "#7DCFFF",
+			Accent: "#7AA2F7", Modal: "#BB9AF7", Success: "#9ECE6A", Danger: "#F7768E", Warning: "#E0AF68", Info: "#7DCFFF",
 			Stdout: "#A9B1D6", Stderr: "#FF9E64", Glyphs: unicodeGlyphs,
 		},
 		"rose-pine": {
 			Name: "rose-pine", Text: "#E0DEF4", Subtext: "#908CAA", Muted: "#6E6A86", Dim: "#403D52",
-			Accent: "#C4A7E7", Success: "#31748F", Danger: "#EB6F92", Warning: "#F6C177", Info: "#9CCFD8",
+			Accent: "#C4A7E7", Modal: "#EBBCBA", Success: "#31748F", Danger: "#EB6F92", Warning: "#F6C177", Info: "#9CCFD8",
 			Stdout: "#908CAA", Stderr: "#EBBCBA", Glyphs: unicodeGlyphs,
 		},
 		"solarized": {
 			Name: "solarized", Text: "#EEE8D5", Subtext: "#93A1A1", Muted: "#657B83", Dim: "#586E75",
-			Accent: "#268BD2", Success: "#859900", Danger: "#DC322F", Warning: "#B58900", Info: "#2AA198",
+			Accent: "#268BD2", Modal: "#6C71C4", Success: "#859900", Danger: "#DC322F", Warning: "#B58900", Info: "#2AA198",
 			Stdout: "#93A1A1", Stderr: "#CB4B16", Glyphs: unicodeGlyphs,
 		},
 	}

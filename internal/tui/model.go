@@ -153,10 +153,11 @@ type Model struct {
 	lastLogLines int  // log capacity of the last rendered panel
 
 	// halt is the pending interactive-halt request while state == Prompting.
-	halt        *reporting.HaltReq
-	secret      *reporting.SecretReq
-	secretValue []rune
-	confirm     *reporting.ConfirmReq
+	halt            *reporting.HaltReq
+	secret          *reporting.SecretReq
+	secretValue     []rune
+	confirm         *reporting.ConfirmReq
+	confirmSelected int
 	// resumedAt is when the terminal last came back from a child process or
 	// a prompt entered Prompting; plain keys within the grace window after
 	// it are typeahead, not commands.
@@ -394,11 +395,22 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 		m.state = Prompting
 		m.secret = &ev
 		m.secretValue = nil
+		m.pinned = false
+		m.cursor = m.live
+		m.scrollOffset = 0
 		m.resumedAt = time.Time{}
 		return nil
 	case reporting.ConfirmReq:
 		m.state = Prompting
 		m.confirm = &ev
+		if ev.AllowAll {
+			m.confirmSelected = 2 // Skip is the safe default.
+		} else {
+			m.confirmSelected = 1
+		}
+		m.pinned = false
+		m.cursor = m.live
+		m.scrollOffset = 0
 		m.resumedAt = time.Time{}
 		return nil
 	case reporting.RunFinished:
@@ -529,27 +541,41 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.MouseClickMsg:
+		if m.state == Prompting {
+			return m, nil // the front dialog owns input; never click through it
+		}
 		// A click on a strip cell or a processor row selects that processor's
-		// block; any click pins. Zones map rendered cells back to processors,
-		// so selection survives layout changes.
-		m.pinned = true
+		// block. Clicks elsewhere must not silently freeze the live viewport.
+		// Zones map rendered cells back to processors, so selection survives
+		// layout changes.
 		if i := m.procAt(msg); i >= 0 {
 			m.cursor = i
+			m.pinned = true
 		}
 		return m, nil
 	case tea.MouseMotionMsg:
+		if m.state == Prompting {
+			return m, nil
+		}
 		m.hovered = m.procAt(msg)
 		return m, nil
 	case tea.MouseWheelMsg:
+		if m.state == Prompting {
+			return m, nil
+		}
 		// Wheel scrolls the log viewport, 3 lines per tick; scrolling up
 		// disengages follow, scrolling back to the bottom re-engages it.
-		m.pinned = true
 		if msg.Button == tea.MouseWheelUp {
+			m.pinned = true
 			m.scrollOffset += 3
 		} else {
 			m.scrollOffset -= 3
 			if m.scrollOffset < 0 {
 				m.scrollOffset = 0
+			}
+			if m.scrollOffset == 0 {
+				m.pinned = false
+				m.cursor = m.live
 			}
 		}
 		return m, nil
@@ -593,20 +619,44 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.state == Prompting && m.confirm != nil {
-		finish := func(yes bool, err error) {
+		finish := func(yes, all bool, err error) {
 			if reporting.TryClaim(m.confirm.Claim) {
-				m.confirm.Result <- reporting.ConfirmResult{Yes: yes, Err: err}
+				m.confirm.Result <- reporting.ConfirmResult{Yes: yes, All: all, Err: err}
 			}
 			m.confirm = nil
 			m.state = Running
 		}
 		switch msg.String() {
-		case "y", "Y", "enter":
-			finish(true, nil)
+		case "left", "h", "shift+tab":
+			m.confirmSelected--
+			if m.confirmSelected < 0 {
+				m.confirmSelected = m.confirmOptionCount() - 1
+			}
+		case "right", "l", "tab":
+			m.confirmSelected = (m.confirmSelected + 1) % m.confirmOptionCount()
+		case "enter":
+			switch m.confirmSelected {
+			case 0:
+				finish(true, false, nil)
+			case 1:
+				if m.confirm.AllowAll {
+					finish(true, true, nil)
+				} else {
+					finish(false, false, nil)
+				}
+			default:
+				finish(false, false, nil)
+			}
+		case "y", "Y":
+			finish(true, false, nil)
+		case "a", "A":
+			if m.confirm.AllowAll {
+				finish(true, true, nil)
+			}
 		case "n", "N":
-			finish(false, nil)
+			finish(false, false, nil)
 		case "esc", "ctrl+c":
-			finish(false, reporting.ErrPromptCancelled)
+			finish(false, false, reporting.ErrPromptCancelled)
 		}
 		return m, nil
 	}
@@ -795,6 +845,13 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func (m *Model) confirmOptionCount() int {
+	if m.confirm != nil && m.confirm.AllowAll {
+		return 3
+	}
+	return 2
 }
 
 func toggle(current, value string) string {
