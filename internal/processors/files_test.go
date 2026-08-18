@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -998,6 +999,10 @@ func TestProcessFile_MetadataActionsNeedNoContentOrSource(t *testing.T) {
 }
 
 func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("Unix ownership and permission commands")
+	}
+
 	rec := &stagingModeRecorder{Recorder: exectest.New()}
 	defer system.SetExecutor(rec)()
 	stagingDir := t.TempDir()
