@@ -95,7 +95,8 @@ leaves the run blocked with no indication of what it waits for.
 #### Scenario: A command that prompts for a password
 
 - **WHEN** an interactive elevated command runs and `sudo` requires a password
-- **THEN** the prompt appears on the terminal and the operator can answer it
+- **THEN** RWR completes masked sudo validation before launching that command
+- **AND** the command receives the terminal only for its own interaction
 
 ### Requirement: Sudo readiness checks never prompt or delay cancellation
 
@@ -108,22 +109,44 @@ run SHALL cancel an in-flight check immediately. RWR SHALL cache both a warm and
 a cold result for one minute so a stalled policy backend cannot impose its full
 timeout once per package.
 
-A cached cold result SHALL NOT be treated as warm. Every command that may invoke
-sudo while the result is cold SHALL receive the real terminal, so any password
-prompt made by the command itself remains visible and answerable.
+A cached cold result SHALL NOT be treated as warm. Before a command that may
+invoke sudo, RWR SHALL collect a password through a masked prompt inside an
+active TUI. When no TUI is active, RWR SHALL use the masked terminal fallback.
+It SHALL validate the password with `sudo -S -v`. The password SHALL NOT appear
+in argv, logs, or terminal output and SHALL be cleared from its temporary byte
+buffers after use. The actual command SHALL remain captured by the TUI after
+validation; collecting the password SHALL NOT suspend or replace the dashboard.
+
+A provider-wide escalation declaration SHALL be narrowed when the operation can
+be classified: Homebrew formulae remain captured without sudo validation, while
+casks retain the secure validation step.
 
 #### Scenario: Sudo credentials are not cached
 
 - **WHEN** `sudo -n -v` reports that credentials are not cached
-- **THEN** RWR does not ask for a password itself
-- **AND** each potentially escalating command receives the real terminal
+- **THEN** RWR asks once through the TUI's masked prompt, or the masked terminal fallback when headless
+- **AND** validates the supplied password without placing it in argv
+- **AND** runs the actual command captured by the TUI
+
+#### Scenario: A Homebrew formula with a cold sudo cache
+
+- **WHEN** Homebrew metadata classifies a package operation as a formula
+- **THEN** the command remains captured by the TUI
+- **AND** the dashboard is not suspended for that package
 
 #### Scenario: The sudo policy backend stalls
 
 - **WHEN** the non-interactive sudo check reaches its timeout
 - **THEN** the result is cached briefly as cold
 - **AND** adjacent package commands do not each repeat the stalled check
-- **AND** those commands still receive the real terminal
+- **AND** the secure validation prompt is used before the next command that may
+  invoke sudo
+
+#### Scenario: No terminal is available
+
+- **WHEN** sudo credentials are cold and stdin is not a terminal
+- **THEN** RWR does not attempt to read a password
+- **AND** the command proceeds so command-scoped `NOPASSWD` policies still work
 
 #### Scenario: The operator cancels during the sudo check
 

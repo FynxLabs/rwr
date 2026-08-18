@@ -3,7 +3,9 @@ package system
 import (
 	"context"
 	"errors"
+	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -76,6 +78,91 @@ func TestSudoProbeIsNonInteractive(t *testing.T) {
 	}
 }
 
+func TestSudoValidationKeepsPasswordOutOfArgv(t *testing.T) {
+	t.Parallel()
+
+	password := []byte("correct horse battery staple\n")
+	command := sudoValidationCommand(context.Background(), password)
+	if want := []string{"sudo", "-S", "-p", "", "-v"}; !slices.Equal(command.Args, want) {
+		t.Fatalf("validation argv = %q, want %q", command.Args, want)
+	}
+	for _, arg := range command.Args {
+		if strings.Contains(arg, "correct horse") {
+			t.Fatal("password appeared in sudo argv")
+		}
+	}
+}
+
+func TestSudoValidationCapturesStderrWhenDashboardOwnsTerminal(t *testing.T) {
+	store := reporting.NewStore(10)
+	reporting.SetCommandSink(store)
+	t.Cleanup(func() { reporting.SetCommandSink(nil) })
+
+	command := sudoValidationCommand(context.Background(), []byte("secret\n"))
+	if command.Stderr == os.Stderr {
+		t.Fatal("sudo validation stderr bypassed the dashboard command sink")
+	}
+}
+
+func TestCancelledPasswordPromptMapsToRunCancellation(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		run  func() error
+	}{
+		{name: "streaming", run: func() error { return runCommand(types.Command{Exec: "true", Elevated: true}, false) }},
+		{name: "captured", run: func() error {
+			_, err := runCommandOutput(types.Command{Exec: "true", Elevated: true}, false)
+			return err
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			release := BeginRun()
+			defer release()
+			defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
+			defer SetSudoPasswordForTest(func() ([]byte, error) {
+				Cancel()
+				return nil, reporting.ErrPromptCancelled
+			})()
+			resetSudoThrottleForTest()
+			defer resetSudoThrottleForTest()
+
+			if err := tc.run(); !errors.Is(err, ErrCancelled) {
+				t.Fatalf("error = %v, want ErrCancelled", err)
+			}
+		})
+	}
+}
+
+func TestAuthenticatedCommandRunsTheTargetInThePasswordReceivingSudo(t *testing.T) {
+	t.Parallel()
+
+	command := buildAuthenticatedCommand(types.Command{
+		Exec:     "dscl",
+		Args:     []string{".", "-create", "/Users/levi", "UserShell", "/opt/homebrew/bin/fish"},
+		Elevated: true,
+	})
+	want := []string{"sudo", "-S", "-p", "", "--", "dscl", ".", "-create", "/Users/levi", "UserShell", "/opt/homebrew/bin/fish"}
+	if !slices.Equal(command.Args, want) {
+		t.Fatalf("authenticated argv = %q, want %q", command.Args, want)
+	}
+}
+
+func TestPasswordInputKeepsSecretOutOfArgvAndPreservesCommandInput(t *testing.T) {
+	t.Parallel()
+
+	password := []byte("correct horse battery staple")
+	input := passwordInput(password, "target input\n")
+	if got, want := string(input), "correct horse battery staple\ntarget input\n"; got != want {
+		t.Fatalf("stdin = %q, want %q", got, want)
+	}
+	command := buildAuthenticatedCommand(types.Command{Exec: "chpasswd", Elevated: true})
+	for _, arg := range command.Args {
+		if strings.Contains(arg, "correct horse") {
+			t.Fatal("password appeared in sudo argv")
+		}
+	}
+}
+
 // A cold cache is reported as cold, and does not prompt on the way there.
 func TestSudoCredentialsCachedWhenTheProbeFails(t *testing.T) {
 	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("a password is required") })()
@@ -141,10 +228,10 @@ func TestSudoProbeIsThrottledWhileCold(t *testing.T) {
 	}
 }
 
-// Throttling a cold probe must only spare the probe process. It must not route
-// later commands back through captured execution, where a password prompt made
-// by the command would disappear behind the dashboard.
-func TestThrottledColdProbeStillHandsEveryCommandTheTerminal(t *testing.T) {
+// A cold probe authenticates once through the controlled password path. The
+// actual commands remain captured, so raw package and user-management output
+// cannot collide with the dashboard.
+func TestColdProbeAuthenticatesOnceAndKeepsCommandsCaptured(t *testing.T) {
 	if runtime.GOOS == types.OSWindows {
 		t.Skip("no sudo on windows")
 	}
@@ -152,6 +239,12 @@ func TestThrottledColdProbeStillHandsEveryCommandTheTerminal(t *testing.T) {
 	defer SetSudoProbeForTest(func(context.Context) error {
 		return errors.New("a password is required")
 	})()
+	var authentications int
+	defer SetSudoPasswordForTest(func() ([]byte, error) {
+		authentications++
+		return []byte("test password"), nil
+	})()
+	defer SetSudoValidateForTest(func(context.Context, []byte) error { return nil })()
 	resetSudoThrottleForTest()
 	defer resetSudoThrottleForTest()
 
@@ -169,8 +262,101 @@ func TestThrottledColdProbeStillHandsEveryCommandTheTerminal(t *testing.T) {
 			handovers++
 		}
 	}
-	if handovers != 2 {
-		t.Errorf("terminal handovers = %d, want one for each cold command", handovers)
+	if authentications != 1 {
+		t.Errorf("authentications = %d, want one", authentications)
+	}
+	if handovers != 0 {
+		t.Errorf("command terminal handovers = %d, want none", handovers)
+	}
+}
+
+func TestPromptedPasswordIsReusedBySeparateManagedSudo(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("no sudo on windows")
+	}
+
+	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
+	var prompts int
+	var validations int
+	defer SetSudoPasswordForTest(func() ([]byte, error) {
+		prompts++
+		return []byte("test password"), nil
+	})()
+	defer SetSudoValidateForTest(func(context.Context, []byte) error {
+		validations++
+		return nil
+	})()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	if err := ensureSudoCredentials(); err != nil {
+		t.Fatalf("warming for self-escalating command: %v", err)
+	}
+	for range 2 {
+		command, input, err := commandForRun(types.Command{Exec: "dscl", Elevated: true})
+		if err != nil {
+			t.Fatalf("commandForRun: %v", err)
+		}
+		if !slices.Equal(command.Args, []string{"sudo", "-S", "-p", "", "--", "dscl"}) {
+			t.Fatalf("managed command argv = %q, want password-bound sudo", command.Args)
+		}
+		zeroBytes(input)
+	}
+	if prompts != 1 {
+		t.Fatalf("password prompts = %d, want the run-scoped password reused", prompts)
+	}
+	if validations != 1 {
+		t.Fatalf("password validations = %d, want one", validations)
+	}
+}
+
+func TestRunLifecycleErasesCachedSudoPassword(t *testing.T) {
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	cacheSudoPassword([]byte("temporary secret"))
+	release := BeginRun()
+	if password := cachedSudoPassword(); len(password) != 0 {
+		zeroBytes(password)
+		t.Fatal("BeginRun retained a password from an earlier run")
+	}
+
+	cacheSudoPassword([]byte("current run secret"))
+	release()
+	if password := cachedSudoPassword(); len(password) != 0 {
+		zeroBytes(password)
+		t.Fatal("run release retained the current run password")
+	}
+}
+
+func TestSudoAuthenticationFailureStopsTheCommand(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("no sudo on windows")
+	}
+
+	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
+	defer SetSudoPasswordForTest(func() ([]byte, error) { return nil, errors.New("denied") })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	err := RunCommand(types.Command{Exec: "true", Elevated: true}, false)
+	if !errors.Is(err, ErrSudoAuthentication) {
+		t.Fatalf("RunCommand error = %v, want ErrSudoAuthentication", err)
+	}
+}
+
+func TestNoTerminalLeavesCommandScopedNopasswdPathAvailable(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("no sudo on windows")
+	}
+
+	defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
+	defer SetSudoPasswordForTest(func() ([]byte, error) { return nil, errNoSudoTerminal })()
+	resetSudoThrottleForTest()
+	defer resetSudoThrottleForTest()
+
+	if err := runCommand(types.Command{Exec: "true", Escalates: true}, false); err != nil {
+		t.Fatalf("headless command was rejected before its own policy could run: %v", err)
 	}
 }
 

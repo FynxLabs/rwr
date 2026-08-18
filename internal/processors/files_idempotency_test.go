@@ -357,6 +357,8 @@ func TestTargetPath_TrailingSeparatorMeansDirectory(t *testing.T) {
 }
 
 func TestDryRunPath_MatchesWhereCreateWrites(t *testing.T) {
+	t.Parallel()
+
 	root := t.TempDir()
 	blueprintDir := filepath.Join(root, "blueprints")
 	file := types.File{Name: "app.conf", Action: "create", Content: "x", Target: filepath.Join(root, "etc") + "/"}
@@ -365,7 +367,7 @@ func TestDryRunPath_MatchesWhereCreateWrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := createFile(file, dryRunPath); err != nil {
+	if err := createFile(file, dryRunPath, &types.OSInfo{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(dryRunPath); err != nil {

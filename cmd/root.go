@@ -106,7 +106,7 @@ git checkouts, scripts, and desktop configuration.`,
 
 			checkForNewVersion(app)
 
-			return initializeSystemInfo(app, selectedProcessorsFor(cmd, args)...)
+			return initializeSystemInfo(app, !runHandlesBlueprintSync(cmd, args), selectedProcessorsFor(cmd, args)...)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Processor names work straight off the root, task-runner style:
@@ -231,7 +231,7 @@ func registerRootFlags(rootCmd *cobra.Command, app *AppConfig) {
 // It searches for init files in the configured location or current directory,
 // sets up system paths, processes the initialization configuration, retrieves
 // blueprints from Git if configured, and detects the operating system.
-func initializeSystemInfo(app *AppConfig, selectedProcessors ...string) error {
+func initializeSystemInfo(app *AppConfig, syncBlueprints bool, selectedProcessors ...string) error {
 	var err error
 
 	// If no init file is specified via flag, check config
@@ -285,10 +285,12 @@ func initializeSystemInfo(app *AppConfig, selectedProcessors ...string) error {
 		return fmt.Errorf("error initializing system information: %w", err)
 	}
 
-	log.Debugf("Checking for blueprints git configuration")
-	app.InitFilePath, err = processors.GetBlueprints(app.InitConfig)
-	if err != nil {
-		return fmt.Errorf("error running GetBlueprints: %w", err)
+	if syncBlueprints {
+		log.Debugf("Checking for blueprints git configuration")
+		app.InitFilePath, err = processors.GetBlueprints(app.InitConfig)
+		if err != nil {
+			return fmt.Errorf("error running GetBlueprints: %w", err)
+		}
 	}
 
 	app.OSInfo = system.DetectOS()
@@ -300,6 +302,22 @@ func initializeSystemInfo(app *AppConfig, selectedProcessors ...string) error {
 	// login shell on an Apple Silicon machine and broke every new terminal.
 	app.InitConfig.Variables.System = app.OSInfo.System
 	return nil
+}
+
+// runHandlesBlueprintSync keeps clone/pull/update work inside the dashboard
+// lifecycle. Running it in PersistentPreRunE printed directly to the terminal
+// and could fail before the TUI existed, leaving no summary. Commands that do
+// not execute All still need initialization to synchronize here.
+func runHandlesBlueprintSync(cmd *cobra.Command, args []string) bool {
+	name := cmd.Name()
+	if cmd.Parent() == nil && len(args) > 0 {
+		name = args[0]
+	}
+	if name == "all" {
+		return true
+	}
+	p, ok := processorShorthand(name)
+	return ok && !p.bootstrap
 }
 
 // configuredInitFile resolves where the init file comes from: the --init-file

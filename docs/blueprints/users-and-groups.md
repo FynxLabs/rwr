@@ -47,6 +47,14 @@ groups:
 See [Fields Common to Every Blueprint](common-fields.md) for `profiles`,
 `import`, `interactive`, and the rule that an unknown key is an error.
 
+Ordinary user-management commands such as macOS `dscl` do not take over the
+terminal merely because the run uses the interactive TUI. RWR performs any
+required sudo authentication through a masked prompt inside the dashboard,
+falling back to its masked terminal prompt in headless runs, and keeps command
+output inside the dashboard. Set an entry's own `interactive: true`
+only when the underlying account-management command genuinely needs direct
+terminal interaction.
+
 ## Actions
 
 `create`, `modify` and `remove` for both users and groups. `delete` is an

@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -92,6 +93,13 @@ func processGitRepositories(gitRepos []types.Git, initConfig *types.InitConfig) 
 			// Pull latest changes
 			err = helpers.HandleGitPull(gitOpts, initConfig)
 			if err != nil {
+				var divergence *helpers.GitDivergenceError
+				if errors.As(err, &divergence) {
+					message := "local and remote history diverged; skipped update to preserve local work"
+					log.Infof("Git repository %s at %s was not updated: %s", repo.Name, gitOpts.Target, message)
+					track.itemIdentity("", repo.Name, repo.Action, types.StatusSkipped, message, time.Since(started), map[string]string{"target": gitOpts.Target})
+					continue
+				}
 				recordFailure("git", repo.Name, fmt.Errorf("pulling latest changes: %w", err))
 				track.item("", repo.Name, repo.Action, types.StatusFailed, err.Error(), time.Since(started))
 				continue

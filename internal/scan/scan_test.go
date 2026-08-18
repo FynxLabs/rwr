@@ -139,11 +139,17 @@ func TestGitCheckouts(t *testing.T) {
 	if err := os.MkdirAll(repo, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	gitEnv := append(os.Environ(), "GIT_DIR="+filepath.Join(repo, ".git"), "GIT_WORK_TREE="+repo)
 	for _, args := range [][]string{{"init", "-q"}, {"remote", "add", "origin", "https://example.com/org/repo.git"}} {
-		if out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput(); err != nil {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repo
+		cmd.Env = gitEnv
+		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v %s", args, err, out)
 		}
 	}
+	t.Setenv("GIT_DIR", filepath.Join(t.TempDir(), "wrong.git"))
+	t.Setenv("GIT_WORK_TREE", t.TempDir())
 	checkouts := GitCheckouts([]string{root})
 	if len(checkouts) != 1 || checkouts[0].URL != "https://example.com/org/repo.git" {
 		t.Fatalf("checkouts = %+v", checkouts)

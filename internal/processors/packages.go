@@ -1,8 +1,10 @@
 package processors
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -13,6 +15,85 @@ import (
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
+
+func packageCommandEscalates(provider *types.Provider, args []string, name string, cache map[string]bool) bool {
+	if !provider.Escalates {
+		return false
+	}
+	if filepath.Base(provider.BinPath) != "brew" {
+		return true
+	}
+	for _, arg := range args {
+		switch arg {
+		case "--cask":
+			return true
+		case "--formula":
+			return false
+		}
+	}
+	if escalates, ok := cache[name]; ok {
+		return escalates
+	}
+	// Unknown entries stay conservative. ProcessPackages primes this cache in
+	// one brew invocation before installs begin; do not put Ruby startup in the
+	// per-package loop again when metadata omits a name or the probe fails.
+	return true
+}
+
+func seedBrewEscalationCache(provider *types.Provider, names []string, cache map[string]bool) {
+	probeNames := make([]string, 0, len(names))
+	for _, name := range names {
+		if !strings.HasPrefix(name, "-") {
+			probeNames = append(probeNames, name)
+		}
+	}
+	if len(probeNames) == 0 {
+		return
+	}
+	args := append([]string{"info", "--json=v2"}, probeNames...)
+	output, err := system.RunCommandOutput(types.Command{Exec: provider.BinPath, Args: args, Variables: provider.Environment}, false)
+	if err != nil {
+		return
+	}
+	var metadata struct {
+		Formulae []struct {
+			Name string `json:"name"`
+		} `json:"formulae"`
+		Casks []struct {
+			Token string `json:"token"`
+		} `json:"casks"`
+	}
+	if err := json.Unmarshal([]byte(output), &metadata); err != nil {
+		return
+	}
+	for _, formula := range metadata.Formulae {
+		if formula.Name != "" {
+			cache[formula.Name] = false
+		}
+	}
+	for _, cask := range metadata.Casks {
+		if cask.Token != "" {
+			cache[cask.Token] = true
+		}
+	}
+}
+
+func brewMetadataEscalates(data []byte) (escalates, known bool) {
+	var metadata struct {
+		Formulae []json.RawMessage `json:"formulae"`
+		Casks    []json.RawMessage `json:"casks"`
+	}
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return false, false
+	}
+	if len(metadata.Casks) > 0 && len(metadata.Formulae) == 0 {
+		return true, true
+	}
+	if len(metadata.Formulae) > 0 && len(metadata.Casks) == 0 {
+		return false, true
+	}
+	return false, false
+}
 
 // ProcessPackages installs or removes packages based on blueprint definitions.
 // It supports two modes:
@@ -84,6 +165,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 		names    []string
 	}
 	var units []packageUnit
+	brewEscalationCache := make(map[string]bool)
 	track := newProgress(types.BlueprintTypePackages)
 	for _, pkg := range filteredPackages {
 		// Get provider
@@ -134,6 +216,51 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 
 		units = append(units, packageUnit{pkg: pkg, provider: provider, names: names})
 		track.expect(provider.Name, len(names))
+	}
+
+	// Homebrew starts Ruby for `brew info`; asking once per package made a
+	// normal blueprint spend minutes classifying packages before installation.
+	// Group unresolved names by provider and seed the cache in one call each.
+	brewNames := make(map[*types.Provider][]string)
+	brewSeen := make(map[*types.Provider]map[string]bool)
+	for _, unit := range units {
+		provider := unit.provider
+		if !provider.Escalates || filepath.Base(provider.BinPath) != "brew" {
+			continue
+		}
+		if unit.pkg.Action != "install" && unit.pkg.Action != "remove" {
+			continue
+		}
+		commandArgs := strings.Fields(provider.Commands.Install)
+		if unit.pkg.Action == "remove" {
+			commandArgs = strings.Fields(provider.Commands.Remove)
+		}
+		commandArgs = append(commandArgs, unit.pkg.Args...)
+		explicitKind := false
+		for _, arg := range commandArgs {
+			if arg == "--cask" || arg == "--formula" {
+				explicitKind = true
+				break
+			}
+		}
+		if explicitKind {
+			continue
+		}
+		if brewSeen[provider] == nil {
+			brewSeen[provider] = make(map[string]bool)
+		}
+		for _, name := range unit.names {
+			if strings.HasPrefix(name, "-") {
+				continue
+			}
+			if !brewSeen[provider][name] {
+				brewSeen[provider][name] = true
+				brewNames[provider] = append(brewNames[provider], name)
+			}
+		}
+	}
+	for provider, names := range brewNames {
+		seedBrewEscalationCache(provider, names, brewEscalationCache)
 	}
 
 	for _, unit := range units {
@@ -187,7 +314,7 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				// that calls sudo itself, so the credential cache is warmed
 				// before it rather than after it has already hung on a prompt
 				// nobody could see.
-				Escalates: provider.Escalates,
+				Escalates: packageCommandEscalates(provider, args, name, brewEscalationCache),
 				Variables: provider.Environment,
 				// Terminal handover only on an explicit per-item
 				// `interactive: true`. Routing every package through the

@@ -65,7 +65,9 @@ func GitCheckouts(roots []string) []GitCheckout {
 					continue
 				}
 				url := ""
-				if out, err := exec.Command("git", "-C", dir, "remote", "get-url", "origin").Output(); err == nil { // #nosec G204 -- dir comes from the operator's own filesystem glob; read-only query
+				command := exec.Command("git", "-C", dir, "remote", "get-url", "origin") // #nosec G204 -- dir comes from the operator's own filesystem glob; read-only query
+				command.Env = gitScanEnvironment()
+				if out, err := command.Output(); err == nil {
 					url = strings.TrimSpace(string(out))
 				}
 				checkouts = append(checkouts, GitCheckout{Path: dir, URL: url})
@@ -74,4 +76,22 @@ func GitCheckouts(roots []string) []GitCheckout {
 	}
 	sort.Slice(checkouts, func(i, j int) bool { return checkouts[i].Path < checkouts[j].Path })
 	return checkouts
+}
+
+func gitScanEnvironment() []string {
+	blocked := map[string]bool{
+		"GIT_DIR":              true,
+		"GIT_WORK_TREE":        true,
+		"GIT_COMMON_DIR":       true,
+		"GIT_INDEX_FILE":       true,
+		"GIT_OBJECT_DIRECTORY": true,
+	}
+	env := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		if !blocked[name] {
+			env = append(env, entry)
+		}
+	}
+	return env
 }

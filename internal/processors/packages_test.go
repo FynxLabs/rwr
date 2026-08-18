@@ -679,6 +679,7 @@ packages:
   - name: "brave-browser"
     action: "install"
     package_manager: "brew"
+    args: ["--cask"]
 `)
 	if err := ProcessPackages(blueprint, nil, t.TempDir(), "yaml", &types.OSInfo{}, &types.InitConfig{}); err != nil {
 		t.Fatalf("ProcessPackages: %v", err)
@@ -693,5 +694,83 @@ packages:
 	}
 	if !call.Escalates {
 		t.Error("the command is not marked as escalating, so sudo will not be pre-validated for it")
+	}
+}
+
+func TestBrewMetadataEscalates(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		metadata  string
+		escalates bool
+		known     bool
+	}{
+		{name: "formula", metadata: `{"formulae":[{"name":"curl"}],"casks":[]}`, known: true},
+		{name: "cask", metadata: `{"formulae":[],"casks":[{"token":"claude"}]}`, escalates: true, known: true},
+		{name: "ambiguous", metadata: `{"formulae":[{}],"casks":[{}]}`},
+		{name: "empty", metadata: `{"formulae":[],"casks":[]}`},
+		{name: "invalid", metadata: `{`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			escalates, known := brewMetadataEscalates([]byte(tt.metadata))
+			if escalates != tt.escalates || known != tt.known {
+				t.Errorf("brewMetadataEscalates() = (%v, %v), want (%v, %v)", escalates, known, tt.escalates, tt.known)
+			}
+		})
+	}
+}
+
+func TestPackageCommandEscalatesUsesExplicitBrewKind(t *testing.T) {
+	t.Parallel()
+
+	provider := &types.Provider{Name: "brew", BinPath: "/opt/homebrew/bin/brew", Escalates: true}
+	cache := make(map[string]bool)
+	if packageCommandEscalates(provider, []string{"install", "curl", "--formula"}, "curl", cache) {
+		t.Error("explicit formula was marked as escalating")
+	}
+	if !packageCommandEscalates(provider, []string{"install", "brave-browser", "--cask"}, "brave-browser", cache) {
+		t.Error("explicit cask was not marked as escalating")
+	}
+	cache["curl"] = false
+	cache["claude"] = true
+	if packageCommandEscalates(provider, []string{"install", "curl"}, "curl", cache) {
+		t.Error("metadata-classified formula was marked as escalating")
+	}
+	if !packageCommandEscalates(provider, []string{"install", "claude"}, "claude", cache) {
+		t.Error("metadata-classified cask was not marked as escalating")
+	}
+}
+
+func TestSeedBrewEscalationCacheUsesOneBatch(t *testing.T) {
+	rec := exectest.New()
+	rec.Stdout = `{"formulae":[{"name":"curl"}],"casks":[{"token":"claude"}]}`
+	defer system.SetExecutor(rec)()
+	provider := &types.Provider{Name: "brew", BinPath: "/opt/homebrew/bin/brew", Escalates: true}
+	cache := make(map[string]bool)
+
+	seedBrewEscalationCache(provider, []string{"curl", "--formula", "claude"}, cache)
+	if len(rec.Calls) != 1 {
+		t.Fatalf("brew info calls = %d, want 1", len(rec.Calls))
+	}
+	if got, want := strings.Join(rec.Calls[0].Args, " "), "info --json=v2 curl claude"; got != want {
+		t.Fatalf("brew info args = %q, want %q", got, want)
+	}
+	if cache["curl"] || !cache["claude"] {
+		t.Fatalf("cache = %#v, want formula=false and cask=true", cache)
+	}
+}
+
+func TestSeedBrewEscalationCacheSkipsOnlyOptionLikeNames(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+	provider := &types.Provider{Name: "brew", BinPath: "/opt/homebrew/bin/brew", Escalates: true}
+
+	seedBrewEscalationCache(provider, []string{"--cask", "-v"}, make(map[string]bool))
+	if len(rec.Calls) != 0 {
+		t.Fatalf("brew info calls = %d, want 0: %v", len(rec.Calls), rec.Calls)
 	}
 }

@@ -302,8 +302,6 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		log.Infof("No changes were made to the system.")
 	}
 
-	reporting.Emit(reporting.RunFinished{Errs: stepErrs})
-
 	// A cancelled run is not a failed one. Whatever was in flight when the
 	// operator stopped it was killed and reported as an error by the
 	// processors that were mid-item, and listing those as failures says rwr
@@ -320,6 +318,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		for _, stepErr := range stepErrs {
 			log.Errorf("Processor %s failed: %v", stepErr.Processor, stepErr.Err)
 		}
+		reporting.Emit(reporting.RunFinished{Errs: stepErrs})
 		return fmt.Errorf("%d processor(s) failed", len(stepErrs))
 	}
 
@@ -328,9 +327,13 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	// where every package failed still exited 0.
 	if err := failureError(); err != nil {
 		log.Errorf("RWR run finished with %d failure(s)", failureCount())
+		if initConfig.Variables.Flags.Interactive {
+			reporting.RequestFinalHalt(err)
+		}
 		return err
 	}
 
+	reporting.Emit(reporting.RunFinished{Errs: stepErrs})
 	log.Info("RWR Run Complete!")
 	return nil
 }

@@ -198,6 +198,12 @@ func terminalShape() (int, int, error) {
 
 // ShowDiff displays a colored unified diff between two files to stdout.
 func ShowDiff(source, target string) error {
+	return ShowDiffTo(os.Stdout, source, target)
+}
+
+// ShowDiffTo writes the diff to writer so a TUI run can keep it inside the
+// dashboard log panel instead of tearing down the frame to print directly.
+func ShowDiffTo(writer io.Writer, source, target string) error {
 	sourceContent, err := os.ReadFile(source) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return err
@@ -227,7 +233,7 @@ func ShowDiff(source, target string) error {
 	}
 
 	// Write the diff output
-	err = WriteUnifiedDiff(os.Stdout, diff, opt)
+	err = WriteUnifiedDiff(writer, diff, opt)
 	if err != nil {
 		return err
 	}

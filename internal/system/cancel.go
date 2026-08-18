@@ -30,6 +30,8 @@ var (
 // function that releases it. Calling it again replaces the previous one, so a
 // second run in the same process starts uncancelled.
 func BeginRun() (release func()) {
+	clearSudoPassword()
+	overwriteAll.Store(false)
 	cancelMu.Lock()
 	defer cancelMu.Unlock()
 
@@ -37,6 +39,8 @@ func BeginRun() (release func()) {
 	runCtx, runCancel = ctx, cancel
 
 	return func() {
+		clearSudoPassword()
+		overwriteAll.Store(false)
 		cancelMu.Lock()
 		defer cancelMu.Unlock()
 		cancel()
@@ -49,6 +53,7 @@ func BeginRun() (release func()) {
 // which matters because it is reached from a signal handler and from the
 // dashboard's key handling at the same time.
 func Cancel() {
+	clearSudoPassword()
 	cancelMu.Lock()
 	cancel := runCancel
 	cancelMu.Unlock()

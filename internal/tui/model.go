@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/log/v2"
@@ -152,7 +153,11 @@ type Model struct {
 	lastLogLines int  // log capacity of the last rendered panel
 
 	// halt is the pending interactive-halt request while state == Prompting.
-	halt *reporting.HaltReq
+	halt            *reporting.HaltReq
+	secret          *reporting.SecretReq
+	secretValue     []rune
+	confirm         *reporting.ConfirmReq
+	confirmSelected int
 	// resumedAt is when the terminal last came back from a child process or
 	// a prompt entered Prompting; plain keys within the grace window after
 	// it are typeahead, not commands.
@@ -386,6 +391,28 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 			done <- err
 			return execDone{}
 		})
+	case reporting.SecretReq:
+		m.state = Prompting
+		m.secret = &ev
+		m.secretValue = nil
+		m.pinned = false
+		m.cursor = m.live
+		m.scrollOffset = 0
+		m.resumedAt = time.Time{}
+		return nil
+	case reporting.ConfirmReq:
+		m.state = Prompting
+		m.confirm = &ev
+		if ev.AllowAll {
+			m.confirmSelected = 2 // Skip is the safe default.
+		} else {
+			m.confirmSelected = 1
+		}
+		m.pinned = false
+		m.cursor = m.live
+		m.scrollOffset = 0
+		m.resumedAt = time.Time{}
+		return nil
 	case reporting.RunFinished:
 		// Append, not replace: All() emits its collected step errors when it
 		// reaches the end, and the runner emits a second RunFinished carrying
@@ -514,27 +541,41 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.MouseClickMsg:
+		if m.state == Prompting {
+			return m, nil // the front dialog owns input; never click through it
+		}
 		// A click on a strip cell or a processor row selects that processor's
-		// block; any click pins. Zones map rendered cells back to processors,
-		// so selection survives layout changes.
-		m.pinned = true
+		// block. Clicks elsewhere must not silently freeze the live viewport.
+		// Zones map rendered cells back to processors, so selection survives
+		// layout changes.
 		if i := m.procAt(msg); i >= 0 {
 			m.cursor = i
+			m.pinned = true
 		}
 		return m, nil
 	case tea.MouseMotionMsg:
+		if m.state == Prompting {
+			return m, nil
+		}
 		m.hovered = m.procAt(msg)
 		return m, nil
 	case tea.MouseWheelMsg:
+		if m.state == Prompting {
+			return m, nil
+		}
 		// Wheel scrolls the log viewport, 3 lines per tick; scrolling up
 		// disengages follow, scrolling back to the bottom re-engages it.
-		m.pinned = true
 		if msg.Button == tea.MouseWheelUp {
+			m.pinned = true
 			m.scrollOffset += 3
 		} else {
 			m.scrollOffset -= 3
 			if m.scrollOffset < 0 {
 				m.scrollOffset = 0
+			}
+			if m.scrollOffset == 0 {
+				m.pinned = false
+				m.cursor = m.live
 			}
 		}
 		return m, nil
@@ -543,6 +584,87 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.state == Prompting && m.secret != nil {
+		finish := func(value []byte, err error) {
+			if reporting.TryClaim(m.secret.Claim) {
+				m.secret.Result <- reporting.SecretResult{Value: value, Err: err}
+			} else {
+				for i := range value {
+					value[i] = 0
+				}
+			}
+			for i := range m.secretValue {
+				m.secretValue[i] = 0
+			}
+			m.secretValue = nil
+			m.secret = nil
+			m.state = Running
+		}
+		switch msg.String() {
+		case "enter":
+			value := make([]byte, 0, len(m.secretValue))
+			for _, r := range m.secretValue {
+				value = utf8.AppendRune(value, r)
+			}
+			finish(value, nil)
+		case "backspace":
+			if len(m.secretValue) > 0 {
+				m.secretValue[len(m.secretValue)-1] = 0
+				m.secretValue = m.secretValue[:len(m.secretValue)-1]
+			}
+		case "esc", "ctrl+c":
+			finish(nil, reporting.ErrPromptCancelled)
+		default:
+			if msg.Text != "" {
+				m.secretValue = append(m.secretValue, []rune(msg.Text)...)
+			}
+		}
+		return m, nil
+	}
+
+	if m.state == Prompting && m.confirm != nil {
+		finish := func(yes, all bool, err error) {
+			if reporting.TryClaim(m.confirm.Claim) {
+				m.confirm.Result <- reporting.ConfirmResult{Yes: yes, All: all, Err: err}
+			}
+			m.confirm = nil
+			m.state = Running
+		}
+		switch msg.String() {
+		case "left", "h", "shift+tab":
+			m.confirmSelected--
+			if m.confirmSelected < 0 {
+				m.confirmSelected = m.confirmOptionCount() - 1
+			}
+		case "right", "l", "tab":
+			m.confirmSelected = (m.confirmSelected + 1) % m.confirmOptionCount()
+		case "enter":
+			switch m.confirmSelected {
+			case 0:
+				finish(true, false, nil)
+			case 1:
+				if m.confirm.AllowAll {
+					finish(true, true, nil)
+				} else {
+					finish(false, false, nil)
+				}
+			default:
+				finish(false, false, nil)
+			}
+		case "y", "Y":
+			finish(true, false, nil)
+		case "a", "A":
+			if m.confirm.AllowAll {
+				finish(true, true, nil)
+			}
+		case "n", "N":
+			finish(false, false, nil)
+		case "esc", "ctrl+c":
+			finish(false, false, reporting.ErrPromptCancelled)
+		}
+		return m, nil
+	}
+
 	// Typeahead grace: within 750ms of resuming from a terminal handover (or
 	// entering a halt prompt), plain keys are leftover input from the child -
 	// password characters, stray Enters - not commands. ctrl+c always works.
@@ -578,7 +700,23 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.state = Running
 		}
 		switch msg.String() {
+		case "m":
+			m.mouseCapture = !m.mouseCapture
+			if !m.mouseCapture {
+				m.hovered = -1
+			}
+			return m, nil
+		case "y":
+			return m, tea.SetClipboard(strings.Join(m.plainLines(m.panelLogLines()), "\n"))
+		case "Y":
+			if m.runLogPath != "" {
+				return m, tea.SetClipboard(m.runLogPath)
+			}
+			return m, nil
 		case "r", "R":
+			if !m.halt.Retryable {
+				return m, nil
+			}
 			answer(reporting.HaltRetry)
 			m.levelFilter = ""
 			return m, nil
@@ -711,6 +849,13 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func (m *Model) confirmOptionCount() int {
+	if m.confirm != nil && m.confirm.AllowAll {
+		return 3
+	}
+	return 2
 }
 
 func toggle(current, value string) string {

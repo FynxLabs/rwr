@@ -40,6 +40,7 @@ func LoadUserTheme(configDir, name string) (Theme, bool) {
 	set(&theme.Muted, "muted")
 	set(&theme.Dim, "dim")
 	set(&theme.Accent, "accent")
+	set(&theme.Modal, "modal")
 	set(&theme.Success, "success")
 	set(&theme.Danger, "danger")
 	set(&theme.Warning, "warning")

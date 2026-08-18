@@ -7,11 +7,37 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/fynxlabs/rwr/internal/exectest"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
+
+type stagingModeRecorder struct {
+	*exectest.Recorder
+	mode    os.FileMode
+	seen    bool
+	statErr error
+}
+
+func (r *stagingModeRecorder) Run(cmd types.Command, debug bool) error {
+	if filepath.Base(cmd.Exec) == "mv" && len(cmd.Args) >= 2 {
+		info, err := os.Stat(cmd.Args[1])
+		if err != nil {
+			r.statErr = err
+		} else {
+			r.mode, r.seen = info.Mode().Perm(), true
+		}
+	}
+	return r.Recorder.Run(cmd, debug)
+}
+
+func (r *stagingModeRecorder) Output(cmd types.Command, debug bool) (string, error) {
+	return r.Recorder.Output(cmd, debug)
+}
 
 func TestProcessFiles_BasicFileCreation(t *testing.T) {
 	for _, format := range testFormats {
@@ -970,6 +996,76 @@ func TestProcessFile_MetadataActionsNeedNoContentOrSource(t *testing.T) {
 			t.Fatal("processFile(copy without source) succeeded, want an error")
 		}
 	})
+}
+
+func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
+	if runtime.GOOS == types.OSWindows {
+		t.Skip("Unix ownership and permission commands")
+	}
+
+	rec := &stagingModeRecorder{Recorder: exectest.New()}
+	defer system.SetExecutor(rec)()
+	stagingDir := t.TempDir()
+	t.Setenv("TMPDIR", stagingDir)
+
+	target := "/etc/sudoers.d/kanata"
+	err := processFile(types.File{
+		Name:     "kanata.sudoers",
+		Action:   "create",
+		Content:  "levi ALL=(ALL) NOPASSWD: /usr/local/bin/kanata\n",
+		Target:   target,
+		Elevated: true,
+		Mode:     types.FileMode(0o440),
+		Owner:    "root",
+		Group:    "wheel",
+	}, t.TempDir(), &types.OSInfo{})
+	if err != nil {
+		t.Fatalf("processFile(elevated create): %v", err)
+	}
+	if rec.statErr != nil {
+		t.Fatalf("inspect private staging file: %v", rec.statErr)
+	}
+	if !rec.seen || rec.mode != 0o600 {
+		t.Fatalf("staging mode = %04o (seen=%v), want 0600", rec.mode, rec.seen)
+	}
+
+	if len(rec.Calls) != 4 {
+		t.Fatalf("calls = %d, want 4: %v", len(rec.Calls), rec.Calls)
+	}
+	wants := []struct {
+		exec string
+		args []string
+	}{
+		{"mkdir", []string{"-p", "--", "/etc/sudoers.d"}},
+		{"mv", nil},
+		{"chmod", []string{"440", target}},
+		{"chown", []string{"root:wheel", target}},
+	}
+	for i, want := range wants {
+		call := rec.Calls[i]
+		if call.Exec != want.exec || !call.Elevated {
+			t.Errorf("call %d = %v, want elevated %s", i, call, want.exec)
+		}
+		if want.args != nil && strings.Join(call.Args, "\x00") != strings.Join(want.args, "\x00") {
+			t.Errorf("call %d args = %q, want %q", i, call.Args, want.args)
+		}
+	}
+	if got := rec.Calls[1].Args; len(got) != 3 || got[0] != "--" || got[2] != target || got[1] == target {
+		t.Errorf("mv args = %q, want staged source and target %q", got, target)
+	} else if filepath.Dir(got[1]) != stagingDir {
+		t.Errorf("staging source = %q, want it under test directory %q", got[1], stagingDir)
+	}
+}
+
+func TestValidateElevatedFileAttributes_WindowsRejectsOwnershipBeforeInstall(t *testing.T) {
+	t.Parallel()
+
+	if err := validateElevatedFileAttributes(types.File{Name: "config", Owner: "root"}, types.OSWindows); err == nil {
+		t.Fatal("Windows elevated ownership was accepted")
+	}
+	if err := validateElevatedFileAttributes(types.File{Name: "config", Mode: types.FileMode(0o600)}, types.OSWindows); err != nil {
+		t.Fatalf("Windows mode-only file was rejected: %v", err)
+	}
 }
 
 // A files entry with a URL source and a sha256 is verified before install; a

@@ -342,16 +342,13 @@ captures a command's output through pipes, but sudo reads its password from
 escalate is invisible under the dashboard, and the run hangs on a password
 nobody was asked for.
 
-RWR never asks for a password on its own account. Declaring `escalates` only
-changes what happens when sudo is **not** already cached: that command is given
-the real terminal, so if the work itself turns out to need a password the
-prompt is visible and answerable. When sudo is already cached, nothing changes
-and nothing prompts.
-
-That matters because RWR cannot predict which command will need root. Homebrew
-decides cask or formula on its own and the provider declares one install verb
-for both, so a formula install - which never touches root - is
-indistinguishable up front. Asking in advance would ask on every package.
+For Homebrew, RWR narrows the provider-wide declaration to cask operations using
+explicit `--cask` or local `brew info --json=v2` metadata. Formula operations
+remain captured in the TUI. When an operation really may need sudo and
+credentials are not cached, RWR collects the masked password inside the TUI;
+headless runs fall back to a masked terminal prompt. RWR validates sudo
+once, then runs the actual command captured inside the TUI. If metadata cannot
+classify a package, RWR fails safe and treats it as potentially escalating.
 
 ## Best Practices
 

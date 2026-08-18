@@ -128,7 +128,7 @@ The Scripts blueprint supports the following fields:
 | `elevated` | No | Whether to run the script with elevated privileges (`sudo`). Default is `false`. |
 | `asUser` | No | Run the script as another account: `sudo -u <user>`. Ignored when `elevated: true`, since sudo cannot do both at once; RWR warns and runs elevated. |
 | `log` | No | Log name for script output. |
-| `interactive` | No | Override global interactive mode for this script (`true`/`false`). If omitted, uses the global `--interactive` flag. |
+| `interactive` | No | Give this script direct terminal input (`true`/`false`). Default is `false`. Set it only for a script that actually reads from the operator; RWR's global `--interactive` flag controls RWR prompts and does not make scripts interactive. |
 
 > [!NOTE]
 > Either the `source`, `content`, or `import` field must be provided. If both `source` and `content` are present, `source` takes precedence.

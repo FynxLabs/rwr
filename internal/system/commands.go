@@ -8,6 +8,7 @@ package system
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/types"
+	"golang.org/x/term"
 )
 
 // buildCommand creates an *exec.Cmd from the given types.Command.
@@ -42,6 +44,27 @@ import (
 // matches the previous behavior of running through `cmd /C` without any elevation.
 func buildCommand(cmd types.Command) *exec.Cmd {
 	built := spawn(cmd)
+	configureCommandCancellation(built)
+	return built
+}
+
+// buildAuthenticatedCommand binds a freshly-read password to the exact sudo
+// process that runs the requested command. Some sudo policies do not make a
+// ticket created by a separate `sudo -v` available to the later process.
+func buildAuthenticatedCommand(cmd types.Command) *exec.Cmd {
+	ctx := RunContext()
+	var args []string
+	if cmd.Elevated {
+		args = append([]string{"-S", "-p", "", "--", cmd.Exec}, cmd.Args...)
+	} else {
+		args = append([]string{"-S", "-p", "", "-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)
+	}
+	built := exec.CommandContext(ctx, "sudo", args...) // #nosec G204 -- fixed sudo flags followed by discrete command argv
+	configureCommandCancellation(built)
+	return built
+}
+
+func configureCommandCancellation(built *exec.Cmd) {
 	// Cancelling the run kills the command's whole process group, not just the
 	// process rwr spawned: `brew install` is a shell that forks curl and git,
 	// and `sudo pacman` is sudo with pacman underneath. Killing only the direct
@@ -53,7 +76,6 @@ func buildCommand(cmd types.Command) *exec.Cmd {
 	// that leaks a descriptor to a grandchild keeps Wait blocked and the
 	// cancellation the operator asked for never completes.
 	built.WaitDelay = 5 * time.Second
-	return built
 }
 
 // spawn builds the *exec.Cmd for a command, before cancellation is wired onto
@@ -63,11 +85,11 @@ func spawn(cmd types.Command) *exec.Cmd {
 	if runtime.GOOS != "windows" {
 		if cmd.Elevated {
 			log.Debugf("Running command as sudo - Running Command: %v %v", cmd.Exec, cmd.LogArgs())
-			return exec.CommandContext(ctx, "sudo", append([]string{"--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
+			return exec.CommandContext(ctx, "sudo", append([]string{"-n", "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
 		if cmd.AsUser != "" {
 			log.Debugf("Running command as user: %v - Running Command: %v %v", cmd.AsUser, cmd.Exec, cmd.LogArgs())
-			return exec.CommandContext(ctx, "sudo", append([]string{"-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
+			return exec.CommandContext(ctx, "sudo", append([]string{"-n", "-u", cmd.AsUser, "--", cmd.Exec}, cmd.Args...)...) // #nosec G204 -- argv, not a shell string: args are passed as discrete arguments
 		}
 	} else if cmd.Elevated {
 		log.Debugf("Elevated requested on Windows; running in-process (no sudo equivalent): %v %v", cmd.Exec, cmd.LogArgs())
@@ -108,7 +130,21 @@ var (
 	sudoValidateMu sync.Mutex
 	sudoProbedAt   time.Time
 	sudoProbeWarm  bool
+	// sudoWarmFromPrompt distinguishes a ticket RWR created for a
+	// self-escalating command from an ambient ticket proven by `sudo -n -v`.
+	// Some macOS sudo policies let the original command use the former but do
+	// not let a later, separately spawned sudo process reuse it.
+	sudoWarmFromPrompt bool
+	// Retained only for this run so separately-scoped sudo processes do not
+	// ask for the same password repeatedly. Callers receive disposable copies.
+	sudoRunPassword []byte
 )
+
+// ErrSudoAuthentication reports that a command requiring sudo could not be
+// authenticated through the controlled masked prompt.
+var ErrSudoAuthentication = errors.New("sudo authentication failed")
+
+var errNoSudoTerminal = errors.New("sudo credentials are not cached and no terminal is available")
 
 // Escalates is the case the elevation flags alone miss: a command rwr runs
 // unprivileged that calls sudo itself. brew refuses to run as root, so
@@ -124,12 +160,9 @@ func mayPromptForSudo(cmd types.Command) bool {
 
 // sudoCredentialsCached reports whether sudo would run without asking.
 //
-// It never prompts, and that is the whole point. rwr used to run `sudo -v`
-// itself before any command that might escalate, which meant asking for a
-// password on its own account - and since brew decides cask or formula on its
-// own, and the provider has one install verb for both, "might" was every
-// package. A run of ordinary formulae queued a password prompt a minute for a
-// privilege it never used.
+// It never prompts. A cold result is handled separately by the controlled
+// masked authentication path, and only for a command known to need or invoke
+// sudo. Homebrew formulae are classified before this point and never reach it.
 //
 // sudoProbeArgs is the probe rwr runs. -n is the whole contract: it makes sudo
 // answer from the credential cache or fail, and never prompt. Losing it would
@@ -153,11 +186,60 @@ var sudoProbe = func(ctx context.Context) error {
 	return exec.CommandContext(ctx, sudoProbeArgs[0], sudoProbeArgs[1:]...).Run() // #nosec G204 -- fixed argv, not input
 }
 
+func sudoValidationCommand(ctx context.Context, input []byte) *exec.Cmd {
+	command := exec.CommandContext(ctx, "sudo", "-S", "-p", "", "-v") // #nosec G204 -- fixed argv
+	command.Stdin = bytes.NewReader(input)
+	command.Stdout = io.Discard
+	if writer := reporting.CommandOutputWriter(reporting.SrcStderr); writer != nil {
+		command.Stderr = writer
+	} else {
+		command.Stderr = os.Stderr
+	}
+	return command
+}
+
+var sudoValidate = func(ctx context.Context, input []byte) error {
+	return sudoValidationCommand(ctx, input).Run()
+}
+
+var sudoPassword = func() ([]byte, error) {
+	if reporting.SupportsInlinePrompts() {
+		return reporting.RequestSecret("sudo password")
+	}
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return nil, errNoSudoTerminal
+	}
+	var password []byte
+	err := reporting.WithTerminal(func() error {
+		_, _ = fmt.Fprint(os.Stderr, "sudo password: ")
+		var err error
+		password, err = term.ReadPassword(int(os.Stdin.Fd()))
+		_, _ = fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return fmt.Errorf("reading sudo password: %w", err)
+		}
+		return nil
+	})
+	return password, err
+}
+
 // SetSudoProbeForTest substitutes the probe and returns the restore func.
 func SetSudoProbeForTest(probe func(context.Context) error) (restore func()) {
 	previous := sudoProbe
 	sudoProbe = probe
 	return func() { sudoProbe = previous }
+}
+
+func SetSudoPasswordForTest(prompt func() ([]byte, error)) (restore func()) {
+	previous := sudoPassword
+	sudoPassword = prompt
+	return func() { sudoPassword = previous }
+}
+
+func SetSudoValidateForTest(validate func(context.Context, []byte) error) (restore func()) {
+	previous := sudoValidate
+	sudoValidate = validate
+	return func() { sudoValidate = previous }
 }
 
 // resetSudoThrottleForTest clears the probe throttle so a test observes the
@@ -167,6 +249,29 @@ func resetSudoThrottleForTest() {
 	defer sudoValidateMu.Unlock()
 	sudoProbedAt = time.Time{}
 	sudoProbeWarm = false
+	sudoWarmFromPrompt = false
+	zeroBytes(sudoRunPassword)
+	sudoRunPassword = nil
+}
+
+func cacheSudoPassword(password []byte) {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	zeroBytes(sudoRunPassword)
+	sudoRunPassword = append([]byte(nil), password...)
+}
+
+func cachedSudoPassword() []byte {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	return append([]byte(nil), sudoRunPassword...)
+}
+
+func clearSudoPassword() {
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	zeroBytes(sudoRunPassword)
+	sudoRunPassword = nil
 }
 
 func sudoCredentialsCached() bool {
@@ -180,8 +285,88 @@ func sudoCredentialsCached() bool {
 	ctx, cancel := context.WithTimeout(RunContext(), sudoProbeTimeout)
 	defer cancel()
 	sudoProbeWarm = sudoProbe(ctx) == nil
+	sudoWarmFromPrompt = false
 	sudoProbedAt = time.Now()
 	return sudoProbeWarm
+}
+
+func sudoCredentialsReusableByManagedCommand() bool {
+	if !sudoCredentialsCached() {
+		return false
+	}
+	sudoValidateMu.Lock()
+	defer sudoValidateMu.Unlock()
+	return !sudoWarmFromPrompt
+}
+
+func ensureSudoCredentials() error {
+	if sudoCredentialsCached() {
+		return nil
+	}
+	password, err := validatedSudoPassword()
+	if err != nil {
+		return err
+	}
+	zeroBytes(password)
+	markSudoWarm(true)
+	return nil
+}
+
+func validatedSudoPassword() ([]byte, error) {
+	if password := cachedSudoPassword(); len(password) != 0 {
+		return password, nil
+	}
+	password, err := sudoPassword()
+	if err != nil {
+		return nil, err
+	}
+	input := passwordInput(password, "")
+	defer zeroBytes(input)
+	if err := sudoValidate(RunContext(), input); err != nil {
+		zeroBytes(password)
+		clearSudoPassword()
+		return nil, err
+	}
+	cacheSudoPassword(password)
+	return password, nil
+}
+
+func markSudoWarm(fromPrompt bool) {
+	sudoValidateMu.Lock()
+	sudoProbeWarm = true
+	sudoWarmFromPrompt = fromPrompt
+	sudoProbedAt = time.Now()
+	sudoValidateMu.Unlock()
+}
+
+func passwordInput(password []byte, stdin string) []byte {
+	input := make([]byte, 0, len(password)+1+len(stdin))
+	input = append(input, password...)
+	input = append(input, '\n')
+	input = append(input, stdin...)
+	return input
+}
+
+func zeroBytes(value []byte) {
+	for i := range value {
+		value[i] = 0
+	}
+}
+
+func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
+	if runtime.GOOS == "windows" || (!cmd.Elevated && cmd.AsUser == "") || sudoCredentialsReusableByManagedCommand() {
+		return buildCommand(cmd), nil, nil
+	}
+	password, err := validatedSudoPassword()
+	if err != nil {
+		if errors.Is(err, errNoSudoTerminal) {
+			return buildCommand(cmd), nil, nil
+		}
+		return nil, nil, fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
+	}
+	input := passwordInput(password, cmd.Stdin)
+	zeroBytes(password)
+	return buildAuthenticatedCommand(cmd), input, nil
 }
 
 // runOnTerminal hands cmd the real terminal via the display layer, falling
@@ -248,14 +433,36 @@ func runCommand(cmd types.Command, debug bool) error {
 		return nil
 	}
 
-	command := buildCommand(cmd)
+	command, sudoInput, err := commandForRun(cmd)
+	if err != nil {
+		if Cancelled() {
+			return ErrCancelled
+		}
+		return err
+	}
+	defer zeroBytes(sudoInput)
 	setupCommandEnvironment(command, cmd)
 
-	if cmd.Stdin != "" {
+	if sudoInput != nil {
+		command.Stdin = bytes.NewReader(sudoInput)
+		if cmd.Interactive {
+			command.Stdin = io.MultiReader(command.Stdin, os.Stdin)
+		}
+	} else if cmd.Stdin != "" {
 		// Supplied input wins over the terminal even for an interactive command:
 		// the caller is feeding the tool something specific, and inheriting
 		// os.Stdin instead would hang waiting for a human.
 		command.Stdin = strings.NewReader(cmd.Stdin)
+	}
+	if cmd.Escalates && !cmd.Elevated && cmd.AsUser == "" {
+		if err := ensureSudoCredentials(); err != nil {
+			if Cancelled() {
+				return ErrCancelled
+			}
+			if !errors.Is(err, errNoSudoTerminal) {
+				return fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
+			}
+		}
 	}
 
 	if cmd.Interactive {
@@ -277,34 +484,12 @@ func runCommand(cmd types.Command, debug bool) error {
 			log.Errorf("Error running command: %v (stderr above)", err)
 			return err
 		}
-		return nil
-	}
-
-	// A captured command that reaches sudo prompts on /dev/tty, straight past
-	// the pipes rwr captured, so under the dashboard the prompt is invisible
-	// and the run hangs on a password nobody was asked for. That is what hung
-	// a cask install.
-	//
-	// Asking first was the wrong answer to it. rwr cannot tell which brew
-	// command will need root - brew decides cask or formula itself, and the
-	// provider declares one install verb for both - so asking up front asked
-	// on every package, and a formula never needs it.
-	if mayPromptForSudo(cmd) && !sudoCredentialsCached() {
-		// Nothing here asks for a password. If sudo is already cached the
-		// command runs captured as usual and never prompts. If it is not, this
-		// one command gets the terminal, so that if the work itself turns out
-		// to need a password the prompt is visible and answerable - and the
-		// credential it establishes covers the rest of the run.
-		log.Debugf("sudo not cached; running %s on the terminal so any prompt it makes is visible", cmd.Exec)
-		if err := runOnTerminal(command); err != nil {
-			if Cancelled() {
-				return ErrCancelled
-			}
-			log.Errorf("Error running command: %v (stderr above)", err)
-			return err
+		if sudoInput != nil {
+			markSudoWarm(true)
 		}
 		return nil
 	}
+
 	{
 		// Under the TUI, captured stderr streams into the log view (the `≫`
 		// lines); headless it streams to the real stderr like the pre-TUI
@@ -343,6 +528,9 @@ func runCommand(cmd types.Command, debug bool) error {
 		log.Errorf("Error running command: %v (stderr above)", err)
 		return err
 	}
+	if sudoInput != nil {
+		markSudoWarm(true)
+	}
 
 	return nil
 }
@@ -364,19 +552,38 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		log.Infof("[DRY-RUN] Would execute: %s %s", cmd.Exec, strings.Join(cmd.LogArgs(), " "))
 		return "", nil
 	}
+	if cmd.Escalates && !cmd.Elevated && cmd.AsUser == "" {
+		if err := ensureSudoCredentials(); err != nil {
+			if Cancelled() {
+				return "", ErrCancelled
+			}
+			if !errors.Is(err, errNoSudoTerminal) {
+				return "", fmt.Errorf("%w: %v", ErrSudoAuthentication, err)
+			}
+		}
+	}
 
-	command := buildCommand(cmd)
+	command, sudoInput, err := commandForRun(cmd)
+	if err != nil {
+		if Cancelled() {
+			return "", ErrCancelled
+		}
+		return "", err
+	}
+	defer zeroBytes(sudoInput)
 	setupCommandEnvironment(command, cmd)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if cmd.Stdin != "" {
+	if sudoInput != nil {
+		command.Stdin = bytes.NewReader(sudoInput)
+	} else if cmd.Stdin != "" {
 		command.Stdin = strings.NewReader(cmd.Stdin)
 	}
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 
-	err := command.Run()
+	err = command.Run()
 	if err != nil {
 		if Cancelled() {
 			return "", ErrCancelled
@@ -384,6 +591,9 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
 		log.Error(errMsg)
 		return "", err
+	}
+	if sudoInput != nil {
+		markSudoWarm(true)
 	}
 
 	return stdout.String(), nil

@@ -1,6 +1,7 @@
 package system
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -8,7 +9,46 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/fynxlabs/rwr/internal/reporting"
 )
+
+type inlineConfirmReporter struct{ result reporting.ConfirmResult }
+
+func (r inlineConfirmReporter) SupportsInlinePrompts() bool { return true }
+func (r inlineConfirmReporter) Emit(event reporting.Event) {
+	if request, ok := event.(reporting.ConfirmReq); ok && reporting.TryClaim(request.Claim) {
+		request.Result <- r.result
+	}
+}
+
+func TestPromptOverwrite_InlineAllApprovesCurrentAndLaterFiles(t *testing.T) {
+	overwriteAll.Store(false)
+	t.Cleanup(func() { overwriteAll.Store(false) })
+	defer reporting.Set(inlineConfirmReporter{result: reporting.ConfirmResult{All: true}})()
+
+	yes, err := promptOverwrite("/tmp/config")
+	if err != nil || !yes {
+		t.Fatalf("promptOverwrite = (%v, %v), want approved", yes, err)
+	}
+	if !overwriteAll.Load() {
+		t.Fatal("overwrite-all choice was not persisted")
+	}
+}
+
+func TestPromptOverwrite_InlineErrorDoesNotPersistAll(t *testing.T) {
+	overwriteAll.Store(false)
+	t.Cleanup(func() { overwriteAll.Store(false) })
+	wantErr := errors.New("prompt closed")
+	defer reporting.Set(inlineConfirmReporter{result: reporting.ConfirmResult{All: true, Err: wantErr}})()
+
+	if _, err := promptOverwrite("/tmp/config"); !errors.Is(err, wantErr) {
+		t.Fatalf("promptOverwrite error = %v, want %v", err, wantErr)
+	}
+	if overwriteAll.Load() {
+		t.Fatal("failed confirmation persisted overwrite-all")
+	}
+}
 
 // Commands are argv now, so no shell expands a leading ~ on the way to a
 // program. Every blueprint path that reaches a command or a filesystem call has

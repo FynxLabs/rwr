@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,6 +47,8 @@ func TestViewRunning_ChecklistVisibleByDefault(t *testing.T) {
 // An interactive halt enters Prompting, and r/s/q answer the executor's
 // decision channel: retry, skip, abort. The keys exist only at a halt.
 func TestPrompting_HaltDecisions(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		key  string
 		want reporting.HaltDecision
@@ -60,7 +63,7 @@ func TestPrompting_HaltDecisions(t *testing.T) {
 		m.width, m.height = 100, 30
 
 		decision := make(chan reporting.HaltDecision, 1)
-		m.apply(reporting.HaltReq{Processor: "packages", Err: errors.New("boom"), Decision: decision})
+		m.apply(reporting.HaltReq{Processor: "packages", Err: errors.New("boom"), Retryable: true, Decision: decision})
 		if m.state != Prompting {
 			t.Fatalf("state = %v after HaltReq, want Prompting", m.state)
 		}
@@ -81,6 +84,195 @@ func TestPrompting_HaltDecisions(t *testing.T) {
 		if m.state != Running {
 			t.Fatalf("state = %v after decision, want Running", m.state)
 		}
+	}
+}
+
+func TestPrompting_AllowsMouseRelease(t *testing.T) {
+	t.Parallel()
+
+	plan := &types.Plan{Order: []string{"users"}}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.width, m.height = 100, 30
+	m.apply(reporting.HaltReq{Processor: "users", Err: errors.New("boom"), Retryable: true, Decision: make(chan reporting.HaltDecision, 1)})
+	m.resumedAt = time.Now().Add(-time.Second)
+
+	m.key(tea.KeyPressMsg{Code: 'm', Text: "m"})
+	if m.mouseCapture {
+		t.Fatal("m did not release mouse capture while the halt prompt was active")
+	}
+	if m.state != Prompting || m.halt == nil {
+		t.Fatal("mouse toggle answered or dismissed the halt prompt")
+	}
+}
+
+func TestPrompting_FinalFailuresRequireAcknowledgement(t *testing.T) {
+	t.Parallel()
+
+	plan := &types.Plan{Order: []string{"run"}}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.width, m.height = 100, 30
+	decision := make(chan reporting.HaltDecision, 1)
+	m.apply(reporting.HaltReq{Processor: "run", Err: errors.New("operation failed"), Decision: decision})
+	m.resumedAt = time.Now().Add(-time.Second)
+
+	if view := m.View().Content; strings.Contains(view, "retry") {
+		t.Fatalf("final failure prompt offered unsafe retry:\n%s", view)
+	}
+	m.key(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	select {
+	case got := <-decision:
+		t.Fatalf("retry key answered non-retryable final prompt with %v", got)
+	default:
+	}
+	if m.state != Prompting {
+		t.Fatalf("retry key dismissed final prompt; state = %v", m.state)
+	}
+
+	m.key(tea.KeyPressMsg{Code: 's', Text: "s"})
+	if got := <-decision; got != reporting.HaltSkip {
+		t.Fatalf("acknowledge sent %v, want %v", got, reporting.HaltSkip)
+	}
+}
+
+func TestPrompting_SecretStaysInsideTUIAndIsMasked(t *testing.T) {
+	t.Parallel()
+
+	plan := &types.Plan{Order: []string{"users"}}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.width, m.height = 100, 30
+	result := make(chan reporting.SecretResult, 1)
+	m.apply(reporting.SecretReq{Prompt: "sudo password", Result: result})
+
+	for _, r := range "s3cret" {
+		m.key(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	rendered := m.View()
+	view := rendered.Content
+	if strings.Contains(view, "s3cret") {
+		t.Fatal("secret was rendered in the TUI")
+	}
+	if !strings.Contains(view, "••••••") {
+		t.Fatalf("masked input not rendered:\n%s", view)
+	}
+	if !strings.Contains(view, "ADMINISTRATOR AUTHENTICATION REQUIRED") {
+		t.Fatalf("password modal title not rendered:\n%s", view)
+	}
+	if rendered.Cursor == nil || rendered.Cursor.Shape != tea.CursorBar {
+		t.Fatalf("password dialog has no real bar cursor: %#v", rendered.Cursor)
+	}
+
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	answer := <-result
+	if answer.Err != nil || string(answer.Value) != "s3cret" {
+		t.Fatalf("secret result = (%q, %v)", answer.Value, answer.Err)
+	}
+	for i := range answer.Value {
+		answer.Value[i] = 0
+	}
+	if m.state != Running || m.secret != nil {
+		t.Fatal("secret prompt did not return the model to running")
+	}
+}
+
+func TestPrompting_LostSecretClaimStillClearsModelInput(t *testing.T) {
+	t.Parallel()
+
+	var claimed atomic.Bool
+	claimed.Store(true)
+	m := New(mustTheme("rwr"), &types.Plan{Order: []string{"users"}}, reporting.NewStore(10), false, "")
+	m.apply(reporting.SecretReq{Prompt: "sudo password", Result: make(chan reporting.SecretResult, 1), Claim: &claimed})
+	for _, r := range "secret" {
+		m.key(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.secretValue != nil || m.secret != nil || m.state != Running {
+		t.Fatal("lost secret claim did not clear prompt state")
+	}
+}
+
+func TestSanitizePromptText_RemovesTerminalControls(t *testing.T) {
+	t.Parallel()
+
+	input := "Overwrite /tmp/ok\x1b]52;c;c3RvbGVu\a\r.conf"
+	if got, want := sanitizePromptText(input), "Overwrite /tmp/ok.conf"; got != want {
+		t.Fatalf("sanitizePromptText() = %q, want %q", got, want)
+	}
+}
+
+func TestPrompting_ReengagesLiveProcessorFollow(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		event reporting.Event
+	}{
+		{name: "secret", event: reporting.SecretReq{Prompt: "sudo password", Result: make(chan reporting.SecretResult, 1)}},
+		{name: "confirmation", event: reporting.ConfirmReq{Prompt: "overwrite?", Result: make(chan reporting.ConfirmResult, 1)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := &types.Plan{Order: []string{"packages", "users"}}
+			m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+			m.width, m.height = 100, 30
+			m.apply(reporting.ProcStarted{Processor: "packages"})
+			m.cursor, m.pinned, m.scrollOffset = 0, true, 12
+			m.apply(reporting.ProcFinished{Processor: "packages"})
+			m.apply(reporting.ProcStarted{Processor: "users"})
+			if m.cursor != 0 {
+				t.Fatal("test setup did not preserve the pinned packages viewport")
+			}
+
+			m.apply(tc.event)
+			if m.pinned || m.cursor != 1 || m.scrollOffset != 0 {
+				t.Fatalf("prompt did not resume live follow: pinned=%v cursor=%d scroll=%d", m.pinned, m.cursor, m.scrollOffset)
+			}
+		})
+	}
+}
+
+func TestPrompting_ConfirmationStaysInsideTUI(t *testing.T) {
+	t.Parallel()
+
+	plan := &types.Plan{Order: []string{"files"}}
+	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
+	m.width, m.height = 100, 30
+	result := make(chan reporting.ConfirmResult, 1)
+	m.apply(reporting.ConfirmReq{Prompt: "Overwrite existing file? /tmp/config", AllowAll: true, Result: result})
+
+	if view := m.View().Content; !strings.Contains(view, "Overwrite existing file?") || !strings.Contains(view, "ACTION REQUIRED") || !strings.Contains(strings.ToLower(view), "overwrite all") {
+		t.Fatalf("confirmation modal not rendered with all option:\n%s", view)
+	}
+	m.key(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	answer := <-result
+	if answer.Err != nil || !answer.Yes || !answer.All {
+		t.Fatalf("confirmation result = (yes=%v, all=%v, err=%v)", answer.Yes, answer.All, answer.Err)
+	}
+	if m.state != Running || m.confirm != nil {
+		t.Fatal("confirmation did not return the model to running")
+	}
+}
+
+func TestPrompting_ConfirmationButtonsDefaultSafeAndNavigate(t *testing.T) {
+	t.Parallel()
+
+	newDialog := func() (*Model, chan reporting.ConfirmResult) {
+		result := make(chan reporting.ConfirmResult, 1)
+		m := New(mustTheme("rwr"), &types.Plan{Order: []string{"files"}}, reporting.NewStore(10), false, "")
+		m.width, m.height = 100, 30
+		m.apply(reporting.ConfirmReq{Prompt: "Overwrite?", AllowAll: true, Result: result})
+		return m, result
+	}
+
+	m, result := newDialog()
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if answer := <-result; answer.Yes || answer.All || answer.Err != nil {
+		t.Fatalf("default button was not safe Skip: %+v", answer)
+	}
+
+	m, result = newDialog()
+	m.key(tea.KeyPressMsg{Code: tea.KeyRight}) // Skip wraps to Overwrite.
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if answer := <-result; !answer.Yes || answer.All || answer.Err != nil {
+		t.Fatalf("button navigation did not select Overwrite: %+v", answer)
 	}
 }
 

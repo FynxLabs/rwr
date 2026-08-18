@@ -373,6 +373,9 @@ func HandleGitPull(opts types.GitOptions, initConfig *types.InitConfig) error {
 		Auth: auth,
 	})
 	if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+		if pullErr := explainGitPullFailure(opts.Target, err); pullErr != nil {
+			return pullErr
+		}
 		log.Errorf("Error pulling changes from Git repository: %v", err)
 		return fmt.Errorf("error pulling changes from Git repository: %v", err)
 	}
@@ -380,3 +383,23 @@ func HandleGitPull(opts types.GitOptions, initConfig *types.InitConfig) error {
 	log.Infof("Git repository updated: %s", opts.Target)
 	return nil
 }
+
+func explainGitPullFailure(target string, err error) error {
+	if !errors.Is(err, git.ErrNonFastForwardUpdate) {
+		return nil
+	}
+	return &GitDivergenceError{Path: target, Err: err}
+}
+
+// GitDivergenceError reports a pull that cannot be fast-forwarded. RWR does
+// not attempt a merge, rebase, reset, checkout, or force update in response.
+type GitDivergenceError struct {
+	Path string
+	Err  error
+}
+
+func (e *GitDivergenceError) Error() string {
+	return fmt.Sprintf("repository %s has local and remote history that cannot be fast-forwarded; left the working tree unchanged so in-progress work is not merged, rebased, reset, or overwritten; reconcile it manually: %v", e.Path, e.Err)
+}
+
+func (e *GitDivergenceError) Unwrap() error { return e.Err }

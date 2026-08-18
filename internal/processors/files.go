@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -237,7 +238,7 @@ func processFile(file types.File, blueprintDir string, osInfo *types.OSInfo) err
 		return deleteFile(targetPath)
 	case "create":
 		log.Debugf("Creating file: %s", targetPath)
-		return createFile(file, targetPath)
+		return createFile(file, targetPath, osInfo)
 	case "chmod":
 		log.Debugf("Changing file permissions: %s", targetPath)
 		return chmodFile(file, targetPath)
@@ -289,12 +290,50 @@ func deleteFile(target string) error {
 	return nil
 }
 
-func createFile(file types.File, targetPath string) error {
+func createFile(file types.File, targetPath string, osInfo *types.OSInfo) error {
 	log.Debugf("Creating file: %s", targetPath)
 
 	mode := defaultFileMode
 	if file.Mode.IsSet() {
 		mode = file.Mode.OSMode()
+	}
+
+	// Never open an elevated destination from the unprivileged process. Render
+	// the content into a private staging file, then let CopyFile create the
+	// destination directory and install it through the normal elevated command
+	// path. This also avoids briefly exposing rendered secrets with a wider mode.
+	if file.Elevated {
+		if err := validateElevatedFileAttributes(file, runtime.GOOS); err != nil {
+			return err
+		}
+		staged, err := os.CreateTemp("", "rwr-create-")
+		if err != nil {
+			return fmt.Errorf("error creating temporary file: %v", err)
+		}
+		stagedPath := staged.Name()
+		defer os.Remove(stagedPath) //nolint:errcheck
+
+		if _, err := staged.WriteString(file.Content); err != nil {
+			if closeErr := staged.Close(); closeErr != nil {
+				log.Debugf("error closing temporary file after write failure: %v", closeErr)
+			}
+			return fmt.Errorf("error writing content to temporary file: %v", err)
+		}
+		if err := staged.Close(); err != nil {
+			return fmt.Errorf("error closing temporary file: %v", err)
+		}
+
+		if err := system.CopyFile(stagedPath, targetPath, true, osInfo); err != nil {
+			return fmt.Errorf("error installing elevated file: %v", err)
+		}
+		// Keep rendered content private in staging. CopyFile therefore installs
+		// the target as 0600; apply the blueprint's final mode and ownership only
+		// after the content is safely at its destination.
+		if err := applyFileAttributes(targetPath, file); err != nil {
+			return fmt.Errorf("error applying file attributes: %v", err)
+		}
+		log.Infof("File created and content written: %s", targetPath)
+		return nil
 	}
 
 	dirMode := defaultDirMode
@@ -440,6 +479,34 @@ func ensureSymlink(source, target string) error {
 }
 
 func applyFileAttributes(targetPath string, file types.File) error {
+	if file.Elevated {
+		if runtime.GOOS == types.OSWindows {
+			return nil
+		}
+		if file.Mode.IsSet() {
+			cmd := types.Command{
+				Exec:     "chmod",
+				Args:     []string{fmt.Sprintf("%o", file.Mode.OSMode()), targetPath},
+				Elevated: true,
+			}
+			if err := system.RunCommand(cmd, false); err != nil {
+				return fmt.Errorf("error changing file permissions: %v", err)
+			}
+		}
+
+		if file.Owner != "" || file.Group != "" {
+			ownerGroup := file.Owner
+			if file.Group != "" {
+				ownerGroup += ":" + file.Group
+			}
+			cmd := types.Command{Exec: "chown", Args: []string{ownerGroup, targetPath}, Elevated: true}
+			if err := system.RunCommand(cmd, false); err != nil {
+				return fmt.Errorf("error changing file owner/group: %v", err)
+			}
+		}
+		return nil
+	}
+
 	if file.Mode.IsSet() {
 		if err := os.Chmod(targetPath, file.Mode.OSMode()); err != nil { // #nosec G703 -- target path is operator-supplied blueprint/config input
 			return fmt.Errorf("error changing file permissions: %v", err)
@@ -452,6 +519,13 @@ func applyFileAttributes(targetPath string, file types.File) error {
 		}
 	}
 
+	return nil
+}
+
+func validateElevatedFileAttributes(file types.File, goos string) error {
+	if goos == types.OSWindows && (file.Owner != "" || file.Group != "") {
+		return fmt.Errorf("elevated owner/group attributes are not supported on Windows for %s", file.Name)
+	}
 	return nil
 }
 

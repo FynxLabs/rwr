@@ -58,3 +58,7 @@ func NewReporter(program *tea.Program) *Reporter { return &Reporter{program: pro
 
 // Emit implements reporting.Reporter.
 func (r *Reporter) Emit(e reporting.Event) { r.program.Send(event{e: e}) }
+
+// SupportsInlinePrompts lets processors ask through the running model instead
+// of suspending Bubble Tea and competing for stdin.
+func (r *Reporter) SupportsInlinePrompts() bool { return true }

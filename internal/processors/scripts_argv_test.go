@@ -68,6 +68,39 @@ scripts:
 	}
 }
 
+func TestProcessScripts_InteractiveRequiresExplicitOptIn(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+	dir := t.TempDir()
+	config := &types.InitConfig{}
+	config.Variables.Flags.Interactive = true
+	blueprint := []byte(`
+scripts:
+  - name: unattended
+    action: run
+    content: "echo unattended"
+    exec: bash
+  - name: prompt
+    action: run
+    content: "read answer"
+    exec: bash
+    interactive: true
+`)
+
+	if err := ProcessScripts(blueprint, dir, "yaml", scriptOSInfo(), config); err != nil {
+		t.Fatalf("ProcessScripts: %v", err)
+	}
+	if len(rec.Calls) != 2 {
+		t.Fatalf("recorded %d calls, want 2", len(rec.Calls))
+	}
+	if rec.Calls[0].Interactive {
+		t.Fatal("ordinary script inherited the run-level interactive flag")
+	}
+	if !rec.Calls[1].Interactive {
+		t.Fatal("explicit interactive script did not receive the terminal")
+	}
+}
+
 // The script path is passed as its own argv element, so a directory containing a
 // space cannot split into two arguments.
 func TestProcessScripts_ScriptPathWithSpacesStaysOneArgument(t *testing.T) {

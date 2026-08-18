@@ -6,6 +6,7 @@
 package reporting
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"sync"
@@ -20,6 +21,20 @@ import (
 type Reporter interface {
 	Emit(Event)
 }
+
+// SupportsInlinePrompts reports whether the active display can collect input
+// without releasing the terminal. The Bubble Tea reporter supports this;
+// LogReporter deliberately leaves the established terminal fallback intact.
+func SupportsInlinePrompts() bool {
+	currentMu.RLock()
+	r := current
+	currentMu.RUnlock()
+	provider, ok := r.(interface{ SupportsInlinePrompts() bool })
+	return ok && provider.SupportsInlinePrompts()
+}
+
+var ErrPromptUnavailable = errors.New("inline prompt unavailable")
+var ErrPromptCancelled = errors.New("prompt cancelled")
 
 // Event is one run occurrence. The concrete set below is closed by design:
 // the display layer switches over it.
@@ -81,6 +96,33 @@ type TerminalFunc struct {
 	Claim *atomic.Bool
 }
 
+type SecretResult struct {
+	Value []byte
+	Err   error
+}
+
+// SecretReq asks the active display to collect a masked value without handing
+// away the terminal. It is used only when SupportsInlinePrompts is true.
+type SecretReq struct {
+	Prompt string
+	Result chan SecretResult
+	Claim  *atomic.Bool
+}
+
+type ConfirmResult struct {
+	Yes bool
+	All bool
+	Err error
+}
+
+// ConfirmReq asks a yes/no question inside the active display.
+type ConfirmReq struct {
+	Prompt   string
+	AllowAll bool
+	Result   chan ConfirmResult
+	Claim    *atomic.Bool
+}
+
 // HaltDecision is the operator's answer to an interactive halt.
 type HaltDecision int
 
@@ -97,6 +139,7 @@ const (
 type HaltReq struct {
 	Processor string
 	Err       error
+	Retryable bool
 	Decision  chan HaltDecision
 	// Claim is CAS'd by whoever answers - the operator's keypress or the
 	// terminal-lost fallback - so a decision is made exactly once.
@@ -122,6 +165,8 @@ func (LaneUpdate) runEvent()   {}
 func (ResourceDone) runEvent() {}
 func (TerminalReq) runEvent()  {}
 func (TerminalFunc) runEvent() {}
+func (SecretReq) runEvent()    {}
+func (ConfirmReq) runEvent()   {}
 func (HaltReq) runEvent()      {}
 func (RunFinished) runEvent()  {}
 
@@ -174,6 +219,14 @@ func (LogReporter) Emit(event Event) {
 			return
 		}
 		e.Done <- e.Run()
+	case SecretReq:
+		if TryClaim(e.Claim) {
+			e.Result <- SecretResult{Err: ErrPromptUnavailable}
+		}
+	case ConfirmReq:
+		if TryClaim(e.Claim) {
+			e.Result <- ConfirmResult{Err: ErrPromptUnavailable}
+		}
 	case HaltReq:
 		// Headless interactive keeps its historical behavior: the first
 		// processor error aborts the run.
@@ -184,6 +237,55 @@ func (LogReporter) Emit(event Event) {
 	case ProcFinished, LaneUpdate, ResourceDone, RunFinished:
 		// The streaming output never printed these as their own lines; the
 		// processors' own log calls carry the detail.
+	}
+}
+
+func RequestSecret(prompt string) ([]byte, error) {
+	if !SupportsInlinePrompts() {
+		return nil, ErrPromptUnavailable
+	}
+	result := make(chan SecretResult, 1)
+	claim := &atomic.Bool{}
+	Emit(SecretReq{Prompt: prompt, Result: result, Claim: claim})
+	select {
+	case answer := <-result:
+		return answer.Value, answer.Err
+	case <-TerminalLost():
+		if claim.CompareAndSwap(false, true) {
+			return nil, ErrPromptUnavailable
+		}
+		answer := <-result
+		return answer.Value, answer.Err
+	}
+}
+
+func RequestConfirmation(prompt string) (bool, error) {
+	yes, _, err := requestConfirmation(prompt, false)
+	return yes, err
+}
+
+// RequestConfirmationAll adds an "all remaining" choice for repeated
+// confirmations such as file overwrites.
+func RequestConfirmationAll(prompt string) (yes, all bool, err error) {
+	return requestConfirmation(prompt, true)
+}
+
+func requestConfirmation(prompt string, allowAll bool) (yes, all bool, err error) {
+	if !SupportsInlinePrompts() {
+		return false, false, ErrPromptUnavailable
+	}
+	result := make(chan ConfirmResult, 1)
+	claim := &atomic.Bool{}
+	Emit(ConfirmReq{Prompt: prompt, AllowAll: allowAll, Result: result, Claim: claim})
+	select {
+	case answer := <-result:
+		return answer.Yes, answer.All, answer.Err
+	case <-TerminalLost():
+		if claim.CompareAndSwap(false, true) {
+			return false, false, ErrPromptUnavailable
+		}
+		answer := <-result
+		return answer.Yes, answer.All, answer.Err
 	}
 }
 
@@ -256,9 +358,20 @@ func TerminalLost() <-chan struct{} {
 // If the dashboard dies before answering, the headless default (abort) is
 // taken rather than blocking forever on a dropped Send.
 func RequestHalt(processor string, err error) HaltDecision {
+	return requestHalt(processor, err, true)
+}
+
+// RequestFinalHalt reports failures collected after all processors have run.
+// Retrying is deliberately unavailable because replaying the entire run could
+// repeat operations that already succeeded.
+func RequestFinalHalt(err error) HaltDecision {
+	return requestHalt("run", err, false)
+}
+
+func requestHalt(processor string, err error, retryable bool) HaltDecision {
 	decision := make(chan HaltDecision, 1)
 	claim := &atomic.Bool{}
-	Emit(HaltReq{Processor: processor, Err: err, Decision: decision, Claim: claim})
+	Emit(HaltReq{Processor: processor, Err: err, Retryable: retryable, Decision: decision, Claim: claim})
 	select {
 	case d := <-decision:
 		return d
