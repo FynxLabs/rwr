@@ -313,12 +313,6 @@ func createFile(file types.File, targetPath string, osInfo *types.OSInfo) error 
 		stagedPath := staged.Name()
 		defer os.Remove(stagedPath) //nolint:errcheck
 
-		if err := staged.Chmod(mode); err != nil {
-			if closeErr := staged.Close(); closeErr != nil {
-				log.Debugf("error closing temporary file after chmod failure: %v", closeErr)
-			}
-			return fmt.Errorf("error setting temporary file permissions: %v", err)
-		}
 		if _, err := staged.WriteString(file.Content); err != nil {
 			if closeErr := staged.Close(); closeErr != nil {
 				log.Debugf("error closing temporary file after write failure: %v", closeErr)
@@ -332,11 +326,10 @@ func createFile(file types.File, targetPath string, osInfo *types.OSInfo) error 
 		if err := system.CopyFile(stagedPath, targetPath, true, osInfo); err != nil {
 			return fmt.Errorf("error installing elevated file: %v", err)
 		}
-		// CopyFile already carried the staging mode onto the target. Apply only
-		// ownership here so we do not invoke sudo for the same chmod twice.
-		attributes := file
-		attributes.Mode = 0
-		if err := applyFileAttributes(targetPath, attributes); err != nil {
+		// Keep rendered content private in staging. CopyFile therefore installs
+		// the target as 0600; apply the blueprint's final mode and ownership only
+		// after the content is safely at its destination.
+		if err := applyFileAttributes(targetPath, file); err != nil {
 			return fmt.Errorf("error applying file attributes: %v", err)
 		}
 		log.Infof("File created and content written: %s", targetPath)

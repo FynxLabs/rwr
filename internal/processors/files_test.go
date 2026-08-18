@@ -15,6 +15,29 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+type stagingModeRecorder struct {
+	*exectest.Recorder
+	mode    os.FileMode
+	seen    bool
+	statErr error
+}
+
+func (r *stagingModeRecorder) Run(cmd types.Command, debug bool) error {
+	if filepath.Base(cmd.Exec) == "mv" && len(cmd.Args) >= 2 {
+		info, err := os.Stat(cmd.Args[1])
+		if err != nil {
+			r.statErr = err
+		} else {
+			r.mode, r.seen = info.Mode().Perm(), true
+		}
+	}
+	return r.Recorder.Run(cmd, debug)
+}
+
+func (r *stagingModeRecorder) Output(cmd types.Command, debug bool) (string, error) {
+	return r.Recorder.Output(cmd, debug)
+}
+
 func TestProcessFiles_BasicFileCreation(t *testing.T) {
 	for _, format := range testFormats {
 		t.Run(format.name, func(t *testing.T) {
@@ -975,7 +998,7 @@ func TestProcessFile_MetadataActionsNeedNoContentOrSource(t *testing.T) {
 }
 
 func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
-	rec := exectest.New()
+	rec := &stagingModeRecorder{Recorder: exectest.New()}
 	defer system.SetExecutor(rec)()
 	stagingDir := t.TempDir()
 	t.Setenv("TMPDIR", stagingDir)
@@ -994,9 +1017,15 @@ func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("processFile(elevated create): %v", err)
 	}
+	if rec.statErr != nil {
+		t.Fatalf("inspect private staging file: %v", rec.statErr)
+	}
+	if !rec.seen || rec.mode != 0o600 {
+		t.Fatalf("staging mode = %04o (seen=%v), want 0600", rec.mode, rec.seen)
+	}
 
-	if len(rec.Calls) != 3 {
-		t.Fatalf("calls = %d, want 3: %v", len(rec.Calls), rec.Calls)
+	if len(rec.Calls) != 4 {
+		t.Fatalf("calls = %d, want 4: %v", len(rec.Calls), rec.Calls)
 	}
 	wants := []struct {
 		exec string
@@ -1004,6 +1033,7 @@ func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
 	}{
 		{"mkdir", []string{"-p", "--", "/etc/sudoers.d"}},
 		{"mv", nil},
+		{"chmod", []string{"440", target}},
 		{"chown", []string{"root:wheel", target}},
 	}
 	for i, want := range wants {

@@ -752,7 +752,7 @@ func TestSeedBrewEscalationCacheUsesOneBatch(t *testing.T) {
 	provider := &types.Provider{Name: "brew", BinPath: "/opt/homebrew/bin/brew", Escalates: true}
 	cache := make(map[string]bool)
 
-	seedBrewEscalationCache(provider, []string{"curl", "claude"}, cache)
+	seedBrewEscalationCache(provider, []string{"curl", "--formula", "claude"}, cache)
 	if len(rec.Calls) != 1 {
 		t.Fatalf("brew info calls = %d, want 1", len(rec.Calls))
 	}
@@ -761,5 +761,16 @@ func TestSeedBrewEscalationCacheUsesOneBatch(t *testing.T) {
 	}
 	if cache["curl"] || !cache["claude"] {
 		t.Fatalf("cache = %#v, want formula=false and cask=true", cache)
+	}
+}
+
+func TestSeedBrewEscalationCacheSkipsOnlyOptionLikeNames(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+	provider := &types.Provider{Name: "brew", BinPath: "/opt/homebrew/bin/brew", Escalates: true}
+
+	seedBrewEscalationCache(provider, []string{"--cask", "-v"}, make(map[string]bool))
+	if len(rec.Calls) != 0 {
+		t.Fatalf("brew info calls = %d, want 0: %v", len(rec.Calls), rec.Calls)
 	}
 }

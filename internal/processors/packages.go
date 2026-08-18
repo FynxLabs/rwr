@@ -41,10 +41,16 @@ func packageCommandEscalates(provider *types.Provider, args []string, name strin
 }
 
 func seedBrewEscalationCache(provider *types.Provider, names []string, cache map[string]bool) {
-	if len(names) == 0 {
+	probeNames := make([]string, 0, len(names))
+	for _, name := range names {
+		if !strings.HasPrefix(name, "-") {
+			probeNames = append(probeNames, name)
+		}
+	}
+	if len(probeNames) == 0 {
 		return
 	}
-	args := append([]string{"info", "--json=v2"}, names...)
+	args := append([]string{"info", "--json=v2"}, probeNames...)
 	output, err := system.RunCommandOutput(types.Command{Exec: provider.BinPath, Args: args, Variables: provider.Environment}, false)
 	if err != nil {
 		return
@@ -244,6 +250,9 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 			brewSeen[provider] = make(map[string]bool)
 		}
 		for _, name := range unit.names {
+			if strings.HasPrefix(name, "-") {
+				continue
+			}
 			if !brewSeen[provider][name] {
 				brewSeen[provider][name] = true
 				brewNames[provider] = append(brewNames[provider], name)
