@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -322,8 +323,11 @@ func TestExtractFontTarball_InstallsEveryFontFace(t *testing.T) {
 		t.Errorf("extracted = %d, want 2 (both faces, not the README)", extracted)
 	}
 	for _, name := range []string{"Mono-Regular.otf", "Mono-Bold.TTF"} {
-		if _, err := os.Stat(filepath.Join(destDir, name)); err != nil {
+		info, err := os.Stat(filepath.Join(destDir, name))
+		if err != nil {
 			t.Errorf("expected %s to be installed: %v", name, err)
+		} else if runtime.GOOS != "windows" && info.Mode().Perm() != 0o644 {
+			t.Errorf("%s mode = %o, want 0644", name, info.Mode().Perm())
 		}
 	}
 	if _, err := os.Stat(filepath.Join(destDir, "README.md")); err == nil {

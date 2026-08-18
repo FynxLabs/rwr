@@ -30,6 +30,12 @@ const defaultFileMode os.FileMode = 0644
 
 var overwriteAll atomic.Bool
 
+// OpenFileNoFollow opens path while refusing a symlink as the final component
+// on platforms that support that guarantee.
+func OpenFileNoFollow(path string, flags int, mode os.FileMode) (*os.File, error) {
+	return openFileNoFollow(path, flags, mode)
+}
+
 // tempFileNextTo creates a staging file in the target's own directory.
 //
 // It has to be that directory and not os.TempDir(): /tmp is tmpfs on most Linux
@@ -88,9 +94,13 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("error opening staged file: %v", err)
 	}
-	defer sourceFile.Close() //nolint:errcheck
+	defer func() {
+		if err := sourceFile.Close(); err != nil {
+			log.Debugf("closing staged source %s: %v", source, err)
+		}
+	}()
 
-	targetFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|noFollow, mode) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	targetFile, err := OpenFileNoFollow(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
 	if err != nil {
 		return fmt.Errorf("error creating target file: %v", err)
 	}
@@ -101,14 +111,16 @@ func copyFileContentMode(source, target string, mode os.FileMode) error {
 		}
 		return fmt.Errorf("error copying file: %v", err)
 	}
-	if err := targetFile.Close(); err != nil {
-		return fmt.Errorf("error closing target file: %v", err)
-	}
-
 	if runtime.GOOS != "windows" {
-		if err := os.Chmod(target, mode); err != nil {
+		if err := targetFile.Chmod(mode); err != nil {
+			if cerr := targetFile.Close(); cerr != nil {
+				log.Debugf("Closing %s after a failed chmod: %v", target, cerr)
+			}
 			return fmt.Errorf("error setting file permissions: %v", err)
 		}
+	}
+	if err := targetFile.Close(); err != nil {
+		return fmt.Errorf("error closing target file: %v", err)
 	}
 	return nil
 }
@@ -256,7 +268,11 @@ func HashFileSHA256(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close() //nolint:errcheck
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Debugf("closing hashed file %s: %v", path, err)
+		}
+	}()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
@@ -300,7 +316,7 @@ func downloadFileContent(url, filePath string) error {
 	}
 
 	// Create the file
-	file, err := os.Create(filePath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	file, err := OpenFileNoFollow(filePath, os.O_WRONLY|os.O_TRUNC, 0)
 	if err != nil {
 		return fmt.Errorf("error creating file: %v", err)
 	}
@@ -580,11 +596,15 @@ func lineNames(line, match string) bool {
 func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error {
 	log.Debugf("Copying file from %s to %s (elevated: %v)", source, target, elevated)
 
-	sourceFile, err := os.Open(source) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	sourceFile, err := os.Open(source) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return fmt.Errorf("error opening source file: %v", err)
 	}
-	defer sourceFile.Close() //nolint:errcheck
+	defer func() {
+		if err := sourceFile.Close(); err != nil {
+			log.Debugf("closing copy source %s: %v", source, err)
+		}
+	}()
 
 	sourceInfo, err := sourceFile.Stat()
 	if err != nil {
@@ -611,14 +631,23 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 		if err != nil {
 			return fmt.Errorf("error creating temporary file: %v", err)
 		}
-		defer os.Remove(tempFile.Name()) //nolint:errcheck
+		defer func() {
+			if err := os.Remove(tempFile.Name()); err != nil && !os.IsNotExist(err) {
+				log.Debugf("removing copy staging file %s: %v", tempFile.Name(), err)
+			}
+		}()
 
 		_, err = io.Copy(tempFile, sourceFile)
 		if err != nil {
 			return fmt.Errorf("error copying to temporary file: %v", err)
 		}
+		if runtime.GOOS != "windows" {
+			if err := tempFile.Chmod(sourceInfo.Mode()); err != nil {
+				return fmt.Errorf("error setting temporary file permissions: %v", err)
+			}
+		}
 
-		err = tempFile.Close() //nolint:errcheck
+		err = tempFile.Close()
 		if err != nil {
 			return fmt.Errorf("error closing temporary file: %v", err)
 		}
@@ -628,43 +657,28 @@ func CopyFile(source, target string, elevated bool, osInfo *types.OSInfo) error 
 			return fmt.Errorf("error moving file with elevated privileges: %v", err)
 		}
 	} else {
-		targetFile, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode()) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+		targetFile, err := OpenFileNoFollow(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, sourceInfo.Mode())
 		if err != nil {
 			return fmt.Errorf("error creating target file: %v", err)
 		}
-		defer targetFile.Close() //nolint:errcheck
+		defer func() {
+			if err := targetFile.Close(); err != nil {
+				log.Debugf("closing copy target %s: %v", target, err)
+			}
+		}()
 
 		_, err = io.Copy(targetFile, sourceFile)
 		if err != nil {
 			return fmt.Errorf("error copying file: %v", err)
 		}
-	}
-
-	// Preserve file mode on Unix-like systems
-	if runtime.GOOS != "windows" {
-		if elevated {
-			err = setFilePermissionsElevated(target, sourceInfo.Mode())
-		} else {
-			err = os.Chmod(target, sourceInfo.Mode())
-		}
-		if err != nil {
-			return fmt.Errorf("error setting file permissions: %v", err)
+		if runtime.GOOS != "windows" {
+			if err := targetFile.Chmod(sourceInfo.Mode()); err != nil {
+				return fmt.Errorf("error setting file permissions: %v", err)
+			}
 		}
 	}
 
 	return nil
-}
-
-func setFilePermissionsElevated(path string, mode os.FileMode) error {
-	// filepath targets are resolved before this point, so they are absolute and
-	// cannot be read as options. BSD chmod (macOS) does not accept GNU's `--`
-	// after MODE; it treats it as a filename and fails every elevated copy.
-	cmd := types.Command{
-		Exec:     "chmod",
-		Args:     []string{fmt.Sprintf("%o", mode), path},
-		Elevated: true,
-	}
-	return RunCommand(cmd, false)
 }
 
 // ExpandPath replaces a leading "~" or "~/" in the path with the user's home
@@ -812,10 +826,13 @@ func LookupGID(group string) (int, error) {
 func promptOverwrite(path string) (bool, error) {
 	if reporting.SupportsInlinePrompts() {
 		yes, all, err := reporting.RequestConfirmationAll(fmt.Sprintf("Overwrite existing file? %s", path))
+		if err != nil {
+			return false, err
+		}
 		if all {
 			overwriteAll.Store(true)
 		}
-		return yes, err
+		return yes || all, nil
 	}
 	var input string
 	err := reporting.WithTerminal(func() error {

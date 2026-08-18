@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -116,7 +117,7 @@ func (m *Model) viewSecretDialog(background string) (string, *tea.Cursor) {
 	contentWidth := m.promptContentWidth()
 	visibleSecret := min(len(m.secretValue), max(1, contentWidth-1))
 	body := style(m.theme.Modal).Bold(true).Render(display.Truncate("ADMINISTRATOR AUTHENTICATION REQUIRED", contentWidth)) + "\n\n" +
-		style(m.theme.Text).Bold(true).Render(display.Truncate(m.secret.Prompt, contentWidth)) + "\n" +
+		style(m.theme.Text).Bold(true).Render(display.Truncate(sanitizePromptText(m.secret.Prompt), contentWidth)) + "\n" +
 		style(m.theme.Accent).Bold(true).Render(strings.Repeat("•", visibleSecret)+" ") + "\n\n" +
 		style(m.theme.Subtext).Render("Enter submit  ·  Esc cancel")
 	return m.viewPromptDialog(background, body, &tea.Position{X: visibleSecret, Y: 3})
@@ -133,10 +134,19 @@ func (m *Model) viewConfirmDialog(background string) (string, *tea.Cursor) {
 		buttons = append(buttons, m.promptButton("No", 1, 'N'))
 	}
 	body := style(m.theme.Modal).Bold(true).Render("ACTION REQUIRED") + "\n\n" +
-		style(m.theme.Text).Bold(true).Render(ansi.Wrap(m.confirm.Prompt, m.promptContentWidth(), "")) + "\n\n" +
+		style(m.theme.Text).Bold(true).Render(ansi.Wrap(sanitizePromptText(m.confirm.Prompt), m.promptContentWidth(), "")) + "\n\n" +
 		lipgloss.JoinHorizontal(lipgloss.Top, buttons...) + "\n\n" +
 		style(m.theme.Subtext).Render("←/→ select  ·  Enter confirm  ·  Esc cancel")
 	return m.viewPromptDialog(background, body, nil)
+}
+
+func sanitizePromptText(value string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, ansi.Strip(value))
 }
 
 func (m *Model) promptButton(label string, index int, shortcut rune) string {

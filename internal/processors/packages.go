@@ -34,22 +34,42 @@ func packageCommandEscalates(provider *types.Provider, args []string, name strin
 	if escalates, ok := cache[name]; ok {
 		return escalates
 	}
+	// Unknown entries stay conservative. ProcessPackages primes this cache in
+	// one brew invocation before installs begin; do not put Ruby startup in the
+	// per-package loop again when metadata omits a name or the probe fails.
+	return true
+}
 
-	output, err := system.RunCommandOutput(types.Command{
-		Exec:      provider.BinPath,
-		Args:      []string{"info", "--json=v2", name},
-		Variables: provider.Environment,
-	}, false)
+func seedBrewEscalationCache(provider *types.Provider, names []string, cache map[string]bool) {
+	if len(names) == 0 {
+		return
+	}
+	args := append([]string{"info", "--json=v2"}, names...)
+	output, err := system.RunCommandOutput(types.Command{Exec: provider.BinPath, Args: args, Variables: provider.Environment}, false)
 	if err != nil {
-		cache[name] = true
-		return true
+		return
 	}
-	escalates, known := brewMetadataEscalates([]byte(output))
-	if !known {
-		escalates = true
+	var metadata struct {
+		Formulae []struct {
+			Name string `json:"name"`
+		} `json:"formulae"`
+		Casks []struct {
+			Token string `json:"token"`
+		} `json:"casks"`
 	}
-	cache[name] = escalates
-	return escalates
+	if err := json.Unmarshal([]byte(output), &metadata); err != nil {
+		return
+	}
+	for _, formula := range metadata.Formulae {
+		if formula.Name != "" {
+			cache[formula.Name] = false
+		}
+	}
+	for _, cask := range metadata.Casks {
+		if cask.Token != "" {
+			cache[cask.Token] = true
+		}
+	}
 }
 
 func brewMetadataEscalates(data []byte) (escalates, known bool) {
@@ -190,6 +210,48 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 
 		units = append(units, packageUnit{pkg: pkg, provider: provider, names: names})
 		track.expect(provider.Name, len(names))
+	}
+
+	// Homebrew starts Ruby for `brew info`; asking once per package made a
+	// normal blueprint spend minutes classifying packages before installation.
+	// Group unresolved names by provider and seed the cache in one call each.
+	brewNames := make(map[*types.Provider][]string)
+	brewSeen := make(map[*types.Provider]map[string]bool)
+	for _, unit := range units {
+		provider := unit.provider
+		if !provider.Escalates || filepath.Base(provider.BinPath) != "brew" {
+			continue
+		}
+		if unit.pkg.Action != "install" && unit.pkg.Action != "remove" {
+			continue
+		}
+		commandArgs := strings.Fields(provider.Commands.Install)
+		if unit.pkg.Action == "remove" {
+			commandArgs = strings.Fields(provider.Commands.Remove)
+		}
+		commandArgs = append(commandArgs, unit.pkg.Args...)
+		explicitKind := false
+		for _, arg := range commandArgs {
+			if arg == "--cask" || arg == "--formula" {
+				explicitKind = true
+				break
+			}
+		}
+		if explicitKind {
+			continue
+		}
+		if brewSeen[provider] == nil {
+			brewSeen[provider] = make(map[string]bool)
+		}
+		for _, name := range unit.names {
+			if !brewSeen[provider][name] {
+				brewSeen[provider][name] = true
+				brewNames[provider] = append(brewNames[provider], name)
+			}
+		}
+	}
+	for provider, names := range brewNames {
+		seedBrewEscalationCache(provider, names, brewEscalationCache)
 	}
 
 	for _, unit := range units {

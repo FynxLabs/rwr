@@ -190,7 +190,11 @@ func sudoValidationCommand(ctx context.Context, input []byte) *exec.Cmd {
 	command := exec.CommandContext(ctx, "sudo", "-S", "-p", "", "-v") // #nosec G204 -- fixed argv
 	command.Stdin = bytes.NewReader(input)
 	command.Stdout = io.Discard
-	command.Stderr = os.Stderr
+	if writer := reporting.CommandOutputWriter(reporting.SrcStderr); writer != nil {
+		command.Stderr = writer
+	} else {
+		command.Stderr = os.Stderr
+	}
 	return command
 }
 
@@ -431,6 +435,9 @@ func runCommand(cmd types.Command, debug bool) error {
 
 	command, sudoInput, err := commandForRun(cmd)
 	if err != nil {
+		if Cancelled() {
+			return ErrCancelled
+		}
 		return err
 	}
 	defer zeroBytes(sudoInput)
@@ -558,6 +565,9 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 
 	command, sudoInput, err := commandForRun(cmd)
 	if err != nil {
+		if Cancelled() {
+			return "", ErrCancelled
+		}
 		return "", err
 	}
 	defer zeroBytes(sudoInput)

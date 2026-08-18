@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"os"
 	"runtime"
 	"slices"
 	"strings"
@@ -89,6 +90,46 @@ func TestSudoValidationKeepsPasswordOutOfArgv(t *testing.T) {
 		if strings.Contains(arg, "correct horse") {
 			t.Fatal("password appeared in sudo argv")
 		}
+	}
+}
+
+func TestSudoValidationCapturesStderrWhenDashboardOwnsTerminal(t *testing.T) {
+	store := reporting.NewStore(10)
+	reporting.SetCommandSink(store)
+	t.Cleanup(func() { reporting.SetCommandSink(nil) })
+
+	command := sudoValidationCommand(context.Background(), []byte("secret\n"))
+	if command.Stderr == os.Stderr {
+		t.Fatal("sudo validation stderr bypassed the dashboard command sink")
+	}
+}
+
+func TestCancelledPasswordPromptMapsToRunCancellation(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		run  func() error
+	}{
+		{name: "streaming", run: func() error { return runCommand(types.Command{Exec: "true", Elevated: true}, false) }},
+		{name: "captured", run: func() error {
+			_, err := runCommandOutput(types.Command{Exec: "true", Elevated: true}, false)
+			return err
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			release := BeginRun()
+			defer release()
+			defer SetSudoProbeForTest(func(context.Context) error { return errors.New("cold") })()
+			defer SetSudoPasswordForTest(func() ([]byte, error) {
+				Cancel()
+				return nil, reporting.ErrPromptCancelled
+			})()
+			resetSudoThrottleForTest()
+			defer resetSudoThrottleForTest()
+
+			if err := tc.run(); !errors.Is(err, ErrCancelled) {
+				t.Fatalf("error = %v, want ErrCancelled", err)
+			}
+		})
 	}
 }
 

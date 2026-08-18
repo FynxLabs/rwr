@@ -43,6 +43,8 @@ func TestResolveThemeEmptyNameIsNotUnknown(t *testing.T) {
 }
 
 func TestResolveThemeUserFile(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "themes"), 0o755); err != nil {
 		t.Fatal(err)

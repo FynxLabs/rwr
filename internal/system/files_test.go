@@ -1,6 +1,7 @@
 package system
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,24 +10,43 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/exectest"
+	"github.com/fynxlabs/rwr/internal/reporting"
 )
 
-func TestSetFilePermissionsElevatedUsesBSDCompatibleArgv(t *testing.T) {
-	rec := exectest.New()
-	defer SetExecutor(rec)()
-	if err := setFilePermissionsElevated("/Library/Fonts/Hack.ttf", 0o644); err != nil {
-		t.Fatalf("setFilePermissionsElevated: %v", err)
+type inlineConfirmReporter struct{ result reporting.ConfirmResult }
+
+func (r inlineConfirmReporter) SupportsInlinePrompts() bool { return true }
+func (r inlineConfirmReporter) Emit(event reporting.Event) {
+	if request, ok := event.(reporting.ConfirmReq); ok && reporting.TryClaim(request.Claim) {
+		request.Result <- r.result
 	}
-	if len(rec.Calls) != 1 {
-		t.Fatalf("calls = %d, want 1", len(rec.Calls))
+}
+
+func TestPromptOverwrite_InlineAllApprovesCurrentAndLaterFiles(t *testing.T) {
+	overwriteAll.Store(false)
+	t.Cleanup(func() { overwriteAll.Store(false) })
+	defer reporting.Set(inlineConfirmReporter{result: reporting.ConfirmResult{All: true}})()
+
+	yes, err := promptOverwrite("/tmp/config")
+	if err != nil || !yes {
+		t.Fatalf("promptOverwrite = (%v, %v), want approved", yes, err)
 	}
-	call := rec.Calls[0]
-	if got, want := strings.Join(call.Args, " "), "644 /Library/Fonts/Hack.ttf"; got != want {
-		t.Fatalf("chmod args = %q, want %q", got, want)
+	if !overwriteAll.Load() {
+		t.Fatal("overwrite-all choice was not persisted")
 	}
-	if !call.Elevated {
-		t.Fatal("chmod command was not elevated")
+}
+
+func TestPromptOverwrite_InlineErrorDoesNotPersistAll(t *testing.T) {
+	overwriteAll.Store(false)
+	t.Cleanup(func() { overwriteAll.Store(false) })
+	wantErr := errors.New("prompt closed")
+	defer reporting.Set(inlineConfirmReporter{result: reporting.ConfirmResult{All: true, Err: wantErr}})()
+
+	if _, err := promptOverwrite("/tmp/config"); !errors.Is(err, wantErr) {
+		t.Fatalf("promptOverwrite error = %v, want %v", err, wantErr)
+	}
+	if overwriteAll.Load() {
+		t.Fatal("failed confirmation persisted overwrite-all")
 	}
 }
 
@@ -291,6 +311,30 @@ func TestDownloadFile_TargetOutsideTempDir(t *testing.T) {
 		t.Errorf("target content = %q, want %q", got, "payload")
 	}
 	assertNoStagingLeftovers(t, dir, "downloaded.gpg")
+}
+
+func TestOpenFileNoFollowRejectsFinalSymlink(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside")
+	link := filepath.Join(dir, "link")
+	if err := os.WriteFile(outside, []byte("original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("cannot create test symlink: %v", err)
+	}
+
+	file, err := OpenFileNoFollow(link, os.O_WRONLY|os.O_TRUNC, 0)
+	if err == nil {
+		_ = file.Close()
+		t.Fatal("OpenFileNoFollow followed a final-component symlink")
+	}
+	content, readErr := os.ReadFile(outside)
+	if readErr != nil || string(content) != "original" {
+		t.Fatalf("outside content = %q, err = %v; want unchanged", content, readErr)
+	}
 }
 
 func TestDownloadFile_ErrorRemovesStagingFile(t *testing.T) {

@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,6 +47,8 @@ func TestViewRunning_ChecklistVisibleByDefault(t *testing.T) {
 // An interactive halt enters Prompting, and r/s/q answer the executor's
 // decision channel: retry, skip, abort. The keys exist only at a halt.
 func TestPrompting_HaltDecisions(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		key  string
 		want reporting.HaltDecision
@@ -85,6 +88,8 @@ func TestPrompting_HaltDecisions(t *testing.T) {
 }
 
 func TestPrompting_AllowsMouseRelease(t *testing.T) {
+	t.Parallel()
+
 	plan := &types.Plan{Order: []string{"users"}}
 	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
 	m.width, m.height = 100, 30
@@ -101,6 +106,8 @@ func TestPrompting_AllowsMouseRelease(t *testing.T) {
 }
 
 func TestPrompting_FinalFailuresRequireAcknowledgement(t *testing.T) {
+	t.Parallel()
+
 	plan := &types.Plan{Order: []string{"run"}}
 	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
 	m.width, m.height = 100, 30
@@ -128,6 +135,8 @@ func TestPrompting_FinalFailuresRequireAcknowledgement(t *testing.T) {
 }
 
 func TestPrompting_SecretStaysInsideTUIAndIsMasked(t *testing.T) {
+	t.Parallel()
+
 	plan := &types.Plan{Order: []string{"users"}}
 	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
 	m.width, m.height = 100, 30
@@ -165,7 +174,34 @@ func TestPrompting_SecretStaysInsideTUIAndIsMasked(t *testing.T) {
 	}
 }
 
+func TestPrompting_LostSecretClaimStillClearsModelInput(t *testing.T) {
+	t.Parallel()
+
+	var claimed atomic.Bool
+	claimed.Store(true)
+	m := New(mustTheme("rwr"), &types.Plan{Order: []string{"users"}}, reporting.NewStore(10), false, "")
+	m.apply(reporting.SecretReq{Prompt: "sudo password", Result: make(chan reporting.SecretResult, 1), Claim: &claimed})
+	for _, r := range "secret" {
+		m.key(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.secretValue != nil || m.secret != nil || m.state != Running {
+		t.Fatal("lost secret claim did not clear prompt state")
+	}
+}
+
+func TestSanitizePromptText_RemovesTerminalControls(t *testing.T) {
+	t.Parallel()
+
+	input := "Overwrite /tmp/ok\x1b]52;c;c3RvbGVu\a\r.conf"
+	if got, want := sanitizePromptText(input), "Overwrite /tmp/ok.conf"; got != want {
+		t.Fatalf("sanitizePromptText() = %q, want %q", got, want)
+	}
+}
+
 func TestPrompting_ReengagesLiveProcessorFollow(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range []struct {
 		name  string
 		event reporting.Event
@@ -194,6 +230,8 @@ func TestPrompting_ReengagesLiveProcessorFollow(t *testing.T) {
 }
 
 func TestPrompting_ConfirmationStaysInsideTUI(t *testing.T) {
+	t.Parallel()
+
 	plan := &types.Plan{Order: []string{"files"}}
 	m := New(mustTheme("rwr"), plan, reporting.NewStore(10), false, "")
 	m.width, m.height = 100, 30
@@ -214,6 +252,8 @@ func TestPrompting_ConfirmationStaysInsideTUI(t *testing.T) {
 }
 
 func TestPrompting_ConfirmationButtonsDefaultSafeAndNavigate(t *testing.T) {
+	t.Parallel()
+
 	newDialog := func() (*Model, chan reporting.ConfirmResult) {
 		result := make(chan reporting.ConfirmResult, 1)
 		m := New(mustTheme("rwr"), &types.Plan{Order: []string{"files"}}, reporting.NewStore(10), false, "")

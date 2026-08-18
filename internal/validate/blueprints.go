@@ -124,7 +124,7 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 	var initConfig types.InitConfig
 
 	// Read the init file
-	initData, err := os.ReadFile(initFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	initData, err := os.ReadFile(initFile) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		AddIssue(results, types.ValidationError, fmt.Sprintf("Error reading init file: %s", err), initFile, 0, "")
 		return nil, nil
@@ -199,7 +199,7 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 	log.Debugf("Validating blueprint file: %s", blueprintFile)
 
 	// Read and process the blueprint file
-	blueprintFileData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	blueprintFileData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return fmt.Errorf("error reading blueprint file: %w", err)
 	}

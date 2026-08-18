@@ -297,7 +297,11 @@ func TestDarwinModifyDoesNotHandNonInteractiveDsclToTerminal(t *testing.T) {
 	if err := modifyUserDarwin(types.User{Name: "levi", NewShell: "/opt/homebrew/bin/fish"}, config); err != nil {
 		t.Fatalf("modifyUserDarwin: %v", err)
 	}
-	for _, call := range rec.Find("dscl") {
+	calls := rec.Find("dscl")
+	if len(calls) == 0 {
+		t.Fatal("modifyUserDarwin recorded no dscl calls")
+	}
+	for _, call := range calls {
 		if call.Interactive {
 			t.Fatalf("noninteractive dscl command was handed the terminal: %v", call)
 		}

@@ -81,7 +81,7 @@ func processTemplate(template types.File, blueprintDir string, osInfo *types.OSI
 	sourcePath := filepath.Join(blueprintDir, template.Source, template.Name)
 	log.Debugf("Full source path: %s", sourcePath)
 
-	content, err := os.ReadFile(sourcePath) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	content, err := os.ReadFile(sourcePath) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		log.Errorf("Error reading template file %s: %v", sourcePath, err)
 		return fmt.Errorf("error reading template file %s: %w", sourcePath, err)

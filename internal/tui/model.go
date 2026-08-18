@@ -588,6 +588,10 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		finish := func(value []byte, err error) {
 			if reporting.TryClaim(m.secret.Claim) {
 				m.secret.Result <- reporting.SecretResult{Value: value, Err: err}
+			} else {
+				for i := range value {
+					value[i] = 0
+				}
 			}
 			for i := range m.secretValue {
 				m.secretValue[i] = 0

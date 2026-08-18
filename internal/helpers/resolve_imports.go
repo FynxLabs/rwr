@@ -93,7 +93,7 @@ func resolveImports[T any](
 		}
 		visited[absPath] = true
 
-		data, err := os.ReadFile(fullPath) // #nosec G304 -- path is inside the operator's own blueprint tree; containment added in PR8
+		data, err := os.ReadFile(fullPath) // #nosec G304 -- path is inside the operator's own blueprint tree
 		if err != nil {
 			return nil, fmt.Errorf("error reading import file %s: %w", fullPath, err)
 		}

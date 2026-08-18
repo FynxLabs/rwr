@@ -204,12 +204,12 @@ func ShowDiff(source, target string) error {
 // ShowDiffTo writes the diff to writer so a TUI run can keep it inside the
 // dashboard log panel instead of tearing down the frame to print directly.
 func ShowDiffTo(writer io.Writer, source, target string) error {
-	sourceContent, err := os.ReadFile(source) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	sourceContent, err := os.ReadFile(source) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return err
 	}
 
-	targetContent, err := os.ReadFile(target) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	targetContent, err := os.ReadFile(target) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return err
 	}

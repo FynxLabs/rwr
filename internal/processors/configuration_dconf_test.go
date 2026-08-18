@@ -66,3 +66,24 @@ func TestProcessDconf_MissingKeyfile(t *testing.T) {
 		t.Fatalf("no command should run, got %v", rec.Calls)
 	}
 }
+
+func TestProcessDconf_RunOnceMarkerFailureIsReturned(t *testing.T) {
+	rec := exectest.New()
+	defer system.SetExecutor(rec)()
+
+	blueprintDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(blueprintDir, "desktop.ini"), []byte("[desktop]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	blockedParent := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blockedParent, []byte("block"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	config := types.Configuration{Name: "desktop", Tool: "dconf", File: "desktop.ini", RunOnce: true}
+	initConfig := &types.InitConfig{}
+	initConfig.Variables.Flags.RunOnceLocation = blockedParent
+
+	if err := processDconf(blueprintDir, config, initConfig); err == nil {
+		t.Fatal("processDconf = nil, want marker-write error")
+	}
+}

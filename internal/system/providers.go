@@ -354,7 +354,7 @@ func GetProvidersPath() (string, error) {
 		if !filepath.IsAbs(loc) {
 			continue
 		}
-		if _, err := os.Stat(loc); err == nil { // #nosec G703 -- TODO(PR8): path derived from operator blueprint input; containment added in PR8
+		if _, err := os.Stat(loc); err == nil { // #nosec G703 -- trusted absolute candidates from the executable, system, or user config directories
 			log.Debugf("Found providers directory at: %s", loc)
 			return loc, nil
 		}
@@ -455,7 +455,7 @@ func isProviderFileTrustedOn(goos, path string) bool {
 // LoadProviderDefinition parses a single TOML provider definition file
 // and returns the resulting Provider struct.
 func LoadProviderDefinition(path string) (*types.Provider, error) {
-	data, err := os.ReadFile(path) // #nosec G304 -- path is operator-supplied blueprint/config input; containment added in PR8
+	data, err := os.ReadFile(path) // #nosec G304 -- path is operator-supplied blueprint/config input
 	if err != nil {
 		return nil, err
 	}

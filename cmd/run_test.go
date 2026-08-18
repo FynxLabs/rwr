@@ -51,6 +51,8 @@ func TestHasProcessorArg(t *testing.T) {
 }
 
 func TestRunHandlesBlueprintSyncInsideDashboard(t *testing.T) {
+	t.Parallel()
+
 	root := &cobra.Command{Use: "rwr"}
 	run := &cobra.Command{Use: "run"}
 	root.AddCommand(run)
@@ -69,6 +71,8 @@ func TestRunHandlesBlueprintSyncInsideDashboard(t *testing.T) {
 		{name: "run packages", cmd: packages, want: true},
 		{name: "bootstrap needs pre-run sync", cmd: bootstrap, want: false},
 		{name: "root shorthand", cmd: root, args: []string{"files"}, want: true},
+		{name: "root bootstrap", cmd: root, args: []string{"bootstrap"}, want: false},
+		{name: "root without shorthand", cmd: root, want: false},
 		{name: "unrelated command", cmd: &cobra.Command{Use: "status"}, want: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

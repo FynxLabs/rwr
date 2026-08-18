@@ -709,6 +709,7 @@ func TestBrewMetadataEscalates(t *testing.T) {
 		{name: "formula", metadata: `{"formulae":[{"name":"curl"}],"casks":[]}`, known: true},
 		{name: "cask", metadata: `{"formulae":[],"casks":[{"token":"claude"}]}`, escalates: true, known: true},
 		{name: "ambiguous", metadata: `{"formulae":[{}],"casks":[{}]}`},
+		{name: "empty", metadata: `{"formulae":[],"casks":[]}`},
 		{name: "invalid", metadata: `{`},
 	}
 
@@ -741,5 +742,24 @@ func TestPackageCommandEscalatesUsesExplicitBrewKind(t *testing.T) {
 	}
 	if !packageCommandEscalates(provider, []string{"install", "claude"}, "claude", cache) {
 		t.Error("metadata-classified cask was not marked as escalating")
+	}
+}
+
+func TestSeedBrewEscalationCacheUsesOneBatch(t *testing.T) {
+	rec := exectest.New()
+	rec.Stdout = `{"formulae":[{"name":"curl"}],"casks":[{"token":"claude"}]}`
+	defer system.SetExecutor(rec)()
+	provider := &types.Provider{Name: "brew", BinPath: "/opt/homebrew/bin/brew", Escalates: true}
+	cache := make(map[string]bool)
+
+	seedBrewEscalationCache(provider, []string{"curl", "claude"}, cache)
+	if len(rec.Calls) != 1 {
+		t.Fatalf("brew info calls = %d, want 1", len(rec.Calls))
+	}
+	if got, want := strings.Join(rec.Calls[0].Args, " "), "info --json=v2 curl claude"; got != want {
+		t.Fatalf("brew info args = %q, want %q", got, want)
+	}
+	if cache["curl"] || !cache["claude"] {
+		t.Fatalf("cache = %#v, want formula=false and cask=true", cache)
 	}
 }

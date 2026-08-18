@@ -277,6 +277,12 @@ with the provider's privileges - root, for every system package manager - and th
 destination is a template rendered against blueprint values, so an unchecked
 destination would be a root-privileged write to an arbitrary path.
 
+File creation and replacement SHALL reject a final destination that is a symlink
+or Windows reparse point. Permission changes SHALL be applied through the opened
+destination descriptor so a path replacement cannot redirect the change. For an
+elevated replacement, RWR SHALL set the mode through the private staging-file
+descriptor before the privileged move installs that same file.
+
 #### Scenario: Adding an apt repository
 
 - **WHEN** an apt repository is added
@@ -428,7 +434,8 @@ RWR SHALL fail when the resulting directory is empty.
 
 In dry-run mode RWR SHALL report the sync it would perform and SHALL touch neither
 disk nor network, because cloning and pulling go directly to the filesystem rather
-than through the command executor where dry-run is otherwise enforced.
+than through the command executor where dry-run is otherwise enforced. This
+includes not creating the declared clone target or any parent directories.
 
 #### Scenario: First run on a new machine
 
@@ -713,7 +720,9 @@ For `dconf`, RWR SHALL resolve the entry's `file` relative to the blueprint
 directory and feed its content to `dconf load /` on standard input - commands
 run without a shell, so a `<` in argv is data, not a redirection. An entry with
 `run_once: true` SHALL be skipped when its bootstrap marker file exists, and
-the marker SHALL be written only after a successful apply.
+the marker SHALL be written only after a successful apply. A marker-write
+failure SHALL stop the run with an error rather than reporting success without
+recording the run-once state.
 
 For `gsettings`, RWR SHALL check that each key is writable before setting it,
 and SHALL record a per-key ledger failure - and continue with the remaining
@@ -821,6 +830,10 @@ outside the destination. An entry whose path resolves outside the destination
 directory SHALL fail the extraction. A single entry decompressing past 64 MB
 SHALL fail as a suspected decompression bomb - archives arrive xz-compressed
 from the network, and real font faces are single-digit MB.
+
+Each extracted font face SHALL be staged with mode `0644`, copied to its final
+destination, and have its staging file removed immediately after that copy.
+Failed copies SHALL still clean up their staging files before the run returns.
 
 An archive that produced zero font faces SHALL be a failure, not a success.
 After an install or removal RWR SHALL refresh the font cache, elevated only for

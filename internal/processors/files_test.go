@@ -977,6 +977,8 @@ func TestProcessFile_MetadataActionsNeedNoContentOrSource(t *testing.T) {
 func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
 	rec := exectest.New()
 	defer system.SetExecutor(rec)()
+	stagingDir := t.TempDir()
+	t.Setenv("TMPDIR", stagingDir)
 
 	target := "/etc/sudoers.d/kanata"
 	err := processFile(types.File{
@@ -993,8 +995,8 @@ func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
 		t.Fatalf("processFile(elevated create): %v", err)
 	}
 
-	if len(rec.Calls) != 4 {
-		t.Fatalf("calls = %d, want 4: %v", len(rec.Calls), rec.Calls)
+	if len(rec.Calls) != 3 {
+		t.Fatalf("calls = %d, want 3: %v", len(rec.Calls), rec.Calls)
 	}
 	wants := []struct {
 		exec string
@@ -1002,7 +1004,6 @@ func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
 	}{
 		{"mkdir", []string{"-p", "--", "/etc/sudoers.d"}},
 		{"mv", nil},
-		{"chmod", []string{"440", target}},
 		{"chown", []string{"root:wheel", target}},
 	}
 	for i, want := range wants {
@@ -1016,6 +1017,19 @@ func TestProcessFile_ElevatedCreateStagesContentAndAttributes(t *testing.T) {
 	}
 	if got := rec.Calls[1].Args; len(got) != 3 || got[0] != "--" || got[2] != target || got[1] == target {
 		t.Errorf("mv args = %q, want staged source and target %q", got, target)
+	} else if filepath.Dir(got[1]) != stagingDir {
+		t.Errorf("staging source = %q, want it under test directory %q", got[1], stagingDir)
+	}
+}
+
+func TestValidateElevatedFileAttributes_WindowsRejectsOwnershipBeforeInstall(t *testing.T) {
+	t.Parallel()
+
+	if err := validateElevatedFileAttributes(types.File{Name: "config", Owner: "root"}, types.OSWindows); err == nil {
+		t.Fatal("Windows elevated ownership was accepted")
+	}
+	if err := validateElevatedFileAttributes(types.File{Name: "config", Mode: types.FileMode(0o600)}, types.OSWindows); err != nil {
+		t.Fatalf("Windows mode-only file was rejected: %v", err)
 	}
 }
 
