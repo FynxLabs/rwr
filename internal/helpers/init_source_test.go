@@ -90,6 +90,12 @@ func TestResolveInitSource_LocalForms(t *testing.T) {
 }
 
 func TestResolveInitSource_URLs(t *testing.T) {
+	origClone := cloneManifestRepo
+	cloneManifestRepo = func(owner, repo string) (string, error) {
+		return filepath.Join("cloned", owner, repo, "init.toml"), nil
+	}
+	defer func() { cloneManifestRepo = origClone }()
+
 	for _, tt := range []struct {
 		name    string
 		ref     string
@@ -97,14 +103,29 @@ func TestResolveInitSource_URLs(t *testing.T) {
 		wantErr string
 	}{
 		{
+			name: "github repository URL discovers its init",
+			ref:  "https://github.com/FynxLabs/blueprints",
+			want: filepath.Join("cloned", "FynxLabs", "blueprints", "init.toml"),
+		},
+		{
+			name: "github clone URL discovers its init",
+			ref:  "https://github.com/FynxLabs/blueprints.git/",
+			want: filepath.Join("cloned", "FynxLabs", "blueprints", "init.toml"),
+		},
+		{
+			name: "raw github init clones its repository",
+			ref:  "https://raw.githubusercontent.com/FynxLabs/blueprints/refs/heads/main/macOS/init.cue",
+			want: filepath.Join("cloned", "FynxLabs", "blueprints", "init.toml"),
+		},
+		{
 			name: "raw https passes through",
 			ref:  "https://example.com/machines/init.yaml",
 			want: "https://example.com/machines/init.yaml",
 		},
 		{
-			name: "github blob URL is rewritten",
+			name: "github blob init clones its repository",
 			ref:  "https://github.com/FynxLabs/blueprints/blob/main/init.yaml",
-			want: "https://raw.githubusercontent.com/FynxLabs/blueprints/main/init.yaml",
+			want: filepath.Join("cloned", "FynxLabs", "blueprints", "init.toml"),
 		},
 		{
 			name:    "malformed blob URL errors instead of panicking",

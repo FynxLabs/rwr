@@ -3,9 +3,11 @@ package helpers
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -56,7 +58,27 @@ func ResolveInitSource(ref string) (string, error) {
 	}
 
 	if strings.HasPrefix(ref, "https://") {
-		return rewriteBlobURL(ref)
+		// A GitHub repository page is a container, not an init file. Passing it
+		// through made Initialize download GitHub's HTML and parse the page's own
+		// {{ ... }} expressions as blueprint templates. Resolve repository roots
+		// by cloning the tree: even a root init file may refer to sibling files,
+		// and downloading that init alone would turn its relative location into a
+		// temporary directory that disappears after initialization.
+		if shorthand, ok := githubRepositoryShorthand(ref); ok {
+			parts := strings.SplitN(shorthand, "/", 2)
+			return cloneManifestRepo(parts[0], parts[1])
+		}
+		// A raw GitHub init still belongs to a repository. Clone the tree so
+		// relative blueprint paths resolve beside the init instead of under the
+		// short-lived download directory.
+		normalized, err := rewriteBlobURL(ref)
+		if err != nil {
+			return "", err
+		}
+		if owner, repo, ok := rawGitHubRepository(normalized); ok {
+			return cloneManifestRepo(owner, repo)
+		}
+		return normalized, nil
 	}
 	if strings.HasPrefix(ref, "http://") {
 		return "", fmt.Errorf("refusing to fetch the init file over http://: it is served in cleartext and drives everything rwr runs; use https:// instead (%s)", ref)
@@ -79,6 +101,47 @@ func ResolveInitSource(ref string) (string, error) {
 	return "", fmt.Errorf("init source %q is not an existing path, an https:// URL, or an owner/repo shorthand", ref)
 }
 
+func rawGitHubRepository(ref string) (string, string, bool) {
+	u, err := url.Parse(ref)
+	if err != nil || !strings.EqualFold(u.Hostname(), "raw.githubusercontent.com") {
+		return "", "", false
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 4 {
+		return "", "", false
+	}
+	base := strings.TrimSuffix(parts[len(parts)-1], filepath.Ext(parts[len(parts)-1]))
+	if base != "init" && base != "manifest" {
+		return "", "", false
+	}
+	return parts[0], strings.TrimSuffix(parts[1], ".git"), true
+}
+
+// githubRepositoryShorthand recognizes only a GitHub repository root. Blob
+// URLs remain individual files, and tree/issue/action URLs must not silently
+// acquire repository-root semantics.
+func githubRepositoryShorthand(ref string) (string, bool) {
+	u, err := url.Parse(ref)
+	if err != nil || !strings.EqualFold(u.Hostname(), "github.com") || u.RawQuery != "" || u.Fragment != "" {
+		return "", false
+	}
+	parts := strings.Split(strings.Trim(u.EscapedPath(), "/"), "/")
+	if len(parts) != 2 {
+		return "", false
+	}
+	owner, err := url.PathUnescape(parts[0])
+	if err != nil {
+		return "", false
+	}
+	repo, err := url.PathUnescape(parts[1])
+	if err != nil {
+		return "", false
+	}
+	repo = strings.TrimSuffix(repo, ".git")
+	shorthand := owner + "/" + repo
+	return shorthand, shorthandPattern.MatchString(shorthand)
+}
+
 // probeInitDir returns the first init file name that exists in dir. A
 // directory with no init file but a manifest at its root is a
 // multi-configuration repo: the manifest path is returned and the caller
@@ -97,6 +160,31 @@ func probeInitDir(dir string) (string, error) {
 		return manifest, nil
 	}
 	return "", fmt.Errorf("no init file (%s) or manifest found in %s", strings.Join(initFileNames, ", "), dir)
+}
+
+// probeRepositoryDir adds the conventional per-OS directory used by older
+// multi-machine repositories that predate manifests.
+func probeRepositoryDir(dir string) (string, error) {
+	if resolved, err := probeInitDir(dir); err == nil {
+		return resolved, nil
+	}
+	var osDirs []string
+	switch runtime.GOOS {
+	case "darwin":
+		osDirs = []string{"macOS", "macos", "darwin"}
+	case "windows":
+		osDirs = []string{"Windows", "windows"}
+	case "linux":
+		osDirs = []string{"Linux", "linux"}
+	}
+	for _, osDir := range osDirs {
+		candidate := filepath.Join(dir, osDir)
+		if resolved, err := probeInitDir(candidate); err == nil {
+			log.Infof("Using conventional %s blueprint directory", osDir)
+			return resolved, nil
+		}
+	}
+	return probeInitDir(dir)
 }
 
 // rewriteBlobURL turns a GitHub /blob/ page URL into its raw content URL and
@@ -193,5 +281,5 @@ var cloneManifestRepo = func(owner, repo string) (string, error) {
 			return "", fmt.Errorf("error cloning manifest repo %s/%s: %w", owner, repo, err)
 		}
 	}
-	return probeInitDir(target)
+	return probeRepositoryDir(target)
 }

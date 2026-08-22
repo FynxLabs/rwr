@@ -24,6 +24,16 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 	if initConfig.Init.Git != nil {
 		gitOpts := initConfig.Init.Git
 
+		// A repository URL used as -i has already been cloned so its manifest can
+		// select this init file. If that checkout has the same origin the init
+		// declares, it is already the requested blueprint repository. Cloning it a
+		// second time wastes the network round trip (and can hang in go-git before
+		// the dashboard shows useful progress).
+		if sourceRoot, ok := matchingRepositoryRoot(initConfig.Init.Location, gitOpts.URL); ok {
+			log.Infof("Using already-resolved blueprint repository: %s", sourceRoot)
+			return initConfig.Init.Location, nil
+		}
+
 		// Dry-run has to bail out before any of the git handling below: cloning and
 		// pulling touch disk and network directly instead of going through
 		// system.RunCommand, which is where dry-run is otherwise enforced.
@@ -36,7 +46,17 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 			// Refuse rather than reclaim the path: rwr runs unattended, and a
 			// mistyped target (~/dotfiles) used to be silently deleted here.
 			if _, err := git.PlainOpen(gitOpts.Target); err != nil {
-				return "", fmt.Errorf("blueprint target %q exists but is not a git repository; move or remove it yourself, or point blueprints.git.target at a different path", gitOpts.Target)
+				entries, readErr := os.ReadDir(gitOpts.Target)
+				if readErr != nil || len(entries) != 0 {
+					return "", fmt.Errorf("blueprint target %q exists but is not a git repository and is not empty; move or remove it yourself, or point blueprints.git.target at a different path", gitOpts.Target)
+				}
+				// Older RWR builds created the clone target during init, then
+				// rejected their own empty directory here. Removing only a verified
+				// empty target repairs that state without risking user content.
+				if err := os.Remove(gitOpts.Target); err != nil {
+					return "", fmt.Errorf("removing empty blueprint target left by initialization: %w", err)
+				}
+				log.Infof("Removed empty blueprint target left by an earlier initialization: %s", gitOpts.Target)
 			}
 		}
 
@@ -87,6 +107,35 @@ func GetBlueprints(initConfig *types.InitConfig) (string, error) {
 	location := initConfig.Init.Location
 	log.Debugf("Using default blueprint location: %s", location)
 	return location, nil
+}
+
+func matchingRepositoryRoot(location, desiredURL string) (string, bool) {
+	dir := filepath.Clean(location)
+	for {
+		repo, err := git.PlainOpen(dir)
+		if err == nil {
+			remote, remoteErr := repo.Remote("origin")
+			if remoteErr != nil || len(remote.Config().URLs) == 0 {
+				return "", false
+			}
+			return dir, sameRepositoryURL(remote.Config().URLs[0], desiredURL)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
+}
+
+func sameRepositoryURL(a, b string) bool {
+	normalize := func(value string) string {
+		value = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(value), "/"), ".git")
+		value = strings.TrimPrefix(value, "git@github.com:")
+		value = strings.TrimPrefix(value, "https://github.com/")
+		return strings.ToLower(value)
+	}
+	return normalize(a) == normalize(b)
 }
 
 // defaultRunOrder is the order blueprint processors run in when the init file

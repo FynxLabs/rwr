@@ -149,18 +149,18 @@ blueprints:
 	}
 }
 
-func TestSetBlueprintsLocationReturnsGitTargetCreationFailure(t *testing.T) {
+func TestSetBlueprintsLocationDoesNotCreateGitTarget(t *testing.T) {
 	t.Parallel()
 
-	blocker := filepath.Join(t.TempDir(), "not-a-directory")
-	if err := os.WriteFile(blocker, []byte("block"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	target := filepath.Join(t.TempDir(), "checkout")
 	config := &types.InitConfig{}
-	config.Init.Git = &types.GitOptions{Target: filepath.Join(blocker, "checkout")}
+	config.Init.Git = &types.GitOptions{Target: target}
 
-	if err := setBlueprintsLocation(config, filepath.Join(t.TempDir(), "init.yaml")); err == nil {
-		t.Fatal("setBlueprintsLocation = nil, want target-directory error")
+	if err := setBlueprintsLocation(config, filepath.Join(t.TempDir(), "init.yaml")); err != nil {
+		t.Fatalf("setBlueprintsLocation: %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("initialization created the future clone target: %v", err)
 	}
 }
 

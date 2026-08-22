@@ -69,6 +69,22 @@ func TestGetBlueprints_NonGitTargetErrorsInsteadOfDeleting(t *testing.T) {
 	}
 }
 
+func TestGetBlueprints_RepairsEmptyTargetLeftByInitialization(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "checkout")
+	if err := os.MkdirAll(target, 0o750); err != nil {
+		t.Fatalf("failed to create empty target: %v", err)
+	}
+	cfg := gitBlueprintConfig(target)
+	// Fail immediately after target preparation; this test is about reaching
+	// clone rather than rejecting the stale empty directory.
+	cfg.Init.Git.URL = "://invalid"
+
+	_, err := GetBlueprints(cfg)
+	if err == nil || !containsString(err.Error(), "error cloning blueprint repository") {
+		t.Fatalf("GetBlueprints error = %v, want clone attempt after empty-target repair", err)
+	}
+}
+
 func TestWriteBootstrapMarker_SkippedInDryRun(t *testing.T) {
 	configDir := t.TempDir()
 	viper.Set("rwr.configdir", configDir)

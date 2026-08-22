@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/go-git/go-git/v5"
+	gitconfig "github.com/go-git/go-git/v5/config"
 )
 
 func TestGetBlueprintRunOrder_DefaultOrder(t *testing.T) {
@@ -441,5 +443,50 @@ func TestGetBlueprints_NoGitOptions_EmptyLocation(t *testing.T) {
 
 	if result != "" {
 		t.Errorf("Expected empty location, got %s", result)
+	}
+}
+
+func TestGetBlueprints_ReusesResolvedRepository(t *testing.T) {
+	root := t.TempDir()
+	repo, err := git.PlainInit(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.CreateRemote(&gitconfig.RemoteConfig{
+		Name: "origin",
+		URLs: []string{"https://github.com/TheFynx/rwr-blueprints.git"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	selected := filepath.Join(root, "macOS")
+	if err := os.MkdirAll(selected, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := &types.InitConfig{Init: types.Init{
+		Location: selected,
+		Git: &types.GitOptions{
+			URL:    "https://github.com/thefynx/rwr-blueprints.git",
+			Target: filepath.Join(t.TempDir(), "must-not-be-cloned"),
+		},
+	}}
+
+	got, err := GetBlueprints(config)
+	if err != nil {
+		t.Fatalf("GetBlueprints: %v", err)
+	}
+	if got != selected {
+		t.Fatalf("GetBlueprints = %q, want selected directory %q", got, selected)
+	}
+	if _, err := os.Stat(config.Init.Git.Target); !os.IsNotExist(err) {
+		t.Fatalf("duplicate clone target was touched: %v", err)
+	}
+}
+
+func TestSameRepositoryURL(t *testing.T) {
+	if !sameRepositoryURL("git@github.com:TheFynx/rwr-blueprints.git", "https://github.com/thefynx/rwr-blueprints") {
+		t.Fatal("equivalent GitHub SSH and HTTPS URLs did not match")
+	}
+	if sameRepositoryURL("https://github.com/TheFynx/other.git", "https://github.com/thefynx/rwr-blueprints.git") {
+		t.Fatal("different repositories matched")
 	}
 }

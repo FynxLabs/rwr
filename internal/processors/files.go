@@ -46,12 +46,17 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 	// done/total counts.
 	track := newProgress(types.BlueprintTypeFiles)
 
-	if err := processFiles(files, blueprintDir, osInfo, track); err != nil {
-		return fmt.Errorf("error processing files: %w", err)
-	}
-
+	// Broad directory copies establish the baseline first. Specific file
+	// operations then refine it (for example, chmod an executable delivered by
+	// a copied config tree). Running files first let the directory copy silently
+	// overwrite their content and modes afterward while both steps reported
+	// success.
 	if err := processDirectories(dirs, blueprintDir, initConfig, track); err != nil {
 		return fmt.Errorf("error processing directories: %w", err)
+	}
+
+	if err := processFiles(files, blueprintDir, osInfo, track); err != nil {
+		return fmt.Errorf("error processing files: %w", err)
 	}
 
 	if err := processTemplates(templates, blueprintDir, osInfo, initConfig, track); err != nil {

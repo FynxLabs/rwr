@@ -35,26 +35,13 @@ func packageManagerTempDir() (string, error) {
 	return pmTempDirPath, pmTempDirErr
 }
 
-// ProcessPackageManagers installs package managers and their common dependencies
-// (OpenSSL, build essentials) before installing each requested package manager.
+// ProcessPackageManagers bootstraps the requested package managers, refreshes
+// detection, and then installs their common dependencies (OpenSSL and build
+// essentials) through the newly available default manager.
 func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Initialize providers if needed
 	if err := system.InitProviders(); err != nil {
 		return fmt.Errorf("error initializing providers: %w", err)
-	}
-
-	log.Infof("Installing package manager common dependencies")
-
-	// Install OpenSSL
-	log.Infof("Installing OpenSSL")
-	if err := system.InstallOpenSSL(osInfo, initConfig); err != nil {
-		return fmt.Errorf("error installing OpenSSL: %v", err)
-	}
-
-	// Install build essentials
-	log.Infof("Installing build essentials")
-	if err := system.InstallBuildEssentials(osInfo, initConfig); err != nil {
-		return fmt.Errorf("error installing build essentials: %v", err)
 	}
 
 	// Process each package manager
@@ -159,6 +146,27 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 				return fmt.Errorf("error executing package manager step: %w", err)
 			}
 		}
+	}
+
+	// Package-manager installation changes both PATH-visible tools and the
+	// default-manager selection. Refresh before installing dependencies or
+	// running later processors; otherwise a clean macOS install successfully
+	// installs Homebrew but the rest of this run still believes no manager
+	// exists. Dependencies intentionally come second because they need the
+	// manager we just bootstrapped.
+	if refreshed := system.DetectOS(); refreshed != nil {
+		*osInfo = *refreshed
+	}
+
+	log.Infof("Installing package manager common dependencies")
+	log.Infof("Installing OpenSSL")
+	if err := system.InstallOpenSSL(osInfo, initConfig); err != nil {
+		return fmt.Errorf("error installing OpenSSL: %v", err)
+	}
+
+	log.Infof("Installing build essentials")
+	if err := system.InstallBuildEssentials(osInfo, initConfig); err != nil {
+		return fmt.Errorf("error installing build essentials: %v", err)
 	}
 
 	return nil
