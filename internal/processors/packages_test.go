@@ -695,6 +695,9 @@ packages:
 	if !call.Escalates {
 		t.Error("the command is not marked as escalating, so sudo will not be pre-validated for it")
 	}
+	if !call.Interactive {
+		t.Error("the self-escalating command does not own the terminal, so a nested sudo prompt can hang behind the TUI")
+	}
 }
 
 func TestBrewMetadataEscalates(t *testing.T) {

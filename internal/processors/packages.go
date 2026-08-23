@@ -302,6 +302,19 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				args = append(args, pkg.Args...)
 			}
 
+			escalates := packageCommandEscalates(provider, args, name, brewEscalationCache)
+			interactive := helpers.ResolveInteractive(pkg.Interactive, false)
+			// A self-escalating manager (notably Homebrew while upgrading a
+			// cask) owns the nested sudo process, so RWR cannot pipe a password
+			// into it. Some sudo policies scope tickets such that RWR's separate
+			// preflight does not satisfy that child. Give these commands the
+			// terminal: if sudo asks again, the prompt is visible and usable
+			// instead of blocking invisibly behind the dashboard. An explicit
+			// interactive:false cannot disable this authentication requirement.
+			if escalates {
+				interactive = true
+			}
+
 			// Execute command directly with environment variables
 			cmd := types.Command{
 				Exec: provider.BinPath,
@@ -314,16 +327,11 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				// that calls sudo itself, so the credential cache is warmed
 				// before it rather than after it has already hung on a prompt
 				// nobody could see.
-				Escalates: packageCommandEscalates(provider, args, name, brewEscalationCache),
+				Escalates: escalates,
 				Variables: provider.Environment,
-				// Terminal handover only on an explicit per-item
-				// `interactive: true`. Routing every package through the
-				// terminal suspended the TUI per package and splattered raw
-				// package-manager output across the dashboard - and the one
-				// legitimate need, sudo's password prompt, is served by
-				// ensureSudoCredentials validating before captured elevated
-				// commands run.
-				Interactive: helpers.ResolveInteractive(pkg.Interactive, false),
+				// Explicit interactive items and self-escalating commands receive
+				// the terminal. Ordinary package work stays captured by the TUI.
+				Interactive: interactive,
 			}
 			started := time.Now()
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
