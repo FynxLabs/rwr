@@ -269,10 +269,17 @@ func TestPrompting_ConfirmationButtonsDefaultSafeAndNavigate(t *testing.T) {
 	}
 
 	m, result = newDialog()
-	m.key(tea.KeyPressMsg{Code: tea.KeyRight}) // Skip wraps to Overwrite.
+	m.key(tea.KeyPressMsg{Code: tea.KeyRight}) // Skip -> Skip All.
+	m.key(tea.KeyPressMsg{Code: tea.KeyRight}) // Skip All wraps to Overwrite.
 	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if answer := <-result; !answer.Yes || answer.All || answer.Err != nil {
 		t.Fatalf("button navigation did not select Overwrite: %+v", answer)
+	}
+
+	m, result = newDialog()
+	m.key(tea.KeyPressMsg{Code: 's', Text: "s"})
+	if answer := <-result; answer.Yes || !answer.All || answer.Err != nil {
+		t.Fatalf("skip-all shortcut returned wrong answer: %+v", answer)
 	}
 }
 

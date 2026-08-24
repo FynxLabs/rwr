@@ -157,6 +157,7 @@ type Model struct {
 	secret          *reporting.SecretReq
 	secretValue     []rune
 	confirm         *reporting.ConfirmReq
+	confirmDetails  bool
 	confirmSelected int
 	// resumedAt is when the terminal last came back from a child process or
 	// a prompt entered Prompting; plain keys within the grace window after
@@ -403,6 +404,7 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 	case reporting.ConfirmReq:
 		m.state = Prompting
 		m.confirm = &ev
+		m.confirmDetails = false
 		if ev.AllowAll {
 			m.confirmSelected = 2 // Skip is the safe default.
 		} else {
@@ -631,6 +633,8 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.state = Running
 		}
 		switch msg.String() {
+		case "d":
+			m.confirmDetails = !m.confirmDetails
 		case "left", "h", "shift+tab":
 			m.confirmSelected--
 			if m.confirmSelected < 0 {
@@ -659,6 +663,10 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 		case "n", "N":
 			finish(false, false, nil)
+		case "s", "S":
+			if m.confirm.AllowAll {
+				finish(false, true, nil)
+			}
 		case "esc", "ctrl+c":
 			finish(false, false, reporting.ErrPromptCancelled)
 		}
@@ -728,6 +736,24 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			// Abort the run; the summary follows via RunFinished.
 			answer(reporting.HaltAbort)
 			return m, nil
+		}
+		return m, nil
+	}
+
+	// Arrow escape sequences are not rendered consistently by every terminal
+	// into KeyPressMsg.String(). The key code is stable, so make it the primary
+	// path and keep j/k as aliases below.
+	if msg.Code == tea.KeyDown {
+		m.pinned = true
+		if m.cursor < len(m.procs)-1 {
+			m.cursor++
+		}
+		return m, nil
+	}
+	if msg.Code == tea.KeyUp {
+		m.pinned = true
+		if m.cursor > 0 {
+			m.cursor--
 		}
 		return m, nil
 	}
@@ -853,7 +879,7 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 func (m *Model) confirmOptionCount() int {
 	if m.confirm != nil && m.confirm.AllowAll {
-		return 3
+		return 4
 	}
 	return 2
 }

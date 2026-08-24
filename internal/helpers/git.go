@@ -65,8 +65,31 @@ func HandleGitClone(opts types.GitOptions, initConfig *types.InitConfig) error {
 	return nil
 }
 
+// SameRepositoryURL reports whether two remote URLs identify the same GitHub
+// repository. The transport and spelling are deliberately ignored: declaring
+// an HTTPS clone URL must not replace an operator's working SSH origin (or vice
+// versa). Non-GitHub URLs remain exact matches after harmless suffix cleanup.
+func SameRepositoryURL(a, b string) bool {
+	normalize := func(value string) string {
+		value = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(value), "/"), ".git")
+		lower := strings.ToLower(value)
+		for _, prefix := range []string{
+			"git@github.com:",
+			"ssh://git@github.com/",
+			"https://github.com/",
+		} {
+			if strings.HasPrefix(lower, prefix) {
+				return "github.com/" + strings.TrimPrefix(lower, prefix)
+			}
+		}
+		return value
+	}
+	return normalize(a) == normalize(b)
+}
+
 // CheckAndUpdateRemoteURL verifies and updates the origin remote URL of an
-// existing Git repository if it differs from the desired URL.
+// existing Git repository if it points at a different repository. Equivalent
+// SSH and HTTPS URLs preserve the checkout's chosen transport.
 func CheckAndUpdateRemoteURL(repoPath, desiredURL string) error {
 	repo, err := git.PlainOpen(repoPath)
 	if err != nil {
@@ -79,7 +102,7 @@ func CheckAndUpdateRemoteURL(repoPath, desiredURL string) error {
 	}
 
 	currentURL := remote.Config().URLs[0]
-	if currentURL != desiredURL {
+	if !SameRepositoryURL(currentURL, desiredURL) {
 		log.Infof("Updating remote URL from %s to %s", currentURL, desiredURL)
 
 		// Remove the existing remote

@@ -25,14 +25,28 @@ func (r inlineConfirmReporter) Emit(event reporting.Event) {
 func TestPromptOverwrite_InlineAllApprovesCurrentAndLaterFiles(t *testing.T) {
 	overwriteAll.Store(false)
 	t.Cleanup(func() { overwriteAll.Store(false) })
-	defer reporting.Set(inlineConfirmReporter{result: reporting.ConfirmResult{All: true}})()
+	defer reporting.Set(inlineConfirmReporter{result: reporting.ConfirmResult{Yes: true, All: true}})()
 
-	yes, err := promptOverwrite("/tmp/config")
+	yes, err := promptOverwrite("/tmp/config", "diff")
 	if err != nil || !yes {
 		t.Fatalf("promptOverwrite = (%v, %v), want approved", yes, err)
 	}
 	if !overwriteAll.Load() {
 		t.Fatal("overwrite-all choice was not persisted")
+	}
+}
+
+func TestPromptOverwrite_InlineSkipAllRejectsAndPersists(t *testing.T) {
+	skipAll.Store(false)
+	t.Cleanup(func() { skipAll.Store(false) })
+	defer reporting.Set(inlineConfirmReporter{result: reporting.ConfirmResult{All: true}})()
+
+	yes, err := promptOverwrite("/tmp/config", "diff")
+	if err != nil || yes {
+		t.Fatalf("promptOverwrite = (%v, %v), want skipped", yes, err)
+	}
+	if !skipAll.Load() {
+		t.Fatal("skip-all choice was not persisted")
 	}
 }
 
@@ -42,7 +56,7 @@ func TestPromptOverwrite_InlineErrorDoesNotPersistAll(t *testing.T) {
 	wantErr := errors.New("prompt closed")
 	defer reporting.Set(inlineConfirmReporter{result: reporting.ConfirmResult{All: true, Err: wantErr}})()
 
-	if _, err := promptOverwrite("/tmp/config"); !errors.Is(err, wantErr) {
+	if _, err := promptOverwrite("/tmp/config", "diff"); !errors.Is(err, wantErr) {
 		t.Fatalf("promptOverwrite error = %v, want %v", err, wantErr)
 	}
 	if overwriteAll.Load() {

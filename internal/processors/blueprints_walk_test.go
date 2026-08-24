@@ -76,6 +76,34 @@ func TestGetBlueprintFileOrder_MixedFormatTree(t *testing.T) {
 	}
 }
 
+func TestGetBlueprintFileOrder_SkipsProcessorSourcePayloads(t *testing.T) {
+	dir := t.TempDir()
+	blueprint := filepath.Join(dir, "files", "files.cue")
+	payload := filepath.Join(dir, "files", "src", "Library", "Application Support", "Code", "User", "keybindings.json")
+	for path, content := range map[string]string{
+		blueprint: "{files: []}\n",
+		payload:   "// JSON with comments is application data, not a blueprint\n[]\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	config := &types.InitConfig{}
+	config.Init.Format = "cue"
+	order, err := GetBlueprintFileOrder(dir, nil, false, config)
+	if err != nil {
+		t.Fatalf("GetBlueprintFileOrder: %v", err)
+	}
+	got := order[types.BlueprintTypeFiles]
+	if len(got) != 1 || got[0] != filepath.Join("files", "files.cue") {
+		t.Fatalf("files bucket = %v, want only files/files.cue", got)
+	}
+}
+
 // A flattened tree - blueprint files at the root, no processor directories -
 // is routed by content: a file with a single recognized top-level key executes
 // under that processor. This is the layout examples/alternative_layouts ships,

@@ -158,6 +158,36 @@ func TestModel_PinningFollowsDesign(t *testing.T) {
 	}
 }
 
+func TestModel_ArrowKeysSelectProcessorAndPin(t *testing.T) {
+	m := testModel(t)
+	m.cursor = 0
+	m.pinned = false
+
+	m.key(tea.KeyPressMsg{Code: tea.KeyDown})
+	if m.cursor != 1 || !m.pinned {
+		t.Fatalf("down arrow: cursor=%d pinned=%v, want cursor=1 pinned=true", m.cursor, m.pinned)
+	}
+	m.key(tea.KeyPressMsg{Code: tea.KeyUp})
+	if m.cursor != 0 || !m.pinned {
+		t.Fatalf("up arrow: cursor=%d pinned=%v, want cursor=0 pinned=true", m.cursor, m.pinned)
+	}
+}
+
+func TestModel_LogContextNamesProcessorProvidersAndMode(t *testing.T) {
+	m := testModel(t)
+	label := plain(m.logContextLabel(m.procs[0]))
+	for _, want := range []string{"LOG · packages", "providers: pacman", "LIVE"} {
+		if !strings.Contains(label, want) {
+			t.Fatalf("context label %q missing %q", label, want)
+		}
+	}
+
+	m.pinned = true
+	if label := plain(m.logContextLabel(m.procs[0])); !strings.Contains(label, "PINNED") {
+		t.Fatalf("pinned context label = %q", label)
+	}
+}
+
 // The ASCII theme renders every frame without unicode glyphs.
 func TestModel_ASCIITheme(t *testing.T) {
 	m := testModel(t)

@@ -63,6 +63,19 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		return fmt.Errorf("error initializing blueprints: %w", err)
 	}
 
+	// Make sure the blueprint location exists and parse the entire tree before
+	// bootstrap, package-manager setup, or any processor can mutate the machine.
+	if _, err := os.Stat(initConfig.Init.Location); err != nil {
+		return fmt.Errorf("blueprint location does not exist: %s", initConfig.Init.Location)
+	}
+	preflight, err := ResolveStage1(initConfig)
+	if err != nil {
+		return err
+	}
+	if err := Stage1Error(preflight); err != nil {
+		return err
+	}
+
 	// Check if macOS and no package manager is installed. A tree that declares
 	// packageManagers in its init file has already said what to install - the
 	// ProcessPackageManagers call below handles those (installing any that are
@@ -104,11 +117,6 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		}
 	}
 
-	// Make sure the blueprint location exists
-	if _, err := os.Stat(initConfig.Init.Location); err != nil {
-		return fmt.Errorf("blueprint location does not exist: %s", initConfig.Init.Location)
-	}
-
 	if runOrder != nil {
 		blueprintRunOrder = append([]string(nil), runOrder...)
 	} else {
@@ -144,7 +152,11 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	// four. Looking only for bootstrap.yaml meant those trees silently never
 	// bootstrapped, with no message saying so.
 	if bootstrapFile := findBootstrapFile(initConfig.Init.Location); bootstrapFile != "" {
+		started := time.Now()
+		reporting.SetCurrentProcessor(types.BlueprintTypeBootstrap)
+		reporting.Emit(reporting.ProcStarted{Processor: types.BlueprintTypeBootstrap, Files: 1})
 		err = ProcessBootstrap(bootstrapFile, initConfig, osInfo)
+		reporting.Emit(reporting.ProcFinished{Processor: types.BlueprintTypeBootstrap, Err: err, Dur: time.Since(started)})
 		if err != nil {
 			return fmt.Errorf("error processing bootstrap: %w", err)
 		}

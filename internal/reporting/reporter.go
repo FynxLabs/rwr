@@ -118,6 +118,7 @@ type ConfirmResult struct {
 // ConfirmReq asks a yes/no question inside the active display.
 type ConfirmReq struct {
 	Prompt   string
+	Details  string
 	AllowAll bool
 	Result   chan ConfirmResult
 	Claim    *atomic.Bool
@@ -173,6 +174,7 @@ func (RunFinished) runEvent()  {}
 // processorLabels are the exact strings the pre-event loop logged per
 // processor; LogReporter must reproduce them byte-for-byte.
 var processorLabels = map[string]string{
+	types.BlueprintTypeBootstrap:     "Processing bootstrap",
 	types.BlueprintTypeRepositories:  "Processing repositories",
 	types.BlueprintTypePackages:      "Processing packages",
 	types.BlueprintTypeFiles:         "Processing files",
@@ -260,23 +262,27 @@ func RequestSecret(prompt string) ([]byte, error) {
 }
 
 func RequestConfirmation(prompt string) (bool, error) {
-	yes, _, err := requestConfirmation(prompt, false)
+	yes, _, err := requestConfirmation(prompt, "", false)
 	return yes, err
 }
 
 // RequestConfirmationAll adds an "all remaining" choice for repeated
 // confirmations such as file overwrites.
 func RequestConfirmationAll(prompt string) (yes, all bool, err error) {
-	return requestConfirmation(prompt, true)
+	return RequestConfirmationAllWithDetails(prompt, "")
 }
 
-func requestConfirmation(prompt string, allowAll bool) (yes, all bool, err error) {
+func RequestConfirmationAllWithDetails(prompt, details string) (yes, all bool, err error) {
+	return requestConfirmation(prompt, details, true)
+}
+
+func requestConfirmation(prompt, details string, allowAll bool) (yes, all bool, err error) {
 	if !SupportsInlinePrompts() {
 		return false, false, ErrPromptUnavailable
 	}
 	result := make(chan ConfirmResult, 1)
 	claim := &atomic.Bool{}
-	Emit(ConfirmReq{Prompt: prompt, AllowAll: allowAll, Result: result, Claim: claim})
+	Emit(ConfirmReq{Prompt: prompt, Details: details, AllowAll: allowAll, Result: result, Claim: claim})
 	select {
 	case answer := <-result:
 		return answer.Yes, answer.All, answer.Err

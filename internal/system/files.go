@@ -1,6 +1,7 @@
 package system
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -29,6 +30,7 @@ import (
 const defaultFileMode os.FileMode = 0644
 
 var overwriteAll atomic.Bool
+var skipAll atomic.Bool
 
 // OpenFileNoFollow opens path while refusing a symlink as the final component
 // on platforms that support that guarantee.
@@ -736,6 +738,10 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 				// holds the terminal lease: printing a multi-line diff and
 				// reading stdin over the dashboard tore the viewport and
 				// fought it for keystrokes.
+				if interactive && skipAll.Load() {
+					log.Infof("Skipping file: %s (skip all)", targetPath)
+					return nil
+				}
 				if interactive && !overwriteAll.Load() {
 					writer := io.Writer(os.Stdout)
 					if captured := reporting.CommandOutputWriter(reporting.SrcStdout); captured != nil {
@@ -744,10 +750,13 @@ func CopyDirectory(source, target string, elevated, interactive bool) error {
 					if _, writeErr := fmt.Fprintf(writer, "File %q already exists at the target location.\nDiff:\n", targetPath); writeErr != nil {
 						return fmt.Errorf("writing overwrite notice: %w", writeErr)
 					}
-					if diffErr := ShowDiffTo(writer, path, targetPath); diffErr != nil {
+					var diff bytes.Buffer
+					if diffErr := ShowDiffTo(&diff, path, targetPath); diffErr != nil {
 						log.Errorf("Failed to show diff: %v", diffErr)
+					} else if _, writeErr := io.Copy(writer, bytes.NewReader(diff.Bytes())); writeErr != nil {
+						return fmt.Errorf("writing overwrite diff: %w", writeErr)
 					}
-					overwrite, promptErr := promptOverwrite(targetPath)
+					overwrite, promptErr := promptOverwrite(targetPath, diff.String())
 					if promptErr != nil {
 						return promptErr
 					}
@@ -823,20 +832,24 @@ func LookupGID(group string) (int, error) {
 // log.Fatalf here bypassed the failure ledger and every deferred cleanup, and
 // interactive defaults to true, so a piped stdin hitting EOF killed the whole
 // run mid-flight.
-func promptOverwrite(path string) (bool, error) {
+func promptOverwrite(path, diff string) (bool, error) {
 	if reporting.SupportsInlinePrompts() {
-		yes, all, err := reporting.RequestConfirmationAll(fmt.Sprintf("Overwrite existing file? %s", path))
+		yes, all, err := reporting.RequestConfirmationAllWithDetails(fmt.Sprintf("Overwrite existing file? %s", path), diff)
 		if err != nil {
 			return false, err
 		}
 		if all {
-			overwriteAll.Store(true)
+			if yes {
+				overwriteAll.Store(true)
+			} else {
+				skipAll.Store(true)
+			}
 		}
-		return yes || all, nil
+		return yes, nil
 	}
 	var input string
 	err := reporting.WithTerminal(func() error {
-		fmt.Print("Do you want to overwrite the file? (y/n/a=all): ")
+		fmt.Print("Do you want to overwrite the file? (y/n/a=overwrite all/s=skip all): ")
 		_, err := fmt.Scanln(&input)
 		return err
 	})
@@ -844,8 +857,12 @@ func promptOverwrite(path string) (bool, error) {
 		return false, fmt.Errorf("reading overwrite confirmation (run with --interactive=false to skip prompts): %w", err)
 	}
 	all := strings.EqualFold(input, "a") || strings.EqualFold(input, "all")
+	skipRemaining := strings.EqualFold(input, "s") || strings.EqualFold(input, "skip all")
 	if all {
 		overwriteAll.Store(true)
+	}
+	if skipRemaining {
+		skipAll.Store(true)
 	}
 	return all || strings.EqualFold(input, "y") || strings.EqualFold(input, "yes"), nil
 }

@@ -130,13 +130,21 @@ func (m *Model) viewConfirmDialog(background string) (string, *tea.Cursor) {
 	if m.confirm.AllowAll {
 		buttons = append(buttons, m.promptButton("Overwrite All", 1, 'A'))
 		buttons = append(buttons, m.promptButton("Skip", 2, 'N'))
+		buttons = append(buttons, m.promptButton("Skip All", 3, 'S'))
 	} else {
 		buttons = append(buttons, m.promptButton("No", 1, 'N'))
 	}
 	body := style(m.theme.Modal).Bold(true).Render("ACTION REQUIRED") + "\n\n" +
-		style(m.theme.Text).Bold(true).Render(ansi.Wrap(sanitizePromptText(m.confirm.Prompt), m.promptContentWidth(), "")) + "\n\n" +
-		lipgloss.JoinHorizontal(lipgloss.Top, buttons...) + "\n\n" +
-		style(m.theme.Subtext).Render("←/→ select  ·  Enter confirm  ·  Esc cancel")
+		style(m.theme.Text).Bold(true).Render(ansi.Wrap(sanitizePromptText(m.confirm.Prompt), m.promptContentWidth(), ""))
+	if m.confirmDetails && m.confirm.Details != "" {
+		detailLines := strings.Split(ansi.Wrap(sanitizePromptText(m.confirm.Details), m.promptContentWidth(), ""), "\n")
+		if len(detailLines) > 12 {
+			detailLines = append(detailLines[:12], "…")
+		}
+		body += "\n\n" + style(m.theme.Subtext).Render(strings.Join(detailLines, "\n"))
+	}
+	body += "\n\n" + lipgloss.JoinHorizontal(lipgloss.Top, buttons...) + "\n\n" +
+		style(m.theme.Subtext).Render("d diff  ·  ←/→ select  ·  Enter confirm  ·  Esc cancel")
 	return m.viewPromptDialog(background, body, nil)
 }
 
@@ -390,6 +398,7 @@ func (m *Model) viewPanel(height int) string {
 	_, borderStyle := m.glyphFor(proc.State)
 
 	var b strings.Builder
+	b.WriteString(" " + m.logContextLabel(proc) + "\n")
 	laneCount := 0
 	if !m.expanded {
 		laneRows := m.laneRows(proc)
@@ -400,7 +409,7 @@ func (m *Model) viewPanel(height int) string {
 	}
 
 	// Log viewport: the per-processor view, with global filters on top.
-	logLines := m.filteredLines(height - laneCount - 2)
+	logLines := m.filteredLines(height - laneCount - 3)
 	for _, line := range logLines {
 		b.WriteString(" " + display.Truncate(line, m.width-4) + "\n")
 	}
@@ -415,6 +424,34 @@ func (m *Model) viewPanel(height int) string {
 		Width(m.width - 2).
 		Render(strings.TrimRight(b.String(), "\n"))
 	return panel
+}
+
+// logContextLabel makes the viewport's actual scope explicit. Package and
+// repository logs combine provider lanes, so name those providers rather than
+// presenting an unidentified Brew or Cargo stream.
+func (m *Model) logContextLabel(proc *Proc) string {
+	scope := proc.Name
+	providers := make([]string, 0, len(proc.Lanes))
+	for name := range proc.Lanes {
+		if name != "items" {
+			providers = append(providers, name)
+		}
+	}
+	sort.Strings(providers)
+	if m.scopeAll {
+		scope = "all processors"
+		providers = nil
+	}
+
+	label := "LOG · " + scope
+	if len(providers) > 0 {
+		label += " · providers: " + strings.Join(providers, ", ")
+	}
+	mode := "LIVE"
+	if m.pinned || m.scopeAll {
+		mode = "PINNED"
+	}
+	return style(m.theme.Subtext).Bold(true).Render(label) + "  " + style(m.theme.Accent).Bold(true).Render(mode)
 }
 
 // visibleRecords applies the display level and output filters to the active

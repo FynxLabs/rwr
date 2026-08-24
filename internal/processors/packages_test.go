@@ -695,6 +695,9 @@ packages:
 	if !call.Escalates {
 		t.Error("the command is not marked as escalating, so sudo will not be pre-validated for it")
 	}
+	if call.Interactive {
+		t.Error("a normal cask operation was handed the terminal; this suspends and redraws the TUI for every cask")
+	}
 }
 
 func TestBrewMetadataEscalates(t *testing.T) {

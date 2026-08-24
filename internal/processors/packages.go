@@ -302,6 +302,8 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				args = append(args, pkg.Args...)
 			}
 
+			escalates := packageCommandEscalates(provider, args, name, brewEscalationCache)
+			interactive := helpers.ResolveInteractive(pkg.Interactive, false)
 			// Execute command directly with environment variables
 			cmd := types.Command{
 				Exec: provider.BinPath,
@@ -314,21 +316,23 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				// that calls sudo itself, so the credential cache is warmed
 				// before it rather than after it has already hung on a prompt
 				// nobody could see.
-				Escalates: packageCommandEscalates(provider, args, name, brewEscalationCache),
+				Escalates: escalates,
 				Variables: provider.Environment,
-				// Terminal handover only on an explicit per-item
-				// `interactive: true`. Routing every package through the
-				// terminal suspended the TUI per package and splattered raw
-				// package-manager output across the dashboard - and the one
-				// legitimate need, sudo's password prompt, is served by
-				// ensureSudoCredentials validating before captured elevated
-				// commands run.
-				Interactive: helpers.ResolveInteractive(pkg.Interactive, false),
+				// Explicit interactive items receive the terminal. Self-escalating
+				// commands stay captured on their normal path; if pre-authentication
+				// was insufficient, the error path below retries with the terminal.
+				Interactive: interactive,
 			}
 			started := time.Now()
-			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
-				recordFailure("packages", name, fmt.Errorf("%s failed: %w", pkg.Action, err))
-				track.item(provider.Name, name, pkg.Action, types.StatusFailed, err.Error(), time.Since(started))
+			runErr := system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
+			if runErr != nil && escalates && !interactive && !system.Cancelled() {
+				log.Warnf("%s failed while captured; retrying with terminal access in case its nested sudo requires a visible prompt", name)
+				cmd.Interactive = true
+				runErr = system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
+			}
+			if runErr != nil {
+				recordFailure("packages", name, fmt.Errorf("%s failed: %w", pkg.Action, runErr))
+				track.item(provider.Name, name, pkg.Action, types.StatusFailed, runErr.Error(), time.Since(started))
 				continue
 			}
 

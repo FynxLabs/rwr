@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/go-git/go-git/v5"
 	gitconfig "github.com/go-git/go-git/v5/config"
@@ -483,10 +484,10 @@ func TestGetBlueprints_ReusesResolvedRepository(t *testing.T) {
 }
 
 func TestSameRepositoryURL(t *testing.T) {
-	if !sameRepositoryURL("git@github.com:TheFynx/rwr-blueprints.git", "https://github.com/thefynx/rwr-blueprints") {
+	if !helpers.SameRepositoryURL("git@github.com:TheFynx/rwr-blueprints.git", "https://github.com/thefynx/rwr-blueprints") {
 		t.Fatal("equivalent GitHub SSH and HTTPS URLs did not match")
 	}
-	if sameRepositoryURL("https://github.com/TheFynx/other.git", "https://github.com/thefynx/rwr-blueprints.git") {
+	if helpers.SameRepositoryURL("https://github.com/TheFynx/other.git", "https://github.com/thefynx/rwr-blueprints.git") {
 		t.Fatal("different repositories matched")
 	}
 }

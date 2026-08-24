@@ -1,12 +1,34 @@
 package processors
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 )
+
+// Stage1Error collapses fatal resolver diagnostics into one preflight error.
+// Execution must check this before making changes; diagnostics remain on the
+// plan as well so validate and status can display every affected file.
+func Stage1Error(plan *types.Plan) error {
+	var errs []error
+	for _, diag := range plan.Diags {
+		if diag.Severity != types.SeverityError {
+			continue
+		}
+		err := fmt.Errorf("%s", diag.Msg)
+		if diag.File != "" {
+			err = fmt.Errorf("%s: %w", diag.File, err)
+		}
+		errs = append(errs, err)
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("blueprint preflight failed: %w", errors.Join(errs...))
+}
 
 // ResolveStage1 reads and resolves the blueprint tree without executing
 // anything: file routing (path- and content-based), template resolution, and
@@ -35,6 +57,9 @@ func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
 	// executor already skips processors with no files; keeping them in the
 	// plan just rendered phantom rows (a tree with no ssh_keys blueprints
 	// showed an ssh_keys processor pending forever).
+	if findBootstrapFile(location) != "" {
+		plan.Order = append(plan.Order, types.BlueprintTypeBootstrap)
+	}
 	for _, processor := range order {
 		if _, ok := fileOrder[processor]; ok {
 			plan.Order = append(plan.Order, processor)

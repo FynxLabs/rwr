@@ -32,6 +32,7 @@ var (
 func BeginRun() (release func()) {
 	clearSudoPassword()
 	overwriteAll.Store(false)
+	skipAll.Store(false)
 	cancelMu.Lock()
 	defer cancelMu.Unlock()
 
@@ -41,6 +42,7 @@ func BeginRun() (release func()) {
 	return func() {
 		clearSudoPassword()
 		overwriteAll.Store(false)
+		skipAll.Store(false)
 		cancelMu.Lock()
 		defer cancelMu.Unlock()
 		cancel()

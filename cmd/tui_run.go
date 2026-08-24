@@ -61,6 +61,9 @@ func runWithTUI(app *AppConfig, order []string) error {
 	if err != nil {
 		return err
 	}
+	if err := processors.Stage1Error(plan); err != nil {
+		return err
+	}
 	processors.ResolveStage2(plan, app.OSInfo)
 	if order == nil {
 		order = plan.Order

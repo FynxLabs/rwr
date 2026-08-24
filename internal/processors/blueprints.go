@@ -118,7 +118,7 @@ func matchingRepositoryRoot(location, desiredURL string) (string, bool) {
 			if remoteErr != nil || len(remote.Config().URLs) == 0 {
 				return "", false
 			}
-			return dir, sameRepositoryURL(remote.Config().URLs[0], desiredURL)
+			return dir, helpers.SameRepositoryURL(remote.Config().URLs[0], desiredURL)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -126,16 +126,6 @@ func matchingRepositoryRoot(location, desiredURL string) (string, bool) {
 		}
 		dir = parent
 	}
-}
-
-func sameRepositoryURL(a, b string) bool {
-	normalize := func(value string) string {
-		value = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(value), "/"), ".git")
-		value = strings.TrimPrefix(value, "git@github.com:")
-		value = strings.TrimPrefix(value, "https://github.com/")
-		return strings.ToLower(value)
-	}
-	return normalize(a) == normalize(b)
 }
 
 // defaultRunOrder is the order blueprint processors run in when the init file
@@ -263,6 +253,19 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		return base == "init" || base == "bootstrap" || base == "manifest"
 	}
 
+	// A processor's src/ directory contains payloads copied by its blueprint,
+	// not more blueprints. Those payloads may legitimately use registered
+	// extensions (VS Code's JSON-with-comments keybindings.json is a concrete
+	// example), so extension-based discovery must never descend into it.
+	isAssetDir := func(path string) bool {
+		rel, err := filepath.Rel(blueprintDir, path)
+		if err != nil {
+			return false
+		}
+		parts := strings.Split(rel, string(os.PathSeparator))
+		return len(parts) == 2 && isKnownProcessor(parts[0]) && parts[1] == "src"
+	}
+
 	// Process ordered items first
 	for _, item := range order {
 		if str, ok := item.(string); ok {
@@ -277,8 +280,10 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 						}
 						// Version-control and other dot directories hold no
 						// blueprints, and .git holds a great many files.
-						if info.IsDir() && path != fullPath && strings.HasPrefix(info.Name(), ".") {
-							return filepath.SkipDir
+						if info.IsDir() && path != fullPath {
+							if strings.HasPrefix(info.Name(), ".") || isAssetDir(path) {
+								return filepath.SkipDir
+							}
 						}
 						if !info.IsDir() && helpers.IsBlueprintFile(path) && !isReservedFile(path) {
 							relPath, err := filepath.Rel(blueprintDir, path)
@@ -316,8 +321,10 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 				return err
 			}
 			// Same dot-directory rule as the ordered walk above.
-			if info.IsDir() && path != blueprintDir && strings.HasPrefix(info.Name(), ".") {
-				return filepath.SkipDir
+			if info.IsDir() && path != blueprintDir {
+				if strings.HasPrefix(info.Name(), ".") || isAssetDir(path) {
+					return filepath.SkipDir
+				}
 			}
 			if !info.IsDir() && helpers.IsBlueprintFile(path) && !isReservedFile(path) {
 				relPath, err := filepath.Rel(blueprintDir, path)
