@@ -652,8 +652,10 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				} else {
 					finish(false, false, nil)
 				}
-			default:
+			case 2:
 				finish(false, false, nil)
+			case 3:
+				finish(false, true, nil)
 			}
 		case "y", "Y":
 			finish(true, false, nil)

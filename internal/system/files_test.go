@@ -13,11 +13,17 @@ import (
 	"github.com/fynxlabs/rwr/internal/reporting"
 )
 
-type inlineConfirmReporter struct{ result reporting.ConfirmResult }
+type inlineConfirmReporter struct {
+	result reporting.ConfirmResult
+	count  *int
+}
 
 func (r inlineConfirmReporter) SupportsInlinePrompts() bool { return true }
 func (r inlineConfirmReporter) Emit(event reporting.Event) {
 	if request, ok := event.(reporting.ConfirmReq); ok && reporting.TryClaim(request.Claim) {
+		if r.count != nil {
+			*r.count++
+		}
 		request.Result <- r.result
 	}
 }
@@ -47,6 +53,48 @@ func TestPromptOverwrite_InlineSkipAllRejectsAndPersists(t *testing.T) {
 	}
 	if !skipAll.Load() {
 		t.Fatal("skip-all choice was not persisted")
+	}
+}
+
+func TestCopyDirectory_SkipAllSkipsEveryRemainingConflict(t *testing.T) {
+	overwriteAll.Store(false)
+	skipAll.Store(false)
+	t.Cleanup(func() {
+		overwriteAll.Store(false)
+		skipAll.Store(false)
+	})
+
+	source := t.TempDir()
+	target := t.TempDir()
+	for _, name := range []string{"one.txt", "two.txt"} {
+		if err := os.WriteFile(filepath.Join(source, name), []byte("new "+name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(target, name), []byte("old "+name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	prompts := 0
+	defer reporting.Set(inlineConfirmReporter{
+		result: reporting.ConfirmResult{Yes: false, All: true},
+		count:  &prompts,
+	})()
+
+	if err := CopyDirectory(source, target, false, true); err != nil {
+		t.Fatalf("CopyDirectory: %v", err)
+	}
+	if prompts != 1 {
+		t.Fatalf("confirmation prompts = %d, want 1", prompts)
+	}
+	for _, name := range []string{"one.txt", "two.txt"} {
+		got, err := os.ReadFile(filepath.Join(target, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "old " + name; string(got) != want {
+			t.Fatalf("%s = %q, want %q", name, got, want)
+		}
 	}
 }
 

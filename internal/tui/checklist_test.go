@@ -270,6 +270,13 @@ func TestPrompting_ConfirmationButtonsDefaultSafeAndNavigate(t *testing.T) {
 
 	m, result = newDialog()
 	m.key(tea.KeyPressMsg{Code: tea.KeyRight}) // Skip -> Skip All.
+	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if answer := <-result; answer.Yes || !answer.All || answer.Err != nil {
+		t.Fatalf("Skip All button did not return a persistent skip: %+v", answer)
+	}
+
+	m, result = newDialog()
+	m.key(tea.KeyPressMsg{Code: tea.KeyRight}) // Skip -> Skip All.
 	m.key(tea.KeyPressMsg{Code: tea.KeyRight}) // Skip All wraps to Overwrite.
 	m.key(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if answer := <-result; !answer.Yes || answer.All || answer.Err != nil {
