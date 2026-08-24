@@ -5,7 +5,7 @@ experimental = true
 go = "1.27.0" # >=1.26.6 required: GO-2026-5856 (crypto/tls), GO-2026-6088 (encoding/xml), GO-2026-5972 (encoding/asn1) and GO-2026-5026 (net/http) are all reachable from our HTTP, provider-loading and git-auth paths
 goreleaser = "latest"
 gotestsum = "latest"
-golangci-lint = "latest"
+golangci-lint = "2.13.1" # keep local hooks aligned with the pinned CI lint gate
 node = "lts"
 pkl = "latest"
 hk = "latest"
