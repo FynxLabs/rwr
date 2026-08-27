@@ -6,6 +6,14 @@ import (
 	"testing"
 )
 
+func TestMain(m *testing.M) {
+	// Theme resolution intentionally honors NO_COLOR, but most tests below
+	// exercise named themes. Do not let the developer's shell change their
+	// expectations.
+	_ = os.Unsetenv("NO_COLOR")
+	os.Exit(m.Run())
+}
+
 // mustTheme resolves a built-in by name for tests; user-theme lookup is
 // disabled by the empty config dir.
 func mustTheme(name string) Theme {
@@ -43,8 +51,6 @@ func TestResolveThemeEmptyNameIsNotUnknown(t *testing.T) {
 }
 
 func TestResolveThemeUserFile(t *testing.T) {
-	t.Parallel()
-
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "themes"), 0o755); err != nil {
 		t.Fatal(err)
@@ -63,6 +69,18 @@ func TestResolveThemeUserFile(t *testing.T) {
 	// Unset fields inherit the rwr defaults.
 	if theme.Success != rwrTheme.Success {
 		t.Fatalf("unset field did not inherit: %q", theme.Success)
+	}
+}
+
+func TestResolveThemeNoColor(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	theme, unknown := ResolveTheme("", "nord", "", false, false)
+	if theme.Name != "nord+no-color" || unknown != "" {
+		t.Fatalf("got theme %q, unknown %q", theme.Name, unknown)
+	}
+	if theme.Accent != "" || theme.Modal != "" || theme.Success != "" {
+		t.Fatalf("NO_COLOR theme retained colors: %#v", theme)
 	}
 }
 
