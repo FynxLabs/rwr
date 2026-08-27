@@ -320,7 +320,7 @@ jobs:
       # any PR with no reviewable diff. Renovate proposes updates to these pins.
       - name: gosec
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
           gosec ./...
 
       # Fails on any known vulnerability reachable from our code paths.
