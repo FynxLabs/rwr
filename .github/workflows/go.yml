@@ -188,7 +188,7 @@ jobs:
         with:
           # Pinned like the other gate tooling: a lint release must not change
           # what merges under a PR that didn't touch it.
-          version: v2.13.1
+          version: v2.13.2
 
   # install.sh and install.ps1 are how most people get rwr, and nothing checked
   # them. Both were rewritten recently with no CI coverage at all.
