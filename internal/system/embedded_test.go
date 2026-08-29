@@ -1,6 +1,7 @@
 package system
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -407,6 +408,23 @@ func TestLoadEmbeddedProviders_BrewEnvironmentDecodes(t *testing.T) {
 	}
 	if brew.Environment["NONINTERACTIVE"] != "1" {
 		t.Fatalf("brew environment NONINTERACTIVE not decoded from CUE; got %v", brew.Environment)
+	}
+}
+
+func TestLoadEmbeddedProviders_BrewServiceCommandsDecode(t *testing.T) {
+	providers, err := LoadEmbeddedProviders()
+	if err != nil {
+		t.Fatalf("LoadEmbeddedProviders: %v", err)
+	}
+	brew := providers["brew"]
+	if brew == nil {
+		t.Fatal("brew provider missing")
+	}
+	if got := brew.Services.Enable; !reflect.DeepEqual(got, []string{"services", "start"}) {
+		t.Errorf("brew enable service argv = %#v", got)
+	}
+	if got := brew.Services.Start; !reflect.DeepEqual(got, []string{"services", "run"}) {
+		t.Errorf("brew start service argv = %#v", got)
 	}
 }
 

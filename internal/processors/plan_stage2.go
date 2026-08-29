@@ -118,7 +118,7 @@ func enumerateResources(processor string, file types.ResolvedFile, defaultProvid
 			return nil
 		}
 		for _, svc := range d.Services {
-			add("", svc.Name, svc.Action)
+			add(svc.Provider, svc.Name, svc.Action)
 		}
 	case types.BlueprintTypeGit:
 		var d types.GitData

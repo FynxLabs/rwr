@@ -26,6 +26,7 @@ Each service object in the Services Blueprint can have the following properties:
 | Property | Required | Description |
 |----------|----------|-------------|
 | `name` | Yes, if `import` is not provided | The name of the service |
+| `provider` | No | Manage the service through a provider instead of the platform service manager (for example, `brew`) |
 | `import` | Yes, if `name` is not provided | Path to import service definitions from another file (relative to blueprint directory) |
 | `profiles` | No | List of profiles this service belongs to. If empty, service is always managed (base item) |
 | `action` | Yes | The action to perform on the service (start, stop, enable, disable, restart, reload, status, create, delete) |
@@ -82,6 +83,23 @@ On Linux systems with systemd, the Services Blueprint uses the `systemctl` comma
 ### macOS (launchd)
 
 On macOS, the Services Blueprint uses the `launchctl` command to manage services. The `create` and `delete` actions manage service plist files in the `/Library/LaunchDaemons` directory.
+
+Homebrew formula services should select the `brew` provider. RWR then uses
+`brew services`, allowing Homebrew to create and manage the correct per-user
+LaunchAgent rather than assuming a system LaunchDaemon path:
+
+```yaml
+services:
+  - name: ollama
+    provider: brew
+    action: enable
+```
+
+For provider-backed services, `enable`, `disable`, `start`, `stop`, `restart`,
+and `status` are available when the selected provider declares them. Homebrew
+maps `start` to `brew services run` (start now without login registration) and
+`enable` to `brew services start` (start now and register at login). Homebrew
+does not expose `create`, `delete`, or `reload` through this abstraction.
 
 ### Windows
 

@@ -6,6 +6,7 @@ type Provider struct {
 	Elevated     bool                            `toml:"elevated"`
 	Detection    DetectionConfig                 `toml:"detection"`
 	Commands     CommandConfig                   `toml:"commands"`
+	Services     ServiceCommandConfig            `toml:"services"`
 	Repository   RepositoryConfig                `toml:"repository"`
 	CorePackages map[string][]string             `toml:"corePackages"`
 	Alternatives map[string]ProviderAlternatives `toml:"alternatives"`
@@ -13,6 +14,42 @@ type Provider struct {
 	Remove       RemoveConfig                    `toml:"remove"`
 	Environment  map[string]string               `toml:"environment"`
 	BinPath      string
+}
+
+// ServiceCommandConfig describes service-manager commands exposed by a
+// provider. Each value is argv without the provider binary or service name.
+// This lets package managers such as Homebrew manage the services installed by
+// their formulae without teaching the platform backend formula-specific paths.
+type ServiceCommandConfig struct {
+	Enable  []string `toml:"enable"`
+	Disable []string `toml:"disable"`
+	Start   []string `toml:"start"`
+	Stop    []string `toml:"stop"`
+	Restart []string `toml:"restart"`
+	Reload  []string `toml:"reload"`
+	Status  []string `toml:"status"`
+}
+
+// Command returns the argv prefix for an action.
+func (c ServiceCommandConfig) Command(action string) []string {
+	switch action {
+	case ServiceActionEnable:
+		return c.Enable
+	case ServiceActionDisable:
+		return c.Disable
+	case ServiceActionStart:
+		return c.Start
+	case ServiceActionStop:
+		return c.Stop
+	case ServiceActionRestart:
+		return c.Restart
+	case ServiceActionReload:
+		return c.Reload
+	case ServiceActionStatus:
+		return c.Status
+	default:
+		return nil
+	}
 }
 
 // ProviderAlternatives defines distribution-specific alternatives for package names.

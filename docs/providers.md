@@ -79,6 +79,23 @@ package command the provider runs:
 SOME_FLAG = "1"
 ```
 
+Providers may also expose service-manager argv prefixes. The service name is
+appended by RWR, and a services blueprint selects the provider with
+`provider: brew`:
+
+```toml
+[provider.services]
+enable = ["services", "start"]
+disable = ["services", "stop"]
+start = ["services", "run"]
+stop = ["services", "stop"]
+restart = ["services", "restart"]
+status = ["services", "info"]
+```
+
+This is intended for package managers that own their installed service files;
+it does not turn applications such as Ollama into package-manager providers.
+
 ## How RWR finds a provider
 
 RWR makes the provider available when these two conditions are true:

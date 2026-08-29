@@ -231,14 +231,16 @@ func reverseGit(entry state.Entry) (string, error) {
 // answer depends on which service manager the machine happens to run. The
 // three reasons being distinguishable is the whole point of the change, so
 // the test has to be able to reach each of them.
-var serviceState = status.ServiceState
+var serviceState = func(name, provider string) status.Presence {
+	return status.ServiceState(name, provider)
+}
 
 // SetServiceStateForTest installs a presence query for the duration of a test
 // and returns the restore func, in the same shape as
 // system.SetProvidersForTest and credentials.SetRingForTest.
 func SetServiceStateForTest(query func(string) status.Presence) (restore func()) {
 	previous := serviceState
-	serviceState = query
+	serviceState = func(name, _ string) status.Presence { return query(name) }
 	return func() { serviceState = previous }
 }
 
@@ -263,7 +265,7 @@ func reverseService(entry state.Entry) (string, error) {
 		return fmt.Sprintf("no service reversal on %s", runtime.GOOS), nil
 	}
 
-	switch serviceState(name) {
+	switch serviceState(name, entry.Identity["provider"]) {
 	case status.Absent:
 		return "already disabled", nil
 	case status.Unknown:
@@ -276,7 +278,24 @@ func reverseService(entry state.Entry) (string, error) {
 // disableServiceCommand is the platform's "stop it and keep it stopped" verb,
 // taken from the same tools the services processor applies with, so uninstall
 // undoes what apply did rather than guessing at an equivalent.
+
 func disableServiceCommand(name string, entry state.Entry) (types.Command, bool) {
+	if providerName := entry.Identity["provider"]; providerName != "" {
+		provider, ok := system.GetProvider(providerName)
+		if !ok {
+			return types.Command{}, false
+		}
+		args := provider.Services.Disable
+		if len(args) == 0 {
+			return types.Command{}, false
+		}
+		return types.Command{
+			Exec:      provider.BinPath,
+			Args:      append(append([]string(nil), args...), name),
+			Variables: provider.Environment,
+			Elevated:  entry.Elevated,
+		}, true
+	}
 	switch runtime.GOOS {
 	case types.OSLinux:
 		return types.Command{

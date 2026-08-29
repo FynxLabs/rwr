@@ -4,6 +4,7 @@
 package status
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -108,8 +109,14 @@ var validUnitName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.@:\\-]*$`)
 
 // ServiceState queries a service read-only on the current platform; other
 // platforms and query failures are Unknown.
-func ServiceState(name string) Presence {
+func ServiceState(name string, providerNames ...string) Presence {
 	if name == "" || !validUnitName.MatchString(name) {
+		return Unknown
+	}
+	if len(providerNames) > 0 && providerNames[0] != "" {
+		if providerNames[0] == "brew" {
+			return brewServiceState(name)
+		}
 		return Unknown
 	}
 	switch runtime.GOOS {
@@ -119,6 +126,31 @@ func ServiceState(name string) Presence {
 		return launchdState(name)
 	}
 	return Unknown
+}
+
+// brewServiceState asks Homebrew for the registration state rather than
+// guessing which launchd domain or plist path brew selected. `start` registers
+// at login, and the JSON `loaded` field is its portable macOS/Linux answer.
+func brewServiceState(name string) Presence {
+	provider, ok := system.GetProvider("brew")
+	if !ok {
+		return Unknown
+	}
+	query := exec.Command(provider.BinPath, "services", "info", name, "--json") // #nosec G204 -- provider path is detected locally; name is validated above
+	out, err := query.Output()
+	if err != nil {
+		return Unknown
+	}
+	var services []struct {
+		Loaded bool `json:"loaded"`
+	}
+	if err := json.Unmarshal(out, &services); err != nil || len(services) != 1 {
+		return Unknown
+	}
+	if services[0].Loaded {
+		return Present
+	}
+	return Absent
 }
 
 func systemdState(name string) Presence {

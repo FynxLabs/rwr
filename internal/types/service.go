@@ -2,6 +2,7 @@ package types
 
 type Service struct {
 	Name        string   `mapstructure:"name" yaml:"name" json:"name" toml:"name"`                                                                     // Name of the service
+	Provider    string   `mapstructure:"provider,omitempty" yaml:"provider,omitempty" json:"provider,omitempty" toml:"provider,omitempty"`             // Provider-backed service manager (for example brew)
 	Profiles    []string `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`             // Profiles this service belongs to
 	Action      string   `mapstructure:"action" yaml:"action" json:"action" toml:"action"`                                                             // Action to perform with the service
 	Elevated    bool     `mapstructure:"elevated,omitempty" yaml:"elevated,omitempty" json:"elevated,omitempty" toml:"elevated,omitempty"`             // Whether the service requires elevated privileges

@@ -112,7 +112,7 @@ func classify(resource types.Resource, entry *state.Entry, querier *Querier) Row
 			row.Class = UnknownItem
 		}
 	case types.BlueprintTypeServices:
-		switch ServiceState(resource.Name) {
+		switch ServiceState(resource.Name, providerFor(resource, entry)) {
 		case Present:
 			row.Class = InSync
 		case Absent:

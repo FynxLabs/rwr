@@ -41,7 +41,7 @@ const (
 // Resource is one unit of work a run performs (a package, a file, a service).
 type Resource struct {
 	Processor string
-	Provider  string // empty for files, services, git, scripts
+	Provider  string // empty when the resource does not use a provider
 	Name      string // "neovim", "~/.config/nvim/"
 	Action    string // install, copy, enable, clone
 	Status    Status

@@ -56,6 +56,39 @@ services:
 	t.Log("Blueprint parsing successful")
 }
 
+func TestProviderServiceCommand(t *testing.T) {
+	provider := &types.Provider{
+		Name:    "brew",
+		BinPath: "/opt/homebrew/bin/brew",
+		Services: types.ServiceCommandConfig{
+			Enable: []string{"services", "start"},
+			Start:  []string{"services", "run"},
+		},
+		Environment: map[string]string{"HOMEBREW_NO_ASK": "1"},
+	}
+
+	cmd, err := providerServiceCommand(provider, types.Service{
+		Name: "ollama", Action: types.ServiceActionEnable,
+	})
+	if err != nil {
+		t.Fatalf("providerServiceCommand: %v", err)
+	}
+	want := []string{"/opt/homebrew/bin/brew", "services", "start", "ollama"}
+	if got := append([]string{cmd.Exec}, cmd.Args...); !equalStrings(got, want) {
+		t.Errorf("argv = %#v, want %#v", got, want)
+	}
+	if cmd.Variables["HOMEBREW_NO_ASK"] != "1" {
+		t.Errorf("provider environment not carried into service command: %v", cmd.Variables)
+	}
+
+	_, err = providerServiceCommand(provider, types.Service{
+		Name: "ollama", Action: types.ServiceActionReload,
+	})
+	if err == nil || !strings.Contains(err.Error(), "does not support") {
+		t.Fatalf("unsupported action error = %v", err)
+	}
+}
+
 // Test profile filtering logic independently.
 func TestProcessServices_ProfileFiltering(t *testing.T) {
 	services := []types.Service{

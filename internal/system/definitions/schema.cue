@@ -69,6 +69,16 @@ package providers
 	clean?:   string
 }
 
+#ServiceCommands: {
+	enable?:  [...string]
+	disable?: [...string]
+	start?:   [...string]
+	stop?:    [...string]
+	restart?: [...string]
+	reload?:  [...string]
+	status?:  [...string]
+}
+
 #RepositoryPaths: {
 	sources?: string
 	keys?:    string
@@ -94,6 +104,7 @@ package providers
 	elevated?: bool
 	detection: #Detection
 	commands: #Commands
+	services?: #ServiceCommands
 	repository?: #Repository
 	corePackages?: {[string]: [...string]}
 	alternatives?: {[string]: #Alternatives}

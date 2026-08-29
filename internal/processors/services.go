@@ -52,31 +52,74 @@ func ProcessServices(blueprintData []byte, blueprintDir string, format string, o
 // which puts it in the run's exit code, and processing continues.
 func processServices(services []types.Service, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	track := newProgress(types.BlueprintTypeServices)
-	track.expect("", len(services))
+	for _, service := range services {
+		track.expect(service.Provider, 1)
+	}
 	for _, service := range services {
 		started := time.Now()
 		var err error
-		switch runtime.GOOS {
-		case "linux":
-			err = processLinuxService(service, osInfo, initConfig)
-		case "darwin":
-			err = processMacOSService(service, osInfo, initConfig)
-		case "windows":
-			err = processWindowsService(service, osInfo, initConfig)
-		default:
-			return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+		if service.Provider != "" {
+			err = processProviderService(service, initConfig)
+		} else {
+			switch runtime.GOOS {
+			case "linux":
+				err = processLinuxService(service, osInfo, initConfig)
+			case "darwin":
+				err = processMacOSService(service, osInfo, initConfig)
+			case "windows":
+				err = processWindowsService(service, osInfo, initConfig)
+			default:
+				return fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
+			}
 		}
 		switch {
 		case err != nil:
 			recordFailure("services", service.Name, err)
-			track.item("", service.Name, service.Action, types.StatusFailed, err.Error(), time.Since(started))
+			track.item(service.Provider, service.Name, service.Action, types.StatusFailed, err.Error(), time.Since(started))
 		case system.IsDryRun():
-			track.item("", service.Name, service.Action, types.StatusPlanned, "dry-run", 0)
+			track.item(service.Provider, service.Name, service.Action, types.StatusPlanned, "dry-run", 0)
 		default:
-			track.item("", service.Name, service.Action, types.StatusOK, "", time.Since(started))
+			track.item(service.Provider, service.Name, service.Action, types.StatusOK, "", time.Since(started))
 		}
 	}
 	return nil
+}
+
+// processProviderService manages a service through the provider that installed
+// it. Homebrew is the first such provider: formula service files live under the
+// brew prefix and must be registered through `brew services`, not by guessing a
+// /Library/LaunchDaemons path.
+func processProviderService(service types.Service, initConfig *types.InitConfig) error {
+	provider, ok := system.GetProvider(service.Provider)
+	if !ok {
+		return fmt.Errorf("service provider %q is not available", service.Provider)
+	}
+
+	serviceCmd, err := providerServiceCommand(provider, service)
+	if err != nil {
+		return err
+	}
+	serviceCmd.Interactive = helpers.ResolveInteractive(service.Interactive, initConfig.Variables.Flags.Interactive)
+	if err := system.RunCommand(serviceCmd, initConfig.Variables.Flags.Debug); err != nil {
+		return fmt.Errorf("error running %s service command: %w", service.Provider, err)
+	}
+
+	log.Infof("Service %s (%s): %s", service.Name, service.Provider, service.Action)
+	return nil
+}
+
+func providerServiceCommand(provider *types.Provider, service types.Service) (types.Command, error) {
+	args := provider.Services.Command(service.Action)
+	if len(args) == 0 {
+		return types.Command{}, fmt.Errorf("service provider %q does not support action %q", provider.Name, service.Action)
+	}
+	args = append(append([]string(nil), args...), service.Name)
+	return types.Command{
+		Exec:      provider.BinPath,
+		Args:      args,
+		Variables: provider.Environment,
+		Elevated:  service.Elevated,
+	}, nil
 }
 
 func createServiceFile(service types.Service, osInfo *types.OSInfo) error {

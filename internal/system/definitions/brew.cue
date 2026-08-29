@@ -35,6 +35,17 @@ providers: "brew": {
   "search": "search",
   "clean": "cleanup -q"
  },
+	// Homebrew formulae with a service block are managed through `brew
+	// services`. `run` starts without registering at login; `start` both starts
+	// and registers, which is the closest match for the generic enable action.
+	"services": {
+		"enable": ["services", "start"],
+		"disable": ["services", "stop"],
+		"start": ["services", "run"],
+		"stop": ["services", "stop"],
+		"restart": ["services", "restart"],
+		"status": ["services", "info"]
+	},
  "install": {
   "steps": [
    {
