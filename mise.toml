@@ -2,7 +2,7 @@
 experimental = true
 
 [tools]
-go = "1.26.5" # >=1.26.5 required: GO-2026-5856 (crypto/tls) is reachable from our HTTP paths
+go = "1.26.6" # >=1.26.6 required: current stdlib advisories are reachable from HTTP, template, XML, and SSH paths
 goreleaser = "latest"
 gotestsum = "latest"
 golangci-lint = "latest"

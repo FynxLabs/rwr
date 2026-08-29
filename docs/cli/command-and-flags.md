@@ -66,7 +66,7 @@ commit:     24872aab978e459254544b1fb58afbb080100cb1
 built:      2026-08-01T21:20:55Z
 built by:   goreleaser
 tree state: dirty
-go:         go1.26.5 linux/amd64
+go:         go1.26.6 linux/amd64
 ```
 
 The `commit`, `built`, `built by` and `tree state` lines are printed only when
