@@ -70,6 +70,16 @@ func resolveOne(spec types.CredentialSpec, opts Options) (string, error) {
 			}
 			tried = append(tried, source)
 
+		case strings.HasPrefix(source, "bw:"):
+			// Like the keyring: a source that cannot yield a value (CLI
+			// missing, vault locked, item absent) moves precedence to the next
+			// declared source rather than failing the run, with the reason in
+			// the log.
+			if value, ok := FromBitwarden(source); ok {
+				return value, nil
+			}
+			tried = append(tried, source)
+
 		case source == "prompt":
 			if !opts.Interactive || !stdinIsTerminal() {
 				skipped = append(skipped, "prompt")

@@ -76,6 +76,45 @@ func TestDecodeCredentialSpecs(t *testing.T) {
 			wantErr: "names no environment variable",
 		},
 		{
+			name: "bitwarden item defaults to the password key",
+			raw: []interface{}{map[string]interface{}{
+				"name":    "cachix_token",
+				"sources": []interface{}{"bw:cachix"},
+			}},
+		},
+		{
+			name: "bitwarden item with a known key",
+			raw: []interface{}{map[string]interface{}{
+				"name":    "cachix_token",
+				"sources": []interface{}{"bw:cachix/username", "bw:cachix/field:api-key", "bw:cachix/totp"},
+			}},
+		},
+		{
+			name: "bitwarden source without an item",
+			raw: []interface{}{map[string]interface{}{
+				"name":    "cachix_token",
+				"sources": []interface{}{"bw:/password"},
+			}},
+			wantErr: "names no Bitwarden item",
+		},
+		{
+			name: "bitwarden field source without a field name",
+			raw: []interface{}{map[string]interface{}{
+				"name":    "cachix_token",
+				"sources": []interface{}{"bw:cachix/field:"},
+			}},
+			wantErr: "names no custom field",
+		},
+		{
+			// A final segment that is not a key word is part of the item
+			// name: items named "cachix/attachment" are addressable.
+			name: "bitwarden item name containing slashes",
+			raw: []interface{}{map[string]interface{}{
+				"name":    "cachix_token",
+				"sources": []interface{}{"bw:my/team", "bw:my/team/password", "bw:my/team/username"},
+			}},
+		},
+		{
 			name: "unknown scope",
 			raw: []interface{}{map[string]interface{}{
 				"name":  "cachix_token",

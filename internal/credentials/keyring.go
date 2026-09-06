@@ -1,7 +1,7 @@
 // Package credentials resolves the credentials an init file declares: each one
-// is looked up through its ordered sources (env:<VAR>, keyring, prompt) before
-// any processor runs, and the resolved values are handed to the types registry,
-// which gates every path out to a blueprint.
+// is looked up through its ordered sources (env:<VAR>, bw:<item>[/<key>],
+// keyring, prompt) before any processor runs, and the resolved values are
+// handed to the types registry, which gates every path out to a blueprint.
 package credentials
 
 import (

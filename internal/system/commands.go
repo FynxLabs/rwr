@@ -643,6 +643,15 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 		return nil, fmt.Errorf("refusing to write command log through symlink %q", logName)
 	}
 
+	// A `log:` path usually sits under the operator's home
+	// (~/.config/rwr/logs/...) and may not exist yet - a first run is exactly
+	// when there is something worth logging. Create the parent; MkdirAll on
+	// an existing directory is a no-op. 0700, because the log carries the
+	// same content the file at 0600 would.
+	if err := os.MkdirAll(filepath.Dir(logName), 0o700); err != nil {
+		return nil, fmt.Errorf("creating log directory for %q: %w", logName, err)
+	}
+
 	file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600) // #nosec G304 -- path is operator-supplied blueprint input; symlinks refused above
 	if err != nil {
 		log.Errorf("Error opening log file: %v", err)
