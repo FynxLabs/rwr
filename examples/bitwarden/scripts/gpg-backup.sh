@@ -118,7 +118,7 @@ fi
 
 itemid=$(bw get item "$item" | jq -r '.id')
 if [ -z "$itemid" ] || [ "$itemid" = "null" ]; then
-  die "no vault item named '$item' - create one (a Secure Note is fine)"
+  die "no vault item named '$item' - create one (a Login item; the passphrase goes in its password field)"
 fi
 
 # Each attachment name uploads once, so this snapshot of the item cannot go

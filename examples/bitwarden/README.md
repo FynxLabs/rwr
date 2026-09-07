@@ -33,8 +33,10 @@ yourself; the rest of this tree's checks still apply.
 
 1. Install and log in to the CLI: `bw login`, then `bw unlock` and export
    `BW_SESSION` in the shell you run rwr from.
-2. Create a vault item named `gpg-signing` (a Secure Note is fine) and put the
-   key's **passphrase in the item's password field**. That is what the
+2. Create a vault item named `gpg-signing` **as a Login item** - a Secure Note
+   has no password field, so the source below could never read from it - and
+   put the key's **passphrase in the item's password field**. Username and
+   URI can stay empty; only the password field matters. That is what the
    `bw:gpg-signing/password` credential source reads.
 3. If the key does not exist yet, create it: `gpg --full-generate-key`, with a
    passphrase - the passphrase is what makes the vault backup safe to keep.
