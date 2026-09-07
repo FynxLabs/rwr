@@ -43,8 +43,8 @@ credentials:
 A `bw:` source reads from your personal vault through the Bitwarden CLI
 (`bw`), which must be installed and unlocked - run `bw unlock` and export
 `BW_SESSION` in the shell you run rwr from. The syntax is
-`bw:<item>[/<key>]`, where `<item>` is anything `bw get` accepts (an ID, a
-name, a URL) and `<key>` is one of:
+`bw:<item>[/<key>]`, where `<item>` is anything `bw get` accepts (an item ID
+or a name) and `<key>` is one of:
 
 | Key | Reads |
 |---|---|
@@ -52,7 +52,7 @@ name, a URL) and `<key>` is one of:
 | `username` | the username |
 | `uri` | the first URI |
 | `notes` | the notes field |
-| `totp` | the TOTP seed |
+| `totp` | the current TOTP code, not the seed |
 | `field:<name>` | a custom field by exact name - text or hidden |
 
 An item name may itself contain slashes: only a final segment that names a
@@ -60,6 +60,14 @@ key is read as the key, so `bw:org/team` reads the password of item
 `org/team` and `bw:org/team/username` reads its username. A name that would
 collide - one ending in `/password`, for instance - cannot be addressed by
 name; use the item ID.
+
+A caveat on `totp`: `bw get totp` returns the current verification code,
+which expires about 30 seconds after `bw` generates it - and rwr resolves
+every credential before any processor runs, so a script that runs later in
+the run may receive an already-expired code. It suits a script that consumes
+the code immediately, not anything that needs a long-lived seed (the seed is
+not retrievable through `bw get` at all). Reading TOTP also requires a paid
+Bitwarden plan (Premium or an organization).
 
 ```yaml
 credentials:
