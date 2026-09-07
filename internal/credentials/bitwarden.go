@@ -140,7 +140,7 @@ func runBW(args []string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), bwTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "bw", args...)
+	cmd := exec.CommandContext(ctx, "bw", args...) // #nosec G204 -- the binary is fixed and args are operator-declared source specs rendered as discrete argv elements; no shell is involved
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
