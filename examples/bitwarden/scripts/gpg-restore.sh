@@ -35,20 +35,34 @@ if gpg --list-secret-keys --with-colons "$fingerprint" 2>/dev/null | grep -q '^s
   echo "gpg-restore: key $fingerprint is already in the keyring - nothing to do"
   exit 0
 fi
-if [ -z "${BW_SESSION:-}" ]; then
-  die "BW_SESSION is not set - run 'bw unlock' and export BW_SESSION first"
-fi
+# A set-but-stale BW_SESSION passes an emptiness check and then dies deep in
+# the run with a misleading error, so ask the CLI what its session really is.
+# bw status is local and never prompts.
+session_status=$(bw status 2>/dev/null | jq -r '.status' 2>/dev/null || echo unusable)
+case "$session_status" in
+  unlocked) ;;
+  locked) die "the vault is locked - run 'bw unlock' and export BW_SESSION in this shell" ;;
+  unauthenticated) die "not logged in to bw - run 'bw login' first" ;;
+  *) die "could not read bw status (got '${session_status:-nothing}') - is the bw CLI working?" ;;
+esac
 
-itemid=$(bw get item "$item" | jq -r '.id')
+itemjson=$(bw get item "$item")
+itemid=$(jq -r '.id' <<<"$itemjson")
 if [ -z "$itemid" ] || [ "$itemid" = "null" ]; then
   die "no vault item named '$item' - the backup lives there; run gpg-backup on the source machine first"
+fi
+attid=$(jq -r --arg n "private.asc" '.attachments[]? | select(.fileName == $n) | .id' <<<"$itemjson")
+if [ -z "$attid" ] || [ "$attid" = "null" ]; then
+  die "no private.asc attachment on '$item' - run gpg-backup on the source machine first"
 fi
 
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 chmod 700 "$workdir"
 
-bw get attachment private.asc --itemid "$itemid" > "$workdir/private.asc" \
+# Download by the attachment's id with --output: content-to-stdout needs
+# --raw on current CLIs, and the filename is a search term, not a lookup.
+bw get attachment "$attid" --itemid "$itemid" --output "$workdir/private.asc" \
   || die "could not download private.asc from '$item' - is the backup there?"
 
 # Import into a throwaway keyring first. The attachment is expected to be the
@@ -63,10 +77,12 @@ real_gnupghome="${GNUPGHOME:-}"
 sandbox="$workdir/gnupg"
 mkdir -m 700 -p "$sandbox"
 GNUPGHOME="$sandbox" gpg --batch --quiet --import "$workdir/private.asc"
-# Every key the attachment holds lands in the sandbox, so compare the whole
-# set, not just the first fingerprint: a tampered or wrong attachment must be
-# refused, not partially imported into the real keyring afterwards.
-imported=$(GNUPGHOME="$sandbox" gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10}' | sort -u)
+# Compare the set of primary fingerprints: a key's subkeys legitimately ride
+# along (every ssb carries its own fpr line), but a second key - a tampered or
+# wrong attachment - must be refused wholesale, not partially imported into
+# the real keyring afterwards.
+imported=$(GNUPGHOME="$sandbox" gpg --batch --list-secret-keys --with-colons \
+  | awk -F: '/^sec:/ {sec=1; next} /^fpr:/ && sec {print $10; sec=0}' | sort -u)
 if [ "$imported" != "$fingerprint" ]; then
   die "the vault backup does not hold exactly $fingerprint (found: $(printf '%s' "$imported" | tr '\n' ' ')) - not importing"
 fi

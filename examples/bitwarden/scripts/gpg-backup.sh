@@ -44,9 +44,16 @@ if ! gpg --list-secret-keys --with-colons "$fingerprint" 2>/dev/null | grep -q '
   echo "gpg-backup: key $fingerprint is not in the local keyring - nothing to back up"
   exit 0
 fi
-if [ -z "${BW_SESSION:-}" ]; then
-  die "BW_SESSION is not set - run 'bw unlock' and export BW_SESSION first"
-fi
+# A set-but-stale BW_SESSION passes an emptiness check and then dies deep in
+# the run with a misleading error, so ask the CLI what its session really is.
+# bw status is local and never prompts.
+session_status=$(bw status 2>/dev/null | jq -r '.status' 2>/dev/null || echo unusable)
+case "$session_status" in
+  unlocked) ;;
+  locked) die "the vault is locked - run 'bw unlock' and export BW_SESSION in this shell" ;;
+  unauthenticated) die "not logged in to bw - run 'bw login' first" ;;
+  *) die "could not read bw status (got '${session_status:-nothing}') - is the bw CLI working?" ;;
+esac
 
 # Key material lives only in this directory, which is removed on every exit
 # path, normal or not.
@@ -140,8 +147,15 @@ if [ -f "$workdir/revocation.rev" ]; then
 fi
 
 # The round trip is the proof: whatever the vault now holds must byte-match
-# the export it came from.
-bw get attachment private.asc --itemid "$itemid" > "$workdir/verify.asc"
+# the export it came from. Two traps: the attachment's id is not knowable
+# before the upload (the pre-upload snapshot cannot name it), and streaming
+# content to stdout needs --raw on current CLIs - downloading by id with
+# --output avoids both.
+attid=$(bw get item "$item" | jq -r --arg n "private.asc" '.attachments[]? | select(.fileName == $n) | .id')
+if [ -z "$attid" ] || [ "$attid" = "null" ]; then
+  die "private.asc did not land on '$item' - the upload step lied"
+fi
+bw get attachment "$attid" --itemid "$itemid" --output "$workdir/verify.asc"
 if ! cmp -s "$workdir/private.asc" "$workdir/verify.asc"; then
   die "the copy downloaded back from the vault differs from the upload - investigate before relying on this backup"
 fi

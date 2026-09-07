@@ -18,7 +18,7 @@ on disk only inside a temp directory that is removed when the script exits.
 
 | Tool | Used for | Notes |
 |---|---|---|
-| `bw` | everything vault-related | A recent CLI; attachment *upload* needs one that has `bw create attachment`, and `bw get attachment` must write the file to stdout (older CLIs wanted `--output`) - both scripts fail loudly, not silently, on an old CLI |
+| `bw` | everything vault-related | A recent CLI; attachment *upload* needs one that has `bw create attachment`, and the scripts download attachments by id with `--output` (streaming to stdout needs `--raw`, and a filename argument is only a search, not a lookup) - both scripts fail loudly, not silently, when something is off |
 | `gpg` | export, import, unlock checks | |
 | `jq` | reading item metadata in the scripts | |
 
