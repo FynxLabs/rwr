@@ -143,6 +143,8 @@ func TestFetchWithCLIFakeBinary(t *testing.T) {
 		"get password github": "hunter2\n",
 		"get username github": "octocat\n",
 		"get item signing":    `{"fields":[{"name":"api-key","type":1,"value":"tok_123"},{"name":"other","type":0,"value":"nope"}]}`,
+		"get password owner":  "token\n\n",
+		"get item ownfield":   `{"fields":[{"name":"api-key","value":"tok_123\n"}]}`,
 	})
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
@@ -158,6 +160,16 @@ func TestFetchWithCLIFakeBinary(t *testing.T) {
 	}
 	if _, err := fetchWithCLI(bwSource{Item: "signing", Key: "field", Field: "missing"}); err == nil || !strings.Contains(err.Error(), `no custom field named "missing"`) {
 		t.Errorf("missing field error = %v, want an error naming the field", err)
+	}
+
+	// Newlines the value itself owns survive: bw appends exactly one
+	// formatting newline, and a JSON field value has none to remove. A
+	// TrimRight here once turned "token\n" into "token".
+	if got, err := fetchWithCLI(bwSource{Item: "owner", Key: "password"}); err != nil || got != "token\n" {
+		t.Errorf("password owning a trailing newline = %q, %v; want %q with no error", got, err, "token\n")
+	}
+	if got, err := fetchWithCLI(bwSource{Item: "ownfield", Key: "field", Field: "api-key"}); err != nil || got != "tok_123\n" {
+		t.Errorf("field value owning a trailing newline = %q, %v; want %q with no error", got, err, "tok_123\n")
 	}
 
 	argv, readErr := os.ReadFile(filepath.Join(dir, "argv.log"))

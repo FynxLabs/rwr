@@ -109,14 +109,16 @@ func fetchWithCLI(spec bwSource) (string, error) {
 		return "", bwHint(err)
 	}
 	if spec.Key == "field" {
-		out, err = bwFieldValue(out, spec.Field, spec.Item)
-		if err != nil {
-			return "", err
-		}
+		// The field value comes from the item JSON, not the CLI's stdout, so
+		// it is the stored value exactly - newlines included.
+		return bwFieldValue(out, spec.Field, spec.Item)
 	}
-	// Trim the trailing newline bw appends, and nothing else: values may
-	// legitimately end or begin with whitespace.
-	return strings.TrimRight(out, "\r\n"), nil
+	// bw prints the value followed by exactly one newline; the value itself
+	// may legitimately end (or begin) with newlines, so remove the CLI's one,
+	// not every trailing one.
+	out = strings.TrimSuffix(out, "\n")
+	out = strings.TrimSuffix(out, "\r")
+	return out, nil
 }
 
 // bwArgs builds the `bw get` invocation for a source. Custom fields have no
