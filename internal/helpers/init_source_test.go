@@ -1,13 +1,87 @@
 package helpers
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
+
+func TestRepositorySourceRefreshesBeforeDiscovery(t *testing.T) {
+	for _, initialName := range []string{"README.md", "init.cue"} {
+		t.Run(initialName, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("USERPROFILE", home)
+			origin := t.TempDir()
+			repo, err := git.PlainInit(origin, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wt, err := repo.Worktree()
+			if err != nil {
+				t.Fatal(err)
+			}
+			commit := func(name, content string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(origin, name), []byte(content), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := wt.Add(name); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := wt.Commit("update fixture", &git.CommitOptions{Author: &object.Signature{
+					Name: "Test", Email: "test@example.invalid", When: time.Now(),
+				}}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			commit(initialName, "old checkout\n")
+			target := filepath.Join(home, ".config", "rwr", "blueprints", "owner-repo")
+			if _, err := git.PlainClone(target, false, &git.CloneOptions{URL: origin}); err != nil {
+				t.Fatal(err)
+			}
+			name := "manifest.cue"
+			if initialName == "init.cue" {
+				name = initialName
+			}
+			commit(name, "current contents\n")
+			for range 2 { // Updating an already-current checkout must also succeed.
+				got, err := ResolveInitSource("https://github.com/owner/repo")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got != filepath.Join(target, name) {
+					t.Fatalf("resolved %q, want %s", got, name)
+				}
+				data, err := os.ReadFile(got)
+				if err != nil || string(data) != "current contents\n" {
+					t.Fatalf("resolved stale contents %q: %v", data, err)
+				}
+			}
+			// A failed refresh must not silently run the old cached configuration.
+			if err := os.Rename(origin, origin+"-offline"); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Rename(origin+"-offline", origin) })
+			_, err = ResolveInitSource("https://github.com/owner/repo")
+			var refreshErr *InitRepositoryRefreshError
+			if !errors.As(err, &refreshErr) {
+				t.Fatalf("expected update failure, got %v", err)
+			}
+			if refreshErr.Repository != "owner/repo" || refreshErr.Path != target || errors.Unwrap(refreshErr) == nil {
+				t.Fatalf("refresh error lost repository context or underlying cause: %+v", refreshErr)
+			}
+		})
+	}
+}
 
 func TestResolveInitSource_LocalForms(t *testing.T) {
 	dir := t.TempDir()
