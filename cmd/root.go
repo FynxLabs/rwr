@@ -213,7 +213,7 @@ func registerRootFlags(rootCmd *cobra.Command, app *AppConfig) {
 	flags.BoolVar(&app.ShowSecrets, "show-secrets", false, "Show credential values in logs instead of redacting them")
 
 	// Profile selection flag
-	flags.StringSliceVarP(&app.Profiles, "profile", "p", []string{}, "Specify profiles to activate (can be used multiple times)")
+	flags.StringSliceVarP(&app.Profiles, "profile", "p", []string{}, "Activate comma-separated profiles (spaces allowed), or repeat --profile")
 	mustBindFlag(rootCmd, "rwr.profiles", "profile")
 
 	viper.SetEnvPrefix("RWR")
@@ -471,7 +471,13 @@ func Execute() {
 	defer stop()
 
 	app := NewAppConfig()
-	if err := NewRootCmd(app).Execute(); err != nil {
+	args, err := normalizeProfileArgs(os.Args[1:])
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	root := NewRootCmd(app)
+	root.SetArgs(args)
+	if err := root.Execute(); err != nil {
 		log.Fatalf("%v", err)
 	}
 }
