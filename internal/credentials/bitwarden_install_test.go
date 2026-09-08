@@ -60,7 +60,7 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 		name                                                    string
 		interactive, tty, dryRun, accept, installFails, session bool
 		wantOffers, wantInstalls                                int
-		vaultError, emptyValue                                  bool
+		authFails, vaultError, emptyValue                       bool
 		wantPrompts                                             int
 	}{
 		{name: "headless"},
@@ -71,7 +71,8 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 		{name: "install fails", interactive: true, tty: true, accept: true, installFails: true, wantOffers: 1, wantInstalls: 1},
 		{name: "install without vault session", interactive: true, tty: true, accept: true, wantOffers: 1, wantInstalls: 1},
 		{name: "install with vault session", interactive: true, tty: true, accept: true, session: true, wantOffers: 1, wantInstalls: 1},
-		{name: "installed vault error falls back to prompt", interactive: true, tty: true, accept: true, session: true, vaultError: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
+		{name: "installed vault error falls back to prompt", interactive: true, tty: true, accept: true, vaultError: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
+		{name: "authentication failure", interactive: true, tty: true, accept: true, authFails: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
 		{name: "installed empty value falls back to prompt", interactive: true, tty: true, accept: true, session: true, emptyValue: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -98,10 +99,10 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 			installed := false
 			authenticated := tc.session
 			authenticateBitwarden = func() error {
-				authenticated = true
-				if tc.vaultError {
+				if tc.authFails {
 					return errors.New("authentication declined")
 				}
+				authenticated = true
 				return nil
 			}
 			bwFetch = func(bwSource) (string, error) {

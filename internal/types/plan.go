@@ -83,6 +83,7 @@ type StepError struct {
 // because bootstrap can install the package manager later blueprints depend
 // on - detecting providers earlier produces wrong lanes.
 type Plan struct {
+	FileOrder map[string][]string
 	Init      *InitConfig
 	Order     []string
 	Files     map[string][]ResolvedFile

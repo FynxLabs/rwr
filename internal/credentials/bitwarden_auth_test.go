@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/types"
@@ -54,8 +55,13 @@ func TestBitwardenAuthenticatesOnceAndResumesCredentials(t *testing.T) {
 			}
 			specs := []types.CredentialSpec{{Name: "one", Sources: []string{"bw:one"}}, {Name: "two", Sources: []string{"bw:two"}}}
 			types.RegisterCredentials(specs)
-			if err := Resolve(specs, Options{Interactive: true}); err != nil {
-				t.Fatal(err)
+			for _, spec := range specs {
+				if err := Resolve([]types.CredentialSpec{spec}, Options{Interactive: true}); err != nil {
+					t.Fatal(err)
+				}
+				if bitwardenSession != "" {
+					t.Fatal("private session not restored between stages")
+				}
 			}
 			if prompts != 1 {
 				t.Fatalf("prompted %d times", prompts)
@@ -110,5 +116,52 @@ func TestBitwardenSessionRequiresExplicitExposure(t *testing.T) {
 	types.SetExposedCredentials([]string{"bw_session"})
 	if types.ExportedCredentialEnv()["RWR_CRED_BW_SESSION"] != "session-value" {
 		t.Fatal("explicit session exposure failed")
+	}
+}
+
+func TestBitwardenStatusDoesNotPromptWhenUnnecessary(t *testing.T) {
+	oldStatus, oldPrompt := bwAuthStatus, promptBitwardenAuth
+	t.Cleanup(func() { bwAuthStatus, promptBitwardenAuth = oldStatus, oldPrompt })
+	promptBitwardenAuth = func(bool, string) (string, string, string, error) {
+		t.Fatal("unexpected prompt")
+		return "", "", "", nil
+	}
+	for _, status := range []string{"unlocked", "unknown"} {
+		t.Run(status, func(t *testing.T) {
+			bwAuthStatus = func() (string, error) { return `{"status":"` + status + `"}`, nil }
+			err := authenticateBitwarden()
+			if (err != nil) != (status == "unknown") {
+				t.Fatalf("status %s: %v", status, err)
+			}
+		})
+	}
+}
+
+func TestBitwardenServerRequiresHTTPS(t *testing.T) {
+	t.Parallel()
+	for _, server := range []string{"https://vault.bitwarden.com", "https://vault.bitwarden.eu", "https://vault.example.com:8443/api"} {
+		if err := validateBitwardenServer(server); err != nil {
+			t.Errorf("%s: %v", server, err)
+		}
+	}
+	for _, server := range []string{"", "http://vault.example.com", "vault.example.com", "https:///missing", "https://user:password@vault.example.com"} {
+		if err := validateBitwardenServer(server); err == nil {
+			t.Errorf("accepted %q", server)
+		}
+	}
+}
+
+func TestBitwardenUnlockFailureReportsRedactedReason(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX fixture")
+	}
+	dir := t.TempDir()
+	t.Setenv("PATH", dir)
+	if err := os.WriteFile(filepath.Join(dir, "bw"), []byte("#!/bin/sh\nprintf 'invalid password: master-secret' >&2\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	_, err := bwAuthenticate([]string{"unlock", "--raw"}, "master-secret", false)
+	if err == nil || !strings.Contains(err.Error(), "invalid password") || strings.Contains(err.Error(), "master-secret") {
+		t.Fatalf("unexpected diagnostic: %v", err)
 	}
 }

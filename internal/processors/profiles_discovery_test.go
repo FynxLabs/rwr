@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -167,6 +168,7 @@ func TestCollectProfiles_MixedFormatTree(t *testing.T) {
 }
 
 func TestProfilesNestedCUEImportsAndContentRouting(t *testing.T) {
+	t.Parallel()
 	root := writeBlueprintTree(t, map[string]string{
 		"Linux/Omarchy/packages/packages.cue":  `{packages: [{import: "../../../Arch/packages.cue"}]}`,
 		"Arch/packages.cue":                    `{packages: [{import: "../Common/packages.cue"}]}`,
@@ -195,8 +197,29 @@ func TestProfilesNestedCUEImportsAndContentRouting(t *testing.T) {
 }
 
 func TestProfilesImportCycleIsError(t *testing.T) {
+	t.Parallel()
 	root := writeBlueprintTree(t, map[string]string{"packages/a.yaml": "packages:\n - import: a.yaml\n"})
-	if _, err := CollectProfiles(treeConfig(root)); err == nil {
-		t.Fatal("cycle accepted")
+	if _, err := CollectProfiles(treeConfig(root)); !errors.Is(err, ErrProfileImportCycle) {
+		t.Fatalf("expected cycle error, got %v", err)
+	}
+}
+
+func TestProfileDiscoverySkipsUnrecognizedPayloadButRejectsBrokenBlueprints(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, path, content string
+		wantError           bool
+	}{
+		{"payload", "assets/editor.json", "invalid json", false},
+		{"processor", "packages/broken.yaml", "packages: [", true},
+		{"import", "packages/broken.yaml", "packages:\n - import: missing.yaml\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := writeBlueprintTree(t, map[string]string{"packages/main.yaml": "packages:\n - name: base\n   action: install\n   profiles: [desktop]\n", tc.path: tc.content})
+			_, err := CollectProfiles(treeConfig(root))
+			if (err != nil) != tc.wantError {
+				t.Fatalf("unexpected discovery result: %v", err)
+			}
+		})
 	}
 }

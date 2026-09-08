@@ -20,7 +20,7 @@ needed by credential sources. Preparation scripts must use OS tools and cannot
 depend on credentials that have not been resolved yet. If bootstrap itself needs
 a declared credential, explicitly give it `scope: [bootstrap]`; RWR resolves
 those credentials before bootstrap begins. An empty package list
-requires no package manager. All bootstrap entries honor the selected profiles.
+requires no package manager. Profile-aware bootstrap entries honor the selected profiles; package-manager declarations apply regardless of profile.
 
 ## Bootstrap File Structure
 
@@ -104,14 +104,16 @@ ssh_keys:
 
 The Bootstrap Process executes the sections in the following order:
 
-1. `packages`
-2. `directories`
-3. `files`
-4. `ssh_keys`
-5. `git`
-6. `services`
-7. `users`
-8. `groups`
+1. `scripts`
+2. `packageManagers`
+3. `packages`
+4. `directories`
+5. `files`
+6. `ssh_keys`
+7. `git`
+8. `services`
+9. `users`
+10. `groups`
 
 This order ensures that the necessary dependencies and prerequisites are in place before proceeding with other tasks.
 
@@ -178,3 +180,10 @@ When defining your bootstrap file, consider the following best practices:
 By following these best practices, you can create a reliable and maintainable bootstrap process for your RWR-managed systems.
 
 For more information on specific blueprint types and their options, please refer to the respective documentation pages.
+
+Successful preparation scripts are recorded individually under RWR's
+`bootstrap-steps` configuration directory. Retries (including forced bootstrap)
+skip an unchanged successful script, even when a later step failed. Changes to
+a script declaration or its source content cause it to run again. Scripts must
+converge safely after a failed or interrupted attempt, including interruption
+before its completion marker is saved.

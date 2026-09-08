@@ -101,9 +101,9 @@ A `bw:` source that cannot yield a value - CLI missing, vault locked, no such
 item - is a miss, not an error: resolution moves on to the next source, and
 the reason is in the log. That is what makes an order like
 `bw:..., keyring, prompt` useful: a machine with the vault locked still
-resolves the credential from the keyring or a prompt. One CLI call has a 30
-second timeout, and stdin is never attached, so a first-run wizard cannot
-hang the run. Attachments are not readable through a `bw:` source; a scripts
+resolves the credential from the keyring or a prompt. Vault reads, status checks, server configuration, and unlock calls are
+non-interactive with a 30-second timeout. Login receives the terminal for MFA
+prompts; unlock never receives stdin. Attachments are not readable through a `bw:` source; a scripts
 blueprint is the tool for files - see
 [examples/bitwarden](../examples/bitwarden/README.md) for a complete GPG key
 backup/restore tree.
@@ -161,6 +161,7 @@ These names are correct:
 |---|---|
 | `gh_api_token` | `repository.gh_api_token` |
 | `ssh_private_key` | `repository.ssh_private_key` |
+| `bw_session` | Session from RWR’s Bitwarden login/unlock; exported only when explicitly listed in `exposeCredentials` |
 
 RWR gives a warning at start when a credential is available. The change is
 always visible.

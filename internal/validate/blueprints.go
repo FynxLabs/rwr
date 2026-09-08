@@ -179,16 +179,8 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 		}
 	}
 
-	// Validate the PackageManagers field
-	if initConfig.PackageManagers != nil {
-		for i, pm := range initConfig.PackageManagers {
-			if pm.Name == "" {
-				AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'packageManagers[%d].name'", i), initFile, 0, "Add name field to package manager")
-			}
-			if pm.Action == "" {
-				AddIssue(results, types.ValidationError, fmt.Sprintf("Missing required field 'packageManagers[%d].action'", i), initFile, 0, "Add action field to package manager")
-			}
-		}
+	if err := types.ValidatePackageManagers(initConfig.PackageManagers); err != nil {
+		AddIssue(results, types.ValidationError, err.Error(), initFile, 0, "Use a named package manager with install or remove action")
 	}
 
 	return &initConfig, nil

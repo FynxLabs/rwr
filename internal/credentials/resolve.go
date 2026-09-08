@@ -31,6 +31,9 @@ type Options struct {
 func Resolve(specs []types.CredentialSpec, opts Options) error {
 	opts.bitwarden = &bitwardenSetup{}
 	previousSession := bitwardenSession
+	if bitwardenSession == "" {
+		bitwardenSession, _ = types.CredentialValue("bw_session")
+	}
 	defer func() { bitwardenSession = previousSession }()
 	if err := addBitwardenPath(); err != nil {
 		log.Debugf("Could not add RWR's Bitwarden directory to PATH: %v", err)

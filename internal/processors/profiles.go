@@ -2,12 +2,16 @@ package processors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
 
 	"github.com/fynxlabs/rwr/internal/types"
 )
+
+var ErrProfileImportCycle = errors.New("circular profile import")
+var ErrInvalidProfile = errors.New("invalid requested profile")
 
 // ProfileSummary is what a tree's blueprints declare about profiles.
 type ProfileSummary struct {
@@ -28,15 +32,22 @@ type ProfileSummary struct {
 // command that exists to tell an operator what `--profile` accepts answered "No
 // profiles found" for every tree that uses profiles.
 func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
+	return collectProfiles(initConfig, nil)
+}
+
+func collectProfiles(initConfig *types.InitConfig, files map[string][]string) (*ProfileSummary, error) {
 	summary := &ProfileSummary{Counts: map[string]int{}}
 
 	location := initConfig.Init.Location
 	if location == "" {
 		return finish(summary), nil
 	}
-	files, err := GetBlueprintFileOrder(location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
-	if err != nil {
-		return nil, err
+	if files == nil {
+		var err error
+		files, err = GetBlueprintFileOrder(location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
+		if err != nil {
+			return nil, err
+		}
 	}
 	type profileFile struct{ path, processor, section string }
 	seen := map[profileFile]bool{}
@@ -50,7 +61,7 @@ func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
 		}
 		key := profileFile{path, processor, section}
 		if active[key] {
-			return fmt.Errorf("circular profile import at %s", path)
+			return fmt.Errorf("%w at %s", ErrProfileImportCycle, path)
 		}
 		if seen[key] {
 			return nil

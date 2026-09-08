@@ -53,6 +53,16 @@ func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
 		return nil, fmt.Errorf("error getting blueprint file order: %w", err)
 	}
 
+	plan.FileOrder = fileOrder
+	if err := types.ValidatePackageManagers(initConfig.PackageManagers); err != nil {
+		plan.Diags = append(plan.Diags, types.Diagnostic{Severity: types.SeverityError, Msg: err.Error()})
+	}
+	if path := findBootstrapFile(location); path != "" {
+		if err := validateBootstrapPreparation(path, initConfig); err != nil {
+			plan.Diags = append(plan.Diags, types.Diagnostic{Severity: types.SeverityError, File: path, Msg: err.Error()})
+		}
+	}
+
 	// The plan's order carries only the processors this tree configures. The
 	// executor already skips processors with no files; keeping them in the
 	// plan just rendered phantom rows (a tree with no ssh_keys blueprints

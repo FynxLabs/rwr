@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -42,6 +43,9 @@ var authenticateBitwarden = func() error {
 		return err
 	}
 	if login {
+		if err := validateBitwardenServer(server); err != nil {
+			return err
+		}
 		if server != "" && server != status.ServerURL {
 			if _, err := runBW([]string{"config", "server", server}); err != nil {
 				return fmt.Errorf("configuring Bitwarden server: %w", err)
@@ -78,7 +82,7 @@ var promptBitwardenAuth = func(login bool, currentServer string) (email, passwor
 	}
 	if login {
 		fields = append(fields,
-			huh.NewInput().Title("Bitwarden server").Description("Use vault.bitwarden.eu for EU accounts, or your self-hosted URL.").Value(&server).Validate(required),
+			huh.NewInput().Title("Bitwarden server").Description("Use vault.bitwarden.eu for EU accounts, or your self-hosted URL.").Value(&server).Validate(validateBitwardenServer),
 			huh.NewInput().Title("Bitwarden email").Value(&email).Validate(required))
 	}
 	fields = append(fields, huh.NewInput().Title("Unlock Bitwarden").Description("Enter your master password. RWR uses it only for this login and unlock.").EchoMode(huh.EchoModePassword).Value(&password).Validate(required))
@@ -93,15 +97,16 @@ var bwAuthenticate = func(args []string, password string, interactive bool) (str
 		ctx, cancel = context.WithTimeout(ctx, bwTimeout)
 		defer cancel()
 	}
-	cmd := exec.CommandContext(ctx, "bw", args...)
+	cmd := exec.CommandContext(ctx, "bw", args...) // #nosec G204 -- fixed bw executable; internal login/unlock arguments are passed separately, never through a shell
 	for _, entry := range bitwardenEnv() {
 		if !strings.HasPrefix(entry, "RWR_BW_PASSWORD=") {
 			cmd.Env = append(cmd.Env, entry)
 		}
 	}
 	cmd.Env = append(cmd.Env, "RWR_BW_PASSWORD="+password)
-	var out strings.Builder
+	var out, stderr strings.Builder
 	cmd.Stdout = &out
+	cmd.Stderr = &stderr
 	// Login owns the terminal for MFA prompts; --quiet suppresses the session.
 	run := cmd.Run
 	if interactive {
@@ -109,7 +114,21 @@ var bwAuthenticate = func(args []string, password string, interactive bool) (str
 		run = func() error { return reporting.WithTerminal(cmd.Run) }
 	}
 	if err := run(); err != nil {
-		return "", fmt.Errorf("bitwarden %s failed: %w", args[0], err)
+		detail := strings.TrimSpace(stderr.String())
+		for _, secret := range []string{password, bitwardenSession, os.Getenv("BW_SESSION")} {
+			if secret != "" {
+				detail = strings.ReplaceAll(detail, secret, "[redacted]")
+			}
+		}
+		return "", fmt.Errorf("bitwarden %s failed: %w: %s", args[0], err, detail)
 	}
 	return out.String(), nil
+}
+
+func validateBitwardenServer(server string) error {
+	parsed, err := url.Parse(server)
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil || parsed.Fragment != "" {
+		return fmt.Errorf("bitwarden server must be an HTTPS URL with a host and no embedded credentials or fragment")
+	}
+	return nil
 }

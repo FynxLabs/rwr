@@ -58,6 +58,10 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return nil
 	}
 
+	if err := validateBootstrapPreparation(blueprintFile, initConfig); err != nil {
+		return err
+	}
+
 	if err := resolveBootstrapCredentials(initConfig); err != nil {
 		return err
 	}
@@ -109,12 +113,16 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
+	if err := types.ValidatePackageManagers(bootstrapData.PackageManagers); err != nil {
+		return err
+	}
+
 	// Preparation scripts use only the OS and run before providers and vaults.
 	scripts, err := processScriptImports(bootstrapData.Scripts, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
 		return err
 	}
-	if err := processScripts(helpers.FilterByProfiles(scripts, initConfig.Variables.Flags.Profiles), osInfo, initConfig, blueprintDir); err != nil {
+	if err := processBootstrapScripts(helpers.FilterByProfiles(scripts, initConfig.Variables.Flags.Profiles), osInfo, initConfig, blueprintDir); err != nil {
 		return err
 	}
 	if failureCount() > failuresBefore {

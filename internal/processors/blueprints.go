@@ -2,6 +2,7 @@ package processors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -228,18 +229,22 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 	// nothing. A multi-type file (minimal_files' all_in_one) routes to every
 	// type it declares; the dispatch subsets it per processor. A file whose
 	// content matches nothing gets a loud statement that it will not run.
-	routeByPath := func(absPath, relPath string) []string {
+	routeByPath := func(absPath, relPath string) ([]string, error) {
 		processor := getProcessorType(relPath)
 		if isKnownProcessor(processor) {
-			return []string{processor}
+			return []string{processor}, nil
 		}
-		if detected := detectBlueprintTypesFromContent(absPath, initConfig); len(detected) > 0 {
+		detected, err := detectBlueprintTypesFromContent(absPath, initConfig)
+		if err != nil {
+			return nil, err
+		}
+		if len(detected) > 0 {
 			log.Debugf("Blueprint file %s routed to %v by its content", relPath, detected)
-			return detected
+			return detected, nil
 		}
 		log.Warnf("Blueprint file %s is not under a recognized processor directory and its content matches no blueprint type; it will NOT be executed. "+
 			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/ - or give it top-level blueprint keys.", relPath)
-		return []string{processor}
+		return nil, nil
 	}
 
 	// The init file configures the run, bootstrap is dispatched separately
@@ -290,7 +295,11 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 							if err != nil {
 								return err
 							}
-							for _, processor := range routeByPath(path, relPath) {
+							routes, err := routeByPath(path, relPath)
+							if err != nil {
+								return err
+							}
+							for _, processor := range routes {
 								fileOrder[processor] = append(fileOrder[processor], relPath)
 								log.Debugf("Added file to processor %s: %s", processor, relPath)
 							}
@@ -307,7 +316,11 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 						return nil, err
 					}
 					if !isReservedFile(fullPath) {
-						for _, processor := range routeByPath(fullPath, relPath) {
+						routes, err := routeByPath(fullPath, relPath)
+						if err != nil {
+							return nil, err
+						}
+						for _, processor := range routes {
 							fileOrder[processor] = append(fileOrder[processor], relPath)
 						}
 					}
@@ -333,7 +346,11 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 				if err != nil {
 					return err
 				}
-				for _, processor := range routeByPath(path, relPath) {
+				routes, err := routeByPath(path, relPath)
+				if err != nil {
+					return err
+				}
+				for _, processor := range routes {
 					if _, exists := fileOrder[processor]; !exists {
 						fileOrder[processor] = []string{relPath}
 					} else if !helpers.Contains(fileOrder[processor], relPath) {
@@ -382,10 +399,14 @@ var blueprintKeyToType = map[string]string{
 // returning every matched type in run-order-stable form. Templates are
 // resolved leniently first - content routing happens before the run renders
 // anything for real.
-func detectBlueprintTypesFromContent(path string, initConfig *types.InitConfig) []string {
+func detectBlueprintTypesFromContent(path string, initConfig *types.InitConfig) ([]string, error) {
 	top, _, err := decodeTopLevel(path, initConfig)
 	if err != nil {
-		return nil
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) {
+			return nil, err
+		}
+		return nil, nil
 	}
 
 	seen := map[string]bool{}
@@ -398,7 +419,7 @@ func detectBlueprintTypesFromContent(path string, initConfig *types.InitConfig) 
 		}
 	}
 	sort.Strings(detected)
-	return detected
+	return detected, nil
 }
 
 // decodeTopLevel reads a blueprint's top-level mapping leniently.

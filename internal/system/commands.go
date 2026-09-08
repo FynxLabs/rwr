@@ -105,11 +105,22 @@ func spawn(cmd types.Command) *exec.Cmd {
 // directories.
 func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 	// Get the current environment variables
-	env := os.Environ()
+	env := make([]string, 0)
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(strings.ToUpper(entry), "RWR_CRED_") {
+			env = append(env, entry)
+		}
+	}
 
 	// Append the additional variables from cmd.Variables
 	for key, value := range cmd.Variables {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
+		if !strings.HasPrefix(strings.ToUpper(key), "RWR_CRED_") {
+			env = append(env, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+
+	for key, value := range types.ExportedCredentialEnv() {
+		env = append(env, key+"="+value)
 	}
 
 	// Add common paths to the PATH environment variable

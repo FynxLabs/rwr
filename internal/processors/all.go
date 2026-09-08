@@ -76,15 +76,12 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		return err
 	}
 
-	if err := checkRequestedProfiles(initConfig); err != nil {
+	if err := checkRequestedProfiles(initConfig, preflight.FileOrder); err != nil {
 		return err
 	}
 
 	// Get the blueprint file order
-	fileOrder, err := GetBlueprintFileOrder(initConfig.Init.Location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
-	if err != nil {
-		return fmt.Errorf("error getting blueprint file order: %w", err)
-	}
+	fileOrder := preflight.FileOrder
 
 	// Run the bootstrap processor first if it exists.
 	//
@@ -313,13 +310,17 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 // A misspelled profile name was silent: FilterByProfiles matched nothing, every
 // profile-scoped entry was skipped, and the run reported success having installed
 // only the base items. A mistyped profile looked exactly like a working run.
-func checkRequestedProfiles(initConfig *types.InitConfig) error {
+func checkRequestedProfiles(initConfig *types.InitConfig, fileOrders ...map[string][]string) error {
 	requested := initConfig.Variables.Flags.Profiles
 	if len(requested) == 0 {
 		return nil
 	}
 
-	summary, err := CollectProfiles(initConfig)
+	var files map[string][]string
+	if len(fileOrders) > 0 {
+		files = fileOrders[0]
+	}
+	summary, err := collectProfiles(initConfig, files)
 	if err != nil {
 		return fmt.Errorf("could not validate requested profiles: %w", err)
 	}
@@ -337,5 +338,5 @@ func checkRequestedProfiles(initConfig *types.InitConfig) error {
 		return nil
 	}
 
-	return fmt.Errorf("no profile named %v exists in this blueprint tree; available profiles: %v", invalid, summary.Names)
+	return fmt.Errorf("%w: no profile named %v exists in this blueprint tree; available profiles: %v", ErrInvalidProfile, invalid, summary.Names)
 }

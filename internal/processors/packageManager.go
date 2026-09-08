@@ -39,9 +39,18 @@ func packageManagerTempDir() (string, error) {
 // detection, and then installs their common dependencies (OpenSSL and build
 // essentials) through the newly available default manager.
 func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	if err := types.ValidatePackageManagers(packageManagers); err != nil {
+		return err
+	}
 	// Initialize providers if needed
 	if err := system.InitProviders(); err != nil {
 		return fmt.Errorf("error initializing providers: %w", err)
+	}
+
+	for _, pm := range packageManagers {
+		if _, exists := system.GetProviderDefinition(pm.Name); !exists {
+			return fmt.Errorf("no provider definition for package manager %s", pm.Name)
+		}
 	}
 
 	// Process each package manager
