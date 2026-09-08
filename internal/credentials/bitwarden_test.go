@@ -145,6 +145,7 @@ func TestFetchWithCLIFakeBinary(t *testing.T) {
 		"get item signing":    `{"fields":[{"name":"api-key","type":1,"value":"tok_123"},{"name":"other","type":0,"value":"nope"}]}`,
 		"get password owner":  "token\n\n",
 		"get item ownfield":   `{"fields":[{"name":"api-key","value":"tok_123\n"}]}`,
+		"get password cr":     "crtok\r\n",
 	})
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
@@ -170,6 +171,11 @@ func TestFetchWithCLIFakeBinary(t *testing.T) {
 	}
 	if got, err := fetchWithCLI(bwSource{Item: "ownfield", Key: "field", Field: "api-key"}); err != nil || got != "tok_123\n" {
 		t.Errorf("field value owning a trailing newline = %q, %v; want %q with no error", got, err, "tok_123\n")
+	}
+	// A stored trailing carriage return is part of the value too: the CLI's
+	// delimiter is a bare line feed, so nothing after removing it may go.
+	if got, err := fetchWithCLI(bwSource{Item: "cr", Key: "password"}); err != nil || got != "crtok\r" {
+		t.Errorf("password owning a trailing carriage return = %q, %v; want %q with no error", got, err, "crtok\r")
 	}
 
 	argv, readErr := os.ReadFile(filepath.Join(dir, "argv.log"))

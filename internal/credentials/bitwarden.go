@@ -113,12 +113,10 @@ func fetchWithCLI(spec bwSource) (string, error) {
 		// it is the stored value exactly - newlines included.
 		return bwFieldValue(out, spec.Field, spec.Item)
 	}
-	// bw prints the value followed by exactly one newline; the value itself
-	// may legitimately end (or begin) with newlines, so remove the CLI's one,
-	// not every trailing one.
-	out = strings.TrimSuffix(out, "\n")
-	out = strings.TrimSuffix(out, "\r")
-	return out, nil
+	// bw prints the value followed by exactly one line feed, and nothing
+	// else; the value itself may legitimately end (or begin) with newlines,
+	// or with a bare carriage return, so remove that one delimiter only.
+	return strings.TrimSuffix(out, "\n"), nil
 }
 
 // bwArgs builds the `bw get` invocation for a source. Custom fields have no
