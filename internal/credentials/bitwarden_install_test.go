@@ -90,12 +90,25 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 			wasDryRun := system.IsDryRun()
 			system.SetDryRun(tc.dryRun)
 			t.Cleanup(func() { system.SetDryRun(wasDryRun) })
-			origFetch, origOffer, origInstall := bwFetch, offerBitwardenInstall, installBitwarden
-			t.Cleanup(func() { bwFetch, offerBitwardenInstall, installBitwarden = origFetch, origOffer, origInstall })
+			origFetch, origOffer, origInstall, origAuth := bwFetch, offerBitwardenInstall, installBitwarden, authenticateBitwarden
+			t.Cleanup(func() {
+				bwFetch, offerBitwardenInstall, installBitwarden, authenticateBitwarden = origFetch, origOffer, origInstall, origAuth
+			})
 			offers, installs := 0, 0
 			installed := false
+			authenticated := tc.session
+			authenticateBitwarden = func() error {
+				authenticated = true
+				if tc.vaultError {
+					return errors.New("authentication declined")
+				}
+				return nil
+			}
 			bwFetch = func(bwSource) (string, error) {
-				if installed && tc.session {
+				if installed {
+					if !authenticated {
+						return "", errors.New("not logged in")
+					}
 					if tc.vaultError {
 						return "", errors.New("vault is locked")
 					}
@@ -133,7 +146,7 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 			}
 			for _, name := range []string{"one", "two"} {
 				value, ok := types.CredentialValue(name)
-				if tc.session {
+				if installed {
 					want := "vault-value"
 					if tc.wantPrompts > 0 {
 						want = "prompt-value"

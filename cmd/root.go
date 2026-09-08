@@ -280,7 +280,7 @@ func initializeSystemInfo(app *AppConfig, syncBlueprints bool, selectedProcessor
 	}
 
 	log.Debugf("Initializing system information with init file: %s", app.InitFilePath)
-	app.InitConfig, err = processors.Initialize(app.InitFilePath, flags, selectedProcessors...)
+	app.InitConfig, err = processors.LoadConfiguration(app.InitFilePath, flags)
 	if err != nil {
 		return fmt.Errorf("error initializing system information: %w", err)
 	}

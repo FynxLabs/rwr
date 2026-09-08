@@ -165,3 +165,38 @@ func TestCollectProfiles_MixedFormatTree(t *testing.T) {
 		}
 	}
 }
+
+func TestProfilesNestedCUEImportsAndContentRouting(t *testing.T) {
+	root := writeBlueprintTree(t, map[string]string{
+		"Linux/Omarchy/packages/packages.cue":  `{packages: [{import: "../../../Arch/packages.cue"}]}`,
+		"Arch/packages.cue":                    `{packages: [{import: "../Common/packages.cue"}]}`,
+		"Common/packages.cue":                  `{packages: [{name: "driver", action: "install", profiles: ["desktop", "laptop", "nvidia"]}]}`,
+		"Linux/Omarchy/extra.yaml":             "fonts:\n - name: test\n   action: install\n   profiles: [fonts]\nconfigurations:\n - tool: gsettings\n   action: set\n   profiles: [settings]\n",
+		"Linux/Omarchy/files/src/payload.json": "this is not a blueprint",
+	})
+	config := treeConfig(filepath.Join(root, "Linux", "Omarchy"))
+	config.Variables.Flags.Profiles = []string{"desktop", "laptop", "nvidia"}
+	if err := checkRequestedProfiles(config); err != nil {
+		t.Fatal(err)
+	}
+	summary, err := CollectProfiles(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"desktop", "laptop", "nvidia", "fonts", "settings"} {
+		if summary.Counts[name] != 1 {
+			t.Fatalf("%s: %v", name, summary.Counts)
+		}
+	}
+	config.Variables.Flags.Profiles = []string{"nvdiia"}
+	if err := checkRequestedProfiles(config); err == nil {
+		t.Fatal("typo accepted")
+	}
+}
+
+func TestProfilesImportCycleIsError(t *testing.T) {
+	root := writeBlueprintTree(t, map[string]string{"packages/a.yaml": "packages:\n - import: a.yaml\n"})
+	if _, err := CollectProfiles(treeConfig(root)); err == nil {
+		t.Fatal("cycle accepted")
+	}
+}

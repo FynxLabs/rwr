@@ -306,9 +306,11 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 					if err != nil {
 						return nil, err
 					}
-					processor := getProcessorType(relPath)
-					fileOrder[processor] = append(fileOrder[processor], relPath)
-					log.Debugf("Added single file to processor %s: %s", processor, relPath)
+					if !isReservedFile(fullPath) {
+						for _, processor := range routeByPath(fullPath, relPath) {
+							fileOrder[processor] = append(fileOrder[processor], relPath)
+						}
+					}
 				}
 			}
 		}

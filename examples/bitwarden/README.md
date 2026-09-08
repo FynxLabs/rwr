@@ -14,13 +14,11 @@ resolved by rwr at run time through the [`bw:` credential source](../../docs/cre
 and handed to the scripts as `RWR_CRED_GPG_PASSPHRASE`; the key material exists
 on disk only inside a temp directory that is removed when the script exits.
 
-## Prerequisites
+## Machine setup
 
-| Tool | Used for | Notes |
-|---|---|---|
-| `bw` | everything vault-related | A recent CLI; attachment *upload* needs one that has `bw create attachment`, and the scripts download attachments by id with `--output` (streaming to stdout needs `--raw`, and a filename argument is only a search, not a lookup) - both scripts fail loudly, not silently, when something is off |
-| `gpg` | export, import, unlock checks | |
-| `jq` | reading item metadata in the scripts | |
+RWR installs `gnupg` and `jq` through this example's bootstrap blueprint on Linux
+or macOS, and offers to install Bitwarden when it is missing. Put any additional
+machine preparation in `bootstrap.yaml`; there are no manual tool-install steps.
 
 Attachment uploads require a paid Bitwarden plan (Premium or an organization).
 The `bw:` credential source itself does not - item fields are free - so the
@@ -31,11 +29,9 @@ yourself; the rest of this tree's checks still apply.
 
 ## One-time setup
 
-1. RWR offers to install the CLI if it is missing, with no package-manager
-   prerequisite. Log in with `bw login`, then `bw unlock` and export
-   `BW_SESSION` in the shell you run rwr from. If RWR installed it, use the
-   executable path it prints for these shell commands; RWR itself finds it
-   automatically.
+1. Run RWR. It offers to install Bitwarden if needed, then prompts for login
+   and unlock. The blueprint explicitly exposes the session to its attachment
+   scripts; no shell session export is required.
 2. Create a vault item named `gpg-signing` **as a Login item** - a Secure Note
    has no password field, so the source below could never read from it - and
    put the key's **passphrase in the item's password field**. Username and

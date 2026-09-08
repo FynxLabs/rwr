@@ -13,6 +13,9 @@
 # restore day.
 set -euo pipefail
 
+# Use the session RWR unlocked and explicitly exposed for this blueprint.
+export BW_SESSION="${RWR_CRED_BW_SESSION:-${BW_SESSION:-}}"
+
 # Environment over defaults: rwr passes the shell's environment through to
 # every script, so `GPG_FINGERPRINT=abc rwr all --profile gpg-backup` works,
 # and so does editing the defaults here.

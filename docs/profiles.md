@@ -2,6 +2,11 @@
 
 The Profile System is a powerful feature in RWR that allows you to organize and selectively install packages and configurations based on different use cases, environments, or contexts. This page provides a comprehensive guide to understanding and using profiles effectively.
 
+Profile discovery follows nested blueprint imports, including shared files outside
+the selected configuration directory. `rwr profiles` and `--profile` validation
+use the same file routing as execution, including mixed-format and flat layouts.
+Listing profiles does not require logging into credential services.
+
 ## Introduction
 
 The RWR Profile System enables you to create flexible, context-aware configurations that can be selectively applied based on your current needs. Whether you're setting up a work environment, gaming setup, or development workstation, profiles let you organize your blueprints for maximum efficiency and reusability.

@@ -14,10 +14,20 @@ The Bootstrap Process is executed before any other blueprints are processed. It 
 
 The Bootstrap Process is defined in a separate blueprint file named `bootstrap.yaml` (or `bootstrap.json` or `bootstrap.toml`, depending on the chosen format).
 
+Profile validation happens before bootstrap or package-manager installation.
+Bootstrap runs before normal credential resolution, so it can install the tools
+needed by credential sources. Preparation scripts must use OS tools and cannot
+depend on credentials that have not been resolved yet. If bootstrap itself needs
+a declared credential, explicitly give it `scope: [bootstrap]`; RWR resolves
+those credentials before bootstrap begins. An empty package list
+requires no package manager. All bootstrap entries honor the selected profiles.
+
 ## Bootstrap File Structure
 
 The structure of the bootstrap file is similar to other blueprint files in RWR. It can include the following sections:
 
+- `scripts`: Preparation scripts, run first using OS tools, before package managers or vault credentials.
+- `packageManagers`: Installs package managers needed by the bootstrap packages.
 - `packages`: Defines the packages to be installed during the bootstrap process.
 - `files`: Specifies the files to be created or modified during the bootstrap process.
 - `directories`: Defines the directories to be created during the bootstrap process.

@@ -76,65 +76,6 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		return err
 	}
 
-	// Check if macOS and no package manager is installed. A tree that declares
-	// packageManagers in its init file has already said what to install - the
-	// ProcessPackageManagers call below handles those (installing any that are
-	// missing), so the ask-and-install fallback is only for trees that declare
-	// nothing.
-	if osInfo.System.OS == types.OSDarwin && len(initConfig.PackageManagers) == 0 {
-		// Check if any package manager is installed
-		hasPackageManager := false
-		for _, pm := range osInfo.PackageManager.Managers {
-			if pm.Bin != "" {
-				hasPackageManager = true
-				break
-			}
-		}
-
-		if !hasPackageManager {
-			log.Info("No package manager detected on macOS. Installing one is required to proceed.")
-
-			// PromptUserChoice runs under the terminal lease, so it is safe
-			// both headless and under the TUI (the dashboard suspends around
-			// it instead of deadlocking the stdin read).
-			var chosenPM string
-			if initConfig.Variables.Flags.Interactive {
-				chosenPM = system.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
-			} else {
-				chosenPM = "brew"
-				log.Info("Non-interactive mode: defaulting to Homebrew (brew)")
-			}
-
-			pmInfo := types.PackageManagerInfo{
-				Name:   chosenPM,
-				Action: types.ActionInstall,
-			}
-
-			err = ProcessPackageManagers([]types.PackageManagerInfo{pmInfo}, osInfo, initConfig)
-			if err != nil {
-				return fmt.Errorf("error installing package manager: %w", err)
-			}
-		}
-	}
-
-	if runOrder != nil {
-		blueprintRunOrder = append([]string(nil), runOrder...)
-	} else {
-		blueprintRunOrder, err = GetBlueprintRunOrder(initConfig)
-		if err != nil {
-			return fmt.Errorf("error getting blueprint run order: %w", err)
-		}
-	}
-
-	// Process package managers first if specified
-	if initConfig.PackageManagers != nil {
-		log.Debugf("Processing package managers")
-		err = ProcessPackageManagers(initConfig.PackageManagers, osInfo, initConfig)
-		if err != nil {
-			return fmt.Errorf("error processing package managers: %w", err)
-		}
-	}
-
 	if err := checkRequestedProfiles(initConfig); err != nil {
 		return err
 	}
@@ -160,6 +101,23 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		if err != nil {
 			return fmt.Errorf("error processing bootstrap: %w", err)
 		}
+	}
+
+	if err := resolveRunCredentials(initConfig, runOrder); err != nil {
+		return err
+	}
+
+	if runOrder != nil {
+		blueprintRunOrder = append([]string(nil), runOrder...)
+	} else {
+		blueprintRunOrder, err = GetBlueprintRunOrder(initConfig)
+		if err != nil {
+			return fmt.Errorf("error getting blueprint run order: %w", err)
+		}
+	}
+
+	if err := preparePackageManagers(initConfig.PackageManagers, osInfo, initConfig, len(fileOrder[types.BlueprintTypePackages]) > 0); err != nil {
+		return err
 	}
 
 	// Process each blueprint in order
@@ -363,10 +321,7 @@ func checkRequestedProfiles(initConfig *types.InitConfig) error {
 
 	summary, err := CollectProfiles(initConfig)
 	if err != nil {
-		// Discovery is a convenience, not a gate: if the tree cannot be walked the
-		// processors below will report why, with better context than this can.
-		log.Debugf("Could not collect profiles to validate --profile: %v", err)
-		return nil
+		return fmt.Errorf("could not validate requested profiles: %w", err)
 	}
 
 	invalid := helpers.ValidateProfiles(requested, summary.Names)

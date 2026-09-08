@@ -12,8 +12,7 @@ blueprints:
 
 credentials:
   # The key's passphrase, read from the vault item's password field through
-  # the Bitwarden CLI. When bw is missing or the vault is locked, resolution
-  # falls through to the OS keyring, then a prompt.
+  # the Bitwarden CLI. RWR offers installation and handles login/unlock.
   - name: gpg_passphrase
     description: "Passphrase of the GPG key synced via Bitwarden"
     sources:
@@ -25,3 +24,5 @@ credentials:
 
 exposeCredentials:
   - gpg_passphrase
+  # Attachment scripts need vault access in addition to the passphrase.
+  - bw_session

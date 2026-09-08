@@ -140,6 +140,13 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 	// Update packages with merged list
 	packages.Packages = allPackages
 
+	// Filter packages based on active profiles
+	filteredPackages := helpers.FilterByProfiles(packages.Packages, initConfig.Variables.Flags.Profiles)
+
+	if len(filteredPackages) == 0 {
+		return nil
+	}
+
 	// Initialize providers if needed
 	if err := system.InitProviders(); err != nil {
 		return fmt.Errorf("error initializing providers: %w", err)
@@ -150,9 +157,6 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 	if len(available) == 0 {
 		return fmt.Errorf("no package managers available - check debug logs for detailed provider detection information. Common issues: missing binaries in PATH, missing config files, or unsupported platform")
 	}
-
-	// Filter packages based on active profiles
-	filteredPackages := helpers.FilterByProfiles(packages.Packages, initConfig.Variables.Flags.Profiles)
 
 	log.Debugf("Filtering packages: %d total, %d matching active profiles %v",
 		len(packages.Packages), len(filteredPackages), initConfig.Variables.Flags.Profiles)

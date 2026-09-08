@@ -1,7 +1,7 @@
 # Credentials in blueprints
 
-RWR manages credentials for your blueprints. Two are built in - your GitHub API
-token and your SSH private key - and the init file can declare more. By
+RWR manages credentials for your blueprints. GitHub API tokens, SSH private keys, and RWR-created Bitwarden sessions are
+built in; the init file can declare more. By
 default, blueprints cannot read any of them.
 
 ## Why RWR holds back the credentials
@@ -50,8 +50,9 @@ is available to RWR and its scripts on subsequent runs.
 Skipping, running non-interactively, or an installation failure leaves vault
 credentials unset and continues the run. Environment and keyring fallbacks
 are still tried; RWR does not force a password prompt for a missing CLI.
-Installation does not log into your vault: log in and unlock the installed
-CLI, then export `BW_SESSION` when you want vault access. The syntax is
+RWR handles login and unlock in the same run, including server selection and
+Bitwarden MFA prompts. You do not need to run shell commands or export a session.
+The master password is passed only to Bitwarden and is never saved. The syntax is
 `bw:<item>[/<key>]`, where `<item>` is anything `bw get` accepts (an item ID
 or a name) and `<key>` is one of:
 
@@ -63,6 +64,12 @@ or a name) and `<key>` is one of:
 | `notes` | the notes field |
 | `totp` | the current TOTP code, not the seed |
 | `field:<name>` | a custom field by exact name - text or hidden |
+
+For attachment scripts that need to call `bw` themselves, add `bw_session` to
+`exposeCredentials` and use `export BW_SESSION="$RWR_CRED_BW_SESSION"` inside
+the script. This explicitly grants those scripts access to the unlocked vault.
+RWR does not put the session in the environment unless the blueprint opts in.
+Existing `BW_SESSION` values still work for unattended runs.
 
 An item name may itself contain slashes: only a final segment that names a
 key is read as the key, so `bw:org/team` reads the password of item

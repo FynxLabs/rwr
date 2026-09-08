@@ -5,24 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-// A `bw:` source reads a value from the personal vault through the Bitwarden
-// CLI (`bw`), which must be installed and unlocked - `bw unlock` exports
-// BW_SESSION, and every `bw get` call in that shell decrypts without further
-// prompts. rwr never handles the master password and never stores vault
-// material beyond the resolved credential value, which the registry already
-// keeps out of logs and out of blueprint reach until exposeCredentials.
-//
-// The source covers values only: password, username, uri, notes, totp, and
-// custom fields. Files (attachments) have no credential-shaped reading and are
-// the job of a scripts blueprint - see the bitwarden example tree.
+// A bw: source reads a personal vault value. RWR installs, logs in and unlocks
+// the CLI when needed. The session is held in memory and passed only to bw.
 
 // bwTimeout bounds one CLI call. `bw` talks to the network and, when it is
 // unconfigured, to the operator; both must fail rather than stall a run, so
@@ -145,10 +139,11 @@ func bwArgs(spec bwSource) ([]string, error) {
 // a locked vault or a first-run wizard would otherwise sit waiting for input
 // rwr can never give, hanging the run instead of failing it.
 func runBW(args []string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), bwTimeout)
+	ctx, cancel := context.WithTimeout(system.RunContext(), bwTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "bw", args...) // #nosec G204 -- the binary is fixed and args are operator-declared source specs rendered as discrete argv elements; no shell is involved
+	cmd.Env = bitwardenEnv()
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -172,9 +167,9 @@ func bwHint(err error) error {
 	message := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(message, "vault is locked"):
-		return fmt.Errorf("%w (the vault is locked: run `bw unlock` and export BW_SESSION before running rwr)", err)
+		return fmt.Errorf("%w (the vault is locked; RWR can unlock it in an interactive run, or use BW_SESSION for unattended runs)", err)
 	case strings.Contains(message, "not logged in"), strings.Contains(message, "logged out"), strings.Contains(message, "username required"):
-		return fmt.Errorf("%w (log in with `bw login`, then `bw unlock` and export BW_SESSION)", err)
+		return fmt.Errorf("%w (RWR can log in and unlock Bitwarden in an interactive run)", err)
 	case strings.Contains(message, "not found"), strings.Contains(message, "no item"):
 		return fmt.Errorf("%w (no vault item matches - `bw list items --search <name>` shows what the CLI can see)", err)
 	default:
@@ -202,4 +197,29 @@ func bwFieldValue(itemJSON, fieldName, item string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("item %q has no custom field named %q", item, fieldName)
+}
+
+// bitwardenSession is scoped to credential resolution; never exported globally.
+var bitwardenSession string
+
+func bitwardenEnv() []string {
+	env := os.Environ()
+	if bitwardenSession == "" {
+		return env
+	}
+	filtered := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, "BW_SESSION=") {
+			filtered = append(filtered, entry)
+		}
+	}
+	return append(filtered, "BW_SESSION="+bitwardenSession)
+}
+
+func bitwardenNeedsAuth(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "vault is locked") || strings.Contains(message, "not logged in") || strings.Contains(message, "logged out") || strings.Contains(message, "username required") || strings.Contains(message, "invalid session")
 }

@@ -127,6 +127,9 @@ func runScript(script types.Script, osInfo *types.OSInfo, initConfig *types.Init
 			return fmt.Errorf("error creating temporary file for script: %v", err)
 		}
 		defer os.Remove(tempFile.Name()) //nolint:errcheck
+		if err := tempFile.Close(); err != nil {
+			return fmt.Errorf("closing temporary script: %w", err)
+		}
 
 		// 0600, which is what CreateTemp already made it. The mode argument
 		// said 0755, which was both wider than anything needed and a lie:

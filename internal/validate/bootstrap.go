@@ -12,6 +12,7 @@ import (
 // Each component is validated for required fields and proper structure.
 // Validation issues are added to the results parameter.
 func ValidateBootstrap(bootstrap types.BootstrapData, blueprintFile string, results *types.ValidationResults) {
+	ValidateScripts(bootstrap.Scripts, blueprintFile, results)
 	// Validate packages
 	if bootstrap.Packages != nil {
 		ValidatePackages(bootstrap.Packages, blueprintFile, results)

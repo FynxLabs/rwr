@@ -171,3 +171,29 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 
 	return nil
 }
+
+// preparePackageManagers runs after bootstrap preparation scripts. A packages
+// blueprint on a fresh Mac gets a manager inside RWR; a script-only tree does
+// not acquire an unrelated package-manager prerequisite.
+func preparePackageManagers(managers []types.PackageManagerInfo, osInfo *types.OSInfo, initConfig *types.InitConfig, needsPackages bool) error {
+	if len(managers) == 0 && needsPackages && osInfo.System.OS == types.OSDarwin {
+		available := false
+		for _, manager := range osInfo.PackageManager.Managers {
+			if manager.Bin != "" {
+				available = true
+				break
+			}
+		}
+		if !available {
+			chosen := "brew"
+			if initConfig.Variables.Flags.Interactive {
+				chosen = system.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
+			}
+			managers = []types.PackageManagerInfo{{Name: chosen, Action: types.ActionInstall}}
+		}
+	}
+	if len(managers) == 0 {
+		return nil
+	}
+	return ProcessPackageManagers(managers, osInfo, initConfig)
+}

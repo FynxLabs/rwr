@@ -1,14 +1,11 @@
 package processors
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
-	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -37,155 +34,99 @@ func CollectProfiles(initConfig *types.InitConfig) (*ProfileSummary, error) {
 	if location == "" {
 		return finish(summary), nil
 	}
-
-	err := filepath.WalkDir(location, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			if path != location && strings.HasPrefix(entry.Name(), ".") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		// Per-file via the registry: filtering on the tree-wide Init.Format
-		// made profile discovery blind to every blueprint in another format.
-		if !helpers.IsBlueprintFile(path) {
-			return nil
-		}
-		base := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
-		if base == "init" {
-			return nil
-		}
-
-		blueprintType := blueprintTypeForPath(location, path)
-		if blueprintType == "" {
-			return nil
-		}
-
-		data, err := os.ReadFile(path) // #nosec G304 G122 -- read-only walk of the operator's own blueprint tree
-		if err != nil {
-			log.Warnf("Could not read %s: %v", path, err)
-			return nil
-		}
-
-		resolved, err := helpers.ResolveTemplateForValidation(data, initConfig.Variables)
-		if err != nil {
-			log.Warnf("Could not resolve variables in %s: %v", path, err)
-			return nil
-		}
-
-		format, formatErr := helpers.FormatForPath(path)
-		if formatErr != nil {
-			log.Warnf("Could not determine format of %s: %v", path, formatErr)
-			return nil
-		}
-		if err := collectFromFile(summary, resolved, format, blueprintType); err != nil {
-			log.Warnf("Could not read profiles from %s: %v", path, err)
-			return nil
-		}
-		summary.Files++
-		return nil
-	})
+	files, err := GetBlueprintFileOrder(location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error walking blueprint tree %s: %w", location, err)
+		return nil, err
 	}
-
-	return finish(summary), nil
-}
-
-// blueprintTypeForPath names the blueprint type from the directory a file sits in,
-// the same way the run order does.
-func blueprintTypeForPath(root, path string) string {
-	rel, err := filepath.Rel(root, path)
-	if err != nil {
-		return ""
-	}
-	for _, part := range strings.Split(rel, string(os.PathSeparator)) {
-		switch part {
-		case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles,
-			types.BlueprintTypeServices, types.BlueprintTypeUsers, types.BlueprintTypeGit,
-			types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts,
-			types.BlueprintTypeConfiguration:
-			return part
-		}
-	}
-	return ""
-}
-
-// collectFromFile decodes one blueprint and records the profiles its entries carry.
-func collectFromFile(summary *ProfileSummary, data []byte, format, blueprintType string) error {
-	switch blueprintType {
-	case types.BlueprintTypePackages:
-		var d types.PackagesData
-		if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, &d); err != nil {
+	type profileFile struct{ path, processor, section string }
+	seen := map[profileFile]bool{}
+	active := map[profileFile]bool{}
+	var visit func(string, string, string) error
+	visit = func(path, processor, section string) error {
+		absolute, err := filepath.Abs(path)
+		path = absolute
+		if err != nil {
 			return err
 		}
-		collectFrom(summary, d.Packages)
-	case types.BlueprintTypeRepositories:
-		var d types.RepositoriesData
-		if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, &d); err != nil {
-			return err
+		key := profileFile{path, processor, section}
+		if active[key] {
+			return fmt.Errorf("circular profile import at %s", path)
 		}
-		collectFrom(summary, d.Repositories)
-	case types.BlueprintTypeFiles:
-		var d types.FileData
-		if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, &d); err != nil {
-			return err
+		if seen[key] {
+			return nil
 		}
-		collectFrom(summary, d.Files)
-		collectFrom(summary, d.Templates)
-		collectFrom(summary, d.Directories)
-	case types.BlueprintTypeServices:
-		var d types.ServiceData
-		if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, &d); err != nil {
-			return err
+		active[key] = true
+		defer delete(active, key)
+		top, _, err := decodeTopLevel(path, initConfig)
+		if err != nil {
+			return fmt.Errorf("reading profiles from %s: %w", path, err)
 		}
-		collectFrom(summary, d.Services)
-	case types.BlueprintTypeGit:
-		var d types.GitData
-		if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, &d); err != nil {
-			return err
-		}
-		collectFrom(summary, d.Repos)
-	case types.BlueprintTypeScripts:
-		var d types.ScriptData
-		if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, &d); err != nil {
-			return err
-		}
-		collectFrom(summary, d.Scripts)
-	case types.BlueprintTypeSSHKeys:
-		var d types.SSHKeyData
-		if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, &d); err != nil {
-			return err
-		}
-		collectFrom(summary, d.SSHKeys)
-	case types.BlueprintTypeUsers:
-		var d types.UsersData
-		if err := helpers.DecodeBlueprintInto(data, format, blueprintType, 0, &d); err != nil {
-			return err
-		}
-		collectFrom(summary, d.Users)
-		collectFrom(summary, d.Groups)
-	}
-	return nil
-}
-
-// collectFrom records one slice of profile-carrying entries.
-func collectFrom[T interface{ GetProfiles() []string }](summary *ProfileSummary, items []T) {
-	for _, item := range items {
-		profiles := item.GetProfiles()
-		if len(profiles) == 0 {
-			summary.BaseItems++
-			continue
-		}
-		for _, profile := range profiles {
-			if profile == "" {
+		for name, value := range top {
+			if section != "" && name != section {
 				continue
 			}
-			summary.Counts[profile]++
+			if processor != types.BlueprintTypeBootstrap && blueprintKeyToType[name] != processor {
+				continue
+			}
+			if _, known := blueprintKeyToType[name]; !known {
+				continue
+			}
+			if section == "" {
+				if err := visit(path, blueprintKeyToType[name], name); err != nil {
+					return err
+				}
+				continue
+			}
+			data, err := json.Marshal(value)
+			if err != nil {
+				return err
+			}
+			var entries []struct {
+				Profiles []string `json:"profiles"`
+				Import   string   `json:"import"`
+			}
+			if err := json.Unmarshal(data, &entries); err != nil {
+				return fmt.Errorf("profiles in %s (%s): %w", path, name, err)
+			}
+			for _, entry := range entries {
+				if entry.Import != "" {
+					if err := visit(filepath.Join(filepath.Dir(path), entry.Import), blueprintKeyToType[name], name); err != nil {
+						return err
+					}
+					continue
+				}
+				if len(entry.Profiles) == 0 {
+					summary.BaseItems++
+				}
+				for _, profile := range entry.Profiles {
+					if profile != "" {
+						summary.Counts[profile]++
+					}
+				}
+			}
+		}
+		seen[key] = true
+		return nil
+	}
+	for processor, paths := range files {
+		for _, path := range paths {
+			if err := visit(filepath.Join(location, path), processor, ""); err != nil {
+				return nil, err
+			}
 		}
 	}
+	if path := findBootstrapFile(location); path != "" {
+		if err := visit(path, types.BlueprintTypeBootstrap, ""); err != nil {
+			return nil, err
+		}
+	}
+	uniqueFiles := map[string]bool{}
+	for key := range seen {
+		uniqueFiles[key.path] = true
+	}
+	summary.Files = len(uniqueFiles)
+
+	return finish(summary), nil
 }
 
 func finish(summary *ProfileSummary) *ProfileSummary {

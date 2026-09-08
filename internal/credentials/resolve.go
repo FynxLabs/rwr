@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -29,12 +30,17 @@ type Options struct {
 // Bitwarden installation can be skipped without registering an empty secret.
 func Resolve(specs []types.CredentialSpec, opts Options) error {
 	opts.bitwarden = &bitwardenSetup{}
+	previousSession := bitwardenSession
+	defer func() { bitwardenSession = previousSession }()
 	if err := addBitwardenPath(); err != nil {
 		log.Debugf("Could not add RWR's Bitwarden directory to PATH: %v", err)
 	}
 	for _, spec := range specs {
 		if !scopeSelected(spec.Scope, opts.Selected) {
 			log.Debugf("Not resolving credential %q: its scope %v matches no selected processor", spec.Name, spec.Scope)
+			continue
+		}
+		if value, ok := types.CredentialValue(spec.Name); ok && value != "" {
 			continue
 		}
 		value, err := resolveOne(spec, opts)
@@ -96,6 +102,14 @@ func resolveOne(spec types.CredentialSpec, opts Options) (string, error) {
 			if errors.Is(err, ErrBitwardenNotInstalled) {
 				opts.bitwarden.prepare(opts.Interactive)
 				if !opts.bitwarden.skip {
+					value, err = readBitwarden(source)
+				}
+			}
+			if bitwardenNeedsAuth(err) && !opts.bitwarden.authAttempted && opts.Interactive && stdinIsTerminal() && !system.IsDryRun() {
+				opts.bitwarden.authAttempted = true
+				if authErr := authenticateBitwarden(); authErr != nil {
+					log.Warnf("Bitwarden authentication failed: %v", authErr)
+				} else {
 					value, err = readBitwarden(source)
 				}
 			}
