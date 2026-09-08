@@ -33,6 +33,12 @@ See [`alternative_layouts/`](./alternative_layouts/) for simpler approaches that
 - **Flattened Structure**: Individual blueprint files at root level (no subdirectories)
 - **Multiple Formats**: Same content shown in YAML, JSON, and TOML
 
+## Task-Focused Examples
+
+- [`bitwarden/`](./bitwarden/) - back up and restore a GPG key through the
+  Bitwarden vault, with the `bw:` credential source and guarded, profile-gated
+  scripts.
+
 ## How RWR Discovers Blueprints
 
 ```mermaid

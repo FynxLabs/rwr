@@ -1,0 +1,27 @@
+blueprints:
+  format: yaml
+  schema_version: 1
+  location: "."
+  order:
+    - scripts
+
+# The vault item name and key fingerprint are plain environment variables the
+# scripts read (BW_GPG_ITEM, GPG_FINGERPRINT) - rwr passes the shell's
+# environment through to every script, so set them in the shell or edit the
+# defaults at the top of the script files.
+
+credentials:
+  # The key's passphrase, read from the vault item's password field through
+  # the Bitwarden CLI. When bw is missing or the vault is locked, resolution
+  # falls through to the OS keyring, then a prompt.
+  - name: gpg_passphrase
+    description: "Passphrase of the GPG key synced via Bitwarden"
+    sources:
+      - "bw:gpg-signing/password"
+      - keyring
+      - prompt
+    scope:
+      - scripts
+
+exposeCredentials:
+  - gpg_passphrase
