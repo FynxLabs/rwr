@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/system"
@@ -70,14 +69,18 @@ func TestInvalidBootstrapManagerStopsBeforePreparation(t *testing.T) {
 			viper.Set("rwr.configdir", t.TempDir())
 			tree := writeBlueprintTree(t, map[string]string{"bootstrap.yaml": "packageManagers:\n - name: brew\n   action: install\n - name: yay\n   action: invalid\nscripts:\n - name: must-not-run\n   action: run\n   exec: self\n   content: invalid executable\n"})
 			config := treeConfig(tree)
+			failuresBefore := failureCount()
 			var err error
 			if standalone {
 				err = RunBootstrap(config, &types.OSInfo{})
 			} else {
 				err = All(config, &types.OSInfo{}, nil)
 			}
-			if err == nil || !strings.Contains(err.Error(), "packageManagers[1].action") {
-				t.Fatalf("preparation reached before manager validation: %v", err)
+			if !errors.Is(err, types.ErrInvalidPackageManager) {
+				t.Fatalf("expected package-manager validation error: %v", err)
+			}
+			if failureCount() != failuresBefore {
+				t.Fatal("invalid preparation script was executed")
 			}
 		})
 	}

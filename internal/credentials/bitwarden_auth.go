@@ -31,6 +31,12 @@ var authenticateBitwarden = func() error {
 	if err := json.Unmarshal([]byte(out), &status); err != nil {
 		return fmt.Errorf("invalid Bitwarden status: %w", err)
 	}
+	// An empty server is the CLI default (the hosted HTTPS vault).
+	if status.ServerURL != "" {
+		if err := validateBitwardenServer(status.ServerURL); err != nil {
+			return err
+		}
+	}
 	if status.Status == "unlocked" {
 		return nil
 	}
@@ -120,7 +126,7 @@ var bwAuthenticate = func(args []string, password string, interactive bool) (str
 				detail = strings.ReplaceAll(detail, secret, "[redacted]")
 			}
 		}
-		return "", fmt.Errorf("bitwarden %s failed: %w: %s", args[0], err, detail)
+		return "", &BitwardenAuthenticationError{Action: args[0], Diagnostic: detail, Err: err}
 	}
 	return out.String(), nil
 }
@@ -132,3 +138,16 @@ func validateBitwardenServer(server string) error {
 	}
 	return nil
 }
+
+// BitwardenAuthenticationError retains the command failure and its redacted diagnostic.
+type BitwardenAuthenticationError struct {
+	Action     string
+	Diagnostic string
+	Err        error
+}
+
+func (e *BitwardenAuthenticationError) Error() string {
+	return fmt.Sprintf("bitwarden %s failed: %v: %s", e.Action, e.Err, e.Diagnostic)
+}
+
+func (e *BitwardenAuthenticationError) Unwrap() error { return e.Err }

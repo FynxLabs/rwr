@@ -161,7 +161,34 @@ func TestBitwardenUnlockFailureReportsRedactedReason(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := bwAuthenticate([]string{"unlock", "--raw"}, "master-secret", false)
-	if err == nil || !strings.Contains(err.Error(), "invalid password") || strings.Contains(err.Error(), "master-secret") {
+	var authErr *BitwardenAuthenticationError
+	if !errors.As(err, &authErr) {
+		t.Fatalf("expected authentication error: %v", err)
+	}
+	if !strings.Contains(authErr.Diagnostic, "invalid password") || strings.Contains(authErr.Diagnostic, "master-secret") {
 		t.Fatalf("unexpected diagnostic: %v", err)
+	}
+}
+
+func TestConfiguredBitwardenServerValidatedBeforeAuthentication(t *testing.T) {
+	oldStatus, oldPrompt, oldAuth := bwAuthStatus, promptBitwardenAuth, bwAuthenticate
+	t.Cleanup(func() { bwAuthStatus, promptBitwardenAuth, bwAuthenticate = oldStatus, oldPrompt, oldAuth })
+	promptBitwardenAuth = func(bool, string) (string, string, string, error) {
+		t.Fatal("insecure configured server reached prompt")
+		return "", "", "", nil
+	}
+	bwAuthenticate = func([]string, string, bool) (string, error) {
+		t.Fatal("insecure configured server reached authentication")
+		return "", nil
+	}
+	for _, status := range []string{"unlocked", "locked", "unauthenticated"} {
+		t.Run(status, func(t *testing.T) {
+			bwAuthStatus = func() (string, error) {
+				return `{"status":"` + status + `","serverUrl":"http://vault.example.com"}`, nil
+			}
+			if err := authenticateBitwarden(); err == nil {
+				t.Fatal("configured HTTP server accepted")
+			}
+		})
 	}
 }

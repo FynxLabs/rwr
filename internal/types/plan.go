@@ -63,6 +63,8 @@ const (
 
 // Diagnostic is one stage-1 finding, positioned when the position is known.
 type Diagnostic struct {
+	// Cause preserves an identifiable validation error through preflight reporting.
+	Cause     error `json:"-"`
 	Severity  Severity
 	Processor string
 	File      string

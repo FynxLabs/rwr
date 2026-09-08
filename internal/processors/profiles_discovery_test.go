@@ -215,6 +215,7 @@ func TestProfileDiscoverySkipsUnrecognizedPayloadButRejectsBrokenBlueprints(t *t
 		{"import", "packages/broken.yaml", "packages:\n - import: missing.yaml\n", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			root := writeBlueprintTree(t, map[string]string{"packages/main.yaml": "packages:\n - name: base\n   action: install\n   profiles: [desktop]\n", tc.path: tc.content})
 			_, err := CollectProfiles(treeConfig(root))
 			if (err != nil) != tc.wantError {
