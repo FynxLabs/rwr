@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -70,8 +71,13 @@ func TestRepositorySourceRefreshesBeforeDiscovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { _ = os.Rename(origin+"-offline", origin) })
-			if _, err := ResolveInitSource("https://github.com/owner/repo"); err == nil || !strings.Contains(err.Error(), "error updating init repository") {
+			_, err = ResolveInitSource("https://github.com/owner/repo")
+			var refreshErr *InitRepositoryRefreshError
+			if !errors.As(err, &refreshErr) {
 				t.Fatalf("expected update failure, got %v", err)
+			}
+			if refreshErr.Repository != "owner/repo" || refreshErr.Path != target || errors.Unwrap(refreshErr) == nil {
+				t.Fatalf("refresh error lost repository context or underlying cause: %+v", refreshErr)
 			}
 		})
 	}
