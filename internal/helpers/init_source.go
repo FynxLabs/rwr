@@ -271,15 +271,27 @@ var cloneManifestRepo = func(owner, repo string) (string, error) {
 		return "", fmt.Errorf("error finding home directory: %w", err)
 	}
 	target := filepath.Join(homeDir, ".config", "rwr", "blueprints", owner+"-"+repo)
-
-	if _, err := os.Stat(filepath.Join(target, ".git")); err != nil {
-		opts := types.GitOptions{
-			URL:    "https://github.com/" + owner + "/" + repo + ".git",
-			Target: target,
-		}
+	opts := types.GitOptions{
+		URL:    "https://github.com/" + owner + "/" + repo + ".git",
+		Target: target,
+	}
+	if _, err := os.Stat(filepath.Join(target, ".git")); os.IsNotExist(err) {
 		if err := HandleGitClone(opts, &types.InitConfig{}); err != nil {
 			return "", fmt.Errorf("error cloning manifest repo %s/%s: %w", owner, repo, err)
 		}
+	} else if err != nil {
+		return "", fmt.Errorf("error inspecting cached repository %s: %w", target, err)
+	} else {
+		// A repository URL requests its current contents. Refresh before
+		// discovery: an older checkout may not even contain a manifest yet.
+		// Pull preserves local work and reports divergence rather than resetting it.
+		if err := HandleGitPull(opts, &types.InitConfig{}); err != nil {
+			return "", fmt.Errorf("error updating init repository %s/%s at %s: %w", owner, repo, target, err)
+		}
 	}
-	return probeRepositoryDir(target)
+	resolved, err := probeRepositoryDir(target)
+	if err != nil {
+		return "", fmt.Errorf("init repository %s/%s: %w", owner, repo, err)
+	}
+	return resolved, nil
 }
