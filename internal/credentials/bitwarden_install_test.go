@@ -60,6 +60,8 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 		name                                                    string
 		interactive, tty, dryRun, accept, installFails, session bool
 		wantOffers, wantInstalls                                int
+		vaultError, emptyValue                                  bool
+		wantPrompts                                             int
 	}{
 		{name: "headless"},
 		{name: "no terminal", interactive: true},
@@ -69,11 +71,17 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 		{name: "install fails", interactive: true, tty: true, accept: true, installFails: true, wantOffers: 1, wantInstalls: 1},
 		{name: "install without vault session", interactive: true, tty: true, accept: true, wantOffers: 1, wantInstalls: 1},
 		{name: "install with vault session", interactive: true, tty: true, accept: true, session: true, wantOffers: 1, wantInstalls: 1},
+		{name: "installed vault error falls back to prompt", interactive: true, tty: true, accept: true, session: true, vaultError: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
+		{name: "installed empty value falls back to prompt", interactive: true, tty: true, accept: true, session: true, emptyValue: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			prompts := 0
 			withFakes(t, &fakeKeyring{}, tc.tty, func(_, _ string) (string, error) {
-				t.Fatal("missing Bitwarden must not force a credential prompt")
-				return "", nil
+				prompts++
+				if tc.wantPrompts == 0 {
+					t.Fatal("missing Bitwarden must not force a credential prompt")
+				}
+				return "prompt-value", nil
 			})
 			t.Setenv("BW_SESSION", "")
 			if tc.session {
@@ -88,6 +96,12 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 			installed := false
 			bwFetch = func(bwSource) (string, error) {
 				if installed && tc.session {
+					if tc.vaultError {
+						return "", errors.New("vault is locked")
+					}
+					if tc.emptyValue {
+						return "", nil
+					}
 					return "vault-value", nil
 				}
 				return "", ErrBitwardenNotInstalled
@@ -114,10 +128,17 @@ func TestMissingBitwardenInstallOrSkip(t *testing.T) {
 			if offers != tc.wantOffers || installs != tc.wantInstalls {
 				t.Fatalf("offers=%d installs=%d", offers, installs)
 			}
+			if prompts != tc.wantPrompts {
+				t.Fatalf("prompts=%d, want %d", prompts, tc.wantPrompts)
+			}
 			for _, name := range []string{"one", "two"} {
 				value, ok := types.CredentialValue(name)
 				if tc.session {
-					if !ok || value != "vault-value" {
+					want := "vault-value"
+					if tc.wantPrompts > 0 {
+						want = "prompt-value"
+					}
+					if !ok || value != want {
 						t.Fatalf("%s was not resolved after installation", name)
 					}
 				} else if ok {
@@ -151,8 +172,19 @@ func TestInstalledBitwardenErrorsRemainDistinct(t *testing.T) {
 }
 
 func TestExtractBitwarden(t *testing.T) {
-	for _, entry := range []string{"bw", "../bw", "unexpected"} {
-		t.Run(entry, func(t *testing.T) {
+	for _, tc := range []struct {
+		name, entry string
+		mode        os.FileMode
+		valid       bool
+	}{
+		{name: "regular binary", entry: "bw", mode: 0o700, valid: true},
+		{name: "parent path", entry: "../bw", mode: 0o700},
+		{name: "wrong name", entry: "unexpected", mode: 0o700},
+		{name: "directory", entry: "bw", mode: os.ModeDir | 0o700},
+		{name: "symlink", entry: "bw", mode: os.ModeSymlink | 0o700},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			archive := filepath.Join(dir, "bw.zip")
 			f, err := os.Create(archive)
@@ -160,7 +192,9 @@ func TestExtractBitwarden(t *testing.T) {
 				t.Fatal(err)
 			}
 			z := zip.NewWriter(f)
-			w, err := z.Create(entry)
+			header := &zip.FileHeader{Name: tc.entry}
+			header.SetMode(tc.mode)
+			w, err := z.CreateHeader(header)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -175,7 +209,7 @@ func TestExtractBitwarden(t *testing.T) {
 			}
 			dest := filepath.Join(dir, "installed-bw")
 			err = extractBitwarden(archive, dest, "bw")
-			if entry != "bw" {
+			if !tc.valid {
 				if err == nil {
 					t.Fatal("accepted an unexpected archive entry")
 				}
@@ -196,6 +230,7 @@ func TestExtractBitwarden(t *testing.T) {
 }
 
 func TestBitwardenAssetPlatforms(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ os, arch, want string }{
 		{"linux", "amd64", "bw-linux-1.0.zip"},
 		{"linux", "arm64", "bw-linux-arm64-1.0.zip"},

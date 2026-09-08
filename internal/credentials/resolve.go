@@ -93,14 +93,13 @@ func resolveOne(spec types.CredentialSpec, opts Options) (string, error) {
 				continue
 			}
 			value, err := readBitwarden(source)
-			missingBitwarden = missingBitwarden || opts.bitwarden.attempted
 			if errors.Is(err, ErrBitwardenNotInstalled) {
-				missingBitwarden = true
 				opts.bitwarden.prepare(opts.Interactive)
 				if !opts.bitwarden.skip {
 					value, err = readBitwarden(source)
 				}
 			}
+			missingBitwarden = opts.bitwarden.skip
 			if err == nil && value != "" {
 				return value, nil
 			}
