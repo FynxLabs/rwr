@@ -31,8 +31,11 @@ yourself; the rest of this tree's checks still apply.
 
 ## One-time setup
 
-1. Install and log in to the CLI: `bw login`, then `bw unlock` and export
-   `BW_SESSION` in the shell you run rwr from.
+1. RWR offers to install the CLI if it is missing, with no package-manager
+   prerequisite. Log in with `bw login`, then `bw unlock` and export
+   `BW_SESSION` in the shell you run rwr from. If RWR installed it, use the
+   executable path it prints for these shell commands; RWR itself finds it
+   automatically.
 2. Create a vault item named `gpg-signing` **as a Login item** - a Secure Note
    has no password field, so the source below could never read from it - and
    put the key's **passphrase in the item's password field**. Username and
@@ -64,8 +67,8 @@ whole fix.
 
 ## What the scripts guarantee
 
-- **No half-runs.** Every guard - tooling, fingerprint, `BW_SESSION`, vault
-  item - fails with the specific fix before any key material moves.
+- **Optional vault setup.** A missing CLI, locked vault, or logged-out session
+  skips the GPG script. Other invalid inputs fail before key material moves.
 - **No-op when the subject is absent.** Backup on a machine without the key
   prints "nothing to back up" and exits 0; restore on a machine that already
   holds the key exits 0. Neither can be turned into an accident by running the

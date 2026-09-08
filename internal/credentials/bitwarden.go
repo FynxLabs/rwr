@@ -29,6 +29,9 @@ import (
 // stdin stays closed and the context ends the process.
 const bwTimeout = 30 * time.Second
 
+// ErrBitwardenNotInstalled distinguishes a missing optional tool from a vault error.
+var ErrBitwardenNotInstalled = errors.New("bitwarden CLI (bw) is not installed")
+
 // bwSource is a parsed `bw:<item>[/<key>]` source. The empty key means
 // password, the common case; Field carries the custom field name when Key is
 // "field".
@@ -74,23 +77,28 @@ func parseBitwardenSource(source string) (bwSource, error) {
 // the next declared source, with the reason in the log - a machine without the
 // CLI unlocked can still resolve the credential from keyring or prompt.
 func FromBitwarden(source string) (string, bool) {
+	value, err := readBitwarden(source)
+	return value, err == nil && value != ""
+}
+
+func readBitwarden(source string) (string, error) {
 	spec, err := parseBitwardenSource(source)
 	if err != nil {
 		log.Warnf("Credential source unusable: %v", err)
-		return "", false
+		return "", err
 	}
 	value, err := bwFetch(spec)
 	if err != nil {
 		// bw diagnostics name items and sessions, never the secret itself.
 		log.Warnf("Credential source %s yielded no value: %v", source, err)
-		return "", false
+		return "", err
 	}
 	if value == "" {
 		log.Warnf("Credential source %s yielded an empty value", source)
-		return "", false
+		return "", nil
 	}
 	log.Debugf("Credential %s resolved: %s", source, types.Redact(value))
-	return value, true
+	return value, nil
 }
 
 // bwFetch is the seam tests swap for a fake CLI; production shells out to bw.
@@ -98,7 +106,7 @@ var bwFetch = fetchWithCLI
 
 func fetchWithCLI(spec bwSource) (string, error) {
 	if _, err := exec.LookPath("bw"); err != nil {
-		return "", fmt.Errorf("the Bitwarden CLI (bw) is not on PATH - install it (https://bitwarden.com/help/cli/) or drop this source: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrBitwardenNotInstalled, err)
 	}
 	args, err := bwArgs(spec)
 	if err != nil {
