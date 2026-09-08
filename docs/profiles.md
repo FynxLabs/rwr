@@ -130,6 +130,8 @@ Installs base items + items with the "work" profile.
 
 ```bash
 rwr all --profile work,gaming
+rwr all --profile work, gaming
+rwr all --profile "work, gaming"
 rwr all -p work -p gaming
 ```
 
