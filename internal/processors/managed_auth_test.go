@@ -44,6 +44,41 @@ credentials:
     sources: [env:CACHIX_AUTH_TOKEN]
 `
 
+func TestInitializeContinuesWithoutBitwarden(t *testing.T) {
+	resetManagedAuthState(t)
+	// No tools on PATH and no previously managed installation: this models
+	// a fresh machine, rather than mocking the CLI result.
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("APPDATA", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir())
+	t.Setenv("RWR_CRED_GPG_PASSPHRASE", "")
+	initFile := writeInitFile(t, `
+blueprints:
+  format: yaml
+  location: "."
+credentials:
+  - name: gpg_passphrase
+    sources: [bw:gpg-signing/password, prompt]
+    scope: [scripts]
+exposeCredentials: [gpg_passphrase]
+`)
+	config, err := Initialize(initFile, types.Flags{Interactive: false})
+	if err != nil {
+		t.Fatalf("missing optional Bitwarden stopped initialization: %v", err)
+	}
+	if config == nil {
+		t.Fatal("no initialized configuration")
+	}
+	if _, ok := types.CredentialValue("gpg_passphrase"); ok {
+		t.Fatal("skipping registered an empty secret")
+	}
+	if _, ok := types.ExportedCredentialEnv()["RWR_CRED_GPG_PASSPHRASE"]; ok {
+		t.Fatal("skipping exported an empty secret")
+	}
+}
+
 // A declared credential resolves at init time and stays withheld: absent from
 // template scope and the RWR_CRED_* export until exposeCredentials names it -
 // the same treatment the two built-ins get.

@@ -41,8 +41,17 @@ credentials:
 ### Reading a credential from Bitwarden
 
 A `bw:` source reads from your personal vault through the Bitwarden CLI
-(`bw`), which must be installed and unlocked - run `bw unlock` and export
-`BW_SESSION` in the shell you run rwr from. The syntax is
+(`bw`). If it is missing, an interactive run offers **Install** or **Skip**.
+RWR downloads the official standalone binary, verifies its SHA-256 digest, and
+installs it in its user configuration directory under `rwr/bin`. No npm,
+Homebrew, curl, unzip, or administrator access is needed. The managed binary
+is available to RWR and its scripts on subsequent runs.
+
+Skipping, running non-interactively, or an installation failure leaves vault
+credentials unset and continues the run. Environment and keyring fallbacks
+are still tried; RWR does not force a password prompt for a missing CLI.
+Installation does not log into your vault: log in and unlock the installed
+CLI, then export `BW_SESSION` when you want vault access. The syntax is
 `bw:<item>[/<key>]`, where `<item>` is anything `bw get` accepts (an item ID
 or a name) and `<key>` is one of:
 
@@ -93,8 +102,8 @@ blueprint is the tool for files - see
 backup/restore tree.
 
 RWR resolves every declared credential at the start of the run, before any
-processor runs. A credential with no value from any source stops the run with
-an error that names the credential and the sources tried. When the run is not
+processor runs. Except when Bitwarden was missing and skipped as described
+above, a credential with no value from any source stops the run with an error that names the credential and the sources tried. When the run is not
 interactive - no terminal, or `--interactive=false` - RWR skips `prompt` and
 the error says so.
 

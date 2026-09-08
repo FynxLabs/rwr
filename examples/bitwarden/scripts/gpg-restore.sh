@@ -15,8 +15,12 @@ fingerprint="${GPG_FINGERPRINT:-}"
 
 die() { echo "gpg-restore: $*" >&2; exit 1; }
 
+if ! command -v bw >/dev/null 2>&1; then
+  echo "gpg-restore: Bitwarden is not installed - skipping"
+  exit 0
+fi
 command -v gpg >/dev/null 2>&1 || die "gpg is not installed"
-command -v bw  >/dev/null 2>&1 || die "the Bitwarden CLI (bw) is not installed - https://bitwarden.com/help/cli/"
+
 command -v jq  >/dev/null 2>&1 || die "jq is not installed (used to read vault item metadata)"
 
 fingerprint=$(printf '%s' "$fingerprint" | tr -d ' ' | tr 'a-f' 'A-F')
@@ -41,8 +45,8 @@ fi
 session_status=$(bw status 2>/dev/null | jq -r '.status' 2>/dev/null || echo unusable)
 case "$session_status" in
   unlocked) ;;
-  locked) die "the vault is locked - run 'bw unlock' and export BW_SESSION in this shell" ;;
-  unauthenticated) die "not logged in to bw - run 'bw login' first" ;;
+  locked) echo "gpg-restore: vault locked - skipping; unlock Bitwarden when ready"; exit 0 ;;
+  unauthenticated) echo "gpg-restore: not logged in to Bitwarden - skipping"; exit 0 ;;
   *) die "could not read bw status (got '${session_status:-nothing}') - is the bw CLI working?" ;;
 esac
 
