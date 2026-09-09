@@ -19,8 +19,9 @@ import (
 )
 
 type bitwardenSetup struct {
-	skip      bool
-	attempted bool
+	skip          bool
+	attempted     bool
+	authAttempted bool
 }
 
 func (b *bitwardenSetup) prepare(interactive bool) {
@@ -41,10 +42,7 @@ func (b *bitwardenSetup) prepare(interactive bool) {
 		log.Warnf("Could not install Bitwarden: %v; continuing without vault credentials", err)
 		return
 	}
-	if os.Getenv("BW_SESSION") == "" {
-		log.Info("Bitwarden installed. Vault credentials are skipped until you log in and unlock this CLI, then export BW_SESSION")
-		return
-	}
+
 	b.skip = false
 }
 

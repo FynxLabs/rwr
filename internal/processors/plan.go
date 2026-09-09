@@ -18,7 +18,10 @@ func Stage1Error(plan *types.Plan) error {
 		if diag.Severity != types.SeverityError {
 			continue
 		}
-		err := fmt.Errorf("%s", diag.Msg)
+		err := diag.Cause
+		if err == nil {
+			err = fmt.Errorf("%s", diag.Msg)
+		}
 		if diag.File != "" {
 			err = fmt.Errorf("%s: %w", diag.File, err)
 		}
@@ -51,6 +54,16 @@ func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
 	fileOrder, err := GetBlueprintFileOrder(location, initConfig.Init.Order, initConfig.Init.RunOnlyListed, initConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error getting blueprint file order: %w", err)
+	}
+
+	plan.FileOrder = fileOrder
+	if err := types.ValidatePackageManagers(initConfig.PackageManagers); err != nil {
+		plan.Diags = append(plan.Diags, types.Diagnostic{Severity: types.SeverityError, Msg: err.Error(), Cause: err})
+	}
+	if path := findBootstrapFile(location); path != "" {
+		if err := validateBootstrapPreparation(path, initConfig); err != nil {
+			plan.Diags = append(plan.Diags, types.Diagnostic{Severity: types.SeverityError, File: path, Msg: err.Error(), Cause: err})
+		}
 	}
 
 	// The plan's order carries only the processors this tree configures. The

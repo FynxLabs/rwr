@@ -147,10 +147,10 @@ func validateCredentialScope(scope string) error {
 	}
 }
 
-// builtinCredentialNames are the two credentials rwr always manages, implicit
+// builtinCredentialNames are the credentials rwr always manages, implicit
 // declarations so existing behavior is a special case rather than a parallel
 // system. SecretConfigKeys stays as the bridge from their viper keys.
-var builtinCredentialNames = []string{"gh_api_token", "ssh_private_key"}
+var builtinCredentialNames = []string{"gh_api_token", "ssh_private_key", "bw_session"}
 
 func isBuiltinCredential(name string) bool {
 	for _, builtin := range builtinCredentialNames {

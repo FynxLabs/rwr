@@ -12,6 +12,10 @@ import (
 // Each component is validated for required fields and proper structure.
 // Validation issues are added to the results parameter.
 func ValidateBootstrap(bootstrap types.BootstrapData, blueprintFile string, results *types.ValidationResults) {
+	if err := types.ValidatePackageManagers(bootstrap.PackageManagers); err != nil {
+		AddIssue(results, types.ValidationError, err.Error(), blueprintFile, 0, "Use a named package manager with install or remove action")
+	}
+	ValidateScripts(bootstrap.Scripts, blueprintFile, results)
 	// Validate packages
 	if bootstrap.Packages != nil {
 		ValidatePackages(bootstrap.Packages, blueprintFile, results)
