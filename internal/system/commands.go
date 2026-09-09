@@ -105,11 +105,22 @@ func spawn(cmd types.Command) *exec.Cmd {
 // directories.
 func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 	// Get the current environment variables
-	env := os.Environ()
+	env := make([]string, 0)
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(strings.ToUpper(entry), "RWR_CRED_") {
+			env = append(env, entry)
+		}
+	}
 
 	// Append the additional variables from cmd.Variables
 	for key, value := range cmd.Variables {
-		env = append(env, fmt.Sprintf("%s=%s", key, value))
+		if !strings.HasPrefix(strings.ToUpper(key), "RWR_CRED_") {
+			env = append(env, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
+
+	for key, value := range types.ExportedCredentialEnv() {
+		env = append(env, key+"="+value)
 	}
 
 	// Add common paths to the PATH environment variable
@@ -641,6 +652,15 @@ func setOutputStreams(cmd *exec.Cmd, debug bool, logName string) (*os.File, erro
 	// contains more than the operator expects.
 	if info, err := os.Lstat(logName); err == nil && info.Mode()&os.ModeSymlink != 0 {
 		return nil, fmt.Errorf("refusing to write command log through symlink %q", logName)
+	}
+
+	// A `log:` path usually sits under the operator's home
+	// (~/.config/rwr/logs/...) and may not exist yet - a first run is exactly
+	// when there is something worth logging. Create the parent; MkdirAll on
+	// an existing directory is a no-op. 0700, because the log carries the
+	// same content the file at 0600 would.
+	if err := os.MkdirAll(filepath.Dir(logName), 0o700); err != nil {
+		return nil, fmt.Errorf("creating log directory for %q: %w", logName, err)
 	}
 
 	file, err := os.OpenFile(logName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600) // #nosec G304 -- path is operator-supplied blueprint input; symlinks refused above

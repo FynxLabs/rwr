@@ -1,11 +1,13 @@
 package credentials
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -16,25 +18,41 @@ type Options struct {
 	// Selected names the blueprint types this run executes; empty means all. A
 	// credential scoped to processors none of which are selected is not
 	// resolved - no point prompting for a value nothing will read.
-	Selected []string
+	Selected  []string
+	bitwarden *bitwardenSetup
 }
 
 // Resolve resolves every declared credential up front, first source wins, and
 // records the values in the types registry. All of them resolve before any
 // processor runs: failing at minute 20 inside a script is worse than failing
 // at second 1. A credential that resolves from no source fails the run with an
-// error naming it and the sources tried.
+// error naming it and the sources tried, except that a missing optional
+// Bitwarden installation can be skipped without registering an empty secret.
 func Resolve(specs []types.CredentialSpec, opts Options) error {
+	opts.bitwarden = &bitwardenSetup{}
+	previousSession := bitwardenSession
+	if bitwardenSession == "" {
+		bitwardenSession, _ = types.CredentialValue("bw_session")
+	}
+	defer func() { bitwardenSession = previousSession }()
+	if err := addBitwardenPath(); err != nil {
+		log.Debugf("Could not add RWR's Bitwarden directory to PATH: %v", err)
+	}
 	for _, spec := range specs {
 		if !scopeSelected(spec.Scope, opts.Selected) {
 			log.Debugf("Not resolving credential %q: its scope %v matches no selected processor", spec.Name, spec.Scope)
+			continue
+		}
+		if value, ok := types.CredentialValue(spec.Name); ok && value != "" {
 			continue
 		}
 		value, err := resolveOne(spec, opts)
 		if err != nil {
 			return err
 		}
-		types.SetCredentialValue(spec.Name, value)
+		if value != "" {
+			types.SetCredentialValue(spec.Name, value)
+		}
 	}
 	return nil
 }
@@ -47,12 +65,16 @@ func defaultSources(name string) []string {
 }
 
 func resolveOne(spec types.CredentialSpec, opts Options) (string, error) {
+	if opts.bitwarden == nil {
+		opts.bitwarden = &bitwardenSetup{}
+	}
 	sources := spec.Sources
 	if len(sources) == 0 {
 		sources = defaultSources(spec.Name)
 	}
 
 	var tried, skipped []string
+	missingBitwarden := false
 	for _, source := range sources {
 		switch {
 		case strings.HasPrefix(source, "env:"):
@@ -70,7 +92,40 @@ func resolveOne(spec types.CredentialSpec, opts Options) (string, error) {
 			}
 			tried = append(tried, source)
 
+		case strings.HasPrefix(source, "bw:"):
+			// Like the keyring: a source that cannot yield a value (CLI
+			// missing, vault locked, item absent) moves precedence to the next
+			// declared source rather than failing the run, with the reason in
+			// the log.
+			if opts.bitwarden.skip {
+				missingBitwarden = true
+				continue
+			}
+			value, err := readBitwarden(source)
+			if errors.Is(err, ErrBitwardenNotInstalled) {
+				opts.bitwarden.prepare(opts.Interactive)
+				if !opts.bitwarden.skip {
+					value, err = readBitwarden(source)
+				}
+			}
+			if bitwardenNeedsAuth(err) && !opts.bitwarden.authAttempted && opts.Interactive && stdinIsTerminal() && !system.IsDryRun() {
+				opts.bitwarden.authAttempted = true
+				if authErr := authenticateBitwarden(); authErr != nil {
+					log.Warnf("Bitwarden authentication failed: %v", authErr)
+				} else {
+					value, err = readBitwarden(source)
+				}
+			}
+			missingBitwarden = opts.bitwarden.skip
+			if err == nil && value != "" {
+				return value, nil
+			}
+			tried = append(tried, source)
+
 		case source == "prompt":
+			if missingBitwarden {
+				continue
+			}
 			if !opts.Interactive || !stdinIsTerminal() {
 				skipped = append(skipped, "prompt")
 				continue
@@ -87,6 +142,10 @@ func resolveOne(spec types.CredentialSpec, opts Options) (string, error) {
 			// means a caller bypassed it.
 			return "", fmt.Errorf("credential %q: unknown source %q", spec.Name, source)
 		}
+	}
+	if missingBitwarden {
+		log.Warnf("Skipping credential %q: Bitwarden is unavailable; continuing the run", spec.Name)
+		return "", nil
 	}
 
 	var parts []string

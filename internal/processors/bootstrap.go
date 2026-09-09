@@ -58,6 +58,14 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return nil
 	}
 
+	if err := validateBootstrapPreparation(blueprintFile, initConfig); err != nil {
+		return err
+	}
+
+	if err := resolveBootstrapCredentials(initConfig); err != nil {
+		return err
+	}
+
 	log.Info("Starting bootstrap processor...")
 
 	// The run-once marker is only earned by a bootstrap where every step
@@ -105,6 +113,34 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
+	if err := types.ValidatePackageManagers(bootstrapData.PackageManagers); err != nil {
+		return err
+	}
+
+	// Preparation scripts use only the OS and run before providers and vaults.
+	scripts, err := processScriptImports(bootstrapData.Scripts, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
+	if err != nil {
+		return err
+	}
+	if err := processBootstrapScripts(helpers.FilterByProfiles(scripts, initConfig.Variables.Flags.Profiles), osInfo, initConfig, blueprintDir); err != nil {
+		return err
+	}
+	if failureCount() > failuresBefore {
+		return fmt.Errorf("bootstrap preparation failed")
+	}
+	managers := append([]types.PackageManagerInfo(nil), initConfig.PackageManagers...)
+	managers = append(managers, bootstrapData.PackageManagers...)
+	if err := preparePackageManagers(managers, osInfo, initConfig, len(helpers.FilterByProfiles(bootstrapData.Packages, initConfig.Variables.Flags.Profiles)) > 0); err != nil {
+		return err
+	}
+
+	bootstrapData.Files = helpers.FilterByProfiles(bootstrapData.Files, initConfig.Variables.Flags.Profiles)
+	bootstrapData.Directories = helpers.FilterByProfiles(bootstrapData.Directories, initConfig.Variables.Flags.Profiles)
+	bootstrapData.SSHKeys = helpers.FilterByProfiles(bootstrapData.SSHKeys, initConfig.Variables.Flags.Profiles)
+	bootstrapData.Git = helpers.FilterByProfiles(bootstrapData.Git, initConfig.Variables.Flags.Profiles)
+	bootstrapData.Services = helpers.FilterByProfiles(bootstrapData.Services, initConfig.Variables.Flags.Profiles)
+	bootstrapData.Users = helpers.FilterByProfiles(bootstrapData.Users, initConfig.Variables.Flags.Profiles)
+	bootstrapData.Groups = helpers.FilterByProfiles(bootstrapData.Groups, initConfig.Variables.Flags.Profiles)
 	// Process packages
 	log.Debugf("Processing packages from %s", blueprintFile)
 	packagesData := &types.PackagesData{
@@ -182,7 +218,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	// (completed steps are idempotent and skip fast).
 	if failed := failureCount() - failuresBefore; failed > 0 {
 		log.Warnf("Bootstrap finished with %d failed step(s); NOT writing the run-once marker - the next run will retry bootstrap", failed)
-		return nil
+		return fmt.Errorf("bootstrap finished with %d failed step(s)", failed)
 	}
 	log.Debugf("Setting bootstrap fileProcessDirectories")
 	if err := writeBootstrapMarker(); err != nil {

@@ -264,6 +264,20 @@ func resolveShorthand(ref string) (string, error) {
 	return "", fmt.Errorf("no init file or manifest found in %s at %s: tried %s", ref, gitRef, strings.Join(tried, ", "))
 }
 
+// InitRepositoryRefreshError identifies a failed cached-repository update.
+// It retains the underlying pull error for errors.Is and errors.As callers.
+type InitRepositoryRefreshError struct {
+	Repository string
+	Path       string
+	Err        error
+}
+
+func (e *InitRepositoryRefreshError) Error() string {
+	return fmt.Sprintf("error updating init repository %s at %s: %v", e.Repository, e.Path, e.Err)
+}
+
+func (e *InitRepositoryRefreshError) Unwrap() error { return e.Err }
+
 // cloneManifestRepo is a seam so tests can fake the clone.
 var cloneManifestRepo = func(owner, repo string) (string, error) {
 	homeDir, err := os.UserHomeDir()
@@ -271,15 +285,27 @@ var cloneManifestRepo = func(owner, repo string) (string, error) {
 		return "", fmt.Errorf("error finding home directory: %w", err)
 	}
 	target := filepath.Join(homeDir, ".config", "rwr", "blueprints", owner+"-"+repo)
-
-	if _, err := os.Stat(filepath.Join(target, ".git")); err != nil {
-		opts := types.GitOptions{
-			URL:    "https://github.com/" + owner + "/" + repo + ".git",
-			Target: target,
-		}
+	opts := types.GitOptions{
+		URL:    "https://github.com/" + owner + "/" + repo + ".git",
+		Target: target,
+	}
+	if _, err := os.Stat(filepath.Join(target, ".git")); os.IsNotExist(err) {
 		if err := HandleGitClone(opts, &types.InitConfig{}); err != nil {
 			return "", fmt.Errorf("error cloning manifest repo %s/%s: %w", owner, repo, err)
 		}
+	} else if err != nil {
+		return "", fmt.Errorf("error inspecting cached repository %s: %w", target, err)
+	} else {
+		// A repository URL requests its current contents. Refresh before
+		// discovery: an older checkout may not even contain a manifest yet.
+		// Pull preserves local work and reports divergence rather than resetting it.
+		if err := HandleGitPull(opts, &types.InitConfig{}); err != nil {
+			return "", &InitRepositoryRefreshError{Repository: owner + "/" + repo, Path: target, Err: err}
+		}
 	}
-	return probeRepositoryDir(target)
+	resolved, err := probeRepositoryDir(target)
+	if err != nil {
+		return "", fmt.Errorf("init repository %s/%s: %w", owner, repo, err)
+	}
+	return resolved, nil
 }

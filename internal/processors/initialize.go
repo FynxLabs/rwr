@@ -22,6 +22,16 @@ import (
 // selectedProcessors names the blueprint types this run will execute (empty means
 // all); a declared credential scoped to none of them is not resolved.
 func Initialize(initFilePath string, flags types.Flags, selectedProcessors ...string) (*types.InitConfig, error) {
+	return initialize(initFilePath, flags, true, selectedProcessors...)
+}
+
+// LoadConfiguration reads the tree without requiring runtime credentials. Read-only
+// commands and blueprint bootstrap must work before vault tools are installed.
+func LoadConfiguration(initFilePath string, flags types.Flags) (*types.InitConfig, error) {
+	return initialize(initFilePath, flags, false)
+}
+
+func initialize(initFilePath string, flags types.Flags, resolveCredentials bool, selectedProcessors ...string) (*types.InitConfig, error) {
 	var initConfig types.InitConfig
 	var err error
 	var fileExt string
@@ -178,11 +188,13 @@ func Initialize(initFilePath string, flags types.Flags, selectedProcessors ...st
 	initConfig.Credentials = specs
 	types.RegisterCredentials(specs)
 	credentials.ResolveBuiltins(&initConfig.Variables.Flags)
-	if err := credentials.Resolve(specs, credentials.Options{
-		Interactive: initConfig.Variables.Flags.Interactive,
-		Selected:    selectedProcessors,
-	}); err != nil {
-		return nil, err
+	if resolveCredentials {
+		if err := credentials.Resolve(specs, credentials.Options{
+			Interactive: initConfig.Variables.Flags.Interactive,
+			Selected:    selectedProcessors,
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	// Set user-defined variables and environment variables
@@ -243,7 +255,7 @@ func setBlueprintsLocation(initConfig *types.InitConfig, initFilePath string) er
 func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 
 	for _, env := range os.Environ() {
-		if strings.HasPrefix(env, "RWR_") {
+		if strings.HasPrefix(env, "RWR_") && !strings.HasPrefix(env, "RWR_CRED_") {
 			parts := strings.SplitN(env, "=", 2)
 			key := strings.TrimPrefix(parts[0], "RWR_")
 			initConfig.Variables.UserDefined[key] = parts[1]
@@ -278,4 +290,41 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 		}
 	}
 	return nil
+}
+
+// resolveRunCredentials runs after bootstrap has installed its dependencies.
+func resolveRunCredentials(initConfig *types.InitConfig, selected []string) error {
+	if system.IsDryRun() {
+		return nil
+	}
+	if err := credentials.Resolve(initConfig.Credentials, credentials.Options{
+		Interactive: initConfig.Variables.Flags.Interactive, Selected: selected,
+	}); err != nil {
+		return err
+	}
+	return setUserDefinedAndEnvVariables(initConfig)
+}
+
+// Only credentials explicitly scoped to bootstrap are needed before preparation.
+// Other credentials wait until the blueprint has installed their dependencies.
+func resolveBootstrapCredentials(initConfig *types.InitConfig) error {
+	if system.IsDryRun() {
+		return nil
+	}
+	var specs []types.CredentialSpec
+	for _, spec := range initConfig.Credentials {
+		for _, scope := range spec.Scope {
+			if scope == types.BlueprintTypeBootstrap {
+				specs = append(specs, spec)
+				break
+			}
+		}
+	}
+	if len(specs) == 0 {
+		return nil
+	}
+	if err := credentials.Resolve(specs, credentials.Options{Interactive: initConfig.Variables.Flags.Interactive}); err != nil {
+		return err
+	}
+	return setUserDefinedAndEnvVariables(initConfig)
 }

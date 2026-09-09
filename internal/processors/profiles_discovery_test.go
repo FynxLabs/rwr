@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -163,5 +164,63 @@ func TestCollectProfiles_MixedFormatTree(t *testing.T) {
 		if !found {
 			t.Errorf("profile %q not discovered; got %v", want, summary.Names)
 		}
+	}
+}
+
+func TestProfilesNestedCUEImportsAndContentRouting(t *testing.T) {
+	t.Parallel()
+	root := writeBlueprintTree(t, map[string]string{
+		"Linux/Omarchy/packages/packages.cue":  `{packages: [{import: "../../../Arch/packages.cue"}]}`,
+		"Arch/packages.cue":                    `{packages: [{import: "../Common/packages.cue"}]}`,
+		"Common/packages.cue":                  `{packages: [{name: "driver", action: "install", profiles: ["desktop", "laptop", "nvidia"]}]}`,
+		"Linux/Omarchy/extra.yaml":             "fonts:\n - name: test\n   action: install\n   profiles: [fonts]\nconfigurations:\n - tool: gsettings\n   action: set\n   profiles: [settings]\n",
+		"Linux/Omarchy/files/src/payload.json": "this is not a blueprint",
+	})
+	config := treeConfig(filepath.Join(root, "Linux", "Omarchy"))
+	config.Variables.Flags.Profiles = []string{"desktop", "laptop", "nvidia"}
+	if err := checkRequestedProfiles(config); err != nil {
+		t.Fatal(err)
+	}
+	summary, err := CollectProfiles(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"desktop", "laptop", "nvidia", "fonts", "settings"} {
+		if summary.Counts[name] != 1 {
+			t.Fatalf("%s: %v", name, summary.Counts)
+		}
+	}
+	config.Variables.Flags.Profiles = []string{"nvdiia"}
+	if err := checkRequestedProfiles(config); err == nil {
+		t.Fatal("typo accepted")
+	}
+}
+
+func TestProfilesImportCycleIsError(t *testing.T) {
+	t.Parallel()
+	root := writeBlueprintTree(t, map[string]string{"packages/a.yaml": "packages:\n - import: a.yaml\n"})
+	if _, err := CollectProfiles(treeConfig(root)); !errors.Is(err, ErrProfileImportCycle) {
+		t.Fatalf("expected cycle error, got %v", err)
+	}
+}
+
+func TestProfileDiscoverySkipsUnrecognizedPayloadButRejectsBrokenBlueprints(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, path, content string
+		wantError           bool
+	}{
+		{"payload", "assets/editor.json", "invalid json", false},
+		{"processor", "packages/broken.yaml", "packages: [", true},
+		{"import", "packages/broken.yaml", "packages:\n - import: missing.yaml\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			root := writeBlueprintTree(t, map[string]string{"packages/main.yaml": "packages:\n - name: base\n   action: install\n   profiles: [desktop]\n", tc.path: tc.content})
+			_, err := CollectProfiles(treeConfig(root))
+			if (err != nil) != tc.wantError {
+				t.Fatalf("unexpected discovery result: %v", err)
+			}
+		})
 	}
 }

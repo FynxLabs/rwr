@@ -22,9 +22,11 @@ type CredentialSpec struct {
 	Name string `mapstructure:"name" yaml:"name" json:"name" toml:"name"`
 	// Description is shown when prompting for the value.
 	Description string `mapstructure:"description,omitempty" yaml:"description,omitempty" json:"description,omitempty" toml:"description,omitempty"`
-	// Sources is the ordered list of places to look: `env:<VAR>`, `keyring`,
-	// `prompt`. First source that yields a value wins. Empty means the default
-	// order [env:RWR_CRED_<NAME>, keyring, prompt].
+	// Sources is the ordered list of places to look: `env:<VAR>`, `bw:<item>[/<key>]`,
+	// `keyring`, `prompt`. First source that yields a value wins. Empty means the
+	// default order [env:RWR_CRED_<NAME>, keyring, prompt]. A `bw:` source reads
+	// from the personal vault through the Bitwarden CLI, which must be installed
+	// and unlocked (BW_SESSION) for it to yield a value.
 	Sources []string `mapstructure:"sources,omitempty" yaml:"sources,omitempty" json:"sources,omitempty" toml:"sources,omitempty"`
 	// Scope limits which surfaces see the credential even after exposure:
 	// "scripts" (spawned-command env), "templates" (template rendering), or a
@@ -104,8 +106,31 @@ func validateCredentialSource(source string) error {
 			return fmt.Errorf("source %q names no environment variable", source)
 		}
 		return nil
+	case strings.HasPrefix(source, "bw:"):
+		// Mirrored by credentials.parseBitwardenSource at resolve time; the
+		// two must accept the same vocabulary. Syntax is bw:<item>[/<key>]
+		// where key is one of password|username|uri|notes|totp or
+		// field:<name>. The item name may itself contain slashes: only a
+		// final segment that names a key is the key, anything else is part of
+		// the item name (and a name that would collide - one ending in
+		// /password - cannot be addressed by name; use the item ID).
+		rest := strings.TrimPrefix(source, "bw:")
+		slash := strings.LastIndex(rest, "/")
+		if slash < 0 {
+			if rest == "" {
+				return fmt.Errorf("source %q names no Bitwarden item", source)
+			}
+			return nil
+		}
+		if item := rest[:slash]; item == "" {
+			return fmt.Errorf("source %q names no Bitwarden item", source)
+		}
+		if field, isField := strings.CutPrefix(rest[slash+1:], "field:"); isField && field == "" {
+			return fmt.Errorf("source %q names no custom field", source)
+		}
+		return nil
 	default:
-		return fmt.Errorf("unknown source %q (valid: env:<VAR>, keyring, prompt)", source)
+		return fmt.Errorf("unknown source %q (valid: env:<VAR>, bw:<item>[/<key>], keyring, prompt)", source)
 	}
 }
 
@@ -122,10 +147,10 @@ func validateCredentialScope(scope string) error {
 	}
 }
 
-// builtinCredentialNames are the two credentials rwr always manages, implicit
+// builtinCredentialNames are the credentials rwr always manages, implicit
 // declarations so existing behavior is a special case rather than a parallel
 // system. SecretConfigKeys stays as the bridge from their viper keys.
-var builtinCredentialNames = []string{"gh_api_token", "ssh_private_key"}
+var builtinCredentialNames = []string{"gh_api_token", "ssh_private_key", "bw_session"}
 
 func isBuiltinCredential(name string) bool {
 	for _, builtin := range builtinCredentialNames {

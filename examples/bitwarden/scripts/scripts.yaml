@@ -1,0 +1,30 @@
+scripts:
+  # Both entries are profile-gated so they can be invoked deliberately:
+  #
+  #   rwr all --profile gpg-restore   # new machine: pull the key from the vault
+  #   rwr all --profile gpg-backup    # after creating or changing the key
+  #
+  # Naming no profile at all runs BOTH of them, because rwr filters only when
+  # at least one profile is active. That is why the scripts are written to be
+  # safe under the permissive default: backup on a machine without the key and
+  # restore on a machine that already has it both print why and exit 0.
+  #
+  # The scripts read BW_GPG_ITEM and GPG_FINGERPRINT from the environment,
+  # which rwr passes through to every script unchanged - set them in the
+  # shell, or edit the defaults at the top of the script files.
+
+  - name: gpg-restore.sh
+    profiles:
+      - gpg-restore
+    action: run
+    exec: bash
+    source: "."
+    log: "{{ .User.home }}/.config/rwr/logs/gpg-restore.log"
+
+  - name: gpg-backup.sh
+    profiles:
+      - gpg-backup
+    action: run
+    exec: bash
+    source: "."
+    log: "{{ .User.home }}/.config/rwr/logs/gpg-backup.log"

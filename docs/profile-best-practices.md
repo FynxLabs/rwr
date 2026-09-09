@@ -260,6 +260,40 @@ packages:
     profiles: [work]
 ```
 
+### Guard Scripts for Machines That Lack the Subject
+
+Naming no profile at all runs *everything*, profile items included - the
+filter only narrows a run when at least one `--profile` is passed. A script
+gated behind a profile therefore needs to survive running on a machine that
+was never meant for it, because a forgotten `--profile` is all it takes to
+put it there.
+
+The pattern is: check for the subject, and leave quietly when it is not
+there. Fail loudly only for a prerequisite the operator can fix (a missing
+tool, an unset session variable), never for the machine's shape:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Prerequisites the operator can fix fail loudly...
+command -v gpg >/dev/null 2>&1 || { echo "gpg is not installed" >&2; exit 1; }
+
+# ...the machine's shape does not: no key, no work, exit 0.
+# Read the listing itself - gpg exits 0 even when nothing matches.
+if ! gpg --list-secret-keys --with-colons "$FPR" 2>/dev/null | grep -q '^sec:'; then
+  echo "key $FPR not in the keyring - nothing to back up"
+  exit 0
+fi
+```
+
+A restore script inverts it: leave quietly when the subject is *already*
+there, so re-runs and wrong-machine runs are no-ops. Both guards together are
+what make a tree safe to point at any machine with any profile combination.
+For a complete example of the pattern, see
+[examples/bitwarden](../examples/bitwarden/README.md), whose backup and
+restore scripts are built from it.
+
 ### Profile Inheritance
 
 You can simulate inheritance by using multiple profiles.

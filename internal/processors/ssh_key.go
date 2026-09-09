@@ -177,6 +177,9 @@ func processSSHKeys(sshKeys []types.SSHKey, osInfo *types.OSInfo, initConfig *ty
 }
 
 func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
+	if _, err := exec.LookPath("ssh-keygen"); err == nil {
+		return nil
+	}
 	switch runtime.GOOS {
 	case "windows":
 		pkgData := &types.PackagesData{
@@ -193,8 +196,15 @@ func ensureSSHPackages(osInfo *types.OSInfo, initConfig *types.InitConfig) error
 		}
 		return ProcessPackages(nil, pkgData, "", "", osInfo, initConfig)
 	default:
-		// For Linux, OpenSSH is typically pre-installed
-		return nil
+		// Fresh Linux installations need not include OpenSSH.
+		name := "openssh"
+		switch osInfo.PackageManager.Default.Name {
+		case "apt", "apt-get":
+			name = "openssh-client"
+		case "dnf", "yum":
+			name = "openssh-clients"
+		}
+		return ProcessPackages(nil, &types.PackagesData{Packages: []types.Package{{Name: name, Action: "install"}}}, "", "", osInfo, initConfig)
 	}
 }
 
@@ -229,6 +239,10 @@ func generateSSHKey(sshKey types.SSHKey, initConfig *types.InitConfig) (string, 
 	if _, err := os.Stat(sshPath); err == nil {
 		log.Warnf("SSH key %s already exists. Skipping generation.", sshPath)
 		return sshPath, nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(sshPath), 0o700); err != nil {
+		return "", fmt.Errorf("creating SSH key directory: %w", err)
 	}
 
 	interactive := helpers.ResolveInteractive(sshKey.Interactive, initConfig.Variables.Flags.Interactive)
