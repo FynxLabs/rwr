@@ -332,7 +332,7 @@ func (t TaskRunner) backup(ctx context.Context, task types.CredentialTask) error
 			}
 			home = filepath.Join(user, ".gnupg")
 		}
-		material, err := os.ReadFile(filepath.Join(home, "openpgp-revocs.d", strings.ToUpper(task.Fingerprint)+".rev"))
+		material, err := readGPGRevocation(home, task.Fingerprint)
 		if os.IsNotExist(err) {
 			return nil
 		}
@@ -348,4 +348,22 @@ func (t TaskRunner) backup(ctx context.Context, task types.CredentialTask) error
 		}
 	}
 	return nil
+}
+
+// Keep certificate reads within the configured GPG home, including when a
+// certificate or its parent directory is a symlink.
+func readGPGRevocation(home, fingerprint string) ([]byte, error) {
+	root, err := os.OpenRoot(home)
+	if err != nil {
+		return nil, err
+	}
+	material, readErr := root.ReadFile(filepath.Join("openpgp-revocs.d", strings.ToUpper(fingerprint)+".rev"))
+	closeErr := root.Close()
+	if readErr != nil {
+		return nil, readErr
+	}
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	return material, nil
 }

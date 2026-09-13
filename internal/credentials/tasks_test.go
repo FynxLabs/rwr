@@ -6,10 +6,63 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/types"
 )
+
+func TestReadGPGRevocationConfinesFileAccess(t *testing.T) {
+	fingerprint := strings.Repeat("a", 40)
+	for _, mode := range []string{"regular", "missing", "file symlink", "directory symlink"} {
+		t.Run(mode, func(t *testing.T) {
+			home := t.TempDir()
+			revocations := filepath.Join(home, "openpgp-revocs.d")
+			if err := os.Mkdir(revocations, 0700); err != nil {
+				t.Fatal(err)
+			}
+			filename := strings.ToUpper(fingerprint) + ".rev"
+			certificate := filepath.Join(revocations, filename)
+			want := []byte("test revocation certificate")
+			switch mode {
+			case "regular":
+				if err := os.WriteFile(certificate, want, 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "file symlink", "directory symlink":
+				outside := t.TempDir()
+				if err := os.WriteFile(filepath.Join(outside, filename), want, 0600); err != nil {
+					t.Fatal(err)
+				}
+				target, link := filepath.Join(outside, filename), certificate
+				if mode == "directory symlink" {
+					if err := os.Remove(revocations); err != nil {
+						t.Fatal(err)
+					}
+					target, link = outside, revocations
+				}
+				if err := os.Symlink(target, link); err != nil {
+					t.Skipf("symlinks unavailable: %v", err)
+				}
+			}
+			got, err := readGPGRevocation(home, fingerprint)
+			switch mode {
+			case "regular":
+				if err != nil || !bytes.Equal(got, want) {
+					t.Fatalf("read certificate: %v", err)
+				}
+			case "missing":
+				if !os.IsNotExist(err) {
+					t.Fatalf("missing certificate must remain optional: %v", err)
+				}
+			default:
+				if err == nil || len(got) != 0 {
+					t.Fatal("read certificate outside GPG home")
+				}
+			}
+		})
+	}
+}
 
 func TestGPGVerifyBeforeImport(t *testing.T) {
 	if _, err := exec.LookPath("gpg"); err != nil {
