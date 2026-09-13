@@ -56,11 +56,23 @@ func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
 		return nil, fmt.Errorf("error getting blueprint file order: %w", err)
 	}
 
+	if selection := initConfig.Variables.Flags.Selection; selection != nil {
+		order = selection.Order
+		allowed := map[string]bool{}
+		for _, name := range order {
+			allowed[name] = true
+		}
+		for name := range fileOrder {
+			if !allowed[name] {
+				delete(fileOrder, name)
+			}
+		}
+	}
 	plan.FileOrder = fileOrder
 	if err := types.ValidatePackageManagers(initConfig.PackageManagers); err != nil {
 		plan.Diags = append(plan.Diags, types.Diagnostic{Severity: types.SeverityError, Msg: err.Error(), Cause: err})
 	}
-	if path := findBootstrapFile(location); path != "" {
+	if path := findBootstrapFile(location); path != "" && (initConfig.Variables.Flags.Selection == nil || initConfig.Variables.Flags.Selection.Bootstrap) {
 		if err := validateBootstrapPreparation(path, initConfig); err != nil {
 			plan.Diags = append(plan.Diags, types.Diagnostic{Severity: types.SeverityError, File: path, Msg: err.Error(), Cause: err})
 		}
@@ -70,7 +82,7 @@ func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
 	// executor already skips processors with no files; keeping them in the
 	// plan just rendered phantom rows (a tree with no ssh_keys blueprints
 	// showed an ssh_keys processor pending forever).
-	if findBootstrapFile(location) != "" {
+	if findBootstrapFile(location) != "" && (initConfig.Variables.Flags.Selection == nil || initConfig.Variables.Flags.Selection.Bootstrap) {
 		plan.Order = append(plan.Order, types.BlueprintTypeBootstrap)
 	}
 	for _, processor := range order {

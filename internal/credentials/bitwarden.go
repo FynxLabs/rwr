@@ -84,7 +84,7 @@ func readBitwarden(source string) (string, error) {
 	value, err := bwFetch(spec)
 	if err != nil {
 		// bw diagnostics name items and sessions, never the secret itself.
-		log.Warnf("Credential source %s yielded no value: %v", source, err)
+		log.Debug("Bitwarden source unavailable")
 		return "", err
 	}
 	if value == "" {
@@ -124,6 +124,10 @@ func fetchWithCLI(spec bwSource) (string, error) {
 // bwArgs builds the `bw get` invocation for a source. Custom fields have no
 // dedicated subcommand, so they come from the full item JSON.
 func bwArgs(spec bwSource) ([]string, error) {
+	if spec.Item == "" || strings.HasPrefix(spec.Item, "-") {
+		return nil, fmt.Errorf("invalid Bitwarden item reference")
+	}
+
 	switch spec.Key {
 	case "field":
 		return []string{"get", "item", spec.Item}, nil
@@ -142,6 +146,7 @@ func runBW(args []string) (string, error) {
 	ctx, cancel := context.WithTimeout(system.RunContext(), bwTimeout)
 	defer cancel()
 
+	args = append(append([]string{}, args...), "--nointeraction")
 	cmd := exec.CommandContext(ctx, "bw", args...) // #nosec G204 -- the binary is fixed and args are operator-declared source specs rendered as discrete argv elements; no shell is involved
 	cmd.Env = bitwardenEnv()
 	var stdout, stderr strings.Builder
@@ -152,11 +157,7 @@ func runBW(args []string) (string, error) {
 		return "", fmt.Errorf("bw %s did not finish within %s", strings.Join(args[:min(2, len(args))], " "), bwTimeout)
 	}
 	if err != nil {
-		message := strings.TrimSpace(stderr.String())
-		if message == "" {
-			message = err.Error()
-		}
-		return "", errors.New(message)
+		return "", errors.New("bitwarden lookup failed")
 	}
 	return stdout.String(), nil
 }
@@ -199,27 +200,7 @@ func bwFieldValue(itemJSON, fieldName, item string) (string, error) {
 	return "", fmt.Errorf("item %q has no custom field named %q", item, fieldName)
 }
 
-// bitwardenSession is scoped to credential resolution; never exported globally.
-var bitwardenSession string
-
+// Legacy sources use only the caller's already supplied CLI session.
 func bitwardenEnv() []string {
-	env := os.Environ()
-	if bitwardenSession == "" {
-		return env
-	}
-	filtered := make([]string, 0, len(env)+1)
-	for _, entry := range env {
-		if !strings.HasPrefix(entry, "BW_SESSION=") {
-			filtered = append(filtered, entry)
-		}
-	}
-	return append(filtered, "BW_SESSION="+bitwardenSession)
-}
-
-func bitwardenNeedsAuth(err error) bool {
-	if err == nil {
-		return false
-	}
-	message := strings.ToLower(err.Error())
-	return strings.Contains(message, "vault is locked") || strings.Contains(message, "not logged in") || strings.Contains(message, "logged out") || strings.Contains(message, "username required") || strings.Contains(message, "invalid session")
+	return protectedEnv(map[string]string{"BW_SESSION": os.Getenv("BW_SESSION"), "BITWARDENCLI_DEBUG": "false"})
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func TestBootstrapInstallsCredentialToolBeforeResolution(t *testing.T) {
+func TestBootstrapDoesNotTriggerCredentialResolution(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX fixture")
 	}
@@ -38,8 +38,8 @@ func TestBootstrapInstallsCredentialToolBeforeResolution(t *testing.T) {
 	if err := All(config, &types.OSInfo{}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if value, _ := types.CredentialValue("bootstrap_secret"); value != "vault-value" {
-		t.Fatal("did not use bootstrapped CLI")
+	if value, _ := types.CredentialValue("bootstrap_secret"); value != "" {
+		t.Fatal("bootstrap unexpectedly resolved credentials")
 	}
 	if _, err := os.Stat(filepath.Join(configDir, "bootstrap")); err != nil {
 		t.Fatal("bootstrap not marked successful")

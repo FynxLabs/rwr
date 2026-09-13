@@ -44,3 +44,6 @@
   ],
   "exposeCredentials": ["example_api_token"]
 }
+
+// Explicit setup: rwr run credentials --profile bitwarden
+credentialProviders: [{"name": "personal-vault", "provider": "bitwarden", "server": "https://vault.bitwarden.com"}]

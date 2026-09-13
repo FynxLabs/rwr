@@ -82,3 +82,33 @@ func TestRunHandlesBlueprintSyncInsideDashboard(t *testing.T) {
 		})
 	}
 }
+
+func TestCredentialsInProcessorTable(t *testing.T) {
+	p, ok := processorShorthand("credentials")
+	if !ok || p.blueprint != "credentials" || p.bootstrap || p.githubAuth {
+		t.Fatalf("invalid credentials dispatch %+v", p)
+	}
+	run := newRunCmd(&AppConfig{})
+	sub, _, err := run.Find([]string{"credentials"})
+	if err != nil || sub.Name() != "credentials" {
+		t.Fatal("credentials command missing")
+	}
+}
+
+func TestExceptFlagRepeatedAndCommaSeparated(t *testing.T) {
+	app := &AppConfig{}
+	root := &cobra.Command{Use: "rwr"}
+	registerRootFlags(root, app)
+	if err := root.ParseFlags([]string{"--except", "credentials,fonts", "--except", "repository"}); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"credentials", "fonts", "repository"}
+	if len(app.Except) != len(want) {
+		t.Fatalf("except=%v", app.Except)
+	}
+	for i, name := range want {
+		if app.Except[i] != name {
+			t.Fatalf("except=%v", app.Except)
+		}
+	}
+}

@@ -30,6 +30,7 @@ func TestGetBlueprintRunOrder_DefaultOrder(t *testing.T) {
 	// packageManagers is not (it runs from initConfig ahead of the blueprint loop
 	// and has no dispatch case, so listing it only warned "Unknown processor").
 	expectedOrder := []string{
+		types.BlueprintTypeCredentials,
 		"repositories", "packages", "ssh_keys", "users",
 		"files", "fonts", "services", "git", "scripts", "configuration",
 	}

@@ -13,6 +13,7 @@ import (
 // packageManagers did.
 func TestDefaultRunOrder_EveryEntryIsDispatched(t *testing.T) {
 	dispatched := []string{
+		types.BlueprintTypeCredentials,
 		types.BlueprintTypeRepositories,
 		types.BlueprintTypePackages,
 		types.BlueprintTypeFiles,

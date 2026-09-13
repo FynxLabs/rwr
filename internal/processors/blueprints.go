@@ -140,6 +140,7 @@ func matchingRepositoryRoot(location, desiredURL string) (string, bool) {
 // created users unless the init file hand-wrote its own order - while
 // `rwr run users` worked, making the omission easy to miss.
 var defaultRunOrder = []string{
+	types.BlueprintTypeCredentials,
 	types.BlueprintTypeRepositories,
 	types.BlueprintTypePackages,
 	types.BlueprintTypeSSHKeys,
@@ -206,7 +207,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		for _, part := range parts {
 			switch part {
 			case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
-				types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration:
+				types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration, types.BlueprintTypeCredentials:
 				return part
 			}
 		}
@@ -216,7 +217,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 	isKnownProcessor := func(processor string) bool {
 		switch processor {
 		case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
-			types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration:
+			types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration, types.BlueprintTypeCredentials:
 			return true
 		}
 		return false
@@ -380,19 +381,20 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 // blueprintKeyToType maps a file's top-level keys to the processor that reads
 // them, for content-based routing when the path names no processor directory.
 var blueprintKeyToType = map[string]string{
-	"packages":       types.BlueprintTypePackages,
-	"repositories":   types.BlueprintTypeRepositories,
-	"files":          types.BlueprintTypeFiles,
-	"templates":      types.BlueprintTypeFiles,
-	"directories":    types.BlueprintTypeFiles,
-	"services":       types.BlueprintTypeServices,
-	"git":            types.BlueprintTypeGit,
-	"scripts":        types.BlueprintTypeScripts,
-	"ssh_keys":       types.BlueprintTypeSSHKeys,
-	"fonts":          types.BlueprintTypeFonts,
-	"users":          types.BlueprintTypeUsers,
-	"groups":         types.BlueprintTypeUsers,
-	"configurations": types.BlueprintTypeConfiguration,
+	"credential_setup": types.BlueprintTypeCredentials,
+	"packages":         types.BlueprintTypePackages,
+	"repositories":     types.BlueprintTypeRepositories,
+	"files":            types.BlueprintTypeFiles,
+	"templates":        types.BlueprintTypeFiles,
+	"directories":      types.BlueprintTypeFiles,
+	"services":         types.BlueprintTypeServices,
+	"git":              types.BlueprintTypeGit,
+	"scripts":          types.BlueprintTypeScripts,
+	"ssh_keys":         types.BlueprintTypeSSHKeys,
+	"fonts":            types.BlueprintTypeFonts,
+	"users":            types.BlueprintTypeUsers,
+	"groups":           types.BlueprintTypeUsers,
+	"configurations":   types.BlueprintTypeConfiguration,
 }
 
 // detectBlueprintTypesFromContent types a blueprint by its top-level keys,

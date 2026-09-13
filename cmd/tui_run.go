@@ -18,6 +18,12 @@ import (
 // runWithTUI executes the whole-tree run under the dashboard. The run itself
 // is unchanged - All() emits events; the TUI is one consumer of them.
 func runWithTUI(app *AppConfig, order []string) error {
+	selection, err := processors.SelectRun(app.InitConfig, order)
+	if err != nil {
+		return err
+	}
+	app.InitConfig.Variables.Flags.Selection = &selection
+
 	store := reporting.NewStore(app.TUIBuffer)
 	runLogPath := app.LogFile
 	if runLogPath == "" {
@@ -65,11 +71,6 @@ func runWithTUI(app *AppConfig, order []string) error {
 		return err
 	}
 	processors.ResolveStage2(plan, app.OSInfo)
-	if order == nil {
-		order = plan.Order
-	} else {
-		plan.Order = order
-	}
 
 	theme, unknownTheme := tui.ResolveTheme(app.ConfigLocation, app.Theme, viper.GetString("rwr.theme"), app.ASCII, app.Unicode)
 	if unknownTheme != "" {
@@ -127,6 +128,9 @@ func runWithTUI(app *AppConfig, order []string) error {
 
 // runEverythingHeadless is the actual run, shared by both paths.
 func runEverythingHeadless(app *AppConfig, order []string) error {
+	if _, err := processors.SelectRun(app.InitConfig, order); err != nil {
+		return err
+	}
 	if err := githubAuthIfRequested(app); err != nil {
 		return err
 	}

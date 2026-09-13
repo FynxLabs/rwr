@@ -265,3 +265,7 @@ These configurations can be included in your init file to ensure that the necess
 - Use the `order` field to define the execution order of your blueprints explicitly
 
 For more information on the specific blueprint types and their configuration options, please refer to the respective blueprint type documentation pages.
+
+## Credential policy
+
+`blueprints.except` lists processors excluded from full runs. Named invocations override init exclusions; CLI exclusions win. `credentialPolicy.setup` defaults to `explicit`; use `ordered` to deliberately include provider setup in full runs. `credentialPolicy.onUnavailable` defaults to `skip`, with `fail` available for strict dependencies. Trusted `credentialProviders`, `credentials` and `credentialAttachments` authorize native tasks declared in `credential_setup` blueprints. See [credentials](credentials.md).

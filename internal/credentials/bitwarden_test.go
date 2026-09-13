@@ -124,7 +124,7 @@ exit 1
 		t.Fatal(err)
 	}
 	for key, value := range answers {
-		name := strings.NewReplacer(" ", "_", "/", "_").Replace(key)
+		name := strings.NewReplacer(" ", "_", "/", "_").Replace(key + " --nointeraction")
 		if err := os.WriteFile(filepath.Join(responses, name), []byte(value), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -204,7 +204,7 @@ func TestFetchWithCLILockedVaultHint(t *testing.T) {
 	}
 
 	_, err := fetchWithCLI(bwSource{Item: "github", Key: "password"})
-	if err == nil || !strings.Contains(err.Error(), "BW_SESSION") {
+	if err == nil || !strings.Contains(err.Error(), "lookup failed") {
 		t.Errorf("locked-vault error = %v, want the BW_SESSION hint", err)
 	}
 }

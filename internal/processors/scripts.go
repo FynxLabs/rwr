@@ -57,6 +57,11 @@ func processScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *ty
 		log.Debugf("Processing script: %+v", script)
 
 		if system.IsDryRun() {
+			cleanup, ready := prepareCredentialResource(&script, script.CredentialDependencies, initConfig, types.BlueprintTypeScripts, script.Name, script.Action, track)
+			cleanup()
+			if !ready {
+				continue
+			}
 			log.Infof("[DRY-RUN] Would run script: %s (exec: %s)", script.Name, script.Exec)
 			track.item("", script.Name, script.Action, types.StatusPlanned, "dry-run", 0)
 			continue
@@ -64,7 +69,12 @@ func processScripts(scripts []types.Script, osInfo *types.OSInfo, initConfig *ty
 
 		if script.Action == "run" {
 			started := time.Now()
+			cleanup, ready := prepareCredentialResource(&script, script.CredentialDependencies, initConfig, types.BlueprintTypeScripts, script.Name, script.Action, track)
+			if !ready {
+				continue
+			}
 			err := runScript(script, osInfo, initConfig, blueprintDir)
+			cleanup()
 			if err != nil {
 				log.Errorf("Error running script %s: %v", script.Name, err)
 				track.item("", script.Name, script.Action, types.StatusFailed, err.Error(), time.Since(started))

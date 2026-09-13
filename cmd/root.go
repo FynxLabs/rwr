@@ -213,6 +213,7 @@ func registerRootFlags(rootCmd *cobra.Command, app *AppConfig) {
 	flags.BoolVar(&app.ShowSecrets, "show-secrets", false, "Show credential values in logs instead of redacting them")
 
 	// Profile selection flag
+	flags.StringSliceVar(&app.Except, "except", nil, "Exclude processors (comma-separated or repeated); credentials also denies managed vault access")
 	flags.StringSliceVarP(&app.Profiles, "profile", "p", []string{}, "Activate comma-separated profiles (spaces allowed), or repeat --profile")
 	mustBindFlag(rootCmd, "rwr.profiles", "profile")
 
@@ -268,6 +269,7 @@ func initializeSystemInfo(app *AppConfig, syncBlueprints bool, selectedProcessor
 		ConfigLocation:   app.ConfigLocation,
 		RunOnceLocation:  app.RunOnceLocation,
 		Profiles:         app.Profiles,
+		Except:           app.Except,
 	}
 
 	types.SetShowSecrets(app.ShowSecrets)

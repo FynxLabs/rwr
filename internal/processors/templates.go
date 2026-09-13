@@ -31,6 +31,19 @@ func processTemplates(templates []types.File, blueprintDir string, osInfo *types
 	track.expect("", total)
 
 	run := func(tmpl types.File) {
+		if tmpl.Source != "" && tmpl.Name != "" {
+			raw, err := os.ReadFile(filepath.Join(blueprintDir, tmpl.Source, tmpl.Name)) // #nosec G304 -- selected template input
+			if err == nil {
+				tmpl.RequiresCredentials = append(tmpl.RequiresCredentials, helpers.ReferencedCredentials(raw)...)
+			}
+		}
+
+		cleanup, ready := prepareCredentialResource(&tmpl, tmpl.CredentialDependencies, initConfig, types.BlueprintTypeFiles, tmpl.Name, "template", track)
+		if !ready {
+			return
+		}
+		defer cleanup()
+
 		started := time.Now()
 		switch err := processTemplate(tmpl, blueprintDir, osInfo, initConfig); {
 		case err != nil:

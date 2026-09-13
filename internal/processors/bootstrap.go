@@ -19,6 +19,12 @@ import (
 // refuse an explicit request. The marker is still refreshed on success and
 // dry-run is still honored (no marker write, no mutations).
 func RunBootstrap(initConfig *types.InitConfig, osInfo *types.OSInfo) error {
+	selection, err := SelectRun(initConfig, []string{types.BlueprintTypeBootstrap})
+	if err != nil {
+		return err
+	}
+	initConfig.Variables.Flags.Selection = &selection
+
 	location := initConfig.Init.Location
 	bootstrapFile := findBootstrapFile(location)
 	if bootstrapFile == "" {
@@ -85,7 +91,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
-	blueprintData, err = helpers.ResolveTemplate(blueprintData, initConfig.Variables)
+	blueprintData, err = helpers.ResolveStaticTemplate(blueprintData, initConfig.Variables)
 	if err != nil {
 		log.Errorf("Error resolving variables in bootstrap file: %v", err)
 		return err

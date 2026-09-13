@@ -16,6 +16,8 @@ import (
 // blueprint can reference a declared credential but never declare one - and
 // exposure to blueprints still requires the operator's exposeCredentials opt-in.
 type CredentialSpec struct {
+	References []CredentialReference `mapstructure:"references,omitempty" yaml:"references,omitempty" json:"references,omitempty" toml:"references,omitempty"`
+
 	// Name is the credential's identity everywhere: in exposeCredentials, in
 	// template scope ({{ .Credentials.<name> }}), in the exported env name
 	// (RWR_CRED_<NAME>), and in the keyring entry.
@@ -136,7 +138,7 @@ func validateCredentialSource(source string) error {
 
 func validateCredentialScope(scope string) error {
 	switch scope {
-	case CredentialSurfaceScripts, CredentialSurfaceTemplates,
+	case BlueprintTypeCredentials, CredentialSurfaceScripts, CredentialSurfaceTemplates,
 		BlueprintTypePackages, BlueprintTypeRepositories, BlueprintTypeFiles,
 		BlueprintTypeGit, BlueprintTypeSSHKeys, BlueprintTypeFonts,
 		BlueprintTypeUsers, BlueprintTypeConfiguration, BlueprintTypeServices,
@@ -166,8 +168,9 @@ func isBuiltinCredential(name string) bool {
 // debug dump can reach - and leave only through the exposure-gated accessors
 // below.
 var (
-	credentialScopes = map[string][]string{}
-	credentialValues = map[string]string{}
+	credentialScopes      = map[string][]string{}
+	credentialValues      = map[string]string{}
+	credentialEnvironment = map[string]bool{}
 )
 
 // RegisterCredentials records the declared set for this run, replacing any
@@ -175,7 +178,13 @@ var (
 func RegisterCredentials(specs []CredentialSpec) {
 	credentialScopes = make(map[string][]string, len(specs))
 	credentialValues = map[string]string{}
+	credentialEnvironment = map[string]bool{}
 	for _, spec := range specs {
+		for _, source := range spec.Sources {
+			if env, ok := strings.CutPrefix(source, "env:"); ok {
+				credentialEnvironment[strings.ToUpper(env)] = true
+			}
+		}
 		credentialScopes[spec.Name] = spec.Scope
 	}
 }
@@ -266,4 +275,45 @@ func TemplateCredentialNames() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// ScopeCredentialValues exposes only this resource's dependencies. Built-in
+// transport credentials are retained separately and restored afterward.
+func ScopeCredentialValues(values map[string]string) func() {
+	previous := credentialValues
+	credentialValues = make(map[string]string, len(values))
+	for name, value := range values {
+		credentialValues[name] = value
+	}
+	return func() { credentialValues = previous }
+}
+
+// ResolvedSecrets returns a snapshot for command-output redaction, never logs.
+func ResolvedSecrets() []string {
+	values := make([]string, 0, len(credentialValues))
+	for _, value := range credentialValues {
+		if value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
+}
+func ScrubCredentialText(text string) string {
+	for _, value := range ResolvedSecrets() {
+		text = strings.ReplaceAll(text, value, RedactedPlaceholder)
+	}
+	return text
+}
+
+// RegisterProviderEnvironment adds only the names of trusted session inputs.
+func RegisterProviderEnvironment(connections []CredentialConnection) {
+	for _, c := range connections {
+		if c.SessionEnv != "" {
+			credentialEnvironment[strings.ToUpper(c.SessionEnv)] = true
+		}
+	}
+}
+func IsCredentialEnvironmentKey(key string) bool {
+	key = strings.ToUpper(key)
+	return strings.HasPrefix(key, "RWR_CRED_") || key == "BW_SESSION" || key == "BW_CLIENTSECRET" || key == "RWR_BW_PASSWORD" || credentialEnvironment[key]
 }

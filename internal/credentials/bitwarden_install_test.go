@@ -3,13 +3,13 @@ package credentials
 import (
 	"archive/zip"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
@@ -55,112 +55,16 @@ func TestMissingBitwardenHasTypedCause(t *testing.T) {
 	}
 }
 
-func TestMissingBitwardenInstallOrSkip(t *testing.T) {
-	for _, tc := range []struct {
-		name                                                    string
-		interactive, tty, dryRun, accept, installFails, session bool
-		wantOffers, wantInstalls                                int
-		authFails, vaultError, emptyValue                       bool
-		wantPrompts                                             int
-	}{
-		{name: "headless"},
-		{name: "no terminal", interactive: true},
-		{name: "noninteractive terminal", tty: true},
-		{name: "dry run", interactive: true, tty: true, dryRun: true},
-		{name: "skip", interactive: true, tty: true, wantOffers: 1},
-		{name: "install fails", interactive: true, tty: true, accept: true, installFails: true, wantOffers: 1, wantInstalls: 1},
-		{name: "install without vault session", interactive: true, tty: true, accept: true, wantOffers: 1, wantInstalls: 1},
-		{name: "install with vault session", interactive: true, tty: true, accept: true, session: true, wantOffers: 1, wantInstalls: 1},
-		{name: "installed vault error falls back to prompt", interactive: true, tty: true, accept: true, vaultError: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
-		{name: "authentication failure", interactive: true, tty: true, accept: true, authFails: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
-		{name: "installed empty value falls back to prompt", interactive: true, tty: true, accept: true, session: true, emptyValue: true, wantOffers: 1, wantInstalls: 1, wantPrompts: 2},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			prompts := 0
-			withFakes(t, &fakeKeyring{}, tc.tty, func(_, _ string) (string, error) {
-				prompts++
-				if tc.wantPrompts == 0 {
-					t.Fatal("missing Bitwarden must not force a credential prompt")
-				}
-				return "prompt-value", nil
-			})
-			t.Setenv("BW_SESSION", "")
-			if tc.session {
-				t.Setenv("BW_SESSION", "test-session")
-			}
-			wasDryRun := system.IsDryRun()
-			system.SetDryRun(tc.dryRun)
-			t.Cleanup(func() { system.SetDryRun(wasDryRun) })
-			origFetch, origOffer, origInstall, origAuth := bwFetch, offerBitwardenInstall, installBitwarden, authenticateBitwarden
-			t.Cleanup(func() {
-				bwFetch, offerBitwardenInstall, installBitwarden, authenticateBitwarden = origFetch, origOffer, origInstall, origAuth
-			})
-			offers, installs := 0, 0
-			installed := false
-			authenticated := tc.session
-			authenticateBitwarden = func() error {
-				if tc.authFails {
-					return errors.New("authentication declined")
-				}
-				authenticated = true
-				return nil
-			}
-			bwFetch = func(bwSource) (string, error) {
-				if installed {
-					if !authenticated {
-						return "", errors.New("not logged in")
-					}
-					if tc.vaultError {
-						return "", errors.New("vault is locked")
-					}
-					if tc.emptyValue {
-						return "", nil
-					}
-					return "vault-value", nil
-				}
-				return "", ErrBitwardenNotInstalled
-			}
-			offerBitwardenInstall = func() bool { offers++; return tc.accept }
-			installBitwarden = func() error {
-				installs++
-				if tc.installFails {
-					return errors.New("download failed")
-				}
-				installed = true
-				return nil
-			}
-			specs := []types.CredentialSpec{
-				{Name: "one", Sources: []string{"bw:one", "keyring", "prompt"}},
-				{Name: "two", Sources: []string{"bw:two", "prompt"}},
-				{Name: "unrelated", Sources: []string{"env:TEST_UNRELATED"}},
-			}
-			t.Setenv("TEST_UNRELATED", "still-resolved")
-			types.RegisterCredentials(specs)
-			if err := Resolve(specs, Options{Interactive: tc.interactive}); err != nil {
-				t.Fatal(err)
-			}
-			if offers != tc.wantOffers || installs != tc.wantInstalls {
-				t.Fatalf("offers=%d installs=%d", offers, installs)
-			}
-			if prompts != tc.wantPrompts {
-				t.Fatalf("prompts=%d, want %d", prompts, tc.wantPrompts)
-			}
-			for _, name := range []string{"one", "two"} {
-				value, ok := types.CredentialValue(name)
-				if installed {
-					want := "vault-value"
-					if tc.wantPrompts > 0 {
-						want = "prompt-value"
-					}
-					if !ok || value != want {
-						t.Fatalf("%s was not resolved after installation", name)
-					}
-				} else if ok {
-					t.Fatalf("skipped credential %s was registered with value %q", name, value)
-				}
-			}
-			if value, _ := types.CredentialValue("unrelated"); value != "still-resolved" {
-				t.Fatal("unrelated resolution stopped")
+func TestRuntimeNeverInstalls(t *testing.T) {
+	for _, interactive := range []bool{false, true} {
+		t.Run(fmt.Sprint(interactive), func(t *testing.T) {
+			withFakes(t, &fakeKeyring{}, true, func(string, string) (string, error) { t.Fatal("runtime prompted"); return "", nil })
+			old := installBitwarden
+			installBitwarden = func() error { t.Fatal("runtime installed"); return nil }
+			defer func() { installBitwarden = old }()
+			withBWFake(t, nil, map[string]error{"bw:one": ErrBitwardenNotInstalled})
+			if err := Resolve([]types.CredentialSpec{{Name: "one", Sources: []string{"bw:one", "prompt"}}}, Options{Interactive: interactive}); err == nil {
+				t.Fatal("expected unavailable")
 			}
 		})
 	}

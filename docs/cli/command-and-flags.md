@@ -239,3 +239,7 @@ rwr all --config ~/rwr-work --profile work --profile dev
 ```
 
 For more detailed information on each command and its usage, please refer to the specific blueprint type documentation or the [Configuration File](configuration.md) page.
+
+## Credential setup and exclusions
+
+`rwr run credentials --profile bitwarden` runs native credential setup after provisioning. `--except credentials,fonts` (repeatable) excludes processors; excluding credentials also denies managed vault access. See [credentials](../credentials.md) for init defaults, selection precedence, dependencies and native tasks.

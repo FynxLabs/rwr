@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/fynxlabs/rwr/internal/credentials"
 	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/system"
@@ -34,11 +35,20 @@ func findBootstrapFile(dir string) string {
 // It handles bootstrap, package installation, file management, services, and other
 // operations sequentially, cleaning up package manager caches on completion.
 func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) error {
-	var err error
-	var blueprintRunOrder []string
+	selection, err := SelectRun(initConfig, runOrder)
+	if err != nil {
+		return err
+	}
+	initConfig.Variables.Flags.Selection = &selection
+	blueprintRunOrder := selection.Order
 	var stepErrs []types.StepError
 
 	resetFailures()
+	previousResolver := initConfig.CredentialRuntime
+	resolver := credentials.NewResolver(initConfig)
+	initConfig.CredentialRuntime = resolver
+	defer func() { resolver.Close(); initConfig.CredentialRuntime = previousResolver }()
+
 	// Cancellation is started by Execute, before cobra runs, so a signal that
 	// arrives during initialization is not lost. Starting it here would
 	// replace that context and discard a cancellation already requested.
@@ -89,7 +99,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	// declares its format in the init file, and `rwr validate` already accepts all
 	// four. Looking only for bootstrap.yaml meant those trees silently never
 	// bootstrapped, with no message saying so.
-	if bootstrapFile := findBootstrapFile(initConfig.Init.Location); bootstrapFile != "" {
+	if bootstrapFile := findBootstrapFile(initConfig.Init.Location); selection.Bootstrap && bootstrapFile != "" {
 		started := time.Now()
 		reporting.SetCurrentProcessor(types.BlueprintTypeBootstrap)
 		reporting.Emit(reporting.ProcStarted{Processor: types.BlueprintTypeBootstrap, Files: 1})
@@ -100,21 +110,16 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 		}
 	}
 
-	if err := resolveRunCredentials(initConfig, runOrder); err != nil {
-		return err
-	}
-
-	if runOrder != nil {
-		blueprintRunOrder = append([]string(nil), runOrder...)
-	} else {
-		blueprintRunOrder, err = GetBlueprintRunOrder(initConfig)
-		if err != nil {
-			return fmt.Errorf("error getting blueprint run order: %w", err)
+	packagesSelected := false
+	for _, p := range blueprintRunOrder {
+		if p == types.BlueprintTypePackages {
+			packagesSelected = true
 		}
 	}
-
-	if err := preparePackageManagers(initConfig.PackageManagers, osInfo, initConfig, len(fileOrder[types.BlueprintTypePackages]) > 0); err != nil {
-		return err
+	if packagesSelected {
+		if err := preparePackageManagers(initConfig.PackageManagers, osInfo, initConfig, len(fileOrder[types.BlueprintTypePackages]) > 0); err != nil {
+			return err
+		}
 	}
 
 	// Process each blueprint in order
@@ -159,7 +164,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 					return fatal(fmt.Errorf("error reading blueprint file %s: %w", blueprintFile, err))
 				}
 
-				resolvedBlueprint, err := helpers.ResolveTemplate(blueprintData, initConfig.Variables)
+				resolvedBlueprint, err := helpers.ResolveStaticTemplate(blueprintData, initConfig.Variables)
 				if err != nil {
 					return fatal(fmt.Errorf("error resolving variables in %s: %w", processor, err))
 				}
@@ -172,6 +177,10 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 					return fatal(fmt.Errorf("error preparing %s for the %s processor: %w", blueprintFile, processor, err))
 				}
 
+				if processor != types.BlueprintTypeScripts && processor != types.BlueprintTypeFiles && helpers.CredentialTokenPattern.Match(resolvedBlueprint) {
+					return fatal(fmt.Errorf("credential templates are supported in script/file content, not %s metadata", processor))
+				}
+
 				// Checked per file rather than only per command: a cancelled
 				// run should stop reading and decoding blueprints too, not
 				// grind through the rest of the tree refusing one command at a
@@ -182,6 +191,8 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 
 				dispatch := func() error {
 					switch processor {
+					case types.BlueprintTypeCredentials:
+						return ProcessCredentials(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 					case types.BlueprintTypeRepositories:
 						return ProcessRepositories(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 					case types.BlueprintTypePackages:
@@ -248,7 +259,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 	}
 
 	// Clean up package managers
-	if !system.IsDryRun() {
+	if packagesSelected && !system.IsDryRun() {
 		log.Infof("Cleaning up package managers")
 		if err = system.CleanPackageManagers(osInfo, initConfig); err != nil {
 			return fmt.Errorf("error cleaning package managers: %w", err)

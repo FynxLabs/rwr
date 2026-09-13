@@ -142,6 +142,15 @@ func validateInitFile(initFile string, results *types.ValidationResults) (*types
 		return nil, nil
 	}
 
+	if err := types.ValidateCredentialSpecs(initConfig.Credentials); err != nil {
+		AddIssue(results, types.ValidationError, err.Error(), initFile, 0, "")
+	}
+	if err := types.ValidateCredentialConnections(&initConfig); err != nil {
+		AddIssue(results, types.ValidationError, err.Error(), initFile, 0, "")
+	}
+	if _, err := types.SelectRun(&initConfig, nil, nil); err != nil {
+		AddIssue(results, types.ValidationError, err.Error(), initFile, 0, "")
+	}
 	// Blueprints are rendered as templates before they are read, so validation
 	// has to render them against the same variables a run would - including
 	// the userDefined block the init file declares. Assigning the whole
@@ -246,6 +255,9 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		AddIssue(results, types.ValidationError, formatErr.Error(), blueprintFile, 0, "Use a file with a supported blueprint extension")
 		return nil
 	}
+	if err := helpers.ValidateCredentialDependencies(blueprintFileData, format, initConfig); err != nil {
+		return err
+	}
 	return validator(blueprintFileData, format, blueprintFile, results)
 }
 
@@ -260,6 +272,13 @@ type blueprintValidator func(data []byte, format string, file string, results *t
 // blueprint. Nothing caught it because validation never looked inside a
 // subdirectory, and blueprints live in subdirectories.
 var blueprintValidators = map[string]blueprintValidator{
+	types.BlueprintTypeCredentials: func(data []byte, format string, file string, results *types.ValidationResults) error {
+		var d types.CredentialSetupData
+		if err := decode(data, format, types.BlueprintTypeCredentials, &d); err != nil {
+			return err
+		}
+		return d.Validate()
+	},
 	types.BlueprintTypeBootstrap: func(data []byte, format string, file string, results *types.ValidationResults) error {
 		var d types.BootstrapData
 		if err := decode(data, format, types.BlueprintTypeBootstrap, &d); err != nil {

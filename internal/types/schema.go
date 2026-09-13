@@ -20,6 +20,7 @@ const DefaultSchemaVersion = 1
 // on the resolved version, and document the difference. Nothing else moves.
 var supportedSchemaVersions = map[string][]int{
 	BlueprintTypePackages:      {1},
+	BlueprintTypeCredentials:   {1},
 	BlueprintTypeRepositories:  {1},
 	BlueprintTypeFiles:         {1},
 	BlueprintTypeServices:      {1},

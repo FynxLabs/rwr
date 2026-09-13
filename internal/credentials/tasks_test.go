@@ -1,0 +1,145 @@
+package credentials
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/fynxlabs/rwr/internal/types"
+)
+
+func TestGPGVerifyBeforeImport(t *testing.T) {
+	if _, err := exec.LookPath("gpg"); err != nil {
+		t.Skip("gpg unavailable")
+	}
+	ctx := context.Background()
+	source, cleanup, err := privateGPGHome()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	passphrase := "test-only-passphrase"
+	if _, err := gpg(ctx, source, []string{"--pinentry-mode", "loopback", "--passphrase-fd", "0", "--quick-generate-key", "RWR Disposable <rwr@example.invalid>", "ed25519", "sign", "1d"}, []byte(passphrase+"\n")); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := gpg(ctx, source, []string{"--with-colons", "--list-secret-keys"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fp := keyFingerprints(raw)[0]
+	material, err := gpg(ctx, source, []string{"--armor", "--pinentry-mode", "loopback", "--passphrase-fd", "0", "--export-secret-keys", fp}, []byte(passphrase+"\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name, fp, password string
+		valid              bool
+	}{{"valid", fp, passphrase, true}, {"wrong key", "0000000000000000000000000000000000000000", passphrase, false}, {"wrong password", fp, "wrong-passphrase", false}} {
+		t.Run(tt.name, func(t *testing.T) {
+			home, cleanup, err := verifyGPG(ctx, material, tt.fp, tt.password)
+			if (err == nil) != tt.valid {
+				t.Fatalf("validation error=%v", err)
+			}
+			if cleanup != nil {
+				info, err := os.Stat(home)
+				if err != nil || info.Mode().Perm() != 0700 {
+					t.Fatal("temporary keyring permissions")
+				}
+				cleanup()
+				if _, err := os.Stat(home); !os.IsNotExist(err) {
+					t.Fatal("temporary material remains")
+				}
+			}
+		})
+	}
+	// Native restore verifies and imports into only the disposable target home.
+	target := t.TempDir()
+	t.Setenv("GNUPGHOME", target)
+	t.Setenv("RWR_TEST_PASSPHRASE", passphrase)
+	c := &types.InitConfig{Credentials: []types.CredentialSpec{{Name: "passphrase", Sources: []string{"env:RWR_TEST_PASSPHRASE"}}}, CredentialAttachments: []types.CredentialAttachment{{Name: "key", Connection: "test", Filename: "private.asc", Item: "one"}}}
+	r := NewResolver(c)
+	defer r.Close()
+	session := &taskSession{material: material}
+	r.Attach("test", session)
+	runner := TaskRunner{Resolver: r, Connection: "test"}
+	task := types.CredentialTask{Kind: "gpg-restore", Name: "signing", Source: "key", Fingerprint: fp, Passphrase: "passphrase"}
+	if err := runner.Run(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	if session.reads != 1 {
+		t.Fatal("attachment not fetched")
+	}
+	if err := runner.Run(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	if session.reads != 1 {
+		t.Fatal("already-present key touched vault")
+	}
+	if _, err := os.Stat(filepath.Join(target, "pubring.kbx")); err != nil {
+		t.Fatal("key not imported")
+	}
+	_, _ = ProtectedCommand(ctx, "gpgconf", []string{"--homedir", target, "--kill", "gpg-agent"}, nil, nil)
+}
+
+type taskSession struct {
+	material []byte
+	reads    int
+}
+
+func (s *taskSession) ReadSecret(context.Context, types.CredentialReference) (string, error) {
+	return "", nil
+}
+func (s *taskSession) Close() error { return nil }
+func (s *taskSession) ReadAttachment(context.Context, types.CredentialAttachment) ([]byte, error) {
+	s.reads++
+	return bytes.Clone(s.material), nil
+}
+func (s *taskSession) ReplaceAttachment(context.Context, types.CredentialAttachment, []byte) error {
+	return nil
+}
+
+func TestTaskBindingCannotBroadenAccess(t *testing.T) {
+	r := NewResolver(&types.InitConfig{CredentialAttachments: []types.CredentialAttachment{{Name: "one", Connection: "other", Item: "one", Filename: "private.asc"}}})
+	defer r.Close()
+	task := types.CredentialTask{Kind: "gpg-restore", Source: "one"}
+	if err := (TaskRunner{Resolver: r, Connection: "test"}).Validate(task); err == nil {
+		t.Fatal("cross-connection access allowed")
+	}
+	task.Source = "unknown"
+	if err := (TaskRunner{Resolver: r, Connection: "test"}).Validate(task); err == nil {
+		t.Fatal("undeclared attachment allowed")
+	}
+}
+
+func TestKeyringMaterializationIsConnectionNamespaced(t *testing.T) {
+	ring := &fakeKeyring{}
+	withFakes(t, ring, false, nil)
+	t.Setenv("RWR_TEST_VALUE", "one-value")
+	c := &types.InitConfig{CredentialProviders: []types.CredentialConnection{{Name: "one", Provider: "fixture", Account: "one@example.invalid"}, {Name: "two", Provider: "fixture", Account: "two@example.invalid"}}, Credentials: []types.CredentialSpec{{Name: "password", Scope: []string{"credentials"}, Sources: []string{"env:RWR_TEST_VALUE"}}}}
+	r := NewResolver(c)
+	defer r.Close()
+	task := types.CredentialTask{Name: "cache", Kind: "keyring", Credential: "password"}
+	if err := (TaskRunner{Resolver: r, Connection: "one"}).Run(context.Background(), task); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RWR_TEST_VALUE", "two-value")
+	if err := (TaskRunner{Resolver: r, Connection: "two"}).Run(context.Background(), task); err != nil {
+		t.Fatal(err)
+	}
+	if len(ring.entries) != 2 {
+		t.Fatalf("accounts shared a keyring identity: %v", ring.entries)
+	}
+	for _, connection := range c.CredentialProviders {
+		got, err := ring.Get("v1/" + connectionIdentity(connection) + "/password")
+		if err != nil || got != connection.Name+"-value" {
+			t.Fatal("incorrect materialization")
+		}
+	}
+	c.Credentials[0].References = []types.CredentialReference{{Connection: "one", Item: "otp", Field: "totp"}}
+	if err := (TaskRunner{Resolver: r, Connection: "one"}).Validate(task); err == nil {
+		t.Fatal("TOTP persistence accepted")
+	}
+}

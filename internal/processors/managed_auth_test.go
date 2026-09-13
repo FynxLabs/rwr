@@ -94,8 +94,8 @@ func TestInitializeResolvesAndWithholdsDeclaredCredential(t *testing.T) {
 	if len(config.Credentials) != 1 || config.Credentials[0].Name != "cachix_token" {
 		t.Fatalf("credentials section decoded as %+v", config.Credentials)
 	}
-	if value, _ := types.CredentialValue("cachix_token"); value != "cachix-secret-value" {
-		t.Errorf("cachix_token resolved as %q, want the env value", value)
+	if value, _ := types.CredentialValue("cachix_token"); value != "" {
+		t.Errorf("initialization acquired credential %q", value)
 	}
 
 	// Withheld from the spawned-command env: no opt-in, no export.
@@ -115,34 +115,22 @@ func TestInitializeResolvesAndWithholdsDeclaredCredential(t *testing.T) {
 }
 
 // With the exposeCredentials opt-in, the same credential reaches both surfaces.
-func TestInitializeExposedDeclaredCredential(t *testing.T) {
+func TestInitializeExposureDoesNotAcquire(t *testing.T) {
 	resetManagedAuthState(t)
 	t.Setenv("CACHIX_AUTH_TOKEN", "cachix-secret-value")
-
-	initFile := writeInitFile(t, declaredCredentialInit+`
-exposeCredentials:
-  - cachix_token
-`)
-	config, err := Initialize(initFile, types.Flags{})
+	initFile := writeInitFile(t, declaredCredentialInit+"\nexposeCredentials: [cachix_token]\n")
+	_, err := Initialize(initFile, types.Flags{})
 	if err != nil {
-		t.Fatalf("Initialize: %v", err)
+		t.Fatal(err)
 	}
-
-	if got := os.Getenv("RWR_CRED_CACHIX_TOKEN"); got != "cachix-secret-value" {
-		t.Errorf("RWR_CRED_CACHIX_TOKEN = %q, want the resolved value", got)
+	if value, ok := types.CredentialValue("cachix_token"); ok {
+		t.Fatalf("initialization resolved %q", value)
 	}
-	rendered, err := helpers.ResolveTemplate([]byte("v={{ .Credentials.cachix_token }}"), config.Variables)
-	if err != nil {
-		t.Fatalf("ResolveTemplate: %v", err)
-	}
-	if string(rendered) != "v=cachix-secret-value" {
-		t.Errorf("template rendered %q, want the exposed value", rendered)
+	if os.Getenv("RWR_CRED_CACHIX_TOKEN") != "" {
+		t.Fatal("credential exported to parent process")
 	}
 }
 
-// A typo inside a credential declaration is an error naming the key, not a
-// silently different source order: viper ignores unknown keys, so the strict
-// re-decode is the only thing standing between the two.
 func TestInitializeStrictDecodesCredentials(t *testing.T) {
 	resetManagedAuthState(t)
 
@@ -164,32 +152,14 @@ credentials:
 // A declared credential that resolves nowhere fails before any processor runs,
 // naming the credential and the sources tried; in a non-interactive run the
 // error says prompt was skipped.
-func TestInitializeUnresolvableCredentialFailsUpFront(t *testing.T) {
+func TestInitializeUnavailableCredentialDoesNotFail(t *testing.T) {
 	resetManagedAuthState(t)
 	t.Setenv("CACHIX_AUTH_TOKEN", "")
-
-	initFile := writeInitFile(t, `
-blueprints:
-  format: yaml
-  location: "."
-
-credentials:
-  - name: cachix_token
-    sources: [env:CACHIX_AUTH_TOKEN, prompt]
-`)
-	_, err := Initialize(initFile, types.Flags{Interactive: false})
-	if err == nil {
-		t.Fatal("Initialize = nil, want an up-front resolution error")
-	}
-	for _, want := range []string{`"cachix_token"`, "env:CACHIX_AUTH_TOKEN", "prompt skipped"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error %q missing %q", err, want)
-		}
+	if _, err := Initialize(writeInitFile(t, declaredCredentialInit), types.Flags{Interactive: true}); err != nil {
+		t.Fatal(err)
 	}
 }
 
-// A credential scoped to a processor outside the run is not resolved, so its
-// missing sources do not fail an unrelated run.
 func TestInitializeSkipsOutOfScopeCredential(t *testing.T) {
 	resetManagedAuthState(t)
 	t.Setenv("CACHIX_AUTH_TOKEN", "")
@@ -207,7 +177,7 @@ credentials:
 	if _, err := Initialize(initFile, types.Flags{}, types.BlueprintTypePackages); err != nil {
 		t.Fatalf("Initialize resolved an out-of-scope credential: %v", err)
 	}
-	if _, err := Initialize(initFile, types.Flags{}, types.BlueprintTypeSSHKeys); err == nil {
+	if _, err := Initialize(initFile, types.Flags{}, types.BlueprintTypeSSHKeys); err != nil {
 		t.Fatal("Initialize = nil for an in-scope unresolvable credential, want an error")
 	}
 }

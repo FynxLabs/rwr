@@ -25,3 +25,9 @@ order = [
     "ssh_keys",
     "configuration",
 ]
+
+# Explicit setup: rwr run credentials --profile bitwarden
+[[credentialProviders]]
+name = "personal-vault"
+provider = "bitwarden"
+server = "https://vault.bitwarden.com"

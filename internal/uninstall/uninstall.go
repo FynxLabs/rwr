@@ -35,6 +35,7 @@ var reverseOrder = []string{
 // printed up front so the operator knows before confirming.
 var NotReversible = []string{
 	types.BlueprintTypeScripts,
+	types.BlueprintTypeCredentials,
 	types.BlueprintTypeConfiguration,
 	types.BlueprintTypeUsers,
 	types.BlueprintTypeSSHKeys,

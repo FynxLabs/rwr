@@ -107,14 +107,15 @@ func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 	// Get the current environment variables
 	env := make([]string, 0)
 	for _, entry := range os.Environ() {
-		if !strings.HasPrefix(strings.ToUpper(entry), "RWR_CRED_") {
+		key, _, _ := strings.Cut(entry, "=")
+		if !types.IsCredentialEnvironmentKey(key) {
 			env = append(env, entry)
 		}
 	}
 
 	// Append the additional variables from cmd.Variables
 	for key, value := range cmd.Variables {
-		if !strings.HasPrefix(strings.ToUpper(key), "RWR_CRED_") {
+		if !types.IsCredentialEnvironmentKey(key) {
 			env = append(env, fmt.Sprintf("%s=%s", key, value))
 		}
 	}
@@ -388,6 +389,16 @@ func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
 // callback will write done regardless of the program's lifetime, so waiting
 // is safe - and Run() is never called twice on the same *exec.Cmd.
 func runOnTerminal(command *exec.Cmd) error {
+	if len(types.ResolvedSecrets()) > 0 {
+		if command.Stdin == nil {
+			command.Stdin = os.Stdin
+		}
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+		defer protectCredentialOutput(command)()
+		return reporting.WithTerminal(command.Run)
+	}
+
 	done := make(chan error, 1)
 	claim := &atomic.Bool{}
 	reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done, Claim: claim})
@@ -527,6 +538,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		}
 	}
 
+	defer protectCredentialOutput(command)()
 	if err := command.Run(); err != nil {
 		// A command killed by cancellation exits non-zero like any failure.
 		// Reporting it as one would fill the summary with "signal: killed"
@@ -599,7 +611,7 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		if Cancelled() {
 			return "", ErrCancelled
 		}
-		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, stderr.String())
+		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, types.ScrubCredentialText(stderr.String()))
 		log.Error(errMsg)
 		return "", err
 	}
@@ -693,4 +705,27 @@ func GetBinPath(binName string) (string, error) {
 		return "", err
 	}
 	return filepath.Clean(path), nil
+}
+
+func protectCredentialOutput(command *exec.Cmd) func() {
+	secrets := types.ResolvedSecrets()
+	if len(secrets) == 0 {
+		return func() {}
+	}
+	var writers []*types.SecretWriter
+	if command.Stdout != nil {
+		w := types.NewSecretWriter(command.Stdout, secrets)
+		command.Stdout = w
+		writers = append(writers, w)
+	}
+	if command.Stderr != nil {
+		w := types.NewSecretWriter(command.Stderr, secrets)
+		command.Stderr = w
+		writers = append(writers, w)
+	}
+	return func() {
+		for _, w := range writers {
+			w.Flush()
+		}
+	}
 }
