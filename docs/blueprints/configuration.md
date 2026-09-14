@@ -1,6 +1,8 @@
 # Configuration Blueprint
 
-The Configuration Processor in Rinse, Wash, Repeat (RWR) allows you to manage system configurations across different operating systems. It supports various configuration tools including dconf and gsettings for Linux, defaults for macOS, and registry settings for Windows.
+The Configuration Processor manages system and desktop settings across operating
+systems. Its tools are dconf and gsettings for Linux, defaults for macOS, the
+Windows Registry, and post-login Omarchy desktop configuration.
 
 See [Fields Common to Every Blueprint](common-fields.md) for the rule that an
 unknown key is an error.
@@ -25,24 +27,59 @@ The following settings are available for every entry, whichever tool it uses:
 
 | Setting | Required | Description |
 |---------|----------|-------------|
-| `name` | Yes | A unique name for the configuration. It also names the `run_once` marker file |
-| `tool` | Yes | The configuration tool: `dconf`, `gsettings`, `macos_defaults` or `windows_registry`. Any other value is an error |
+| `name` | Yes for resources | A unique name for the configuration. Omit it on an Omarchy import entry. It also names the `run_once` marker file |
+| `tool` | Yes | The configuration tool: `dconf`, `gsettings`, `macos_defaults`, `windows_registry`, or `omarchy`. Any other value is an error |
 | `profiles` | No | Profiles this entry belongs to. Empty means it is always applied |
-| `elevated` | No | Whether to run the configuration with elevated privileges (default: false) |
+| `elevated` | No | Whether to run a platform configuration command with elevated privileges (default: false). Omarchy entries must omit it |
 | `run_once` | No | dconf only: create a marker file and skip the entry on later runs (default: false) |
-| `action` | No | `set` is the only supported action; leaving it out means the same thing. Any other value is recorded as a failure for that entry |
-| `names` | No | Accepted by the schema but **not read**. One entry is one operation |
+| `action` | No | `set` is the only supported action; leaving it out means the same thing. Omit it on an import entry |
+| `names` | No | Accepted for existing platform tools but **not read**. One entry is one operation. Omarchy entries reject it |
 
-The tool-specific settings are `file`, `schema`, `key`, `settings`, `value`,
-`path`, `domain`, `kind` and `type`, described per tool below.
+The tool-specific settings are described with each tool below. Omarchy entries
+reject fields belonging to the other tools, and the other tools reject Omarchy
+resource fields.
 
 > [!NOTE]
-> Profiles work for configuration entries as of this release - the type had no
-> `profiles` field before, so every entry was applied on every machine. The
-> configuration blueprint has **no `import` field** and no `interactive` field;
-> writing either one is now a decode error.
+> Profiles work for every configuration tool. Omarchy entries also support
+> `import`; the other tools reject it. Configuration entries do not support
+> `interactive`.
 
 ## Supported Configuration Tools
+
+### omarchy (Linux)
+
+The Omarchy tool reconciles desktop resources after login. It uses the same
+`configurations` list and the same `configuration` processor as every tool on
+this page:
+
+```yaml
+configurations:
+  - name: omarchy-desktop
+    tool: omarchy
+    action: set
+    plugins:
+      - id: expose.window-overview
+        source:
+          git: https://github.com/kristofferR/omarchy-expose.git
+        enabled: true
+        settings:
+          hotCornerEnabled: false
+    defaults:
+      browser: firefox
+      terminal: ghostty
+      editor: nvim
+```
+
+Run it with `rwr run configuration`, or let `rwr all` apply it with the other
+configuration entries. Omarchy configuration always runs as the logged-in
+desktop user and does not accept `elevated` or `run_once`.
+
+Omarchy entries can manage plugin installation and activation, targeted plugin
+and shell settings, theme selection, default applications, hooks, widgets, and
+an external screensaver launcher. They support nested, cross-format imports;
+paths resolve relative to the file that declares them. See the
+[Omarchy configuration tool](omarchy.md) for the complete schema and runtime
+requirements.
 
 ### dconf (Linux)
 
@@ -161,8 +198,8 @@ configurations:
 
 ## Notes
 
-* `run_once` is honoured by the dconf tool only. The other three tools apply their setting on every run; each of them is idempotent.
+* `run_once` is honoured by the dconf tool only. The other tools reconcile their settings on every run.
 * The `elevated` option runs the command through sudo on Unix-like systems. On Windows it does not raise privileges - see the note above.
-* A gsettings entry that cannot apply a key does not stop the run; the failures are collected and reported at the end. The other tools return their error immediately.
+* A gsettings entry that cannot apply a key does not stop the run; the failures are collected and reported at the end.
 
 For more information on using the Configuration Processor in your RWR setup, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Best Practices](../best-practices.md) sections of the documentation.

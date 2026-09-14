@@ -24,9 +24,11 @@ anything is applied.
 Every blueprint type supports `profiles`: a list of profile names the entry
 belongs to.
 
-An entry with no `profiles` is a base item and is always processed. An entry
-with `profiles` is processed only when one of those profiles is active
-(`rwr all --profile dev`). See [Profiles](../profiles.md).
+An entry with no `profiles` is a base item and is always processed. Once you
+name at least one profile, an entry with `profiles` is processed only when one
+of those profiles is active (`rwr all --profile dev`). With no `--profile`
+flag, RWR applies every entry, including profiled ones. See
+[Profiles](../profiles.md).
 
 ```yaml
 packages:
@@ -43,16 +45,17 @@ packages:
 ## `import`
 
 `import` names another blueprint file to pull entries from. The path is resolved
-relative to your blueprint directory, imports may be nested, and circular
-imports are detected and refused. An entry that carries an `import` carries
-nothing else.
+relative to the file that declares it, imports may be nested, and circular
+imports are detected and refused. An import entry does not also declare
+resources. It may still carry `profiles`; an Omarchy configuration import also
+needs `tool: omarchy` so the configuration processor can route it.
 
 Supported by: `packages`, `repositories`, `files`, `templates`, `directories`,
-`git`, `scripts`, `services`, `ssh_keys`, `users` and `groups`.
+`git`, `scripts`, `services`, `ssh_keys`, `users`, `groups`, `credential_setup`,
+and configuration entries that use `tool: omarchy`.
 
-**Not** supported by `fonts` or `configurations` - those two types have no
-`import` field, so an `import` key in them is now a decode error rather than a
-silently ignored one.
+**Not** supported by `fonts` or the other configuration tools. An `import` on a
+`dconf`, `gsettings`, `macos_defaults`, or `windows_registry` entry is an error.
 
 ## `interactive`
 
@@ -91,4 +94,7 @@ write one entry per item there. Every other type rejects `names` outright.
 
 ## Credential dependencies
 
-Scripts, files, templates and directories accept `requiresCredentials: [name]` and `onCredentialUnavailable: skip|fail`. These are checked after profile selection. Exposing a credential alone does not acquire it. See [credentials](../credentials.md).
+Scripts, files, templates, and directories accept
+`requiresCredentials: [name]` and `onCredentialUnavailable: skip|fail`. These
+are checked after profile selection. Exposing a credential alone does not
+acquire it. See [credentials](../credentials.md).

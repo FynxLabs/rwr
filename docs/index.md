@@ -1,96 +1,38 @@
-# Rinse, Wash, Repeat (RWR) Documentation
+# RWR documentation
 
-Welcome to the Rinse, Wash, Repeat (RWR) documentation! This guide aims to provide comprehensive information about using and extending the RWR configuration management tool.
+RWR applies a version-controlled description of a workstation. A setup begins
+with an init file, continues into one or more blueprint files, and can be applied
+as a whole or one processor at a time.
 
-## Introduction
+If this is your first visit, follow the [Quick Start](quick-start.md). It creates
+one small text file, validates the tree, previews the change, and applies it.
 
-RWR is a powerful and flexible configuration management tool designed for those who like to hop around and reinstall frequently, regardless of whether it's Linux, macOS, or Windows. It simplifies the process of setting up and maintaining your system by using blueprint-based configurations with an advanced profile system for selective installation.
+## Learn the core model
 
-## Install and Quick Start
+- [How blueprints work](blueprints-general.md)
+- [Init file](init-file.md)
+- [Blueprint type reference](blueprints/README.md)
+- [Profiles](profiles.md)
+- [Variables and templates](variables.md)
 
-- [Install](install.md): The supported platforms, the install scripts, and the
-  builds of the master branch.
-- [Quick Start Guide](quick-start.md): Get up and running with RWR quickly by following this concise guide.
+## Operate RWR
 
-## Profile System
+- [Install](install.md)
+- [Commands and flags](cli/command-and-flags.md)
+- [Local CLI configuration](cli/configuration.md)
+- [Validate](cli/validate.md)
+- [Capture an existing machine](cli/capture.md)
+- [Inspect differences](cli/diff.md)
+- [Status and uninstall](state.md)
 
-RWR's profile system allows you to organize and selectively install packages and configurations based on different contexts, environments, or use cases.
+## Add focused capabilities
 
-- [Profile System Overview](profiles.md): Complete guide to understanding and using profiles
-- [Profile CLI Commands](cli/profiles.md): Command-line reference for profile usage
-- [Profile Best Practices](profile-best-practices.md): Practical organizational tips and examples
+- [Credentials and Bitwarden](credentials.md)
+- [Omarchy configuration tool](blueprints/omarchy.md)
+- [Package manager providers](providers.md)
+- [Bootstrap](bootstrap.md)
+- [Schema versioning](schema-versioning.md)
+- [Convert between formats](cli/convert.md)
 
-## How the CLI Works
-
-- [Commands and Flags](cli/command-and-flags.md): Learn about the available commands in the RWR CLI and their respective flags.
-- [Configuration File](cli/configuration.md): Understand how to configure RWR through the configuration file.
-- [Profile Commands](cli/profiles.md): Profile-specific CLI commands and flags.
-- [Validate Command](cli/validate.md): Check blueprints and provider configurations before a run.
-- [Convert Command](cli/convert.md): Rewrite a blueprint tree between formats or migrate deprecated constructs.
-- [Diff Command](cli/diff.md): Machine drift as blueprint material - lists, paste-ready blocks, or routed tree edits.
-- [Capture Command](cli/capture.md): Turn a handcrafted machine into a validated blueprint tree.
-
-## The Init File
-
-The [Init File](init-file.md) is the main entry point for your blueprints and defines the order of execution. This section will cover its structure and functionality.
-
-## The Bootstrap Process
-
-The [Bootstrap Process](bootstrap.md) is responsible for setting up the initial system configuration. Learn how it works and how to define the bootstrap file.
-
-## Blueprints Overview
-
-Get a [general overview of Blueprints](blueprints-general.md) and how they are used to manage your system's configuration.
-
-## Blueprint Types
-
-RWR supports various blueprint types for managing different aspects of your system. Each blueprint type has its own page with detailed information:
-
-- [Packages Blueprint](blueprints/packages.md)
-- [Repositories Blueprint](blueprints/repositories.md)
-- [Configuration Blueprint](blueprints/configuration.md)
-- [Files Blueprint](blueprints/files.md)
-- [Directories Blueprint](blueprints/directories.md) (a key in a files blueprint,
-  not a separate type)
-- [Services Blueprint](blueprints/services.md)
-- [Users and Groups Blueprint](blueprints/users-and-groups.md)
-- [Git Blueprint](blueprints/git.md)
-- [Scripts Blueprint](blueprints/scripts.md)
-- [SSH Keys Blueprint](blueprints/ssh-keys.md)
-- [Fonts Blueprint](blueprints/fonts.md)
-
-## Variables and Templating
-
-- [Variables and Templating](variables.md): Learn how to use variables and templating in blueprints to make them more dynamic and reusable.
-
-## Run Records
-
-- [Run records](state.md): The journal each run writes, `rwr status` for
-  desired-vs-actual drift, and `rwr uninstall` to reverse recorded runs.
-
-## Credentials and Schema Versions
-
-- [Credentials](credentials.md): How RWR holds your GitHub token and SSH key, and
-  how to give a blueprint access to one.
-- [Schema versioning](schema-versioning.md): How a blueprint gives the schema
-  version that it uses, and how one blueprint type moves to a new version.
-
-## Best Practices
-
-- [Best Practices](best-practices.md): Discover best practices and recommendations for organizing blueprints and managing configurations.
-
-## Extending RWR
-
-- [Package Manager Providers](providers.md): Declarative provider definitions -
-  add or override a package manager without writing Go code.
-- Coming Soon: Adding a New Processor
-
-## Troubleshooting
-
-- Coming Soon: Troubleshooting section for common issues and solutions.
-
-## Additional Resources
-
-- Coming Soon: Frequently Asked Questions (FAQ)
-- Coming Soon: Known Issues
-- Coming Soon: Glossary
+The [documentation map](README.md) includes organizational advice and links to
+the example trees.

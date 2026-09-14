@@ -1,7 +1,9 @@
 {
-  "omarchy": [
+  "configurations": [
     {
       "name": "desktop",
+      "tool": "omarchy",
+      "action": "set",
       "plugins": [
         {
           "id": "expose.window-overview",

@@ -163,13 +163,17 @@ func TestSettingsAndOptionalWidgetConverge(t *testing.T) {
 func TestStrictSchemaAndConflicts(t *testing.T) {
 	t.Parallel()
 	cases := []string{
-		`{"omarchy":[{"name":"a","typo":true}]}`,
-		`{"omarchy":[{"name":"a","plugins":[{"id":"../escape"}]}]}`,
-		`{"omarchy":[{"name":"a","plugins":[{"id":"omarchy.menu","state":"absent"}]}]}`,
-		`{"omarchy":[{"name":"a","plugins":[{"id":"example.x","source":{"git":"ext::evil"}}]}]}`,
-		`{"omarchy":[{"name":"a","plugins":[{"id":"example.x","enabled":false,"widget":{"visible":true}}]}]}`,
-		`{"omarchy":[{"name":"a","plugins":[{"id":"example.x","settings":{"id":"other"}}]}]}`,
-		`{"omarchy":[{"name":"a","theme":{"name":"one","active":true}},{"name":"b","theme":{"name":"two","active":true}}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"set","typo":true}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"install","shell":{"idle":{"lock":300}}}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"set","schema":"org.example","shell":{"idle":{"lock":300}}}]}`,
+		`{"configurations":[{"name":"a","tool":"gsettings","import":"shared.json"}]}`,
+		`{"configurations":[{"name":"a","tool":"gsettings","plugins":[{"id":"example.x"}]}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"set","plugins":[{"id":"../escape"}]}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"set","plugins":[{"id":"omarchy.menu","state":"absent"}]}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"set","plugins":[{"id":"example.x","source":{"git":"ext::evil"}}]}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"set","plugins":[{"id":"example.x","enabled":false,"widget":{"visible":true}}]}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"set","plugins":[{"id":"example.x","settings":{"id":"other"}}]}]}`,
+		`{"configurations":[{"name":"a","tool":"omarchy","action":"set","theme":{"name":"one","active":true}},{"name":"b","tool":"omarchy","action":"set","theme":{"name":"two","active":true}}]}`,
 	}
 	for _, raw := range cases {
 		if _, err := Load([]byte(raw), "json", "/blueprint.json", &types.InitConfig{}); err == nil {
@@ -183,13 +187,13 @@ func TestImportsAndProfilesUseDeclaringDirectory(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "common"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	raw := `{"omarchy":[{"name":"shared","profiles":["desktop"],"theme":{"name":"mine","source":{"path":"theme"},"active":false}}]}`
+	raw := `{"configurations":[{"name":"shared","tool":"omarchy","action":"set","profiles":["desktop"],"theme":{"name":"mine","source":{"path":"theme"},"active":false}}]}`
 	if err := os.WriteFile(filepath.Join(root, "common/shared.json"), []byte(raw), 0600); err != nil {
 		t.Fatal(err)
 	}
 	config := &types.InitConfig{}
 	config.Variables.Flags.Profiles = []string{"desktop"}
-	ops, err := Load([]byte(`omarchy: [{import: "common/shared.json"}]`), "yaml", filepath.Join(root, "setup.yaml"), config)
+	ops, err := Load([]byte(`configurations: [{tool: omarchy, import: "common/shared.json"}]`), "yaml", filepath.Join(root, "setup.yaml"), config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,8 +298,9 @@ func TestScreensaverDispatcherPreservesArguments(t *testing.T) {
 func TestValidSchemaBoundaries(t *testing.T) {
 	t.Parallel()
 	for name, raw := range map[string]string{
-		"single active theme":    `{"omarchy":[{"name":"desktop","theme":{"name":"one","active":true}}]}`,
-		"disabled hidden widget": `{"omarchy":[{"name":"desktop","plugins":[{"id":"example.widget","enabled":false,"widget":{"visible":false}}]}]}`,
+		"single active theme":       `{"configurations":[{"name":"desktop","tool":"omarchy","action":"set","theme":{"name":"one","active":true}}]}`,
+		"disabled hidden widget":    `{"configurations":[{"name":"desktop","tool":"omarchy","action":"set","plugins":[{"id":"example.widget","enabled":false,"widget":{"visible":false}}]}]}`,
+		"mixed configuration tools": `{"configurations":[{"name":"gnome","tool":"gsettings","action":"set","schema":"org.gnome.desktop.interface","settings":{"color-scheme":"prefer-dark"}},{"name":"desktop","tool":"omarchy","action":"set","shell":{"idle":{"lock":300}}}]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

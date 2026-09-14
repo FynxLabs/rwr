@@ -1,3 +1,3 @@
 [blueprints]
 format = "toml"
-order = ["files", "omarchy"]
+order = ["files", "configuration"]

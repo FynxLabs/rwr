@@ -109,9 +109,9 @@ var unsupportedVersionCases = []struct {
 	},
 	{
 		name:      "configuration",
-		blueprint: "schema_version: 99\nconfiguration:\n  - name: theme\n    type: dconf\n    action: set\n    key: /org/gnome/theme\n    value: dark\n",
+		blueprint: "schema_version: 99\nconfigurations:\n  - name: theme\n    tool: dconf\n    action: set\n    file: settings.ini\n",
 		run: func(data []byte, osInfo *types.OSInfo, init *types.InitConfig) error {
-			return ProcessConfiguration(data, ".", "yaml", init)
+			return ProcessConfiguration(data, "configuration.yaml", "yaml", init)
 		},
 	},
 }

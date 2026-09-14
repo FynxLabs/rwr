@@ -95,6 +95,16 @@ func TestCredentialsInProcessorTable(t *testing.T) {
 	}
 }
 
+func TestOmarchyUsesConfigurationProcessor(t *testing.T) {
+	if _, ok := processorShorthand("omarchy"); ok {
+		t.Fatal("omarchy must be a configuration tool, not a standalone processor")
+	}
+	p, ok := processorShorthand("configuration")
+	if !ok || p.blueprint != "configuration" {
+		t.Fatalf("configuration processor missing: %+v", p)
+	}
+}
+
 func TestExceptFlagRepeatedAndCommaSeparated(t *testing.T) {
 	app := &AppConfig{}
 	root := &cobra.Command{Use: "rwr"}

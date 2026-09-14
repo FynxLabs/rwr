@@ -1,68 +1,60 @@
-# RWR Examples
+# RWR examples
 
-This directory contains example configurations for Rinse, Wash, Repeat (RWR) demonstrating various ways to organize and structure your blueprints.
+These directories show working blueprint layouts and processor syntax. Start
+with the example closest to your task; there is no need to read them all.
 
-## Important: Directory Structure is Optional
+## Choose an example
 
-**The nested directory structure you see in this examples folder is purely for organizational convenience and is NOT required by RWR.**
+| Goal | Example |
+|---|---|
+| See the smallest possible tree | [Minimal and flattened layouts](alternative_layouts/) |
+| Compare Linux distributions | [Linux](linux/) |
+| Build a macOS setup | [macOS](macos/) |
+| Build a Windows setup | [Windows](windows/) |
+| Share resources across machines | [Multi-machine tree](multi-machine/) |
+| Reuse entries through imports | [Nested imports](imports/) |
+| Set up Bitwarden and GPG tasks | [Bitwarden credentials](bitwarden/) |
+| Manage Omarchy through the configuration blueprint | [Omarchy](omarchy/) |
 
-RWR identifies blueprint types by their **content** (the keys like `packages:`, `git:`, `files:`, etc.), not by their file names or directory structure. This means you have complete flexibility in how you organize your blueprint files.
+The platform trees include YAML, JSON, TOML, and CUE versions so you can compare
+the same idea in your preferred format.
 
-## Current Examples Structure
+## Directory layout is your choice
 
-The current examples are organized by:
+RWR can identify a blueprint from a recognized processor directory:
 
-- Operating System (`linux/`, `macos/`, `windows/`)
-- Distribution/Variant (`Arch/`, `Fedora/`, `Ubuntu/`)
-- Format (`json/`, `yaml/`, `toml/`)
-- Blueprint Type (`packages/`, `git/`, `files/`, etc.)
-
-This structure helps with:
-
-- ✅ **Human organization** - easier to find examples
-- ✅ **Learning** - see how different OS/distros handle the same tasks
-- ✅ **Reference** - compare implementations across formats
-
-But it's **not technically required** for RWR to function.
-
-## Alternative Approaches
-
-See [`alternative_layouts/`](./alternative_layouts/) for simpler approaches that demonstrate:
-
-- **Minimal Files**: Everything in just 2 files (`init.yaml` + `all_in_one.yaml`)
-- **Flattened Structure**: Individual blueprint files at root level (no subdirectories)
-- **Multiple Formats**: Same content shown in YAML, JSON, and TOML
-
-## Task-Focused Examples
-
-- [`bitwarden/`](./bitwarden/) - back up and restore a GPG key through the
-  Bitwarden vault, with the `bw:` credential source and guarded, profile-gated
-  scripts.
-
-## How RWR Discovers Blueprints
-
-```mermaid
-flowchart TD
-    A[RWR starts processing] --> B[Scan blueprint location directory]
-    B --> C[Find files with specified format extension]
-    C --> D[Read file content]
-    D --> E[Identify blueprint type by content keys]
-    E --> F{Contains known keys?}
-    F -->|Yes| G[Process as identified type<br/>packages, git, files, etc.]
-    F -->|No| H[Use directory name as fallback type]
-    G --> I[Execute blueprint]
-    H --> I
-    I --> J[Continue to next file]
+```text
+blueprints/
+├── packages/
+│   └── common.yaml
+└── files/
+    └── shell.yaml
 ```
 
-## Key Takeaways
+It can also identify it from top-level keys, so a flat file works:
 
-1. **Blueprint identification is content-based**, not location-based
-2. **Directory structure is for human convenience only**
-3. **You can organize files however makes sense for your project**
-4. **Multiple blueprint sections can coexist in single files**
-5. **RWR processes all valid blueprint files in the specified location**
+```yaml
+packages:
+  - name: git
+    action: install
 
-## Getting Started
+files:
+  - name: example.conf
+    action: create
+    target: "{{ .User.home }}/.config/example"
+    content: "enabled=true"
+```
 
-For simpler setups, check out the [`alternative_layouts/`](./alternative_layouts/) directory. For comprehensive examples showing different OS configurations, explore the nested directories here.
+That file is routed to both the `packages` and `files` processors. Choose folders
+that make the repository easy for you to maintain.
+
+Examples contain placeholder package names, repository URLs, users, and paths.
+Copy the structure you need, replace those values, then validate and preview the
+result:
+
+```bash
+rwr validate PATH_TO_TREE
+rwr all --init-file PATH_TO_INIT --dry-run
+```
+
+For the underlying rules, read [How blueprints work](../docs/blueprints-general.md).

@@ -1,15 +1,19 @@
-# Omarchy desktop setup
+# Omarchy configuration tool
 
-The `omarchy` processor personalizes an installed Omarchy desktop after login.
-Run `rwr run omarchy` (or `rwr omarchy`); `rwr all` runs it after ordinary
-packages, files, services, Git, scripts and configuration. Explicit init orders
-must include `omarchy` after its prerequisites. It never installs or updates
-Omarchy itself, runs as the desktop user without sudo, and requires working
-Hyprland and Omarchy shell IPC for apply.
+Omarchy is a tool in the existing Configuration Blueprint. Declare it under
+`configurations` with `tool: omarchy`, then run `rwr run configuration` or
+`rwr all`. If the init file defines an explicit order, include `configuration`
+after the files and packages the desktop setup needs.
+
+This tool personalizes an installed Omarchy desktop after login. It never
+installs or updates Omarchy itself, runs as the desktop user without sudo, and
+requires working Hyprland and Omarchy shell IPC for apply.
 
 ```yaml
-omarchy:
+configurations:
   - name: desktop
+    tool: omarchy
+    action: set
     plugins:
       - id: expose.window-overview
         source:
@@ -37,8 +41,17 @@ omarchy:
       bar: {position: top, transparent: false}
 ```
 
-Entries support `profiles` and `import`. Import paths and asset sources resolve
-relative to the file declaring them, including nested cross-format imports.
+Omarchy configuration entries support `profiles` and `import`. Import paths and
+asset sources resolve relative to the file declaring them, including nested
+cross-format imports.
+
+```yaml
+configurations:
+  - tool: omarchy
+    import: ../shared/omarchy.json
+    profiles: [desktop]
+```
+
 Selected entries are combined before applying; conflicting values name both
 source files. CUE, YAML, TOML and JSON have the same schema. Static validation
 and dry-run work without a running desktop and perform no installation,
@@ -87,8 +100,10 @@ subsequent status checks expose changes that persist after application.
 ## Themes, defaults and hooks
 
 ```yaml
-omarchy:
+configurations:
   - name: appearance
+    tool: omarchy
+    action: set
     theme:
       name: my-theme
       source: {path: ../assets/my-theme}
@@ -126,8 +141,10 @@ can hide failures. Undeclared hooks retain Omarchy's native reporting behavior.
 ## External screensavers
 
 ```yaml
-omarchy:
+configurations:
   - name: external-screensaver
+    tool: omarchy
+    action: set
     integrations:
       screensaver:
         mode: external
@@ -200,10 +217,10 @@ with an error. Omitting a declaration never removes it. Ordinary journal entries
 contain identities and outcomes, not plugin option maps or whole configuration
 files. Previous configuration contents are stored separately with mode 0600.
 
-Generic `rwr uninstall` lists Omarchy as not automatically reversible. Use
-explicit desired-state changes to restore settings, stock activation or routing;
-RWR does not guess old values or delete shared configuration. Semantic capture
-and diff authoring remain follow-up work.
+Generic `rwr uninstall` lists configuration changes as not automatically
+reversible. Use explicit desired-state changes to restore settings, stock
+activation or routing; RWR does not guess old values or delete shared
+configuration. Semantic capture and diff authoring remain follow-up work.
 
 The adapter targets the installed Omarchy plugin catalog/list/validate,
 enable/disable/clone/remove, theme and default command contracts, structured

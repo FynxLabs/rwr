@@ -142,7 +142,7 @@ func TestAllSourcesValidateBeforeInstall(t *testing.T) {
 func TestSettingsMergeAndExplicitUnset(t *testing.T) {
 	t.Parallel()
 	cfg := &types.InitConfig{}
-	raw := `{"omarchy":[{"name":"a","plugins":[{"id":"example.overlay","settings":{"nested":{"one":false}}}]},{"name":"b","plugins":[{"id":"example.overlay","settings":{"nested":{"two":0}}}]}]}`
+	raw := `{"configurations":[{"name":"a","tool":"omarchy","action":"set","plugins":[{"id":"example.overlay","settings":{"nested":{"one":false}}}]},{"name":"b","tool":"omarchy","action":"set","plugins":[{"id":"example.overlay","settings":{"nested":{"two":0}}}]}]}`
 	ops, err := Load([]byte(raw), "json", "/blueprint.json", cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -151,7 +151,7 @@ func TestSettingsMergeAndExplicitUnset(t *testing.T) {
 	if err := c.Apply(context.Background(), ops, func(Result) {}); err != nil {
 		t.Fatal(err)
 	}
-	unset, err := Load([]byte(`{"omarchy":[{"name":"clear","plugins":[{"id":"example.overlay","unset":["nested.one"]}]}]}`), "json", "/blueprint.json", cfg)
+	unset, err := Load([]byte(`{"configurations":[{"name":"clear","tool":"omarchy","action":"set","plugins":[{"id":"example.overlay","unset":["nested.one"]}]}]}`), "json", "/blueprint.json", cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
