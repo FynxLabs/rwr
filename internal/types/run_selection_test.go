@@ -50,6 +50,7 @@ func TestRunSelection(t *testing.T) {
 }
 
 func TestOmarchyIsNotAStandaloneProcessor(t *testing.T) {
+	t.Parallel()
 	if _, err := NormalizeProcessor("omarchy"); err == nil {
 		t.Fatal("omarchy was accepted as a processor; use configuration with tool omarchy")
 	}

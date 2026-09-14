@@ -33,26 +33,52 @@ func ProcessConfiguration(blueprintData []byte, blueprintPath string, format str
 	}}, initConfig)
 }
 
+type selectedConfigurationFile struct {
+	path           string
+	configurations []types.Configuration
+}
+
+type configurationBatch struct {
+	files      []selectedConfigurationFile
+	omarchyOps []omarchy.Operation
+	track      *progress
+}
+
 // ProcessConfigurationFiles applies ordinary configuration entries in file
 // order, then reconciles all selected Omarchy entries as one provider plan.
 // Omarchy placement and conflicts can span files, so applying it once per file
 // would make valid declarations depend on filename order.
 func ProcessConfigurationFiles(files []types.ResolvedFile, initConfig *types.InitConfig) error {
-	type selectedFile struct {
-		path           string
-		configurations []types.Configuration
+	batch, err := prepareConfigurationFiles(files, initConfig)
+	if err != nil {
+		return err
 	}
 
-	selected := make([]selectedFile, 0, len(files))
+	var errs []error
+	for _, file := range batch.files {
+		if err := processConfigurationEntries(file.configurations, filepath.Dir(file.path), initConfig, batch.track); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if !system.Cancelled() {
+		if err := processOmarchyConfiguration(batch.omarchyOps, initConfig, batch.track); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func prepareConfigurationFiles(files []types.ResolvedFile, initConfig *types.InitConfig) (*configurationBatch, error) {
+	selected := make([]selectedConfigurationFile, 0, len(files))
 	ordinary := 0
 	for _, file := range files {
 		var configData types.ConfigData
 		if err := helpers.DecodeBlueprintInto(file.Resolved, file.Format, types.BlueprintTypeConfiguration,
 			helpers.TreeSchemaVersion(initConfig), &configData); err != nil {
-			return fmt.Errorf("error unmarshaling configuration blueprint: %w", err)
+			return nil, fmt.Errorf("error unmarshaling configuration blueprint: %w", err)
 		}
 		configurations := helpers.FilterByProfiles(configData.Configurations, initConfig.Variables.Flags.Profiles)
-		selected = append(selected, selectedFile{path: file.Path, configurations: configurations})
+		selected = append(selected, selectedConfigurationFile{path: file.Path, configurations: configurations})
 		for _, config := range configurations {
 			if config.Tool != "omarchy" {
 				ordinary++
@@ -62,20 +88,14 @@ func ProcessConfigurationFiles(files []types.ResolvedFile, initConfig *types.Ini
 
 	omarchyOps, err := omarchyOperations(files, initConfig)
 	if err != nil {
-		return fmt.Errorf("error planning omarchy configuration: %w", err)
+		return nil, fmt.Errorf("error planning omarchy configuration: %w", err)
 	}
 
 	track := newProgress(types.BlueprintTypeConfiguration)
 	track.expect("", ordinary)
 	track.expect("omarchy", len(omarchyOps))
 
-	for _, file := range selected {
-		if err := processConfigurationEntries(file.configurations, filepath.Dir(file.path), initConfig, track); err != nil {
-			return err
-		}
-	}
-
-	return processOmarchyConfiguration(omarchyOps, initConfig, track)
+	return &configurationBatch{files: selected, omarchyOps: omarchyOps, track: track}, nil
 }
 
 func processConfigurationEntries(configurations []types.Configuration, blueprintDir string, initConfig *types.InitConfig, track *progress) error {

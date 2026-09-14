@@ -96,6 +96,7 @@ func TestCredentialsInProcessorTable(t *testing.T) {
 }
 
 func TestOmarchyUsesConfigurationProcessor(t *testing.T) {
+	t.Parallel()
 	if _, ok := processorShorthand("omarchy"); ok {
 		t.Fatal("omarchy must be a configuration tool, not a standalone processor")
 	}

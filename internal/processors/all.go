@@ -190,29 +190,57 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				if resolveErr != nil {
 					return fatal(resolveErr)
 				}
-				if !system.Cancelled() {
+				batch, prepareErr := prepareConfigurationFiles(resolvedFiles, initConfig)
+				if prepareErr != nil {
+					return fatal(prepareErr)
+				}
+
+				runStep := func(subject string, dispatch func() error) error {
 					for {
-						err = ProcessConfigurationFiles(resolvedFiles, initConfig)
+						err = dispatch()
 						if err == nil {
-							break
+							return nil
 						}
 						if !initConfig.Variables.Flags.Interactive {
-							procErr = err
+							if procErr == nil {
+								procErr = err
+							}
 							stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
-							break
+							return nil
 						}
 						switch reporting.RequestHalt(processor, err) {
 						case reporting.HaltRetry:
-							log.Warnf("Retrying %s after error: %v", processor, err)
+							log.Warnf("Retrying %s after error in %s: %v", processor, subject, err)
 							continue
 						case reporting.HaltSkip:
-							log.Warnf("Skipping past %s error: %v", processor, err)
-							procErr = err
+							log.Warnf("Skipping %s after %s error: %v", subject, processor, err)
+							if procErr == nil {
+								procErr = err
+							}
 							stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
 						default:
-							return fatal(fmt.Errorf("error processing %s: %w", processor, err))
+							return fmt.Errorf("error processing %s: %w", processor, err)
 						}
+						return nil
+					}
+				}
+
+				for _, file := range batch.files {
+					if system.Cancelled() {
 						break
+					}
+					current := file
+					if runErr := runStep(current.path, func() error {
+						return processConfigurationEntries(current.configurations, filepath.Dir(current.path), initConfig, batch.track)
+					}); runErr != nil {
+						return fatal(runErr)
+					}
+				}
+				if !system.Cancelled() {
+					if runErr := runStep("Omarchy reconciliation", func() error {
+						return processOmarchyConfiguration(batch.omarchyOps, initConfig, batch.track)
+					}); runErr != nil {
+						return fatal(runErr)
 					}
 				}
 				reporting.Emit(reporting.ProcFinished{Processor: processor, Err: procErr, Dur: time.Since(procStarted)})

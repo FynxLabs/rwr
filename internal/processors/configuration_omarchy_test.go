@@ -1,12 +1,14 @@
 package processors
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/exectest"
+	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/omarchy"
 	"github.com/fynxlabs/rwr/internal/reporting"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -59,7 +61,7 @@ func TestStandaloneOmarchyBlueprintIsRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = Stage1Error(plan)
-	if err == nil || !strings.Contains(err.Error(), `unknown field "omarchy"`) {
+	if !errors.Is(err, helpers.ErrUnknownBlueprintField) {
 		t.Fatalf("standalone omarchy blueprint was not rejected clearly: %v", err)
 	}
 }
@@ -84,11 +86,96 @@ func TestConfigurationPreflightsOmarchyAcrossFilesBeforeOtherTools(t *testing.T)
 	}
 
 	err := ProcessConfigurationFiles(files, &types.InitConfig{})
-	if err == nil || !strings.Contains(err.Error(), "theme/active") {
+	var conflict *omarchy.DeclarationConflictError
+	if !errors.As(err, &conflict) || conflict.Resource != "theme/active" {
 		t.Fatalf("cross-file Omarchy conflict was not rejected: %v", err)
 	}
 	if len(recorder.Calls) != 0 {
 		t.Fatalf("ordinary configuration ran before Omarchy preflight: %+v", recorder.Calls)
+	}
+}
+
+func TestConfigurationFilesContinueAfterOrdinaryFileError(t *testing.T) {
+	recorder := exectest.New()
+	defer system.SetExecutor(recorder)()
+
+	files := []types.ResolvedFile{
+		{
+			Path:      "/blueprints/first.json",
+			Processor: types.BlueprintTypeConfiguration,
+			Format:    "json",
+			Resolved:  []byte(`{"configurations":[{"name":"broken","tool":"unsupported","action":"set"}]}`),
+		},
+		{
+			Path:      "/blueprints/second.json",
+			Processor: types.BlueprintTypeConfiguration,
+			Format:    "json",
+			Resolved:  []byte(`{"configurations":[{"name":"dock","tool":"macos_defaults","action":"set","key":"orientation","kind":"string","value":"right"}]}`),
+		},
+	}
+
+	err := ProcessConfigurationFiles(files, &types.InitConfig{})
+	if err == nil {
+		t.Fatal("configuration batch discarded the first file error")
+	}
+	if calls := recorder.Find("defaults"); len(calls) != 1 {
+		t.Fatalf("later configuration file did not run: %+v", recorder.Calls)
+	}
+}
+
+func TestAllConfigurationSkipContinuesThroughOmarchy(t *testing.T) {
+	// This test changes process-wide reporting and dry-run state.
+	home, tree := t.TempDir(), t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("HYPRLAND_INSTANCE_SIGNATURE", "")
+	system.SetDryRun(false)
+	t.Cleanup(func() { system.SetDryRun(false); resetFailures() })
+	for path, content := range map[string]string{
+		"01-broken.json":  `{"configurations":[{"name":"broken","tool":"unsupported","action":"set"}]}`,
+		"02-valid.json":   `{"configurations":[{"name":"dock","tool":"macos_defaults","action":"set","key":"orientation","kind":"string","value":"right"}]}`,
+		"03-omarchy.json": `{"configurations":[{"name":"desktop","tool":"omarchy","action":"set","shell":{"idle":{"lock":300}}}]}`,
+		"files.json":      `{"files":[]}`,
+	} {
+		if err := os.WriteFile(filepath.Join(tree, path), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cfg := &types.InitConfig{Init: types.Init{Location: tree, Format: "json"}}
+	cfg.Variables.UserDefined = map[string]interface{}{}
+	cfg.Variables.Flags.Interactive = true
+	halts, ordinaryPlanned, omarchyPlanned := 0, 0, 0
+	laterProcessor := false
+	restore := reporting.Set(omarchyReviewReporter{emit: func(event reporting.Event) {
+		switch e := event.(type) {
+		case reporting.HaltReq:
+			halts++
+			system.SetDryRun(true)
+			if reporting.TryClaim(e.Claim) {
+				e.Decision <- reporting.HaltSkip
+			}
+		case reporting.ResourceDone:
+			if e.Resource.Processor == types.BlueprintTypeConfiguration && e.Resource.Status == types.StatusPlanned {
+				if e.Resource.Provider == "omarchy" {
+					omarchyPlanned++
+				} else {
+					ordinaryPlanned++
+				}
+			}
+		case reporting.ProcStarted:
+			if e.Processor == types.BlueprintTypeFiles {
+				laterProcessor = true
+			}
+		}
+	}})
+	defer restore()
+
+	err := All(cfg, &types.OSInfo{}, []string{types.BlueprintTypeConfiguration, types.BlueprintTypeFiles})
+	if err == nil {
+		t.Fatal("skipped configuration error did not fail the run")
+	}
+	if halts != 1 || ordinaryPlanned != 1 || omarchyPlanned != 1 || !laterProcessor {
+		t.Fatalf("halts=%d ordinary=%d omarchy=%d later=%t", halts, ordinaryPlanned, omarchyPlanned, laterProcessor)
 	}
 }
 

@@ -142,7 +142,12 @@ func ResolveStage1(initConfig *types.InitConfig) (*types.Plan, error) {
 	}
 
 	if _, err := omarchyOperations(plan.Files[types.BlueprintTypeConfiguration], initConfig); err != nil {
-		plan.Diags = append(plan.Diags, types.Diagnostic{Severity: types.SeverityError, Processor: types.BlueprintTypeConfiguration, Msg: err.Error()})
+		plan.Diags = append(plan.Diags, types.Diagnostic{
+			Severity:  types.SeverityError,
+			Processor: types.BlueprintTypeConfiguration,
+			Msg:       err.Error(),
+			Cause:     err,
+		})
 	}
 	return plan, nil
 }

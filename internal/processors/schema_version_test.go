@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -130,8 +131,9 @@ func TestProcessors_RefuseUnsupportedSchemaVersion(t *testing.T) {
 				t.Fatalf("schema_version 99 was accepted; blueprint applied with %d command(s): %+v",
 					len(rec.Calls), rec.Calls)
 			}
-			if !strings.Contains(err.Error(), "99") {
-				t.Errorf("error should name the requested version, got: %v", err)
+			var unsupported *types.UnsupportedSchemaVersionError
+			if !errors.As(err, &unsupported) || unsupported.Version != 99 || unsupported.BlueprintType != tc.name {
+				t.Errorf("wrong unsupported schema version error: %#v (%v)", unsupported, err)
 			}
 			if len(rec.Calls) != 0 {
 				t.Errorf("refused blueprint still ran %d command(s): %+v", len(rec.Calls), rec.Calls)

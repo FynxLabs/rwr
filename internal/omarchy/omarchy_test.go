@@ -181,6 +181,30 @@ func TestStrictSchemaAndConflicts(t *testing.T) {
 		}
 	}
 }
+
+func TestOmarchyRejectsExplicitForeignZeroValues(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name, format, raw string
+	}{
+		{"json false", "json", `{"configurations":[{"name":"desktop","tool":"omarchy","action":"set","elevated":false}]}`},
+		{"json empty", "json", `{"configurations":[{"name":"desktop","tool":"omarchy","action":"set","file":""}]}`},
+		{"json null", "json", `{"configurations":[{"name":"desktop","tool":"omarchy","action":"set","value":null}]}`},
+		{"yaml false", "yaml", "configurations:\n  - name: desktop\n    tool: omarchy\n    action: set\n    run_once: false\n"},
+		{"yaml null", "yaml", "configurations:\n  - name: desktop\n    tool: omarchy\n    action: set\n    value: null\n"},
+		{"toml empty", "toml", "[[configurations]]\nname = \"desktop\"\ntool = \"omarchy\"\naction = \"set\"\nschema = \"\"\n"},
+		{"cue false", "cue", `configurations: [{name: "desktop", tool: "omarchy", action: "set", elevated: false}]`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := Load([]byte(tt.raw), tt.format, "/blueprint."+tt.format, &types.InitConfig{}); err == nil {
+				t.Fatalf("accepted explicitly supplied foreign field: %s", tt.raw)
+			}
+		})
+	}
+}
+
 func TestImportsAndProfilesUseDeclaringDirectory(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
