@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -68,10 +69,6 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
-	if err := resolveBootstrapCredentials(initConfig); err != nil {
-		return err
-	}
-
 	log.Info("Starting bootstrap processor...")
 
 	// The run-once marker is only earned by a bootstrap where every step
@@ -128,6 +125,14 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	if err != nil {
 		return err
 	}
+	// Imports must pass the same credential prohibition before any script runs.
+	resolvedScripts, err := json.Marshal(map[string]any{"scripts": scripts})
+	if err != nil {
+		return err
+	}
+	if err := helpers.ValidateBootstrapCredentials(resolvedScripts, types.FormatJSON, initConfig); err != nil {
+		return err
+	}
 	if err := processBootstrapScripts(helpers.FilterByProfiles(scripts, initConfig.Variables.Flags.Profiles), osInfo, initConfig, blueprintDir); err != nil {
 		return err
 	}
@@ -173,7 +178,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process Files
 	log.Debugf("Processing files from %s", blueprintFile)
-	err = processFiles(bootstrapData.Files, blueprintDir, osInfo, filesTrack)
+	err = processFiles(bootstrapData.Files, blueprintDir, osInfo, filesTrack, initConfig)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err

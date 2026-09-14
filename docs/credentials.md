@@ -88,7 +88,7 @@ The shipped adapter is Bitwarden. Other vendors can implement the provider/sessi
 
 - `gpg-restore`: checks the local identity before vault access, verifies the complete primary-key set and passphrase protection in a private temporary keyring, then imports into the invoking user's GPG home. Trust and Git commit signing are explicit options. GPG must already be installed.
 - `gpg-backup`: exports protected private material, verifies it in a temporary keyring, uploads and downloads the new attachment for verification before deleting the old attachment. Requires a write-authorized binding and `writeProfile`, which must be explicitly selected. Optional `publicSource` and `revocationSource` bindings keep those artifacts separate; a missing local revocation certificate is omitted. A failed cleanup leaves both versions rather than deleting the verified backup.
-- `keyring`: materializes the named `credential` into the OS keyring under a connection/account/credential namespace. Provider-sourced TOTP values cannot be persisted. This is an explicit write, not an automatic cache of every lookup.
+- `keyring`: materializes the named `credential` into the OS keyring under a connection/account/credential namespace. The credential must declare `references` for that connection so runtime reads use the same namespace. Provider-sourced TOTP values cannot be persisted. This is an explicit write, not an automatic cache of every lookup.
 
 Private keys, passphrases and sessions are never journaled. Status reports prior setup without claiming the vault is currently unlocked. Uninstall reports credentials as non-reversible; it does not delete keys, accounts or remote vault contents. Dry-run does not probe a provider, fetch/materialize secrets, or import/export/upload keys.
 
@@ -209,3 +209,5 @@ credentials also.
 
 If you must see a value in the logs, use the `--show-secrets` flag. RWR gives a
 warning while this flag is active.
+
+Bootstrap runs before credential providers. Credential templates and `requiresCredentials` are rejected in bootstrap; put those resources in regular blueprints and run credential setup separately.

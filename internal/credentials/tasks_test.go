@@ -175,18 +175,29 @@ func TestKeyringMaterializationIsConnectionNamespaced(t *testing.T) {
 	r := NewResolver(c)
 	defer r.Close()
 	task := types.CredentialTask{Name: "cache", Kind: "keyring", Credential: "password"}
+	if err := (TaskRunner{Resolver: r, Connection: "one"}).Run(context.Background(), task); err == nil {
+		t.Fatal("reference-less credential accepted for a namespaced keyring task")
+	}
+	if len(ring.entries) != 0 {
+		t.Fatal("invalid task wrote the keyring")
+	}
+	c.Credentials[0].References = []types.CredentialReference{{Connection: "one", Item: "fixture", Field: "password"}}
 	if err := (TaskRunner{Resolver: r, Connection: "one"}).Run(context.Background(), task); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("RWR_TEST_VALUE", "two-value")
+	c.Credentials[0].References[0].Connection = "two"
 	if err := (TaskRunner{Resolver: r, Connection: "two"}).Run(context.Background(), task); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("RWR_TEST_VALUE", "")
+	c.Credentials[0].Sources = []string{"keyring"}
 	if len(ring.entries) != 2 {
 		t.Fatalf("accounts shared a keyring identity: %v", ring.entries)
 	}
 	for _, connection := range c.CredentialProviders {
-		got, err := ring.Get("v1/" + connectionIdentity(connection) + "/password")
+		c.Credentials[0].References[0].Connection = connection.Name
+		got, err := r.Read(context.Background(), "password")
 		if err != nil || got != connection.Name+"-value" {
 			t.Fatal("incorrect materialization")
 		}

@@ -10,7 +10,7 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
-func TestInitialize_LocalYAMLFile(t *testing.T) {
+func TestLoadConfiguration_LocalYAMLFile(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create a test init file
@@ -43,10 +43,10 @@ variables:
 		Profiles: []string{"test"},
 	}
 
-	config, err := Initialize(initFile, flags)
+	config, err := LoadConfiguration(initFile, flags)
 
 	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+		t.Fatalf("LoadConfiguration failed: %v", err)
 	}
 
 	// Verify config was loaded correctly
@@ -67,7 +67,7 @@ variables:
 	}
 }
 
-func TestInitialize_TOMLFile(t *testing.T) {
+func TestLoadConfiguration_TOMLFile(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create a test TOML init file
@@ -90,10 +90,10 @@ env = "test"
 		Debug: false,
 	}
 
-	config, err := Initialize(initFile, flags)
+	config, err := LoadConfiguration(initFile, flags)
 
 	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+		t.Fatalf("LoadConfiguration failed: %v", err)
 	}
 
 	// TOML should be converted to YAML internally
@@ -106,7 +106,7 @@ env = "test"
 	}
 }
 
-func TestInitialize_WithGitRepository(t *testing.T) {
+func TestLoadConfiguration_WithGitRepository(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create a test init file with git config
@@ -129,10 +129,10 @@ blueprints:
 		Debug: true,
 	}
 
-	config, err := Initialize(initFile, flags)
+	config, err := LoadConfiguration(initFile, flags)
 
 	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+		t.Fatalf("LoadConfiguration failed: %v", err)
 	}
 
 	// Verify git configuration
@@ -179,12 +179,12 @@ func TestSetBlueprintsLocationDryRunDoesNotCreateGitTarget(t *testing.T) {
 	}
 }
 
-func TestInitialize_MissingFile(t *testing.T) {
+func TestLoadConfiguration_MissingFile(t *testing.T) {
 	flags := types.Flags{
 		Debug: true,
 	}
 
-	_, err := Initialize("/nonexistent/init.yaml", flags)
+	_, err := LoadConfiguration("/nonexistent/init.yaml", flags)
 
 	if err == nil {
 		t.Error("Expected error for missing init file")
@@ -195,7 +195,7 @@ func TestInitialize_MissingFile(t *testing.T) {
 	}
 }
 
-func TestInitialize_InvalidYAML(t *testing.T) {
+func TestLoadConfiguration_InvalidYAML(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create invalid YAML
@@ -215,14 +215,14 @@ blueprints:
 		Debug: true,
 	}
 
-	_, err := Initialize(initFile, flags)
+	_, err := LoadConfiguration(initFile, flags)
 
 	if err == nil {
 		t.Error("Expected error for invalid YAML")
 	}
 }
 
-func TestInitialize_TemplateVariables(t *testing.T) {
+func TestLoadConfiguration_TemplateVariables(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create init file with template variables
@@ -245,10 +245,10 @@ variables:
 		Debug: true,
 	}
 
-	config, err := Initialize(initFile, flags)
+	config, err := LoadConfiguration(initFile, flags)
 
 	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+		t.Fatalf("LoadConfiguration failed: %v", err)
 	}
 
 	// Variables should be populated with current user info
@@ -261,7 +261,7 @@ variables:
 	}
 }
 
-func TestInitialize_EnvironmentVariables(t *testing.T) {
+func TestLoadConfiguration_EnvironmentVariables(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Set test environment variable
@@ -283,10 +283,10 @@ blueprints:
 		Debug: true,
 	}
 
-	config, err := Initialize(initFile, flags)
+	config, err := LoadConfiguration(initFile, flags)
 
 	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+		t.Fatalf("LoadConfiguration failed: %v", err)
 	}
 
 	// Environment variable should be included in user-defined variables
@@ -295,7 +295,7 @@ blueprints:
 	}
 }
 
-func TestInitialize_RelativePaths(t *testing.T) {
+func TestLoadConfiguration_RelativePaths(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create init file with relative paths
@@ -314,10 +314,10 @@ blueprints:
 		Debug: true,
 	}
 
-	config, err := Initialize(initFile, flags)
+	config, err := LoadConfiguration(initFile, flags)
 
 	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+		t.Fatalf("LoadConfiguration failed: %v", err)
 	}
 
 	// Location should be resolved relative to init file
@@ -327,8 +327,8 @@ blueprints:
 	}
 }
 
-// BenchmarkInitialize tests the performance of initialization.
-func BenchmarkInitialize(b *testing.B) {
+// BenchmarkLoadConfiguration tests the performance of initialization.
+func BenchmarkLoadConfiguration(b *testing.B) {
 	tempDir := b.TempDir()
 
 	initContent := `
@@ -352,19 +352,19 @@ blueprints:
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := Initialize(initFile, flags)
+		_, err := LoadConfiguration(initFile, flags)
 		if err != nil {
-			b.Fatalf("Initialize failed: %v", err)
+			b.Fatalf("LoadConfiguration failed: %v", err)
 		}
 	}
 }
 
 // The `variables.userDefined` block is documented in docs/variables.md and used by
 // the shipped examples, but it decoded into nothing: Variables carried only
-// mapstructure tags and was embedded with `mapstructure:",squash"`, and Initialize
+// mapstructure tags and was embedded with `mapstructure:",squash"`, and LoadConfiguration
 // then overwrote the whole struct with the computed defaults. Every
 // {{ .UserDefined.x }} in a blueprint rendered "<no value>".
-func TestInitialize_UserDefinedVariablesAreReadFromInitFile(t *testing.T) {
+func TestLoadConfiguration_UserDefinedVariablesAreReadFromInitFile(t *testing.T) {
 	tempDir := t.TempDir()
 
 	initContent := `
@@ -386,9 +386,9 @@ variables:
 		t.Fatalf("Failed to create test init file: %v", err)
 	}
 
-	config, err := Initialize(initFile, types.Flags{})
+	config, err := LoadConfiguration(initFile, types.Flags{})
 	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+		t.Fatalf("LoadConfiguration failed: %v", err)
 	}
 
 	if got := config.Variables.UserDefined["project_name"]; got != "rwr" {
@@ -409,7 +409,7 @@ variables:
 
 // A .cue init file is evaluated to concrete JSON and fed to viper - same
 // treatment TOML gets via its YAML pre-conversion.
-func TestInitialize_CueInitFile(t *testing.T) {
+func TestLoadConfiguration_CueInitFile(t *testing.T) {
 	dir := t.TempDir()
 	initFile := filepath.Join(dir, "init.cue")
 	content := `
@@ -423,9 +423,9 @@ packageManagers: [{name: "brew", action: "install"}]
 		t.Fatal(err)
 	}
 
-	initConfig, err := Initialize(initFile, types.Flags{})
+	initConfig, err := LoadConfiguration(initFile, types.Flags{})
 	if err != nil {
-		t.Fatalf("Initialize(cue): %v", err)
+		t.Fatalf("LoadConfiguration(cue): %v", err)
 	}
 	if initConfig.Init.Location != dir {
 		t.Errorf("Init.Location = %q, want %q", initConfig.Init.Location, dir)
@@ -438,7 +438,7 @@ packageManagers: [{name: "brew", action: "install"}]
 // The init file's inline resource sections were decoded, validated, and never
 // applied. They are gone from the schema; strict decode turns a leftover key
 // into an error naming it instead of a silent no-op.
-func TestInitialize_InlineResourceSectionsAreRejected(t *testing.T) {
+func TestLoadConfiguration_InlineResourceSectionsAreRejected(t *testing.T) {
 	dir := t.TempDir()
 	initFile := filepath.Join(dir, "init.yaml")
 	content := `
@@ -453,7 +453,7 @@ packages:
 		t.Fatal(err)
 	}
 
-	_, err := Initialize(initFile, types.Flags{})
+	_, err := LoadConfiguration(initFile, types.Flags{})
 	if err == nil || !strings.Contains(err.Error(), "packages") {
 		t.Fatalf("err = %v, want a strict-decode error naming the packages key", err)
 	}

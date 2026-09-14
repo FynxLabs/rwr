@@ -99,6 +99,13 @@ func (p *bitwardenProvider) Open(ctx context.Context, c types.CredentialConnecti
 		if filepath.Separator == '\\' {
 			binary += ".exe"
 		}
+		info, err := os.Stat(binary)
+		if err != nil {
+			return nil, fmt.Errorf("bitwarden installation failed: installed executable unavailable: %w", err)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("bitwarden installation failed: installed executable is not a regular file")
+		}
 	}
 	base, err := os.UserConfigDir()
 	if err != nil {

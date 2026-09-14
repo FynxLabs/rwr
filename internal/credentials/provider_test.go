@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -160,5 +161,25 @@ func TestTerminalRedactorHandlesChunkBoundaries(t *testing.T) {
 		if output.String() != "prefix [redacted] and [redacted] suffix" {
 			t.Fatalf("size=%d output=%q", size, output.String())
 		}
+	}
+}
+
+func TestProtectedDiagnosticsRedactKnownInputsAndOutput(t *testing.T) {
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("shell fixture unavailable")
+	}
+	restore := types.ScopeCredentialValues(map[string]string{"scoped": "scoped-secret"})
+	defer restore()
+	_, err := protectedCommand(context.Background(), "sh", []string{"-c", `printf 'output-secret\n'; printf 'agent socket unavailable: ' >&2; printf 'master-secret passphrase-secret armored-key-line scoped-secret output-secret' >&2; exit 2`}, map[string]string{"RWR_BW_PASSWORD": "master-secret"}, nil, []string{"passphrase-secret", "armored-key-line"})
+	if err == nil {
+		t.Fatal("expected command failure")
+	}
+	for _, secret := range []string{"master-secret", "passphrase-secret", "armored-key-line", "scoped-secret", "output-secret"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Fatal("diagnostic exposed a secret")
+		}
+	}
+	if !strings.Contains(err.Error(), "exit status 2") || !strings.Contains(err.Error(), "[redacted]") || !strings.Contains(err.Error(), "agent socket unavailable") {
+		t.Fatalf("missing diagnostic: %v", err)
 	}
 }

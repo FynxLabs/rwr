@@ -10,6 +10,15 @@ import (
 // ValidateCredentialDependencies checks references without acquiring values.
 // Full validation invokes it on all resources; runtime checks after profiles.
 func ValidateCredentialDependencies(data []byte, format string, c *types.InitConfig) error {
+	return validateCredentialDependencies(data, format, c, false)
+}
+
+// ValidateBootstrapCredentials rejects secret use before providers are ready.
+func ValidateBootstrapCredentials(data []byte, format string, c *types.InitConfig) error {
+	return validateCredentialDependencies(data, format, c, true)
+}
+
+func validateCredentialDependencies(data []byte, format string, c *types.InitConfig, bootstrap bool) error {
 	known := map[string]bool{"gh_api_token": true, "ssh_private_key": true, "bw_session": true}
 	for _, s := range c.Credentials {
 		known[s.Name] = true
@@ -17,6 +26,9 @@ func ValidateCredentialDependencies(data []byte, format string, c *types.InitCon
 	names := ReferencedCredentials(data)
 	for _, m := range CredentialTokenPattern.FindAllSubmatch(data, -1) {
 		names = append(names, string(m[1]))
+	}
+	if bootstrap && len(names) > 0 {
+		return fmt.Errorf("bootstrap cannot use credentials; move credential-dependent resources to a regular blueprint and run credentials setup separately")
 	}
 	for _, name := range names {
 		if !known[name] {
@@ -36,6 +48,9 @@ func ValidateCredentialDependencies(data []byte, format string, c *types.InitCon
 					names, ok := item.([]interface{})
 					if !ok {
 						return fmt.Errorf("requiresCredentials must be a list")
+					}
+					if bootstrap && len(names) > 0 {
+						return fmt.Errorf("bootstrap cannot require credentials; move credential-dependent resources to a regular blueprint and run credentials setup separately")
 					}
 					for _, raw := range names {
 						name, ok := raw.(string)

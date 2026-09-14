@@ -18,6 +18,12 @@ import (
 // Errors identify the operation, never vendor stdout/stderr. Env is child-only.
 // Input must contain no trailing protocol data beyond what the executable needs.
 func ProtectedCommand(ctx context.Context, executable string, args []string, env map[string]string, input io.Reader) ([]byte, error) {
+	return protectedCommand(ctx, executable, args, env, input, nil)
+}
+
+// Diagnostics are opt-in for commands whose credential inputs are known. Vault
+// reads can print new, unknown secrets on stderr and must keep it suppressed.
+func protectedCommand(ctx context.Context, executable string, args []string, env map[string]string, input io.Reader, diagnosticSecrets []string) ([]byte, error) {
 	if system.IsDryRun() {
 		return nil, fmt.Errorf("credential command is prohibited during dry-run")
 	}
@@ -26,11 +32,29 @@ func ProtectedCommand(ctx context.Context, executable string, args []string, env
 	cmd.Stdin = input
 	var output bytes.Buffer
 	cmd.Stdout = &output
-	// Never expose raw diagnostic text: it can contain fetched values and tokens.
+	var diagnostic bytes.Buffer
 	cmd.Stderr = io.Discard
+	if diagnosticSecrets != nil {
+		cmd.Stderr = &diagnostic
+	}
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		if diagnosticSecrets != nil {
+			secrets := append(types.ResolvedSecrets(), diagnosticSecrets...)
+			for key, value := range env {
+				if types.IsCredentialEnvironmentKey(key) {
+					secrets = append(secrets, value)
+				}
+			}
+			// Failed commands can emit credential-bearing stdout as well.
+			secrets = append(secrets, strings.Split(output.String(), "\n")...)
+			var redacted bytes.Buffer
+			writer := types.NewSecretWriter(&redacted, secrets)
+			_, _ = fmt.Fprintf(writer, "%v: %s", err, diagnostic.String()) //nolint:errcheck // bytes.Buffer cannot fail
+			writer.Flush()
+			return nil, fmt.Errorf("%s operation failed: %s", executable, strings.TrimSpace(redacted.String()))
 		}
 		return nil, fmt.Errorf("%s operation failed", executable)
 	}

@@ -255,6 +255,11 @@ func validateBlueprintFile(blueprintFile string, initConfig *types.InitConfig, r
 		AddIssue(results, types.ValidationError, formatErr.Error(), blueprintFile, 0, "Use a file with a supported blueprint extension")
 		return nil
 	}
+	if blueprintType == types.BlueprintTypeBootstrap {
+		if err := helpers.ValidateBootstrapCredentials(blueprintFileData, format, initConfig); err != nil {
+			return err
+		}
+	}
 	if err := helpers.ValidateCredentialDependencies(blueprintFileData, format, initConfig); err != nil {
 		return err
 	}

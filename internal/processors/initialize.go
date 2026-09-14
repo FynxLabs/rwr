@@ -17,22 +17,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Initialize loads and parses the init configuration file from a local path or URL.
-// It resolves template variables, sets up system paths, and returns the fully
-// populated InitConfig used to drive all subsequent blueprint processing.
-// selectedProcessors names the blueprint types this run will execute (empty means
-// all); a declared credential scoped to none of them is not resolved.
-func Initialize(initFilePath string, flags types.Flags, selectedProcessors ...string) (*types.InitConfig, error) {
-	return initialize(initFilePath, flags)
-}
-
-// LoadConfiguration reads the tree without requiring runtime credentials. Read-only
-// commands and blueprint bootstrap must work before vault tools are installed.
+// LoadConfiguration reads and parses the init file without acquiring credentials.
+// Every command can load its configuration before vault tools are installed;
+// credentials are acquired only by explicit setup or an individual resource.
 func LoadConfiguration(initFilePath string, flags types.Flags) (*types.InitConfig, error) {
-	return initialize(initFilePath, flags)
-}
-
-func initialize(initFilePath string, flags types.Flags) (*types.InitConfig, error) {
 	var initConfig types.InitConfig
 	var err error
 	var fileExt string
@@ -297,6 +285,3 @@ func setUserDefinedAndEnvVariables(initConfig *types.InitConfig) error {
 
 	return nil
 }
-
-// Kept for internal callers during migration. Acquisition is resource-local.
-func resolveBootstrapCredentials(_ *types.InitConfig) error { return nil }

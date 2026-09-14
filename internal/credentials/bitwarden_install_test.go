@@ -2,12 +2,15 @@ package credentials
 
 import (
 	"archive/zip"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/types"
@@ -163,5 +166,40 @@ func TestBitwardenAssetPlatforms(t *testing.T) {
 	}
 	if _, err := bitwardenAssetName("linux", "riscv64", "1.0"); err == nil {
 		t.Fatal("unsupported platform accepted")
+	}
+}
+
+func TestProviderRejectsIncompleteInstallation(t *testing.T) {
+	for _, directory := range []bool{false, true} {
+		t.Run(fmt.Sprint(directory), func(t *testing.T) {
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			t.Setenv("APPDATA", t.TempDir())
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv("PATH", "")
+			oldInstall, oldCommand := installBitwarden, providerCommand
+			defer func() { installBitwarden, providerCommand = oldInstall, oldCommand }()
+			installBitwarden = func() error {
+				if directory {
+					dir, err := bitwardenBinDir()
+					if err != nil {
+						return err
+					}
+					name := "bw"
+					if runtime.GOOS == "windows" {
+						name += ".exe"
+					}
+					return os.MkdirAll(filepath.Join(dir, name), 0700)
+				}
+				return nil
+			}
+			providerCommand = func(context.Context, string, []string, map[string]string, io.Reader) ([]byte, error) {
+				t.Fatal("incomplete installation reached bw status")
+				return nil, nil
+			}
+			_, err := OpenProvider(context.Background(), types.CredentialConnection{Name: "one", Provider: "bitwarden"}, SetupOptions{Install: true})
+			if err == nil || !strings.Contains(err.Error(), "bitwarden installation failed") {
+				t.Fatalf("installation error=%v", err)
+			}
+		})
 	}
 }

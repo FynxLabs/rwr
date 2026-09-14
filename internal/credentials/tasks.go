@@ -61,6 +61,9 @@ func (t TaskRunner) Validate(task types.CredentialTask) error {
 	if task.Kind == "keyring" {
 		for _, s := range t.Resolver.Config.Credentials {
 			if s.Name == task.Credential {
+				if len(s.References) == 0 {
+					return fmt.Errorf("keyring tasks require a provider-backed credential with references")
+				}
 				for _, ref := range s.References {
 					if ref.Field == "totp" {
 						return fmt.Errorf("TOTP values cannot be persisted")
@@ -125,7 +128,9 @@ func gpg(ctx context.Context, home string, args []string, input []byte) ([]byte,
 		env["GNUPGHOME"] = home
 	}
 	args = append([]string{"--batch", "--no-tty"}, args...)
-	return ProtectedCommand(ctx, "gpg", args, env, bytes.NewReader(input))
+	// GPG diagnostics describe local keyring failures. Redact every input line,
+	// including passphrases and armored key material, before surfacing them.
+	return protectedCommand(ctx, "gpg", args, env, bytes.NewReader(input), strings.Split(string(input), "\n"))
 }
 func keyFingerprints(raw []byte) []string {
 	var result []string
@@ -182,7 +187,7 @@ func verifyGPG(ctx context.Context, material []byte, fp, passphrase string) (str
 	}
 	fail := func(err error) (string, func(), error) { cleanup(); return "", nil, err }
 	if _, err := gpg(ctx, dir, []string{"--import"}, material); err != nil {
-		return fail(fmt.Errorf("temporary key import failed"))
+		return fail(fmt.Errorf("temporary key import failed: %w", err))
 	}
 	raw, err := gpg(ctx, dir, []string{"--with-colons", "--list-keys"}, nil)
 	if err != nil {
@@ -268,7 +273,7 @@ func (t TaskRunner) restore(ctx context.Context, task types.CredentialTask) erro
 	}
 	defer cleanup()
 	if _, err := gpg(ctx, "", []string{"--import"}, material); err != nil {
-		return fmt.Errorf("verified key import failed")
+		return fmt.Errorf("verified key import failed: %w", err)
 	}
 	return configureGPG(ctx, task)
 }
