@@ -239,3 +239,5 @@ rwr all --config ~/rwr-work --profile work --profile dev
 ```
 
 For more detailed information on each command and its usage, please refer to the specific blueprint type documentation or the [Configuration File](configuration.md) page.
+
+`rwr run omarchy` (alias `rwr omarchy`) applies post-login Omarchy resources. See [Omarchy setup](../blueprints/omarchy.md).

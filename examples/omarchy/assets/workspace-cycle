@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Read the same limit as Workspace Switcher; do not maintain a second setting.
+set -euo pipefail
+case ${1:-} in next|previous) direction=$1 ;; *) exit 2 ;; esac
+current=$(hyprctl activeworkspace -j | jq -er '.id | select(type == "number" and . == floor)')
+config="$HOME/.config/omarchy/shell.json"
+limit=10
+if [[ -f $config ]]; then
+  limit=$(jq -er '
+    [.plugins[]?, .bar.layout.left[]?, .bar.layout.center[]?, .bar.layout.right[]?]
+    | map(select(.id == "io.github.woogy7.workspaces"))
+    | (first.maxWorkspaces // 10)
+    | select(type == "number" and . == floor and . >= 1 and . <= 2147483647)
+  ' "$config")
+fi
+case $direction in
+  next) if (( current < 1 || current >= limit )); then target=1; else target=$((current + 1)); fi ;;
+  previous) if (( current <= 1 || current > limit )); then target=$limit; else target=$((current - 1)); fi ;;
+esac
+hyprctl dispatch "hl.dsp.focus({ workspace = \"$target\" })"

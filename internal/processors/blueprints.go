@@ -150,6 +150,7 @@ var defaultRunOrder = []string{
 	types.BlueprintTypeGit,
 	types.BlueprintTypeScripts,
 	types.BlueprintTypeConfiguration,
+	types.BlueprintTypeOmarchy,
 }
 
 // GetBlueprintRunOrder determines the order in which blueprint processors should run.
@@ -206,7 +207,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		for _, part := range parts {
 			switch part {
 			case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
-				types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration:
+				types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration, types.BlueprintTypeOmarchy:
 				return part
 			}
 		}
@@ -216,7 +217,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 	isKnownProcessor := func(processor string) bool {
 		switch processor {
 		case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
-			types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration:
+			types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration, types.BlueprintTypeOmarchy:
 			return true
 		}
 		return false
@@ -393,6 +394,7 @@ var blueprintKeyToType = map[string]string{
 	"users":          types.BlueprintTypeUsers,
 	"groups":         types.BlueprintTypeUsers,
 	"configurations": types.BlueprintTypeConfiguration,
+	"omarchy":        types.BlueprintTypeOmarchy,
 }
 
 // detectBlueprintTypesFromContent types a blueprint by its top-level keys,

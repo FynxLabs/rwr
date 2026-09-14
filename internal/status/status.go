@@ -1,10 +1,13 @@
 package status
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/fynxlabs/rwr/internal/omarchy"
 
 	"github.com/fynxlabs/rwr/internal/display"
 	"github.com/fynxlabs/rwr/internal/state"
@@ -108,6 +111,26 @@ func classify(resource types.Resource, entry *state.Entry, querier *Querier) Row
 	row := Row{Processor: resource.Processor, Name: resource.Name}
 
 	switch resource.Processor {
+	case types.BlueprintTypeOmarchy:
+		var desired omarchy.Operation
+		if err := json.Unmarshal(resource.DesiredState, &desired); err != nil {
+			row.Class, row.Note = UnknownItem, "desired resource unavailable"
+			return row
+		}
+		client, err := omarchy.NewClient(false)
+		if err != nil {
+			row.Class, row.Note = UnknownItem, err.Error()
+			return row
+		}
+		matches, err := client.Satisfied(system.RunContext(), desired)
+		if err != nil {
+			row.Class, row.Note = UnknownItem, err.Error()
+		} else if matches {
+			row.Class = InSync
+		} else {
+			row.Class = ModifiedItem
+		}
+
 	case types.BlueprintTypePackages:
 		provider, ok := system.GetProvider(providerFor(resource, entry))
 		if !ok {

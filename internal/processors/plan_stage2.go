@@ -33,6 +33,10 @@ func ResolveStage2(plan *types.Plan, osInfo *types.OSInfo) {
 	}
 
 	for processor, files := range plan.Files {
+		if processor == types.BlueprintTypeOmarchy {
+			plan.Resources = append(plan.Resources, omarchyResources(files, plan.Init)...)
+			continue
+		}
 		for _, file := range files {
 			plan.Resources = append(plan.Resources, enumerateResources(processor, file, defaultProvider)...)
 		}

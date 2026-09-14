@@ -36,6 +36,7 @@ var reverseOrder = []string{
 var NotReversible = []string{
 	types.BlueprintTypeScripts,
 	types.BlueprintTypeConfiguration,
+	types.BlueprintTypeOmarchy,
 	types.BlueprintTypeUsers,
 	types.BlueprintTypeSSHKeys,
 	types.BlueprintTypeRepositories,

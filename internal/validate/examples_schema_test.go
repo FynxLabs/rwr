@@ -39,6 +39,8 @@ func blueprintTarget(kind string) interface{} {
 		return &types.FontsData{}
 	case types.BlueprintTypeUsers:
 		return &types.UsersData{}
+	case types.BlueprintTypeOmarchy:
+		return &types.OmarchyData{}
 	case types.BlueprintTypeConfiguration:
 		return &types.ConfigData{}
 	default:
