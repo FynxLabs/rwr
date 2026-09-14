@@ -78,6 +78,11 @@ func githubAuthIfRequested(app *AppConfig) error {
 // runOneProcessor dispatches a single processor, shared by the `rwr run <p>`
 // subcommands and the root-level shorthand (`rwr packages`, mise-style).
 func runOneProcessor(app *AppConfig, p runProcessorSpec) error {
+	selection, err := processors.SelectRun(app.InitConfig, []string{p.use})
+	if err != nil {
+		return err
+	}
+	app.InitConfig.Variables.Flags.Selection = &selection
 	if p.githubAuth {
 		if err := githubAuthIfRequested(app); err != nil {
 			return err
@@ -152,6 +157,7 @@ type runProcessorSpec struct {
 }
 
 var runProcessors = []runProcessorSpec{
+	{use: "credentials", short: "Set up credential providers and native credential tasks", blueprint: "credentials"},
 	{use: "bootstrap", short: "Run the bootstrap processor (ignores the run-once marker)", bootstrap: true},
 	{use: "packages", short: "Run packages processor", blueprint: "packages"},
 	{use: "repository", short: "Run repository processor", blueprint: "repositories"},

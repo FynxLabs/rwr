@@ -146,6 +146,17 @@ func enumerateResources(processor string, file types.ResolvedFile, defaultProvid
 		for _, repo := range d.Repos {
 			addAt("", repo.Name, repo.Action, system.ExpandPath(repo.Path))
 		}
+	case types.BlueprintTypeCredentials:
+		var d types.CredentialSetupData
+		if helpers.DecodeBlueprintInto(file.Resolved, file.Format, processor, 0, &d) != nil {
+			return nil
+		}
+		for _, e := range d.Entries {
+			add(e.Connection, e.Name, "setup")
+			for _, task := range e.Tasks {
+				add(e.Connection, e.Name+"/"+task.Name, task.Kind)
+			}
+		}
 	case types.BlueprintTypeScripts:
 		var d types.ScriptData
 		if helpers.DecodeBlueprintInto(file.Resolved, file.Format, processor, 0, &d) != nil {

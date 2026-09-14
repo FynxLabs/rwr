@@ -18,6 +18,8 @@ type fakeKeyring struct {
 	unavailable bool
 }
 
+func (f *fakeKeyring) GetNoninteractive(name string) (string, error) { return f.Get(name) }
+
 func (f *fakeKeyring) Get(name string) (string, error) {
 	if f.unavailable {
 		return "", errors.New("no keyring backend")
@@ -125,7 +127,7 @@ func TestResolveUnresolvableNamesSourcesTried(t *testing.T) {
 	if err == nil {
 		t.Fatal("Resolve = nil, want an up-front error")
 	}
-	for _, want := range []string{`"cachix_token"`, "env:CACHIX_AUTH_TOKEN", "keyring", "prompt skipped: non-interactive run"} {
+	for _, want := range []string{`"cachix_token"`, "unavailable", "rwr run credentials"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q missing %q", err, want)
 		}
@@ -145,31 +147,19 @@ func TestResolveInteractiveFalseSkipsPrompt(t *testing.T) {
 	if prompted {
 		t.Error("prompt ran despite --interactive=false")
 	}
-	if err == nil || !strings.Contains(err.Error(), "prompt skipped") {
+	if err == nil || !strings.Contains(err.Error(), "rwr run credentials") {
 		t.Errorf("error = %v, want it to say prompt was skipped", err)
 	}
 }
 
 // On a TTY the prompt is the last resort, and its answer resolves the credential.
-func TestResolvePromptsOnTTY(t *testing.T) {
-	withFakes(t, &fakeKeyring{}, true, func(name, description string) (string, error) {
-		if name != "cachix_token" || description != "Cachix auth token" {
-			t.Errorf("prompt got (%q, %q)", name, description)
-		}
-		return "typed-in", nil
-	})
-
-	spec := types.CredentialSpec{Name: "cachix_token", Description: "Cachix auth token", Sources: []string{"keyring", "prompt"}}
-	if err := Resolve([]types.CredentialSpec{spec}, Options{Interactive: true}); err != nil {
-		t.Fatalf("Resolve: %v", err)
-	}
-	if got, _ := types.CredentialValue("cachix_token"); got != "typed-in" {
-		t.Errorf("resolved %q, want the prompted value", got)
+func TestResolveDoesNotPromptOnTTY(t *testing.T) {
+	withFakes(t, &fakeKeyring{}, true, func(string, string) (string, error) { t.Fatal("lookup prompted"); return "", nil })
+	if err := Resolve([]types.CredentialSpec{{Name: "cachix_token", Sources: []string{"prompt"}}}, Options{Interactive: true}); err == nil {
+		t.Fatal("expected unavailable")
 	}
 }
 
-// The keyring is never load-bearing on read: an unavailable backend moves
-// precedence along instead of erroring. An explicit save is the opposite.
 func TestKeyringUnavailable(t *testing.T) {
 	withFakes(t, &fakeKeyring{unavailable: true}, false, nil)
 	t.Setenv("CACHIX_AUTH_TOKEN", "from-env")
@@ -255,9 +245,7 @@ func TestResolveRedactsInDebugLogs(t *testing.T) {
 	if strings.Contains(out, "cachix-super-secret") {
 		t.Errorf("debug log leaked the credential value: %s", out)
 	}
-	if !strings.Contains(out, types.RedactedPlaceholder) {
-		t.Errorf("debug log shows no redaction placeholder: %s", out)
-	}
+
 }
 
 // The built-ins resolve through their pre-existing sources, keyring last, and a

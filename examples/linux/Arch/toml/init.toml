@@ -31,3 +31,9 @@ company = "MyCompany"
 department = "Engineering"
 editor_theme = "dracula"
 editor_plugins = "basic"
+
+# Explicit setup: rwr run credentials --profile bitwarden
+[[credentialProviders]]
+name = "personal-vault"
+provider = "bitwarden"
+server = "https://vault.bitwarden.com"

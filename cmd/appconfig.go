@@ -24,6 +24,7 @@ type AppConfig struct {
 	DryRun           bool
 	LogLevel         string
 	Profiles         []string
+	Except           []string
 
 	// Paths
 	ConfigPath      string // --config: overrides where the config file is looked up

@@ -100,3 +100,13 @@ func SaveToKeyring(name, value string) error {
 	}
 	return nil
 }
+
+// FromKeyringNoninteractive never uses a backend capable of prompting.
+func FromKeyringNoninteractive(name string) (string, bool) {
+	reader, ok := Ring.(NoninteractiveKeyring)
+	if !ok {
+		return "", false
+	}
+	value, err := reader.GetNoninteractive(name)
+	return value, err == nil && value != ""
+}

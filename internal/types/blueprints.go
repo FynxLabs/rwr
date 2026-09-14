@@ -5,7 +5,8 @@
 package types
 
 type Init struct {
-	Format string `mapstructure:"format" yaml:"format" json:"format" toml:"format"`
+	Except []string `mapstructure:"except,omitempty" yaml:"except,omitempty" json:"except,omitempty" toml:"except,omitempty"`
+	Format string   `mapstructure:"format" yaml:"format" json:"format" toml:"format"`
 	// SchemaVersion is the blueprint schema version this tree is written in. It
 	// applies to every blueprint type, and an individual blueprint file may
 	// override it by declaring its own. Zero means undeclared, which resolves to

@@ -88,3 +88,7 @@ per name, is read by `files`, `templates`, `packages` and `fonts`.
 
 `directories` and `configurations` accept a `names` key and do **not** read it -
 write one entry per item there. Every other type rejects `names` outright.
+
+## Credential dependencies
+
+Scripts, files, templates and directories accept `requiresCredentials: [name]` and `onCredentialUnavailable: skip|fail`. These are checked after profile selection. Exposing a credential alone does not acquire it. See [credentials](../credentials.md).

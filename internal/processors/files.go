@@ -55,7 +55,7 @@ func ProcessFiles(blueprintData []byte, blueprintDir string, format string, osIn
 		return fmt.Errorf("error processing directories: %w", err)
 	}
 
-	if err := processFiles(files, blueprintDir, osInfo, track); err != nil {
+	if err := processFiles(files, blueprintDir, osInfo, track, initConfig); err != nil {
 		return fmt.Errorf("error processing files: %w", err)
 	}
 
@@ -106,7 +106,7 @@ func resolveAndFilterFileData(blueprintData []byte, blueprintDir string, format 
 
 // One file failing does not stop the rest: the failure goes to the ledger,
 // which puts it in the run's exit code, and processing continues.
-func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo, track *progress) error {
+func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo, track *progress, initConfig *types.InitConfig) error {
 	total := 0
 	for _, file := range files {
 		if len(file.Names) > 0 {
@@ -118,6 +118,12 @@ func processFiles(files []types.File, blueprintDir string, osInfo *types.OSInfo,
 	track.expect("", total)
 
 	run := func(file types.File) {
+		cleanup, ready := prepareCredentialResource(&file, file.CredentialDependencies, initConfig, types.BlueprintTypeFiles, file.Name, file.Action, track)
+		if !ready {
+			return
+		}
+		defer cleanup()
+
 		started := time.Now()
 		switch err := processFile(file, blueprintDir, osInfo); {
 		case err != nil:

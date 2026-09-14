@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/fynxlabs/rwr/internal/system"
@@ -13,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func TestBootstrapInstallsCredentialToolBeforeResolution(t *testing.T) {
+func TestBootstrapDoesNotTriggerCredentialResolution(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX fixture")
 	}
@@ -38,8 +39,8 @@ func TestBootstrapInstallsCredentialToolBeforeResolution(t *testing.T) {
 	if err := All(config, &types.OSInfo{}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if value, _ := types.CredentialValue("bootstrap_secret"); value != "vault-value" {
-		t.Fatal("did not use bootstrapped CLI")
+	if value, _ := types.CredentialValue("bootstrap_secret"); value != "" {
+		t.Fatal("bootstrap unexpectedly resolved credentials")
 	}
 	if _, err := os.Stat(filepath.Join(configDir, "bootstrap")); err != nil {
 		t.Fatal("bootstrap not marked successful")
@@ -115,5 +116,44 @@ func TestBootstrapRetrySkipsCompletedPreparationScripts(t *testing.T) {
 	data, err := os.ReadFile(counter)
 	if err != nil || string(data) != "x" {
 		t.Fatalf("successful preparation repeated: %q, %v", data, err)
+	}
+}
+
+func TestBootstrapRejectsCredentialsBeforeMutation(t *testing.T) {
+	for _, content := range []string{
+		"files:\n - name: out.txt\n   action: create\n   target: .\n   content: '{{ .Credentials.testcred }}'\n",
+		"directories:\n - name: '{{ .Credentials.testcred }}'\n   action: create\n   target: .\n",
+		"scripts:\n - name: prepare\n   action: run\n   requiresCredentials: [testcred]\n   content: invalid executable\n",
+	} {
+		for _, standalone := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/standalone=%t", strings.Split(content, ":")[0], standalone), func(t *testing.T) {
+				defer system.BeginRun()()
+				viper.Reset()
+				defer viper.Reset()
+				configDir := t.TempDir()
+				viper.Set("rwr.configdir", configDir)
+				tree := writeBlueprintTree(t, map[string]string{"bootstrap.yaml": content})
+				config := treeConfig(tree)
+				config.Credentials = []types.CredentialSpec{{Name: "testcred", Sources: []string{"env:RWR_TEST_BOOTSTRAP_SECRET"}}}
+				config.ExposeCredentials = []string{"testcred"}
+				t.Setenv("RWR_TEST_BOOTSTRAP_SECRET", "secret-must-not-render")
+				var err error
+				if standalone {
+					err = RunBootstrap(config, &types.OSInfo{})
+				} else {
+					err = All(config, &types.OSInfo{}, nil)
+				}
+				if err == nil || !strings.Contains(err.Error(), "bootstrap cannot") {
+					t.Fatalf("expected bootstrap credential error, got %v", err)
+				}
+				entries, readErr := os.ReadDir(tree)
+				if readErr != nil || len(entries) != 1 || entries[0].Name() != "bootstrap.yaml" {
+					t.Fatalf("bootstrap changed tree: %v, %v", entries, readErr)
+				}
+				if _, err := os.Stat(filepath.Join(configDir, "bootstrap")); !os.IsNotExist(err) {
+					t.Fatal("failed bootstrap marked complete")
+				}
+			})
+		}
 	}
 }

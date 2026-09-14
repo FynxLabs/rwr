@@ -50,5 +50,12 @@
   ],
   "exposeCredentials": [
     "example_api_token"
+  ],
+  "credentialProviders": [
+    {
+      "name": "personal-vault",
+      "provider": "bitwarden",
+      "server": "https://vault.bitwarden.com"
+    }
   ]
 }

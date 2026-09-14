@@ -19,13 +19,18 @@ import (
 func processDirectories(directories []types.Directory, blueprintDir string, initConfig *types.InitConfig, track *progress) error {
 	track.expect("", len(directories))
 	for _, dir := range directories {
+		cleanup, ready := prepareCredentialResource(&dir, dir.CredentialDependencies, initConfig, types.BlueprintTypeFiles, dir.Name, dir.Action, track)
+		if !ready {
+			continue
+		}
+
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would %s directory: %s (target: %s)", dir.Action, dir.Name, dir.Target)
 			track.item("", dir.Name, dir.Action, types.StatusPlanned, "dry-run", 0)
 			continue
 		}
 		started := time.Now()
-		if err := processDirectory(dir, blueprintDir, initConfig); err != nil {
+		if err := func() error { defer cleanup(); return processDirectory(dir, blueprintDir, initConfig) }(); err != nil {
 			recordFailure("directories", dir.Name, err)
 			track.item("", dir.Name, dir.Action, types.StatusFailed, err.Error(), time.Since(started))
 			continue

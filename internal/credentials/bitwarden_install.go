@@ -18,41 +18,17 @@ import (
 	"github.com/fynxlabs/rwr/internal/system"
 )
 
-type bitwardenSetup struct {
-	skip          bool
-	attempted     bool
-	authAttempted bool
-}
-
-func (b *bitwardenSetup) prepare(interactive bool) {
-	if b.attempted {
-		b.skip = true
-		return
-	}
-	b.attempted = true
-	b.skip = true
-	if system.IsDryRun() || !interactive || !stdinIsTerminal() {
-		log.Warn("Bitwarden is missing; skipping vault credentials for this run")
-		return
-	}
-	if !offerBitwardenInstall() {
-		return
-	}
-	if err := installBitwarden(); err != nil {
-		log.Warnf("Could not install Bitwarden: %v; continuing without vault credentials", err)
-		return
-	}
-
-	b.skip = false
-}
-
-var offerBitwardenInstall = func() bool {
+var offerBitwardenInstall = func() (bool, error) {
 	install := false
 	form := huh.NewForm(huh.NewGroup(huh.NewConfirm().
 		Title("Bitwarden isn't installed. Install it now?").
 		Description("RWR downloads the official CLI directly. Skip to continue without vault credentials.").
 		Affirmative("Install").Negative("Skip").Value(&install)))
-	return reporting.WithTerminal(form.Run) == nil && install
+	err := reporting.WithTerminal(form.Run)
+	if err != nil {
+		return false, system.ErrCancelled
+	}
+	return install, nil
 }
 
 func bitwardenBinDir() (string, error) {
@@ -113,7 +89,11 @@ func bitwardenAssetName(goos, arch, version string) (string, error) {
 // or a package manager. GitHub's release digest verifies the downloaded archive.
 var installBitwarden = func() error {
 	client := system.NewHTTPClient(30 * time.Second)
-	resp, err := client.Get("https://api.github.com/repos/bitwarden/clients/releases?per_page=100")
+	req, err := http.NewRequestWithContext(system.RunContext(), http.MethodGet, "https://api.github.com/repos/bitwarden/clients/releases?per_page=100", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}

@@ -1,4 +1,0 @@
-# Linux/macOS dependencies, installed before resolving the vault passphrase.
-packages:
-  - names: [gnupg, jq]
-    action: install

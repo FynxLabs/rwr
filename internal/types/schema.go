@@ -21,6 +21,7 @@ const DefaultSchemaVersion = 1
 var supportedSchemaVersions = map[string][]int{
 	BlueprintTypeOmarchy:       {1},
 	BlueprintTypePackages:      {1},
+	BlueprintTypeCredentials:   {1},
 	BlueprintTypeRepositories:  {1},
 	BlueprintTypeFiles:         {1},
 	BlueprintTypeServices:      {1},

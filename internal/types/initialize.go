@@ -20,6 +20,8 @@ type UserInfo struct {
 }
 
 type Flags struct {
+	Except           []string
+	Selection        *RunSelection
 	Debug            bool
 	LogLevel         string
 	Interactive      bool
@@ -54,8 +56,15 @@ type Variables struct {
 
 // InitConfig represents the configuration for the initialization processor.
 type InitConfig struct {
-	Init            Init                 `mapstructure:"blueprints" yaml:"blueprints" json:"blueprints" toml:"blueprints"`
-	PackageManagers []PackageManagerInfo `mapstructure:"packageManagers,omitempty" yaml:"packageManagers,omitempty" json:"packageManagers,omitempty" toml:"packageManagers,omitempty"`
+	// CredentialRuntime is an execution-owned, redacted handle, never config input.
+	CredentialRuntime fmt.Stringer `mapstructure:"-" yaml:"-" json:"-" toml:"-"`
+
+	CredentialProviders   []CredentialConnection `mapstructure:"credentialProviders,omitempty" yaml:"credentialProviders,omitempty" json:"credentialProviders,omitempty" toml:"credentialProviders,omitempty"`
+	CredentialAttachments []CredentialAttachment `mapstructure:"credentialAttachments,omitempty" yaml:"credentialAttachments,omitempty" json:"credentialAttachments,omitempty" toml:"credentialAttachments,omitempty"`
+
+	CredentialPolicy CredentialPolicy     `mapstructure:"credentialPolicy,omitempty" yaml:"credentialPolicy,omitempty" json:"credentialPolicy,omitempty" toml:"credentialPolicy,omitempty"`
+	Init             Init                 `mapstructure:"blueprints" yaml:"blueprints" json:"blueprints" toml:"blueprints"`
+	PackageManagers  []PackageManagerInfo `mapstructure:"packageManagers,omitempty" yaml:"packageManagers,omitempty" json:"packageManagers,omitempty" toml:"packageManagers,omitempty"`
 	// The inline resource sections (repositories, packages, services, files,
 	// templates, directories, configuration) are gone: they were decoded,
 	// validated, profile-counted - and never applied at runtime. Blueprints

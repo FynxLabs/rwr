@@ -111,6 +111,14 @@ func classify(resource types.Resource, entry *state.Entry, querier *Querier) Row
 	row := Row{Processor: resource.Processor, Name: resource.Name}
 
 	switch resource.Processor {
+	case types.BlueprintTypeCredentials:
+		row.Class = UnknownItem
+		row.Note = "credential setup not recorded; provider readiness is not queried by status"
+		if entry != nil && entry.OK {
+			row.Note = "previous setup recorded; current session readiness is not persisted"
+		}
+		return row
+
 	case types.BlueprintTypeOmarchy:
 		var desired omarchy.Operation
 		if err := json.Unmarshal(resource.DesiredState, &desired); err != nil {

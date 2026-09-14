@@ -21,6 +21,8 @@ import (
 // into. This is the contract the examples are asserted against.
 func blueprintTarget(kind string) interface{} {
 	switch kind {
+	case types.BlueprintTypeCredentials:
+		return &types.CredentialSetupData{}
 	case types.BlueprintTypePackages:
 		return &types.PackagesData{}
 	case types.BlueprintTypeRepositories:

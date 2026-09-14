@@ -25,6 +25,7 @@ func ResolveTemplate(templateData []byte, variables types.Variables) ([]byte, er
 // excuse - by then the value really is absent and would be written to disk - which
 // is why ResolveTemplate is strict and this is not.
 func ResolveTemplateForValidation(templateData []byte, variables types.Variables) ([]byte, error) {
+	templateData = credentialRefPattern.ReplaceAll(templateData, []byte("__RWR_CREDENTIAL_${1}__"))
 	rendered, err := resolveTemplate(templateData, variables, "zero")
 	if err != nil {
 		return nil, err
@@ -106,4 +107,27 @@ func UnknownTemplateReferences(templateData []byte, variables types.Variables) [
 	}
 	sort.Strings(unknown)
 	return unknown
+}
+
+// CredentialReferences are kept symbolic while blueprints are decoded and
+// filtered. Secret values are never serialized into a structural plan.
+var credentialRefPattern = regexp.MustCompile(`\{\{\s*\.Credentials\.([a-z][a-z0-9_]*)\s*\}\}`)
+var CredentialTokenPattern = regexp.MustCompile(`__RWR_CREDENTIAL_([a-z][a-z0-9_]*)__`)
+
+func ResolveStaticTemplate(data []byte, variables types.Variables) ([]byte, error) {
+	symbolic := credentialRefPattern.ReplaceAll(data, []byte("__RWR_CREDENTIAL_${1}__"))
+	if bytes.Contains(symbolic, []byte(".Credentials")) {
+		return nil, fmt.Errorf("credential references must use {{ .Credentials.name }}; transformations belong in the consumer")
+	}
+	return ResolveTemplate(symbolic, variables)
+}
+
+var credentialNameRefPattern = regexp.MustCompile(`\.Credentials\.([a-z][a-z0-9_]*)`)
+
+func ReferencedCredentials(data []byte) []string {
+	var names []string
+	for _, m := range credentialNameRefPattern.FindAllSubmatch(data, -1) {
+		names = append(names, string(m[1]))
+	}
+	return names
 }

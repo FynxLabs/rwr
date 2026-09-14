@@ -1,7 +1,6 @@
 package credentials
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -14,12 +13,12 @@ import (
 // Options carries the run context resolution needs.
 type Options struct {
 	// Interactive mirrors --interactive; prompting also requires a real TTY.
-	Interactive bool
+	Interactive   bool
+	DenyProviders bool
 	// Selected names the blueprint types this run executes; empty means all. A
 	// credential scoped to processors none of which are selected is not
 	// resolved - no point prompting for a value nothing will read.
-	Selected  []string
-	bitwarden *bitwardenSetup
+	Selected []string
 }
 
 // Resolve resolves every declared credential up front, first source wins, and
@@ -29,21 +28,11 @@ type Options struct {
 // error naming it and the sources tried, except that a missing optional
 // Bitwarden installation can be skipped without registering an empty secret.
 func Resolve(specs []types.CredentialSpec, opts Options) error {
-	opts.bitwarden = &bitwardenSetup{}
-	previousSession := bitwardenSession
-	if bitwardenSession == "" {
-		bitwardenSession, _ = types.CredentialValue("bw_session")
-	}
-	defer func() { bitwardenSession = previousSession }()
-	if err := addBitwardenPath(); err != nil {
-		log.Debugf("Could not add RWR's Bitwarden directory to PATH: %v", err)
+	if system.IsDryRun() {
+		return nil
 	}
 	for _, spec := range specs {
 		if !scopeSelected(spec.Scope, opts.Selected) {
-			log.Debugf("Not resolving credential %q: its scope %v matches no selected processor", spec.Name, spec.Scope)
-			continue
-		}
-		if value, ok := types.CredentialValue(spec.Name); ok && value != "" {
 			continue
 		}
 		value, err := resolveOne(spec, opts)
@@ -65,97 +54,15 @@ func defaultSources(name string) []string {
 }
 
 func resolveOne(spec types.CredentialSpec, opts Options) (string, error) {
-	if opts.bitwarden == nil {
-		opts.bitwarden = &bitwardenSetup{}
+	c := &types.InitConfig{Credentials: []types.CredentialSpec{spec}}
+	c.Variables.Flags.Selection = &types.RunSelection{DenyProviders: opts.DenyProviders}
+	r := NewResolver(c)
+	defer r.Close()
+	value, err := r.Read(system.RunContext(), spec.Name)
+	if err != nil {
+		return "", fmt.Errorf("credential %q unavailable (interactive acquisition requires rwr run credentials): %w", spec.Name, err)
 	}
-	sources := spec.Sources
-	if len(sources) == 0 {
-		sources = defaultSources(spec.Name)
-	}
-
-	var tried, skipped []string
-	missingBitwarden := false
-	for _, source := range sources {
-		switch {
-		case strings.HasPrefix(source, "env:"):
-			envVar := strings.TrimPrefix(source, "env:")
-			if value := os.Getenv(envVar); value != "" {
-				log.Debugf("Credential %q resolved from %s: %s", spec.Name, source, types.Redact(value))
-				return value, nil
-			}
-			tried = append(tried, source)
-
-		case source == "keyring":
-			if value, ok := FromKeyring(spec.Name); ok {
-				log.Debugf("Credential %q resolved from the keyring: %s", spec.Name, types.Redact(value))
-				return value, nil
-			}
-			tried = append(tried, source)
-
-		case strings.HasPrefix(source, "bw:"):
-			// Like the keyring: a source that cannot yield a value (CLI
-			// missing, vault locked, item absent) moves precedence to the next
-			// declared source rather than failing the run, with the reason in
-			// the log.
-			if opts.bitwarden.skip {
-				missingBitwarden = true
-				continue
-			}
-			value, err := readBitwarden(source)
-			if errors.Is(err, ErrBitwardenNotInstalled) {
-				opts.bitwarden.prepare(opts.Interactive)
-				if !opts.bitwarden.skip {
-					value, err = readBitwarden(source)
-				}
-			}
-			if bitwardenNeedsAuth(err) && !opts.bitwarden.authAttempted && opts.Interactive && stdinIsTerminal() && !system.IsDryRun() {
-				opts.bitwarden.authAttempted = true
-				if authErr := authenticateBitwarden(); authErr != nil {
-					log.Warnf("Bitwarden authentication failed: %v", authErr)
-				} else {
-					value, err = readBitwarden(source)
-				}
-			}
-			missingBitwarden = opts.bitwarden.skip
-			if err == nil && value != "" {
-				return value, nil
-			}
-			tried = append(tried, source)
-
-		case source == "prompt":
-			if missingBitwarden {
-				continue
-			}
-			if !opts.Interactive || !stdinIsTerminal() {
-				skipped = append(skipped, "prompt")
-				continue
-			}
-			value, err := promptForCredential(spec.Name, spec.Description)
-			if err != nil {
-				return "", err
-			}
-			offerKeyringSave(spec.Name, value)
-			return value, nil
-
-		default:
-			// Validation rejected unknown sources at decode time; reaching here
-			// means a caller bypassed it.
-			return "", fmt.Errorf("credential %q: unknown source %q", spec.Name, source)
-		}
-	}
-	if missingBitwarden {
-		log.Warnf("Skipping credential %q: Bitwarden is unavailable; continuing the run", spec.Name)
-		return "", nil
-	}
-
-	var parts []string
-	if len(tried) > 0 {
-		parts = append(parts, "tried: "+strings.Join(tried, ", "))
-	}
-	if len(skipped) > 0 {
-		parts = append(parts, "prompt skipped: non-interactive run")
-	}
-	return "", fmt.Errorf("credential %q resolved from no source (%s)", spec.Name, strings.Join(parts, "; "))
+	return value, nil
 }
 
 // scopeSelected reports whether a credential's scope intersects the selected
@@ -193,7 +100,7 @@ func ResolveBuiltins(flags *types.Flags) {
 	case os.Getenv("GITHUB_TOKEN") != "":
 		types.SetCredentialValue("gh_api_token", os.Getenv("GITHUB_TOKEN"))
 	default:
-		if value, ok := FromKeyring("gh_api_token"); ok {
+		if value, ok := FromKeyringNoninteractive("gh_api_token"); ok {
 			log.Debugf("GitHub token resolved from the OS keyring")
 			types.SetCredentialValue("gh_api_token", value)
 			// Downstream consumers (git auth, ssh-key upload) read the flag
@@ -203,7 +110,7 @@ func ResolveBuiltins(flags *types.Flags) {
 	}
 	if flags.SSHKey != "" {
 		types.SetCredentialValue("ssh_private_key", flags.SSHKey)
-	} else if value, ok := FromKeyring("ssh_private_key"); ok {
+	} else if value, ok := FromKeyringNoninteractive("ssh_private_key"); ok {
 		log.Debugf("SSH private key resolved from the OS keyring")
 		types.SetCredentialValue("ssh_private_key", value)
 		// Git authentication reads the flag field, so keyring material flows

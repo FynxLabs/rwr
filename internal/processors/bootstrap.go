@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,6 +20,12 @@ import (
 // refuse an explicit request. The marker is still refreshed on success and
 // dry-run is still honored (no marker write, no mutations).
 func RunBootstrap(initConfig *types.InitConfig, osInfo *types.OSInfo) error {
+	selection, err := SelectRun(initConfig, []string{types.BlueprintTypeBootstrap})
+	if err != nil {
+		return err
+	}
+	initConfig.Variables.Flags.Selection = &selection
+
 	location := initConfig.Init.Location
 	bootstrapFile := findBootstrapFile(location)
 	if bootstrapFile == "" {
@@ -62,10 +69,6 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
-	if err := resolveBootstrapCredentials(initConfig); err != nil {
-		return err
-	}
-
 	log.Info("Starting bootstrap processor...")
 
 	// The run-once marker is only earned by a bootstrap where every step
@@ -85,7 +88,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		return err
 	}
 
-	blueprintData, err = helpers.ResolveTemplate(blueprintData, initConfig.Variables)
+	blueprintData, err = helpers.ResolveStaticTemplate(blueprintData, initConfig.Variables)
 	if err != nil {
 		log.Errorf("Error resolving variables in bootstrap file: %v", err)
 		return err
@@ -120,6 +123,14 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	// Preparation scripts use only the OS and run before providers and vaults.
 	scripts, err := processScriptImports(bootstrapData.Scripts, blueprintDir, format, helpers.TreeSchemaVersion(initConfig))
 	if err != nil {
+		return err
+	}
+	// Imports must pass the same credential prohibition before any script runs.
+	resolvedScripts, err := json.Marshal(map[string]any{"scripts": scripts})
+	if err != nil {
+		return err
+	}
+	if err := helpers.ValidateBootstrapCredentials(resolvedScripts, types.FormatJSON, initConfig); err != nil {
 		return err
 	}
 	if err := processBootstrapScripts(helpers.FilterByProfiles(scripts, initConfig.Variables.Flags.Profiles), osInfo, initConfig, blueprintDir); err != nil {
@@ -167,7 +178,7 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 
 	// Process Files
 	log.Debugf("Processing files from %s", blueprintFile)
-	err = processFiles(bootstrapData.Files, blueprintDir, osInfo, filesTrack)
+	err = processFiles(bootstrapData.Files, blueprintDir, osInfo, filesTrack, initConfig)
 	if err != nil {
 		log.Errorf("Error processing directories: %v", err)
 		return err

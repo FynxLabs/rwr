@@ -102,7 +102,7 @@ func resolveImports[T any](
 		// got in the run loop - `{{ .User.home }}` in an imported blueprint
 		// must not survive to execution as a literal path.
 		if vars := templateVariables(); vars != nil {
-			resolved, resolveErr := ResolveTemplate(data, *vars)
+			resolved, resolveErr := ResolveStaticTemplate(data, *vars)
 			if resolveErr != nil {
 				return nil, fmt.Errorf("error resolving variables in import %s: %w", fullPath, resolveErr)
 			}

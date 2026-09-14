@@ -8,19 +8,27 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/fynxlabs/rwr/internal/helpers"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 	"github.com/spf13/viper"
 )
 
-// Inspect preparation before credential resolution or any mutation. Rendering is
-// lenient because ordinary credentials intentionally resolve after bootstrap.
+// Inspect bootstrap before any mutation. Providers and credential-dependent
+// resources belong to later processors.
 func validateBootstrapPreparation(path string, config *types.InitConfig) error {
 	if err := types.ValidatePackageManagers(config.PackageManagers); err != nil {
 		return err
 	}
 	top, _, err := decodeTopLevel(path, config)
 	if err != nil {
+		return err
+	}
+	resolved, err := json.Marshal(top)
+	if err != nil {
+		return err
+	}
+	if err := helpers.ValidateBootstrapCredentials(resolved, types.FormatJSON, config); err != nil {
 		return err
 	}
 	data, err := json.Marshal(top["packageManagers"])
