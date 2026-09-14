@@ -15,3 +15,11 @@ Read [Fields Common to Every Blueprint](common-fields.md) first - it covers `pro
 - [SSH Keys](ssh-keys.md) - generates and manages SSH keys; can upload public keys to GitHub.
 - [Users and Groups](users-and-groups.md) - creates, modifies, and removes user accounts and groups.
 - [Fonts](fonts.md) - installs and removes Nerd Fonts.
+- [Credentials](../credentials.md) - explicitly prepares credential providers,
+  keyring entries, and native GPG tasks after ordinary provisioning.
+- [Omarchy](omarchy.md) - manages post-login Omarchy plugins, settings, themes,
+  defaults, hooks, and integrations.
+
+`bootstrap` runs before ordinary processors and is documented separately in
+[Bootstrap](../bootstrap.md). Directories and templates are handled by the
+`files` processor rather than separate `rwr run` targets.

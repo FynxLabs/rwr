@@ -1,46 +1,51 @@
-# RWR Documentation
+# RWR documentation
 
-Map of the Rinse, Wash, Repeat (RWR) docs. Start here if you are new.
+Start with the path that matches what you are trying to do. Reference pages are
+there when you need exact fields or flags; you do not need to read the whole
+manual before your first run.
 
-## Start here
+## Set up RWR for the first time
 
-- [Documentation Home](index.md) - what RWR is and an overview of every topic.
-- [Install RWR](install.md) - install with a script, a package manager, or a binary.
-- [Quick Start Guide](quick-start.md) - install, make a basic configuration, run your first blueprint.
+1. [Install RWR](install.md)
+2. [Run a small local blueprint](quick-start.md)
+3. [Learn how a blueprint tree is organized](blueprints-general.md)
+4. [Connect RWR to a saved local or Git-hosted setup](cli/configuration.md)
 
-## CLI
+Already have a configured machine? Use [`rwr capture`](cli/capture.md) to create
+a starting tree from it.
 
-- [CLI docs](cli/README.md) - commands, flags, the configuration file, the profiles CLI, `rwr validate`, and `rwr convert`.
+## Build a blueprint tree
 
-## Blueprints
+- [Init file](init-file.md) — choose the tree, format, run order, profiles,
+  package managers, and credential policy.
+- [Blueprint types](blueprints/README.md) — find the schema for packages, files,
+  services, users, Omarchy, and the other processors.
+- [Common fields](blueprints/common-fields.md) — profiles, imports, interaction,
+  and strict field checking.
+- [Variables and templates](variables.md) — reuse machine and user values.
+- [Examples](../examples/README.md) — working trees in every supported format.
+- [Best practices](best-practices.md) — patterns for keeping a growing repository
+  understandable.
 
-- [What are Blueprints?](blueprints-general.md) - the blueprint model: types, formats, and structure.
-- [Blueprint type docs](blueprints/README.md) - one page per blueprint type (packages, files, services, ...).
-- [Init File](init-file.md) - the entry point that names your blueprint tree and its settings.
-- [Bootstrap Process](bootstrap.md) - the setup RWR runs before the main blueprints.
-- [Blueprint schema versioning](schema-versioning.md) - how blueprints declare a schema version per type.
+## Run and inspect a setup
 
-## Profiles
+- [Commands and flags](cli/command-and-flags.md) — the complete CLI reference.
+- [Profiles](profiles.md) — select subsets of one shared setup.
+- [Validation](cli/validate.md) — catch structural mistakes before applying.
+- [Diff](cli/diff.md) — turn current-machine differences into blueprint material.
+- [Run records](state.md) — inspect drift and reverse supported changes.
+- [Bootstrap](bootstrap.md) — prepare prerequisites before ordinary processors.
 
-- [Profile System](profiles.md) - group packages and configurations by context and select what applies.
-- [Profile Best Practices](profile-best-practices.md) - practical tips and examples for organizing profiles.
+## Configure specialized features
 
-## Variables
+- [Credentials and Bitwarden](credentials.md) — provision first, then set up
+  providers, keyring entries, and GPG tasks explicitly.
+- [Omarchy](blueprints/omarchy.md) — manage plugins, shell settings, themes,
+  defaults, hooks, and external screensaver routing after login.
+- [Package manager providers](providers.md) — understand or override the
+  declarative package-manager definitions embedded in RWR.
+- [Schema versioning](schema-versioning.md) — pin and migrate blueprint schemas.
+- [Convert](cli/convert.md) — move a tree between YAML, JSON, TOML, and CUE.
 
-- [Variables and Templating](variables.md) - variables and templates so one blueprint serves many machines.
-
-## Providers
-
-- [Package Manager Providers](providers.md) - declarative definitions of each package manager, no Go code needed: authored in CUE, overridable with TOML or JSON files.
-
-## Credentials and security
-
-- [Credentials in blueprints](credentials.md) - the credentials RWR holds (GitHub token, SSH key, and any you declare), where they are sourced from, and why blueprints cannot read them by default.
-
-## Run records
-
-- [Run records](state.md) - the journal each run writes, `rwr status` for drift, and `rwr uninstall` to reverse a run.
-
-## General
-
-- [Best Practices](best-practices.md) - blueprint organization, configuration management, and maintenance.
+For a broad overview, return to the [project README](../README.md). For command
+discovery at the terminal, run `rwr help` or `rwr help COMMAND`.

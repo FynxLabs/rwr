@@ -1,134 +1,145 @@
-# Quick Start Guide
+# Quick start
 
-This guide will help you get started with Rinse, Wash, Repeat (RWR) quickly. You'll learn how to install RWR, set up a basic configuration, and run your first blueprint.
+This walkthrough creates one text file in your home directory. It is small on
+purpose: the goal is to see the complete RWR workflow before adding packages,
+services, or privileged changes.
 
-## Prerequisites
+## 1. Install RWR
 
-Before you begin, ensure that you have the following:
+Use the command for your platform in the [installation guide](install.md), then
+check the binary:
 
-- A supported operating system (Linux, macOS, or Windows)
-- A compatible package manager (e.g., apt, brew, chocolatey)
-- Git installed on your system
+```bash
+rwr version
+```
 
-## Installation
+## 2. Create a blueprint tree
 
-To install RWR, follow these steps:
+Make a directory with this layout:
 
-1. Download the latest release of RWR from the [releases page](https://github.com/fynxlabs/rwr/releases).
-2. Extract the downloaded archive to a directory of your choice.
-3. Add the directory to your system's `PATH` environment variable.
+```text
+my-blueprints/
+├── init.yaml
+└── files/
+    └── welcome.yaml
+```
 
-## Configuration
+Put this in `init.yaml`:
 
-To set up a basic configuration for RWR, follow these steps:
+```yaml
+blueprints:
+  format: yaml
+  location: .
+```
 
-1. Create a new directory for your RWR configuration:
+The init file is the entry point. Here it says that YAML blueprints live in the
+same directory and its subdirectories.
 
-    ```bash
-    mkdir my-rwr-config
-    cd my-rwr-config
-    ```
+Put this in `files/welcome.yaml`:
 
-2. Create an `init.yaml` file with the following content:
+```yaml
+files:
+  - name: rwr-was-here.txt
+    action: create
+    target: "{{ .User.home }}"
+    content: |
+      This file was created by RWR.
+```
 
-    ```yaml
-    blueprints:
-      format: yaml
-      location: blueprints
-    ```
+`{{ .User.home }}` is filled from the current user at run time. RWR joins the
+target directory with `name`, producing `rwr-was-here.txt` in your home
+directory.
 
-3. Create a `blueprints` directory:
+## 3. Validate and preview
 
-    ```bash
-    mkdir blueprints
-    ```
+From the directory containing `my-blueprints`, run:
 
-4. Inside the `blueprints` directory, create a `packages.yaml` file with the following content:
+```bash
+rwr validate ./my-blueprints
+rwr all --init-file ./my-blueprints/init.yaml --dry-run
+```
+
+Validation checks the tree's formats, fields, templates, and supported schema.
+Dry-run shows the selected operations without changing the machine.
+
+## 4. Apply it
+
+```bash
+rwr all --init-file ./my-blueprints/init.yaml
+```
+
+Check `rwr-was-here.txt` in your home directory. Running the same command again
+should converge on the same result rather than creating another copy.
+
+You can also inspect the run record:
+
+```bash
+rwr status --init-file ./my-blueprints/init.yaml
+```
+
+## 5. Save the location
+
+You can keep passing `--init-file`, which is useful while experimenting. To save
+the location for normal use, run:
+
+```bash
+rwr config create
+```
+
+Choose your init file when prompted. Future commands can then use `rwr all`
+without the path.
+
+## Add real resources
+
+Add another blueprint file under the same tree. Each top-level key selects a
+processor:
 
 ```yaml
 packages:
-  # Base packages - always installed (using names for multiple packages)
-  - names: [git, curl, wget, htop]
+  - names: [git, curl]
     action: install
-
-  # Development profile packages (mix of single and multiple)
-  - names: [docker, nodejs, npm, python3]
-    action: install
-    profiles: [development]
-  - name: code
-    action: install
-    profiles: [development, web]
-
-  # Work profile packages
-  - names: [slack, zoom, teams]
-    action: install
-    profiles: [work]
 ```
 
-## Running Your First Blueprint
+Package names differ between operating systems and package managers. Use the
+[platform examples](../examples/README.md) as a starting point, then validate and
+dry-run again before applying.
 
-To run your first blueprint, follow these steps:
-
-1. Open a terminal and navigate to your RWR configuration directory:
-
-    ```bash
-    cd my-rwr-config
-    ```
-
-2. Run the `rwr all` command to execute all blueprints:
-
-    ```bash
-    rwr all
-    ```
-
-    With no `--profile` flag, RWR installs **everything** - the base packages
-    (git, curl, wget, htop) and the profiled ones too. Profiles only start
-    filtering once at least one is active.
-
-3. To install packages for specific profiles, use the `--profile` flag:
-
-    ```bash
-    # Install base packages + development profile
-    rwr all --profile development
-
-    # Install base packages + work profile
-    rwr all --profile work
-
-    # Install multiple profiles
-    rwr all --profile development --profile work
-    ```
-
-4. To see what profiles are available in your configuration:
-
-    ```bash
-    rwr profiles
-    ```
-
-RWR will now process the `packages.yaml` blueprint and install the appropriate packages based on your selected profiles.
-
-## Next Steps
-
-Congratulations! You have successfully installed RWR, set up a basic configuration, and run your first blueprint.
-
-Next, you can:
-
-- Learn about the [Profile System](profiles.md) to organize your configurations for different contexts and environments.
-- Explore the [Blueprints Overview](blueprints-general.md) to learn more about the different blueprint types and their capabilities.
-- Customize your configuration by adding more blueprints and adjusting the `init.yaml` file.
-- Learn how to use [Variables](variables.md) to make your blueprints more dynamic and reusable.
-- Discover [Best Practices](best-practices.md) for organizing and managing your RWR configurations.
-- Review [Profile Best Practices](profile-best-practices.md) for practical organizational tips.
-
-If you encounter any issues or have questions, please refer to the troubleshooting section or reach out to the RWR community for support.
-
-## Starting from an existing machine
-
-Already have a machine set up the way you like? Capture it:
+To run only one part of the tree:
 
 ```bash
-rwr capture --manifest ~/git/you/rwr-blueprints
+rwr run packages
+rwr run files
 ```
 
-Pick what to keep on the per-category form; the result is a validated
-blueprint tree (and manifest) ready to provision the next machine. See
-[rwr capture](cli/capture.md).
+## Add profiles when you need them
+
+A profile keeps optional items in the same tree:
+
+```yaml
+packages:
+  - name: git
+    action: install
+  - name: podman
+    action: install
+    profiles: [development]
+```
+
+```bash
+rwr all --profile development
+```
+
+Unprofiled items always apply. Profiled items are filtered only when at least
+one `--profile` is given; plain `rwr all` applies them all. Read
+[Profiles](profiles.md) before designing a larger profile layout.
+
+## Where to go next
+
+- [How blueprints work](blueprints-general.md)
+- [Blueprint type reference](blueprints/README.md)
+- [Init file](init-file.md)
+- [Variables and templates](variables.md)
+- [Credentials and Bitwarden](credentials.md)
+- [Omarchy desktop setup](blueprints/omarchy.md)
+
+If you are starting from a machine you already configured by hand, read
+[`rwr capture`](cli/capture.md).
