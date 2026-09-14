@@ -117,12 +117,7 @@ func classify(resource types.Resource, entry *state.Entry, querier *Querier) Row
 			row.Class, row.Note = UnknownItem, "desired resource unavailable"
 			return row
 		}
-		client, err := omarchy.NewClient(false)
-		if err != nil {
-			row.Class, row.Note = UnknownItem, err.Error()
-			return row
-		}
-		matches, err := client.Satisfied(system.RunContext(), desired)
+		matches, err := querier.omarchySatisfied(system.RunContext(), desired)
 		if err != nil {
 			row.Class, row.Note = UnknownItem, err.Error()
 		} else if matches {

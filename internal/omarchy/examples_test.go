@@ -12,6 +12,7 @@ import (
 )
 
 func TestExamplesHaveEquivalentPlans(t *testing.T) {
+	t.Parallel()
 	var reference []Operation
 	for _, format := range []string{"json", "yaml", "toml", "cue"} {
 		path := filepath.Join("../../examples/omarchy", format, "desktop."+format)
@@ -34,6 +35,7 @@ func TestExamplesHaveEquivalentPlans(t *testing.T) {
 	}
 }
 func TestWorkspaceCycleUsesPluginLimit(t *testing.T) {
+	t.Parallel()
 	for _, tool := range []string{"bash", "jq"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Skip(tool + " unavailable")
@@ -54,6 +56,7 @@ func TestWorkspaceCycleUsesPluginLimit(t *testing.T) {
 		{"wrap next", 5, 5, "next", "1", false, false}, {"wrap previous", 1, 5, "previous", "5", false, false}, {"updated ring", 7, 7, "next", "1", false, false}, {"next inside", 5, 7, "next", "6", false, false}, {"special workspace", -99, 7, "previous", "7", false, false}, {"missing setting", 10, 0, "next", "1", true, false}, {"invalid zero", 2, 0, "next", "", false, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			home, bin := t.TempDir(), t.TempDir()
 			writeFixture(t, filepath.Join(bin, "hyprctl"), []byte("#!/bin/bash\nif [[ $1 == activeworkspace ]]; then printf '%s' "+shellQuote(`{"id":`+stringInt(tt.current)+`}`)+"; else printf '%s' \"$2\"; fi\n"), 0700)
 			config := map[string]any{"plugins": []any{map[string]any{"id": "io.github.woogy7.workspaces", "maxWorkspaces": tt.limit}}}

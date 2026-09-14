@@ -3,6 +3,7 @@ package omarchy
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -72,7 +73,7 @@ func (c *Client) screensaver(ctx context.Context, s *types.OmarchyScreensaver) (
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return false, err
 	}
-	state, err := c.ownership()
+	state, oldOwnership, err := c.readOwnership()
 	if err != nil {
 		return false, err
 	}
@@ -127,23 +128,55 @@ func (c *Client) screensaver(ctx context.Context, s *types.OmarchyScreensaver) (
 	route := c.routeContent(s)
 	profile := append(bytes.TrimRight(clean, "\n"), '\n')
 	profile = append(profile, c.routeBlock()...)
-	routeChanged, err := c.replace(routePath, oldRoute, route, 0700)
+	// Commit against the ownership bytes observed before activation, so a
+	// concurrent owner update cannot be overwritten.
+	state["integration/screensaver"] = ownership{Source: name, Hash: hash(route)}
+	newOwnership, err := json.Marshal(state)
 	if err != nil {
 		return false, err
 	}
-	profileChanged, err := c.replace(name, oldProfile, profile, 0600)
-	if err != nil {
-		return routeChanged, errors.Join(err, c.restoreRoute(route, oldRoute))
+	return c.activateRoute(ctx, name, oldProfile, profile, oldRoute, route, oldOwnership, newOwnership)
+}
+
+func (c *Client) activateRoute(ctx context.Context, name string, oldProfile, profile, oldRoute, route, oldOwnership, newOwnership []byte) (changed bool, err error) {
+	type update struct {
+		path      string
+		old, data []byte
+		mode      fs.FileMode
 	}
-	resolved, probeErr := c.Read(ctx, "bash", "-lc", "command -v omarchy-launch-screensaver")
-	if probeErr != nil || trim(resolved) != filepath.Join(c.Home, routePath) {
-		_, restoreErr := c.replace(name, profile, oldProfile, 0600)
-		return true, errors.Join(fmt.Errorf("login shell did not select RWR screensaver route; activation reverted"), restoreErr, c.restoreRoute(route, oldRoute))
+	updates := []update{
+		{routePath, oldRoute, route, 0700},
+		{name, oldProfile, profile, 0600},
+		{ownershipPath, oldOwnership, newOwnership, 0600},
 	}
-	if err := c.remember("integration/screensaver", name, hash(route)); err != nil {
-		return true, err
+	attempted := 0
+	defer func() {
+		if err == nil {
+			return
+		}
+		// Include the failed write: replacement can commit and then fail
+		// readback. Restoration also removes files absent before activation.
+		for i := attempted - 1; i >= 0; i-- {
+			u := updates[i]
+			err = errors.Join(err, c.restoreFile(u.path, u.data, u.old, u.mode))
+		}
+	}()
+	for i, u := range updates {
+		attempted = i + 1
+		var wrote bool
+		wrote, err = c.replace(u.path, u.old, u.data, u.mode)
+		changed = changed || wrote
+		if err != nil {
+			return changed, err
+		}
+		if u.path == name {
+			resolved, probeErr := c.Read(ctx, "bash", "-lc", "command -v omarchy-launch-screensaver")
+			if probeErr != nil || trim(resolved) != filepath.Join(c.Home, routePath) {
+				return changed, fmt.Errorf("login shell did not select RWR screensaver route; activation reverted")
+			}
+		}
 	}
-	return routeChanged || profileChanged, nil
+	return changed, nil
 }
 
 func sameFilePath(a, b string) bool {
@@ -157,22 +190,27 @@ func sameFilePath(a, b string) bool {
 	y, err := filepath.EvalSymlinks(b)
 	return err == nil && x == y
 }
-func (c *Client) restoreRoute(current, previous []byte) error {
-	if previous != nil {
-		_, err := c.replace(routePath, current, previous, 0700)
+
+// restoreFile only undoes our write; concurrent edits are retained and reported.
+func (c *Client) restoreFile(path string, current, previous []byte, mode fs.FileMode) error {
+	actual, err := c.read(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	actual, err := c.read(routePath)
-	if err != nil {
-		return err
+	if bytes.Equal(actual, previous) && (actual == nil) == (previous == nil) {
+		return nil
 	}
 	if !bytes.Equal(actual, current) {
-		return fmt.Errorf("route changed during recovery")
+		return fmt.Errorf("%s changed during recovery", path)
+	}
+	if previous != nil {
+		_, err := c.replace(path, current, previous, mode)
+		return err
 	}
 	root, err := os.OpenRoot(c.Home)
 	if err != nil {
 		return err
 	}
 	defer closeRoot(root)
-	return root.Remove(routePath)
+	return root.Remove(path)
 }

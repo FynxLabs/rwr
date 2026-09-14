@@ -128,14 +128,7 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 			reporting.SetCurrentProcessor(processor)
 			reporting.Emit(reporting.ProcStarted{Processor: processor, Files: len(files)})
 			var procErr error
-			if processor == types.BlueprintTypeOmarchy {
-				procErr = ProcessOmarchy(preflight.Files[processor], initConfig)
-				reporting.Emit(reporting.ProcFinished{Processor: processor, Err: procErr, Dur: time.Since(procStarted)})
-				if procErr != nil {
-					stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: procErr})
-				}
-				continue
-			}
+
 			// Every abort between ProcStarted and the loop's end must emit
 			// the matching ProcFinished, or the display counts this
 			// processor as running forever - spinner, clock, taskbar
@@ -143,6 +136,29 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 			fatal := func(ferr error) error {
 				reporting.Emit(reporting.ProcFinished{Processor: processor, Err: ferr, Dur: time.Since(procStarted)})
 				return ferr
+			}
+			if processor == types.BlueprintTypeOmarchy {
+				for {
+					procErr = ProcessOmarchy(preflight.Files[processor], initConfig)
+					if procErr == nil || !initConfig.Variables.Flags.Interactive {
+						break
+					}
+					switch reporting.RequestHalt(processor, procErr) {
+					case reporting.HaltRetry:
+						log.Warnf("Retrying %s after error: %v", processor, procErr)
+						continue
+					case reporting.HaltSkip:
+						log.Warnf("Skipping past %s error: %v", processor, procErr)
+					default:
+						return fatal(fmt.Errorf("error processing %s: %w", processor, procErr))
+					}
+					break
+				}
+				reporting.Emit(reporting.ProcFinished{Processor: processor, Err: procErr, Dur: time.Since(procStarted)})
+				if procErr != nil {
+					stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: procErr})
+				}
+				continue
 			}
 			for _, file := range files {
 				blueprintFile := filepath.Join(initConfig.Init.Location, file)

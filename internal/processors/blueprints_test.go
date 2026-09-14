@@ -13,6 +13,7 @@ import (
 )
 
 func TestGetBlueprintRunOrder_DefaultOrder(t *testing.T) {
+	t.Parallel()
 	// Test with nil order - should return default order
 	initConfig := &types.InitConfig{
 		Init: types.Init{

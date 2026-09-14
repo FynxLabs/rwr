@@ -65,7 +65,6 @@ func ProcessOmarchy(files []types.ResolvedFile, cfg *types.InitConfig) error {
 				track.item("", o.ID, "reconcile", types.StatusFailed, "Omarchy preflight or discovery failed", 0)
 			}
 		}
-		recordFailure(types.BlueprintTypeOmarchy, "desktop", err)
 		return fmt.Errorf("omarchy setup: %w", err)
 	}
 	return nil

@@ -244,7 +244,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 			return detected, nil
 		}
 		log.Warnf("Blueprint file %s is not under a recognized processor directory and its content matches no blueprint type; it will NOT be executed. "+
-			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/ - or give it top-level blueprint keys.", relPath)
+			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/, omarchy/ - or give it top-level blueprint keys.", relPath)
 		return nil, nil
 	}
 

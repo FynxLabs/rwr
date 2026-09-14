@@ -15,25 +15,31 @@ import (
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
+const ownershipPath = ".local/state/rwr/omarchy/ownership.json"
+
 type ownership struct {
 	Source string `json:"source"`
 	Hash   string `json:"hash"`
 }
 
 func (c *Client) ownership() (map[string]ownership, error) {
-	raw, err := c.read(".local/state/rwr/omarchy/ownership.json")
+	state, _, err := c.readOwnership()
+	return state, err
+}
+func (c *Client) readOwnership() (map[string]ownership, []byte, error) {
+	raw, err := c.read(ownershipPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		return map[string]ownership{}, nil
+		return map[string]ownership{}, nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var state map[string]ownership
 	err = json.Unmarshal(raw, &state)
 	if state == nil && err == nil {
 		err = fmt.Errorf("invalid Omarchy ownership record")
 	}
-	return state, err
+	return state, raw, err
 }
 func (c *Client) remember(id, source, sum string) error {
 	state, err := c.ownership()
@@ -45,7 +51,7 @@ func (c *Client) remember(id, source, sum string) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.write(".local/state/rwr/omarchy/ownership.json", raw, 0600)
+	_, err = c.write(ownershipPath, raw, 0600)
 	return err
 }
 func treeFiles(path string) (map[string][]byte, map[string]fs.FileMode, error) {

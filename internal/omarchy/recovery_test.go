@@ -1,8 +1,11 @@
 package omarchy
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +14,7 @@ import (
 )
 
 func TestRouteResolutionFailureRestoresPreviousFiles(t *testing.T) {
+	t.Parallel()
 	c, _ := fixture(t)
 	writeFixture(t, filepath.Join(c.Home, ".bash_profile"), []byte("# original\n"), 0600)
 	writeFixture(t, filepath.Join(c.Distribution, "shell/plugins/services/idle/Service.qml"), []byte("omarchy-launch-screensaver org.omarchy.screensaver screensaver-dismissed screensaverWindowCount"), 0600)
@@ -29,6 +33,7 @@ func TestRouteResolutionFailureRestoresPreviousFiles(t *testing.T) {
 	}
 }
 func TestModifiedHookPayloadIsRetained(t *testing.T) {
+	t.Parallel()
 	c, _ := fixture(t)
 	source := filepath.Join(t.TempDir(), "source")
 	writeFixture(t, source, []byte("original"), 0700)
@@ -43,6 +48,7 @@ func TestModifiedHookPayloadIsRetained(t *testing.T) {
 	}
 }
 func TestExplicitStockEnableWithDisabledCloneIsAllowed(t *testing.T) {
+	t.Parallel()
 	c, _ := fixture(t)
 	snap, err := c.Discover(context.Background())
 	if err != nil {
@@ -65,6 +71,7 @@ func TestExplicitStockEnableWithDisabledCloneIsAllowed(t *testing.T) {
 	}
 }
 func TestThemeOverlayConvergesAndModifiedAssetsSurvive(t *testing.T) {
+	t.Parallel()
 	c, _ := fixture(t)
 	source := t.TempDir()
 	writeFixture(t, filepath.Join(source, "shell.toml"), []byte("opacity = 0.9\n"), 0600)
@@ -89,6 +96,7 @@ func TestThemeOverlayConvergesAndModifiedAssetsSurvive(t *testing.T) {
 	}
 }
 func TestAllResourcesGetOutcomeAfterLostIPC(t *testing.T) {
+	t.Parallel()
 	c, _ := fixture(t)
 	c.Run = func(types.Command) error {
 		c.Read = func(context.Context, string, ...string) ([]byte, error) { return nil, errors.New("lost IPC") }
@@ -105,6 +113,7 @@ func TestAllResourcesGetOutcomeAfterLostIPC(t *testing.T) {
 }
 
 func TestScreensaverRequiresStockIdleRoute(t *testing.T) {
+	t.Parallel()
 	c, _ := fixture(t)
 	snap, err := c.Discover(context.Background())
 	if err != nil {
@@ -117,7 +126,72 @@ func TestScreensaverRequiresStockIdleRoute(t *testing.T) {
 		t.Fatal("active clone treated as stock route")
 	}
 	restore := Operation{ID: "plugin/omarchy.idle/enabled", Kind: "enabled", Plugin: &types.OmarchyPlugin{ID: "omarchy.idle", Enabled: ptr(true)}}
-	if err := c.Preflight(context.Background(), []Operation{restore, screen}, snap); err != nil {
+	if err := c.Preflight(context.Background(), []Operation{restore, screen}, snap); err == nil {
+		t.Fatal("stock enable without explicit clone disable accepted")
+	}
+	disable := Operation{ID: "plugin/personal.idle/enabled", Kind: "enabled", Plugin: &types.OmarchyPlugin{ID: "personal.idle", Enabled: ptr(false)}}
+	if err := c.Preflight(context.Background(), []Operation{restore, disable, screen}, snap); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestScreensaverOwnershipFailureRollsBackActivation(t *testing.T) {
+	t.Parallel()
+	for _, prior := range []bool{false, true} {
+		for _, committed := range []bool{false, true} {
+			t.Run(fmt.Sprintf("prior=%t/committed=%t", prior, committed), func(t *testing.T) {
+				t.Parallel()
+				c, _ := fixture(t)
+				writeFixture(t, filepath.Join(c.Distribution, "shell/plugins/services/idle/Service.qml"), []byte("omarchy-launch-screensaver org.omarchy.screensaver screensaver-dismissed screensaverWindowCount"), 0600)
+				writeFixture(t, filepath.Join(c.Distribution, "bin/omarchy-launch-screensaver"), []byte("#!/bin/bash\n"), 0700)
+				c.Read = func(context.Context, string, ...string) ([]byte, error) {
+					return []byte(filepath.Join(c.Home, routePath)), nil
+				}
+				var oldRoute, oldProfile, oldOwnership []byte
+				if prior {
+					oldRoute = []byte("#!/bin/bash\n# prior engine\n")
+					oldProfile = append([]byte("# personal profile\n"), c.routeBlock()...)
+					oldOwnership = []byte(fmt.Sprintf("{\n  %q: {\"source\":\".bash_profile\",\"hash\":%q},\n  \"plugin/other\": {\"source\":\"keep\",\"hash\":\"keep\"}\n}\n", "integration/screensaver", hash(oldRoute)))
+					writeFixture(t, filepath.Join(c.Home, routePath), oldRoute, 0700)
+					writeFixture(t, filepath.Join(c.Home, ".bash_profile"), oldProfile, 0600)
+					writeFixture(t, filepath.Join(c.Home, ownershipPath), oldOwnership, 0600)
+				}
+				injected := errors.New("ownership persistence failed")
+				failed := false
+				c.replaceFile = func(path string, old, data []byte, mode fs.FileMode) (bool, error) {
+					if path == ownershipPath && !failed {
+						failed = true
+						if committed {
+							changed, err := c.replaceOnDisk(path, old, data, mode)
+							return changed, errors.Join(injected, err)
+						}
+						return false, injected
+					}
+					return c.replaceOnDisk(path, old, data, mode)
+				}
+				saver := &types.OmarchyScreensaver{Mode: "external", Launch: &types.OmarchyExec{Exec: "/engine"}, Check: &types.OmarchyExec{Exec: "/engine"}}
+				if _, err := c.screensaver(context.Background(), saver); !errors.Is(err, injected) {
+					t.Fatalf("activation error = %v", err)
+				}
+				for path, want := range map[string][]byte{routePath: oldRoute, ".bash_profile": oldProfile, ownershipPath: oldOwnership} {
+					got, err := c.read(path)
+					if want == nil {
+						if !errors.Is(err, fs.ErrNotExist) {
+							t.Fatalf("new file %s remains: %v", path, err)
+						}
+					} else if err != nil || !bytes.Equal(got, want) {
+						t.Fatalf("%s not restored: %q, %v", path, got, err)
+					}
+				}
+				// A fresh attempt must converge after the storage problem is fixed.
+				c.replaceFile = nil
+				if _, err := c.screensaver(context.Background(), saver); err != nil {
+					t.Fatal(err)
+				}
+				if changed, err := c.screensaver(context.Background(), saver); err != nil || changed {
+					t.Fatalf("repeat apply: changed=%t err=%v", changed, err)
+				}
+			})
+		}
 	}
 }

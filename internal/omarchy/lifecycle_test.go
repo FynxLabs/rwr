@@ -81,6 +81,7 @@ func dynamicPlugins(t *testing.T, c *Client) {
 	}
 }
 func TestLocalPluginInstallRerunAndOwnership(t *testing.T) {
+	t.Parallel()
 	c, commands := fixture(t)
 	dynamicPlugins(t, c)
 	source := t.TempDir()
@@ -118,6 +119,7 @@ func TestLocalPluginInstallRerunAndOwnership(t *testing.T) {
 	}
 }
 func TestAllSourcesValidateBeforeInstall(t *testing.T) {
+	t.Parallel()
 	c, commands := fixture(t)
 	dynamicPlugins(t, c)
 	good, bad := t.TempDir(), t.TempDir()
@@ -138,6 +140,7 @@ func TestAllSourcesValidateBeforeInstall(t *testing.T) {
 	}
 }
 func TestSettingsMergeAndExplicitUnset(t *testing.T) {
+	t.Parallel()
 	cfg := &types.InitConfig{}
 	raw := `{"omarchy":[{"name":"a","plugins":[{"id":"example.overlay","settings":{"nested":{"one":false}}}]},{"name":"b","plugins":[{"id":"example.overlay","settings":{"nested":{"two":0}}}]}]}`
 	ops, err := Load([]byte(raw), "json", "/blueprint.json", cfg)
@@ -169,6 +172,7 @@ func TestSettingsMergeAndExplicitUnset(t *testing.T) {
 	}
 }
 func TestPlacementConflictFailsBeforeWriting(t *testing.T) {
+	t.Parallel()
 	c, commands := fixture(t)
 	before, err := c.read(".config/omarchy/shell.json")
 	if err != nil {
@@ -187,6 +191,7 @@ func TestPlacementConflictFailsBeforeWriting(t *testing.T) {
 	}
 }
 func TestExternalRouteActivationAndRestoration(t *testing.T) {
+	t.Parallel()
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash unavailable")
 	}
@@ -220,6 +225,7 @@ func TestExternalRouteActivationAndRestoration(t *testing.T) {
 	}
 }
 func TestHookFailureCannotLookLikeThemeSuccess(t *testing.T) {
+	t.Parallel()
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash unavailable")
 	}
@@ -249,6 +255,7 @@ func TestHookFailureCannotLookLikeThemeSuccess(t *testing.T) {
 	}
 }
 func TestMissingApplicationsAndInvalidIPCStopBeforeMutation(t *testing.T) {
+	t.Parallel()
 	c, commands := fixture(t)
 	c.LookPath = func(name string) (string, error) {
 		if name == "firefox" {

@@ -4,6 +4,7 @@
 package status
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/fynxlabs/rwr/internal/omarchy"
 	"github.com/fynxlabs/rwr/internal/scan"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
@@ -26,13 +28,35 @@ const (
 	Unknown  Presence = "unknown"
 )
 
-// Querier caches per-provider package listings for one status run.
+// Querier caches package listings and desktop discovery for one status run.
 type Querier struct {
-	packageLists map[string]map[string]bool // provider → installed set; nil = list failed
+	omarchyClient   *omarchy.Client
+	omarchySnapshot *omarchy.Snapshot
+	omarchyErr      error
+	omarchyQueried  bool
+	packageLists    map[string]map[string]bool // provider → installed set; nil = list failed
 }
 
 func NewQuerier() *Querier {
 	return &Querier{packageLists: map[string]map[string]bool{}}
+}
+
+// omarchySatisfied caches failed discovery too, so an unavailable desktop is
+// probed only once regardless of how many settings the plan declares.
+func (q *Querier) omarchySatisfied(ctx context.Context, op omarchy.Operation) (bool, error) {
+	if !q.omarchyQueried {
+		q.omarchyQueried = true
+		if q.omarchyClient == nil {
+			q.omarchyClient, q.omarchyErr = omarchy.NewClient(false)
+		}
+		if q.omarchyErr == nil {
+			q.omarchySnapshot, q.omarchyErr = q.omarchyClient.Discover(ctx)
+		}
+	}
+	if q.omarchyErr != nil {
+		return false, q.omarchyErr
+	}
+	return q.omarchyClient.SatisfiedWithSnapshot(ctx, op, q.omarchySnapshot)
 }
 
 // PackagePresent reports whether a provider's list output names the package.

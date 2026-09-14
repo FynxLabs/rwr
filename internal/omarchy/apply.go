@@ -70,10 +70,10 @@ func (c *Client) Preflight(ctx context.Context, ops []Operation, snap *Snapshot)
 					continue
 				}
 				active := plugin.Enabled
-				if requested, explicit := enabled[id]; explicit {
-					active = requested
+				if want, declared := enabled[id]; declared {
+					active = want
 				}
-				if active && (!explicit || !requested) {
+				if active {
 					return fmt.Errorf("external screensaver routing cannot use active idle clone %s; explicitly restore stock idle", id)
 				}
 			}
@@ -347,6 +347,11 @@ func (c *Client) Satisfied(ctx context.Context, o Operation) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	return c.satisfied(ctx, o, snap)
+}
+
+// SatisfiedWithSnapshot evaluates an operation without repeating desktop discovery.
+func (c *Client) SatisfiedWithSnapshot(ctx context.Context, o Operation, snap *Snapshot) (bool, error) {
 	return c.satisfied(ctx, o, snap)
 }
 func (c *Client) satisfied(ctx context.Context, o Operation, snap *Snapshot) (bool, error) {

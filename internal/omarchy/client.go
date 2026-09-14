@@ -23,6 +23,8 @@ import (
 )
 
 type Client struct {
+	// replaceFile optionally supplies the filesystem writer, like Read and Run.
+	replaceFile    func(string, []byte, []byte, fs.FileMode) (bool, error)
 	hooks          []types.OmarchyHook
 	widgets        []Operation
 	prepared       map[string]string
@@ -194,6 +196,12 @@ func hash(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToS
 // replace compares against the version observed by the planner before committing.
 // GUI writers do not take RWR's lock, so a changed file causes a clean retry.
 func (c *Client) replace(path string, old, data []byte, mode fs.FileMode) (bool, error) {
+	if c.replaceFile != nil {
+		return c.replaceFile(path, old, data, mode)
+	}
+	return c.replaceOnDisk(path, old, data, mode)
+}
+func (c *Client) replaceOnDisk(path string, old, data []byte, mode fs.FileMode) (bool, error) {
 	if bytes.Equal(old, data) {
 		return false, nil
 	}

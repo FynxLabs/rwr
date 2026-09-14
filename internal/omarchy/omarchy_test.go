@@ -107,6 +107,7 @@ func fixture(t *testing.T) (*Client, *[]types.Command) {
 	return c, &commands
 }
 func TestSettingsAndOptionalWidgetConverge(t *testing.T) {
+	t.Parallel()
 	c, commands := fixture(t)
 	cfg, old, err := c.config()
 	if err != nil {
@@ -160,6 +161,7 @@ func TestSettingsAndOptionalWidgetConverge(t *testing.T) {
 	}
 }
 func TestStrictSchemaAndConflicts(t *testing.T) {
+	t.Parallel()
 	cases := []string{
 		`{"omarchy":[{"name":"a","typo":true}]}`,
 		`{"omarchy":[{"name":"a","plugins":[{"id":"../escape"}]}]}`,
@@ -176,6 +178,7 @@ func TestStrictSchemaAndConflicts(t *testing.T) {
 	}
 }
 func TestImportsAndProfilesUseDeclaringDirectory(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "common"), 0700); err != nil {
 		t.Fatal(err)
@@ -200,6 +203,7 @@ func TestImportsAndProfilesUseDeclaringDirectory(t *testing.T) {
 	}
 }
 func TestInvalidDiscoveryAndConcurrentWritesPreserveConfig(t *testing.T) {
+	t.Parallel()
 	c, commands := fixture(t)
 	before, err := c.read(".config/omarchy/shell.json")
 	if err != nil {
@@ -237,6 +241,7 @@ func TestDryRunDoesNotProbeOrWrite(t *testing.T) {
 	}
 }
 func TestReadinessFailureDoesNotChangeRoute(t *testing.T) {
+	t.Parallel()
 	c, _ := fixture(t)
 	path := filepath.Join(c.Distribution, "shell/plugins/services/idle/Service.qml")
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
@@ -261,6 +266,7 @@ func TestReadinessFailureDoesNotChangeRoute(t *testing.T) {
 	}
 }
 func TestScreensaverDispatcherPreservesArguments(t *testing.T) {
+	t.Parallel()
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash unavailable")
 	}
@@ -282,5 +288,21 @@ func TestScreensaverDispatcherPreservesArguments(t *testing.T) {
 	want := strings.Join(append(args, "force"), "\x00") + "\x00"
 	if string(out) != want {
 		t.Fatalf("argv changed: %q", out)
+	}
+}
+
+func TestValidSchemaBoundaries(t *testing.T) {
+	t.Parallel()
+	for name, raw := range map[string]string{
+		"single active theme":    `{"omarchy":[{"name":"desktop","theme":{"name":"one","active":true}}]}`,
+		"disabled hidden widget": `{"omarchy":[{"name":"desktop","plugins":[{"id":"example.widget","enabled":false,"widget":{"visible":false}}]}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ops, err := Load([]byte(raw), "json", "/blueprint.json", &types.InitConfig{})
+			if err != nil || len(ops) == 0 {
+				t.Fatalf("valid blueprint rejected: %v", err)
+			}
+		})
 	}
 }
