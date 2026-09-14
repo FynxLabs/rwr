@@ -108,8 +108,14 @@ func TestGPGVerifyBeforeImport(t *testing.T) {
 			}
 		})
 	}
-	// Native restore verifies and imports into only the disposable target home.
-	target := t.TempDir()
+	// Use the same short, private home as verification. t.TempDir embeds the
+	// test name beneath macOS's already long TMPDIR, exceeding the agent socket
+	// path limit; it also need not have GPG's required owner-only permissions.
+	target, cleanupTarget, err := privateGPGHome()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanupTarget()
 	t.Setenv("GNUPGHOME", target)
 	t.Setenv("RWR_TEST_PASSPHRASE", passphrase)
 	c := &types.InitConfig{Credentials: []types.CredentialSpec{{Name: "passphrase", Sources: []string{"env:RWR_TEST_PASSPHRASE"}}}, CredentialAttachments: []types.CredentialAttachment{{Name: "key", Connection: "test", Filename: "private.asc", Item: "one"}}}
@@ -134,7 +140,6 @@ func TestGPGVerifyBeforeImport(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(target, "pubring.kbx")); err != nil {
 		t.Fatal("key not imported")
 	}
-	_, _ = ProtectedCommand(ctx, "gpgconf", []string{"--homedir", target, "--kill", "gpg-agent"}, nil, nil)
 }
 
 type taskSession struct {
