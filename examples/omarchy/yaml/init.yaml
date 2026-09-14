@@ -1,0 +1,5 @@
+blueprints:
+  format: yaml
+  order:
+  - files
+  - omarchy

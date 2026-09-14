@@ -19,6 +19,7 @@ const DefaultSchemaVersion = 1
 // To introduce a v2 for a type: add 2 here, teach that type's processor to branch
 // on the resolved version, and document the difference. Nothing else moves.
 var supportedSchemaVersions = map[string][]int{
+	BlueprintTypeOmarchy:       {1},
 	BlueprintTypePackages:      {1},
 	BlueprintTypeRepositories:  {1},
 	BlueprintTypeFiles:         {1},

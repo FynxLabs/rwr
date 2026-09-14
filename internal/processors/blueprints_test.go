@@ -13,6 +13,7 @@ import (
 )
 
 func TestGetBlueprintRunOrder_DefaultOrder(t *testing.T) {
+	t.Parallel()
 	// Test with nil order - should return default order
 	initConfig := &types.InitConfig{
 		Init: types.Init{
@@ -31,7 +32,7 @@ func TestGetBlueprintRunOrder_DefaultOrder(t *testing.T) {
 	// and has no dispatch case, so listing it only warned "Unknown processor").
 	expectedOrder := []string{
 		"repositories", "packages", "ssh_keys", "users",
-		"files", "fonts", "services", "git", "scripts", "configuration",
+		"files", "fonts", "services", "git", "scripts", "configuration", "omarchy",
 	}
 
 	if !reflect.DeepEqual(result, expectedOrder) {
