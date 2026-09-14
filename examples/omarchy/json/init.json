@@ -1,0 +1,9 @@
+{
+  "blueprints": {
+    "format": "json",
+    "order": [
+      "files",
+      "omarchy"
+    ]
+  }
+}

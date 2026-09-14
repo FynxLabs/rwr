@@ -1,10 +1,13 @@
 package status
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/fynxlabs/rwr/internal/omarchy"
 
 	"github.com/fynxlabs/rwr/internal/display"
 	"github.com/fynxlabs/rwr/internal/state"
@@ -115,6 +118,21 @@ func classify(resource types.Resource, entry *state.Entry, querier *Querier) Row
 			row.Note = "previous setup recorded; current session readiness is not persisted"
 		}
 		return row
+
+	case types.BlueprintTypeOmarchy:
+		var desired omarchy.Operation
+		if err := json.Unmarshal(resource.DesiredState, &desired); err != nil {
+			row.Class, row.Note = UnknownItem, "desired resource unavailable"
+			return row
+		}
+		matches, err := querier.omarchySatisfied(system.RunContext(), desired)
+		if err != nil {
+			row.Class, row.Note = UnknownItem, err.Error()
+		} else if matches {
+			row.Class = InSync
+		} else {
+			row.Class = ModifiedItem
+		}
 
 	case types.BlueprintTypePackages:
 		provider, ok := system.GetProvider(providerFor(resource, entry))

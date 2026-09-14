@@ -151,6 +151,7 @@ var defaultRunOrder = []string{
 	types.BlueprintTypeGit,
 	types.BlueprintTypeScripts,
 	types.BlueprintTypeConfiguration,
+	types.BlueprintTypeOmarchy,
 }
 
 // GetBlueprintRunOrder determines the order in which blueprint processors should run.
@@ -207,7 +208,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 		for _, part := range parts {
 			switch part {
 			case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
-				types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration, types.BlueprintTypeCredentials:
+				types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration, types.BlueprintTypeCredentials, types.BlueprintTypeOmarchy:
 				return part
 			}
 		}
@@ -217,7 +218,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 	isKnownProcessor := func(processor string) bool {
 		switch processor {
 		case types.BlueprintTypePackages, types.BlueprintTypeRepositories, types.BlueprintTypeFiles, types.BlueprintTypeServices, types.BlueprintTypeUsers,
-			types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration, types.BlueprintTypeCredentials:
+			types.BlueprintTypeGit, types.BlueprintTypeScripts, types.BlueprintTypeSSHKeys, types.BlueprintTypeFonts, types.BlueprintTypeConfiguration, types.BlueprintTypeCredentials, types.BlueprintTypeOmarchy:
 			return true
 		}
 		return false
@@ -244,7 +245,7 @@ func GetBlueprintFileOrder(blueprintDir string, order []interface{}, runOnlyList
 			return detected, nil
 		}
 		log.Warnf("Blueprint file %s is not under a recognized processor directory and its content matches no blueprint type; it will NOT be executed. "+
-			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/ - or give it top-level blueprint keys.", relPath)
+			"Move it under one of: packages/, repositories/, files/, services/, users/, git/, scripts/, ssh_keys/, fonts/, configuration/, credentials/, omarchy/ - or give it top-level blueprint keys.", relPath)
 		return nil, nil
 	}
 
@@ -395,6 +396,7 @@ var blueprintKeyToType = map[string]string{
 	"users":            types.BlueprintTypeUsers,
 	"groups":           types.BlueprintTypeUsers,
 	"configurations":   types.BlueprintTypeConfiguration,
+	"omarchy":          types.BlueprintTypeOmarchy,
 }
 
 // detectBlueprintTypesFromContent types a blueprint by its top-level keys,

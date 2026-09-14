@@ -163,6 +163,7 @@ var runProcessors = []runProcessorSpec{
 	{use: "repository", short: "Run repository processor", blueprint: "repositories"},
 	{use: "services", short: "Run services processor", blueprint: "services"},
 	{use: "files", short: "Run files processor", blueprint: "files"},
+	{use: "omarchy", short: "Apply Omarchy desktop setup", blueprint: "omarchy"},
 	{use: "configuration", short: "Run configuration processor", blueprint: "configuration"},
 	{use: "users", short: "Run users processor", blueprint: "users"},
 	{use: "git", short: "Run git processor", blueprint: "git"},

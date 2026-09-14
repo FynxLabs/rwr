@@ -37,6 +37,7 @@ var NotReversible = []string{
 	types.BlueprintTypeScripts,
 	types.BlueprintTypeCredentials,
 	types.BlueprintTypeConfiguration,
+	types.BlueprintTypeOmarchy,
 	types.BlueprintTypeUsers,
 	types.BlueprintTypeSSHKeys,
 	types.BlueprintTypeRepositories,

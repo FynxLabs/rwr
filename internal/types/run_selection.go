@@ -26,7 +26,7 @@ func NormalizeProcessor(name string) (string, error) {
 	case BlueprintTypeCredentials, BlueprintTypeBootstrap, BlueprintTypePackages,
 		BlueprintTypeRepositories, BlueprintTypeFiles, BlueprintTypeServices,
 		BlueprintTypeUsers, BlueprintTypeGit, BlueprintTypeScripts, BlueprintTypeSSHKeys,
-		BlueprintTypeFonts, BlueprintTypeConfiguration:
+		BlueprintTypeFonts, BlueprintTypeConfiguration, BlueprintTypeOmarchy:
 		return name, nil
 	}
 	return "", fmt.Errorf("unknown processor %q", name)
