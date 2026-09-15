@@ -16,27 +16,96 @@ import (
 
 	"charm.land/log/v2"
 	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/fynxlabs/rwr/internal/omarchy"
 	"github.com/fynxlabs/rwr/internal/system"
 	"github.com/fynxlabs/rwr/internal/types"
 )
 
 // ProcessConfiguration applies desktop environment settings from blueprint data.
-// It supports dconf, gsettings, macOS defaults, and Windows registry operations.
-func ProcessConfiguration(blueprintData []byte, blueprintDir string, format string, initConfig *types.InitConfig) error {
-	var configData types.ConfigData
+// It supports dconf, gsettings, macOS defaults, Windows registry, and Omarchy
+// operations.
+func ProcessConfiguration(blueprintData []byte, blueprintPath string, format string, initConfig *types.InitConfig) error {
+	return ProcessConfigurationFiles([]types.ResolvedFile{{
+		Path:      blueprintPath,
+		Processor: types.BlueprintTypeConfiguration,
+		Format:    format,
+		Resolved:  blueprintData,
+	}}, initConfig)
+}
 
-	err := helpers.DecodeBlueprintInto(blueprintData, format, types.BlueprintTypeConfiguration,
-		helpers.TreeSchemaVersion(initConfig), &configData)
+type selectedConfigurationFile struct {
+	path           string
+	configurations []types.Configuration
+}
+
+type configurationBatch struct {
+	files      []selectedConfigurationFile
+	omarchyOps []omarchy.Operation
+	track      *progress
+}
+
+// ProcessConfigurationFiles applies ordinary configuration entries in file
+// order, then reconciles all selected Omarchy entries as one provider plan.
+// Omarchy placement and conflicts can span files, so applying it once per file
+// would make valid declarations depend on filename order.
+func ProcessConfigurationFiles(files []types.ResolvedFile, initConfig *types.InitConfig) error {
+	batch, err := prepareConfigurationFiles(files, initConfig)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling configuration blueprint: %w", err)
+		return err
 	}
 
-	configurations := helpers.FilterByProfiles(configData.Configurations, initConfig.Variables.Flags.Profiles)
+	var errs []error
+	for _, file := range batch.files {
+		if err := processConfigurationEntries(file.configurations, filepath.Dir(file.path), initConfig, batch.track); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if !system.Cancelled() {
+		if err := processOmarchyConfiguration(batch.omarchyOps, initConfig, batch.track); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func prepareConfigurationFiles(files []types.ResolvedFile, initConfig *types.InitConfig) (*configurationBatch, error) {
+	selected := make([]selectedConfigurationFile, 0, len(files))
+	ordinary := 0
+	for _, file := range files {
+		var configData types.ConfigData
+		if err := helpers.DecodeBlueprintInto(file.Resolved, file.Format, types.BlueprintTypeConfiguration,
+			helpers.TreeSchemaVersion(initConfig), &configData); err != nil {
+			return nil, fmt.Errorf("error unmarshaling configuration blueprint: %w", err)
+		}
+		configurations := helpers.FilterByProfiles(configData.Configurations, initConfig.Variables.Flags.Profiles)
+		selected = append(selected, selectedConfigurationFile{path: file.Path, configurations: configurations})
+		for _, config := range configurations {
+			if config.Tool != "omarchy" {
+				ordinary++
+			}
+		}
+	}
+
+	omarchyOps, err := omarchyOperations(files, initConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error planning omarchy configuration: %w", err)
+	}
 
 	track := newProgress(types.BlueprintTypeConfiguration)
-	track.expect("", len(configurations))
+	track.expect("", ordinary)
+	track.expect("omarchy", len(omarchyOps))
 
+	return &configurationBatch{files: selected, omarchyOps: omarchyOps, track: track}, nil
+}
+
+func processConfigurationEntries(configurations []types.Configuration, blueprintDir string, initConfig *types.InitConfig, track *progress) error {
 	for _, config := range configurations {
+		if config.Tool == "omarchy" {
+			continue
+		}
+		if config.Import != "" {
+			return fmt.Errorf("configuration import is supported only by the omarchy tool")
+		}
 		if system.IsDryRun() {
 			log.Infof("[DRY-RUN] Would apply %s configuration: %s", config.Tool, config.Name)
 			track.item("", config.Name, "configure", types.StatusPlanned, "dry-run", 0)
@@ -80,6 +149,55 @@ func ProcessConfiguration(blueprintData []byte, blueprintDir string, format stri
 		}
 	}
 
+	return nil
+}
+
+func processOmarchyConfiguration(ops []omarchy.Operation, cfg *types.InitConfig, track *progress) error {
+	if system.IsDryRun() {
+		for _, operation := range ops {
+			log.Infof("[DRY-RUN] Would reconcile Omarchy %s", operation.ID)
+			track.item("omarchy", operation.ID, "reconcile", types.StatusPlanned, "live state not queried", 0)
+		}
+		return nil
+	}
+	if len(ops) == 0 {
+		return nil
+	}
+
+	client, err := omarchy.NewClient(cfg.Variables.Flags.Debug)
+	if err != nil {
+		return err
+	}
+	started := time.Now()
+	done := map[string]bool{}
+	err = client.Apply(system.RunContext(), ops, func(result omarchy.Result) {
+		status := types.StatusPresent
+		detail := "unchanged"
+		if result.Changed {
+			status = types.StatusOK
+			detail = "applied"
+		}
+		if result.Err != nil {
+			status = types.StatusFailed
+			detail = result.Err.Error()
+		}
+		if result.Blocked {
+			status = types.StatusSkipped
+		}
+		done[result.Operation.ID] = true
+		track.itemIdentity("omarchy", result.Operation.ID, "reconcile", status, detail, time.Since(started), map[string]string{
+			"resource": result.Operation.ID,
+			"reversal": "explicit desired-state change required",
+		})
+	})
+	if err != nil {
+		for _, operation := range ops {
+			if !done[operation.ID] {
+				track.item("omarchy", operation.ID, "reconcile", types.StatusFailed, "Omarchy preflight or discovery failed", 0)
+			}
+		}
+		return fmt.Errorf("omarchy configuration: %w", err)
+	}
 	return nil
 }
 

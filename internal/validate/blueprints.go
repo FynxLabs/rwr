@@ -366,10 +366,6 @@ var blueprintValidators = map[string]blueprintValidator{
 		var d types.FontsData
 		return decode(data, format, types.BlueprintTypeFonts, &d)
 	},
-	types.BlueprintTypeOmarchy: func(data []byte, format string, file string, results *types.ValidationResults) error {
-		var d types.OmarchyData
-		return decode(data, format, types.BlueprintTypeOmarchy, &d)
-	},
 	types.BlueprintTypeConfiguration: func(data []byte, format string, file string, results *types.ValidationResults) error {
 		var d types.ConfigData
 		return decode(data, format, types.BlueprintTypeConfiguration, &d)

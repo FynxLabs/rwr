@@ -4,7 +4,11 @@ Omarchy setup currently relies on whole-file shell snapshots and scripts. Add na
 
 ## What Changes
 
-Add an omarchy processor for plugin sources, activation, settings, placement, themes, defaults, hooks, and an explicit external screensaver route. Include strict validation, planning, status, reporting, ownership safeguards and examples.
+Add `omarchy` as a tool in the existing `configurations` blueprint for plugin
+sources, activation, settings, placement, themes, defaults, hooks, and an
+explicit external screensaver route. Include strict validation, planning,
+status, reporting, ownership safeguards and examples. Do not add a standalone
+blueprint type, processor, run target, or init-order entry.
 
 ## Capabilities
 
@@ -15,4 +19,6 @@ Add an omarchy processor for plugin sources, activation, settings, placement, th
 
 ## Impact
 
-CLI, schema registry, processor pipeline, status, uninstall, examples and documentation. No packaged Omarchy files or live desktop are modified during implementation.
+The configuration schema and processor pipeline, status, uninstall, examples,
+and documentation. No packaged Omarchy files or live desktop are modified
+during implementation.

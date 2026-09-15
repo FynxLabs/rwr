@@ -48,7 +48,7 @@ func TestOmarchyRowsReuseDiscovery(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				plan.Resources = append(plan.Resources, types.Resource{Processor: types.BlueprintTypeOmarchy, DesiredState: raw})
+				plan.Resources = append(plan.Resources, types.Resource{Processor: types.BlueprintTypeConfiguration, Provider: "omarchy", DesiredState: raw})
 			}
 			q := NewQuerier()
 			q.omarchyClient = client

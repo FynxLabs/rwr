@@ -6,6 +6,20 @@ import (
 	"strings"
 )
 
+// UnsupportedSchemaVersionError reports a valid schema version that this build
+// cannot read for a particular blueprint type.
+type UnsupportedSchemaVersionError struct {
+	BlueprintType string
+	Version       int
+	Supported     string
+}
+
+func (e *UnsupportedSchemaVersionError) Error() string {
+	return fmt.Sprintf("%s: schema version %d is not supported by this build (supports %s) - "+
+		"upgrade rwr, or write this blueprint in a supported version",
+		e.BlueprintType, e.Version, e.Supported)
+}
+
 // DefaultSchemaVersion is the version assumed for a blueprint type that has only
 // ever had one. It is not the fallback for an undeclared blueprint - see
 // ResolveSchemaVersion, which falls back to the latest version instead.
@@ -19,7 +33,6 @@ const DefaultSchemaVersion = 1
 // To introduce a v2 for a type: add 2 here, teach that type's processor to branch
 // on the resolved version, and document the difference. Nothing else moves.
 var supportedSchemaVersions = map[string][]int{
-	BlueprintTypeOmarchy:       {1},
 	BlueprintTypePackages:      {1},
 	BlueprintTypeCredentials:   {1},
 	BlueprintTypeRepositories:  {1},
@@ -114,9 +127,11 @@ func ValidateSchemaVersion(blueprintType string, version int) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("%s: schema version %d is not supported by this build (supports %s) - "+
-		"upgrade rwr, or write this blueprint in a supported version",
-		blueprintType, version, versionList(blueprintType))
+	return &UnsupportedSchemaVersionError{
+		BlueprintType: blueprintType,
+		Version:       version,
+		Supported:     versionList(blueprintType),
+	}
 }
 
 // ValidateTreeSchemaVersion reports whether a tree-wide version from an init file

@@ -29,6 +29,18 @@ type Operation struct {
 	Unset       bool
 }
 
+// DeclarationConflictError identifies two selected declarations that target
+// the same Omarchy resource with different desired states.
+type DeclarationConflictError struct {
+	Resource     string
+	FirstOrigin  string
+	SecondOrigin string
+}
+
+func (e *DeclarationConflictError) Error() string {
+	return fmt.Sprintf("conflicting %s in %s and %s", e.Resource, e.FirstOrigin, e.SecondOrigin)
+}
+
 var identifier = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9._+-]*$`)
 
 func validID(s string) bool { return identifier.MatchString(s) && s != "." && s != ".." }
@@ -77,17 +89,40 @@ func load(raw []byte, format, origin string, cfg *types.InitConfig, visiting map
 	}
 	visiting[origin] = true
 	defer delete(visiting, origin)
-	var d types.OmarchyData
-	if err := helpers.DecodeBlueprintInto(raw, format, types.BlueprintTypeOmarchy, helpers.TreeSchemaVersion(cfg), &d); err != nil {
+	var d types.ConfigData
+	if err := helpers.DecodeBlueprintInto(raw, format, types.BlueprintTypeConfiguration, helpers.TreeSchemaVersion(cfg), &d); err != nil {
 		return nil, err
 	}
+	var presence struct {
+		Configurations []map[string]any `mapstructure:"configurations" yaml:"configurations" json:"configurations" toml:"configurations"`
+	}
+	if err := helpers.UnmarshalBlueprint(raw, format, &presence); err != nil {
+		return nil, err
+	}
+	if len(presence.Configurations) != len(d.Configurations) {
+		return nil, fmt.Errorf("internal: configuration field presence does not match decoded entries")
+	}
 	var ops []Operation
-	for _, entry := range helpers.FilterByProfiles(d.Entries, cfg.Variables.Flags.Profiles) {
-		if entry.Import != "" {
-			if entry.Name != "" || len(entry.Plugins) > 0 || entry.Shell != nil || entry.Theme != nil || entry.Defaults != nil || len(entry.Hooks) > 0 || entry.Integrations != nil {
+	for i, config := range d.Configurations {
+		if !helpers.ShouldInclude(config.Profiles, cfg.Variables.Flags.Profiles) {
+			continue
+		}
+		fields := presence.Configurations[i]
+		entry := config.AsOmarchySetup()
+		if config.Tool != "omarchy" {
+			if config.Import != "" {
+				return nil, fmt.Errorf("configuration %q uses import with tool %q; import is only supported for omarchy configurations", config.Name, config.Tool)
+			}
+			if hasOmarchyResources(entry) {
+				return nil, fmt.Errorf("configuration %q contains omarchy fields but uses tool %q", config.Name, config.Tool)
+			}
+			continue
+		}
+		if config.Import != "" {
+			if config.Action != "" || entry.Name != "" || hasOmarchyResources(entry) || hasForeignConfigurationFields(fields) {
 				return nil, fmt.Errorf("import entry cannot also declare resources")
 			}
-			path := filepath.Join(filepath.Dir(origin), entry.Import)
+			path := filepath.Join(filepath.Dir(origin), config.Import)
 			data, err := os.ReadFile(path) // #nosec G304 -- explicitly selected blueprint import, not a mutation target
 			if err != nil {
 				return nil, err
@@ -107,8 +142,14 @@ func load(raw []byte, format, origin string, cfg *types.InitConfig, visiting map
 			ops = append(ops, imported...)
 			continue
 		}
+		if config.Action != "" && config.Action != types.ConfigurationActionSet {
+			return nil, fmt.Errorf("%s (%s): unsupported action %q: the only supported action is %q", entry.Name, origin, config.Action, types.ConfigurationActionSet)
+		}
+		if hasForeignConfigurationFields(fields) {
+			return nil, fmt.Errorf("%s (%s): omarchy configuration contains fields for another configuration tool", entry.Name, origin)
+		}
 		if entry.Name == "" {
-			return nil, fmt.Errorf("omarchy entry requires name")
+			return nil, fmt.Errorf("omarchy configuration requires name")
 		}
 		current, err := entryOperations(entry, origin)
 		if err != nil {
@@ -117,6 +158,23 @@ func load(raw []byte, format, origin string, cfg *types.InitConfig, visiting map
 		ops = append(ops, current...)
 	}
 	return Merge(ops)
+}
+
+func hasOmarchyResources(entry types.OmarchySetup) bool {
+	return len(entry.Plugins) > 0 || entry.Shell != nil || entry.Theme != nil ||
+		entry.Defaults != nil || len(entry.Hooks) > 0 || entry.Integrations != nil
+}
+
+func hasForeignConfigurationFields(fields map[string]any) bool {
+	for _, name := range []string{
+		"names", "elevated", "run_once", "file", "schema", "path", "key",
+		"value", "domain", "kind", "type", "settings",
+	} {
+		if _, present := fields[name]; present {
+			return true
+		}
+	}
+	return false
 }
 func entryOperations(e types.OmarchySetup, origin string) ([]Operation, error) {
 	var ops []Operation
@@ -318,7 +376,7 @@ func Merge(ops []Operation) ([]Operation, error) {
 				b.Plugin.Update = a.Plugin.Update
 			}
 			if !reflect.DeepEqual(a, b) {
-				return nil, fmt.Errorf("conflicting %s in %s and %s", o.ID, prev.Origin, o.Origin)
+				return nil, &DeclarationConflictError{Resource: o.ID, FirstOrigin: prev.Origin, SecondOrigin: o.Origin}
 			}
 			seen[o.ID] = a
 			for i := range result {

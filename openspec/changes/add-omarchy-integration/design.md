@@ -1,17 +1,19 @@
 ## Context and scope
 
 Omarchy personalization was represented as shell.json snapshots and scripts.
-The new processor manages post-login resources while retaining ordinary files,
-packages and services for generic provisioning. It does not install Omarchy,
-run first-boot setup, replace packaged files, or build a screensaver engine.
+The new configuration tool manages post-login resources while retaining
+ordinary files, packages and services for generic provisioning. It does not
+install Omarchy, run first-boot setup, replace packaged files, or build a
+screensaver engine.
 
 ## Resource contract
 
-The v1 `omarchy` list contains named entries with profiles and imports. Typed
-resources cover plugin sources, activation, settings, widgets, shell options,
-themes, application defaults, hooks and screensaver routing. Optional booleans
-retain omission. Plugin setting maps remain extensible; false, zero, empty and
-null values differ from explicit unset paths.
+The v1 `configurations` list contains named Omarchy entries selected with
+`tool: omarchy`. Those entries support profiles and imports. Typed resources
+cover plugin sources, activation, settings, widgets, shell options, themes,
+application defaults, hooks and screensaver routing. Optional booleans retain
+omission. Plugin setting maps remain extensible; false, zero, empty and null
+values differ from explicit unset paths.
 
 Selected files and imports resolve to operations with stable identities and
 origin paths. Identical declarations deduplicate; nonconflicting plugin presence
@@ -52,7 +54,7 @@ Private ownership records distinguish created resources from adopted assets.
 Explicit removal rejects adopted or modified content and changed Git origins.
 Runtime convergence waits briefly for shell hot-reload. Partial failures block
 dependent actions and produce a terminal result for each planned resource.
-Generic uninstall explicitly reports Omarchy operations as not automatically
+Generic uninstall already reports configuration operations as not automatically
 reversible; restoration uses declared state rather than guessing old values.
 
 ## Themes, defaults and hooks
@@ -88,11 +90,13 @@ engine. Development/tests do not mutate the operator's desktop.
 
 ## Integration and validation
 
-The processor is registered in CLI, directory/content routing, strict schemas,
-profiles, imports, stage-one diagnostics, stage-two resources, execution,
-reporting, status and explicit uninstall limitations. Status carries private
-desired-state data without putting option maps into ordinary journal entries.
-Dry-run performs no runtime probes or mutations and labels live state unknown.
+The tool is registered in the configuration schema, profiles and imports,
+stage-one diagnostics, stage-two resources, configuration execution, reporting,
+and status. It uses the existing `configuration` content routing, processor,
+run target, init-order entry, and uninstall limitation. There is no standalone
+Omarchy blueprint key or processor. Status carries private desired-state data
+without putting option maps into ordinary journal entries. Dry-run performs no
+runtime probes or mutations and labels live state unknown.
 
 Tests use disposable files and command fixtures for repeat application, source
 identity checks, ownership, settings, placement, cancellation/discovery failure,

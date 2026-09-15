@@ -24,7 +24,6 @@ func TestDefaultRunOrder_EveryEntryIsDispatched(t *testing.T) {
 		types.BlueprintTypeSSHKeys,
 		types.BlueprintTypeFonts,
 		types.BlueprintTypeConfiguration,
-		types.BlueprintTypeOmarchy,
 	}
 
 	for _, processor := range defaultRunOrder {
@@ -52,7 +51,6 @@ func TestDefaultRunOrder_IncludesEveryDispatchableProcessor(t *testing.T) {
 		types.BlueprintTypeSSHKeys,
 		types.BlueprintTypeFonts,
 		types.BlueprintTypeConfiguration,
-		types.BlueprintTypeOmarchy,
 	}
 
 	for _, processor := range want {

@@ -3,7 +3,7 @@
     "format": "cue",
     "order": [
       "files",
-      "omarchy"
+      "configuration"
     ]
   }
 }

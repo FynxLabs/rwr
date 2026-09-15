@@ -33,12 +33,11 @@ func ResolveStage2(plan *types.Plan, osInfo *types.OSInfo) {
 	}
 
 	for processor, files := range plan.Files {
-		if processor == types.BlueprintTypeOmarchy {
-			plan.Resources = append(plan.Resources, omarchyResources(files, plan.Init)...)
-			continue
-		}
 		for _, file := range files {
 			plan.Resources = append(plan.Resources, enumerateResources(processor, file, defaultProvider)...)
+		}
+		if processor == types.BlueprintTypeConfiguration {
+			plan.Resources = append(plan.Resources, omarchyResources(files, plan.Init)...)
 		}
 	}
 }
@@ -204,6 +203,9 @@ func enumerateResources(processor string, file types.ResolvedFile, defaultProvid
 			return nil
 		}
 		for _, cfg := range d.Configurations {
+			if cfg.Tool == "omarchy" {
+				continue
+			}
 			names := cfg.Names
 			if len(names) == 0 && cfg.Name != "" {
 				names = []string{cfg.Name}

@@ -119,7 +119,11 @@ func classify(resource types.Resource, entry *state.Entry, querier *Querier) Row
 		}
 		return row
 
-	case types.BlueprintTypeOmarchy:
+	case types.BlueprintTypeConfiguration:
+		if resource.Provider != "omarchy" {
+			row.Class, row.Note = UnknownItem, "not queryable"
+			return row
+		}
 		var desired omarchy.Operation
 		if err := json.Unmarshal(resource.DesiredState, &desired); err != nil {
 			row.Class, row.Note = UnknownItem, "desired resource unavailable"

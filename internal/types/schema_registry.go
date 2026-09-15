@@ -38,7 +38,6 @@ type variantFactory func() SchemaVariant
 // schemaRegistry maps a blueprint type and version to the struct that reads it.
 var schemaRegistry = map[string]map[int]variantFactory{
 	BlueprintTypeCredentials:   {1: func() SchemaVariant { return &credentialsV1{} }},
-	BlueprintTypeOmarchy:       {1: func() SchemaVariant { return &omarchyV1{} }},
 	BlueprintTypePackages:      {1: func() SchemaVariant { return &packagesV1{} }},
 	BlueprintTypeRepositories:  {1: func() SchemaVariant { return &repositoriesV1{} }},
 	BlueprintTypeFiles:         {1: func() SchemaVariant { return &filesV1{} }},
@@ -146,9 +145,3 @@ type credentialsV1 struct{ CredentialSetupData }
 func (v *credentialsV1) Target() interface{}        { return &v.CredentialSetupData }
 func (v *credentialsV1) Canonical() interface{}     { return &v.CredentialSetupData }
 func (v *credentialsV1) DeclaredSchemaVersion() int { return v.DeclaredVersion() }
-
-type omarchyV1 struct{ OmarchyData }
-
-func (v *omarchyV1) Target() interface{}        { return &v.OmarchyData }
-func (v *omarchyV1) Canonical() interface{}     { return &v.OmarchyData }
-func (v *omarchyV1) DeclaredSchemaVersion() int { return v.DeclaredVersion() }

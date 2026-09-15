@@ -1,29 +1,31 @@
-[[omarchy]]
+[[configurations]]
 name = "desktop"
-[omarchy.shell.idle]
+tool = "omarchy"
+action = "set"
+[configurations.shell.idle]
 screensaver = 300
 lock = 360
-[[omarchy.plugins]]
+[[configurations.plugins]]
 id = "expose.window-overview"
 enabled = true
-[omarchy.plugins.source]
+[configurations.plugins.source]
 git = "https://github.com/kristofferR/omarchy-expose.git"
-[omarchy.plugins.settings]
+[configurations.plugins.settings]
 hotCornerEnabled = false
-[[omarchy.plugins]]
+[[configurations.plugins]]
 id = "io.github.woogy7.workspaces"
 enabled = true
-[omarchy.plugins.source]
+[configurations.plugins.source]
 git = "https://github.com/Woogy7/omarchy-workspace-switcher.git"
-[omarchy.plugins.widget]
+[configurations.plugins.widget]
 visible = false
-[omarchy.plugins.settings]
+[configurations.plugins.settings]
 minWorkspaces = 5
 maxWorkspaces = 5
-[[omarchy.plugins]]
+[[configurations.plugins]]
 id = "omarchy.workspaces"
 enabled = true
-[omarchy.plugins.widget]
+[configurations.plugins.widget]
 visible = true
 section = "left"
 after = "omarchy.menu"

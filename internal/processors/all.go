@@ -31,6 +31,48 @@ func findBootstrapFile(dir string) string {
 	return ""
 }
 
+func resolveConfigurationFiles(files []string, initConfig *types.InitConfig) ([]types.ResolvedFile, error) {
+	resolvedFiles := make([]types.ResolvedFile, 0, len(files))
+	for _, file := range files {
+		blueprintFile := filepath.Join(initConfig.Init.Location, file)
+		log.Debugf("Processing blueprint file: %s", blueprintFile)
+		if _, err := os.Stat(blueprintFile); err != nil {
+			log.Warnf("Blueprint file does not exist: %s", blueprintFile)
+			continue
+		}
+		format, err := helpers.FormatForPath(blueprintFile)
+		if err != nil {
+			return nil, err
+		}
+		blueprintData, err := os.ReadFile(blueprintFile) // #nosec G304 -- path is operator-supplied blueprint/config input
+		if err != nil {
+			return nil, fmt.Errorf("error reading blueprint file %s: %w", blueprintFile, err)
+		}
+		resolved, err := helpers.ResolveStaticTemplate(blueprintData, initConfig.Variables)
+		if err != nil {
+			return nil, fmt.Errorf("error resolving variables in %s: %w", types.BlueprintTypeConfiguration, err)
+		}
+		resolved, format, err = subsetForProcessor(resolved, format, types.BlueprintTypeConfiguration)
+		if err != nil {
+			return nil, fmt.Errorf("error preparing %s for the %s processor: %w", blueprintFile, types.BlueprintTypeConfiguration, err)
+		}
+		if helpers.CredentialTokenPattern.Match(resolved) {
+			return nil, fmt.Errorf("credential templates are supported in script/file content, not %s metadata", types.BlueprintTypeConfiguration)
+		}
+		resolvedFiles = append(resolvedFiles, types.ResolvedFile{
+			Path:      blueprintFile,
+			Processor: types.BlueprintTypeConfiguration,
+			Format:    format,
+			Raw:       blueprintData,
+			Resolved:  resolved,
+		})
+		if system.Cancelled() {
+			break
+		}
+	}
+	return resolvedFiles, nil
+}
+
 // All orchestrates the execution of all blueprint processors in the defined run order.
 // It handles bootstrap, package installation, file management, services, and other
 // operations sequentially, cleaning up package manager caches on completion.
@@ -142,29 +184,69 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 				reporting.Emit(reporting.ProcFinished{Processor: processor, Err: ferr, Dur: time.Since(procStarted)})
 				return ferr
 			}
-			if processor == types.BlueprintTypeOmarchy {
-				for {
-					procErr = ProcessOmarchy(preflight.Files[processor], initConfig)
-					if procErr == nil || !initConfig.Variables.Flags.Interactive {
+
+			if processor == types.BlueprintTypeConfiguration {
+				resolvedFiles, resolveErr := resolveConfigurationFiles(files, initConfig)
+				if resolveErr != nil {
+					return fatal(resolveErr)
+				}
+				batch, prepareErr := prepareConfigurationFiles(resolvedFiles, initConfig)
+				if prepareErr != nil {
+					return fatal(prepareErr)
+				}
+
+				runStep := func(subject string, dispatch func() error) error {
+					for {
+						err = dispatch()
+						if err == nil {
+							return nil
+						}
+						if !initConfig.Variables.Flags.Interactive {
+							if procErr == nil {
+								procErr = err
+							}
+							stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
+							return nil
+						}
+						switch reporting.RequestHalt(processor, err) {
+						case reporting.HaltRetry:
+							log.Warnf("Retrying %s after error in %s: %v", processor, subject, err)
+							continue
+						case reporting.HaltSkip:
+							log.Warnf("Skipping %s after %s error: %v", subject, processor, err)
+							if procErr == nil {
+								procErr = err
+							}
+							stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: err})
+						default:
+							return fmt.Errorf("error processing %s: %w", processor, err)
+						}
+						return nil
+					}
+				}
+
+				for _, file := range batch.files {
+					if system.Cancelled() {
 						break
 					}
-					switch reporting.RequestHalt(processor, procErr) {
-					case reporting.HaltRetry:
-						log.Warnf("Retrying %s after error: %v", processor, procErr)
-						continue
-					case reporting.HaltSkip:
-						log.Warnf("Skipping past %s error: %v", processor, procErr)
-					default:
-						return fatal(fmt.Errorf("error processing %s: %w", processor, procErr))
+					current := file
+					if runErr := runStep(current.path, func() error {
+						return processConfigurationEntries(current.configurations, filepath.Dir(current.path), initConfig, batch.track)
+					}); runErr != nil {
+						return fatal(runErr)
 					}
-					break
+				}
+				if !system.Cancelled() {
+					if runErr := runStep("Omarchy reconciliation", func() error {
+						return processOmarchyConfiguration(batch.omarchyOps, initConfig, batch.track)
+					}); runErr != nil {
+						return fatal(runErr)
+					}
 				}
 				reporting.Emit(reporting.ProcFinished{Processor: processor, Err: procErr, Dur: time.Since(procStarted)})
-				if procErr != nil {
-					stepErrs = append(stepErrs, types.StepError{Processor: processor, Err: procErr})
-				}
 				continue
 			}
+
 			for _, file := range files {
 				blueprintFile := filepath.Join(initConfig.Init.Location, file)
 				log.Debugf("Processing blueprint file: %s", blueprintFile)
@@ -235,8 +317,6 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 						return ProcessSSHKeys(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
 					case types.BlueprintTypeFonts:
 						return ProcessFonts(resolvedBlueprint, blueprintDir, format, osInfo, initConfig)
-					case types.BlueprintTypeConfiguration:
-						return ProcessConfiguration(resolvedBlueprint, blueprintDir, format, initConfig)
 					default:
 						reporting.Emit(reporting.ProcSkipped{Processor: processor, Reason: "unknown processor"})
 						return nil

@@ -22,6 +22,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ErrUnknownBlueprintField identifies strict blueprint decodes that failed
+// because the document contains a field outside the selected schema.
+var ErrUnknownBlueprintField = errors.New("blueprint contains unknown field")
+
 // UnmarshalBlueprint parses blueprint data into the provided struct.
 // It supports YAML, JSON, and TOML formats specified by the format parameter.
 // Format accepts file extensions (".yaml", ".json", ".toml") or format names ("yaml", "json", "toml").
@@ -70,6 +74,9 @@ func unmarshalBlueprint(data []byte, format string, v interface{}, strict bool) 
 			if errors.Is(err, io.EOF) {
 				break
 			}
+			if strings.Contains(err.Error(), " not found in type ") {
+				err = fmt.Errorf("%w: %v", ErrUnknownBlueprintField, err)
+			}
 			return fmt.Errorf("error unmarshaling YAML: %w", err)
 		}
 	case types.FormatJSON:
@@ -85,6 +92,9 @@ func unmarshalBlueprint(data []byte, format string, v interface{}, strict bool) 
 		if err := dec.Decode(v); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
+			}
+			if strings.Contains(err.Error(), "unknown field") {
+				err = fmt.Errorf("%w: %v", ErrUnknownBlueprintField, err)
 			}
 			return fmt.Errorf("error unmarshaling JSON: %w", err)
 		}
@@ -111,7 +121,7 @@ func unmarshalBlueprint(data []byte, format string, v interface{}, strict bool) 
 				for _, key := range undecoded {
 					keys = append(keys, key.String())
 				}
-				return fmt.Errorf("error unmarshaling TOML: unknown key(s): %s", strings.Join(keys, ", "))
+				return fmt.Errorf("error unmarshaling TOML: %w: unknown key(s): %s", ErrUnknownBlueprintField, strings.Join(keys, ", "))
 			}
 		}
 	default:

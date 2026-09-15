@@ -7,3 +7,7 @@
 - [Convert Command](convert.md) - `rwr convert`: rewrite a blueprint tree between formats or migrate deprecated constructs.
 - [Diff Command](diff.md) - `rwr diff`: machine drift as blueprint material - lists, paste-ready blocks, or routed tree edits.
 - [Capture Command](capture.md) - `rwr capture`: turn a handcrafted machine into a validated blueprint tree.
+
+For the normal path through the CLI, start with
+[`validate` → `--dry-run` → `all`](../quick-start.md). Use the full reference
+when you need a particular flag or processor rather than reading it end to end.

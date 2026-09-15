@@ -1,16 +1,7 @@
 package types
 
-const BlueprintTypeOmarchy = "omarchy"
-
-type OmarchyData struct {
-	SchemaVersion `mapstructure:",squash" yaml:",inline" json:",inline" toml:",inline"`
-	Entries       []OmarchySetup `mapstructure:"omarchy,omitempty" yaml:"omarchy,omitempty" json:"omarchy,omitempty" toml:"omarchy,omitempty"`
-}
-
 type OmarchySetup struct {
 	Name         string               `mapstructure:"name,omitempty" yaml:"name,omitempty" json:"name,omitempty" toml:"name,omitempty"`
-	Profiles     []string             `mapstructure:"profiles,omitempty" yaml:"profiles,omitempty" json:"profiles,omitempty" toml:"profiles,omitempty"`
-	Import       string               `mapstructure:"import,omitempty" yaml:"import,omitempty" json:"import,omitempty" toml:"import,omitempty"`
 	Plugins      []OmarchyPlugin      `mapstructure:"plugins,omitempty" yaml:"plugins,omitempty" json:"plugins,omitempty" toml:"plugins,omitempty"`
 	Shell        *OmarchyShell        `mapstructure:"shell,omitempty" yaml:"shell,omitempty" json:"shell,omitempty" toml:"shell,omitempty"`
 	Theme        *OmarchyTheme        `mapstructure:"theme,omitempty" yaml:"theme,omitempty" json:"theme,omitempty" toml:"theme,omitempty"`
@@ -96,5 +87,3 @@ type OmarchyExec struct {
 	Exec string   `mapstructure:"exec,omitempty" yaml:"exec,omitempty" json:"exec,omitempty" toml:"exec,omitempty"`
 	Args []string `mapstructure:"args,omitempty" yaml:"args,omitempty" json:"args,omitempty" toml:"args,omitempty"`
 }
-
-func (o OmarchySetup) GetProfiles() []string { return o.Profiles }
