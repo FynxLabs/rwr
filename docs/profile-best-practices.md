@@ -262,11 +262,12 @@ packages:
 
 ### Guard Scripts for Machines That Lack the Subject
 
-Naming no profile at all runs *everything*, profile items included - the
-filter only narrows a run when at least one `--profile` is passed. A script
-gated behind a profile therefore needs to survive running on a machine that
-was never meant for it, because a forgotten `--profile` is all it takes to
-put it there.
+Profile-gated items are opt-in: they run only when their profile is named.
+The remaining risk is a forgotten `--profile data-drives` on the one machine
+that needs it - the gated item silently does not run. A script gated behind a
+profile therefore needs to survive running on a machine that was never meant
+for it, because the inverse mistake (adding the profile to a run for a machine
+without the hardware) is just as easy.
 
 The pattern is: check for the subject, and leave quietly when it is not
 there. Fail loudly only for a prerequisite the operator can fix (a missing
@@ -344,8 +345,8 @@ If a profile doesn't seem to be working:
 
 If you're getting unexpected packages:
 
-1. Remember base items (no profile) are always installed
-2. Check if items belong to multiple profiles
+1. Check if items belong to multiple profiles you activated
+2. Remember `--profile all` activates every item, gated or not
 3. Use `--dry-run` to preview what will be installed
 
 ## Performance Considerations
@@ -359,7 +360,7 @@ For large configurations with many profiles:
 rwr all --profile specific-profile
 
 # Rather than installing everything
-rwr all --profile profile1 --profile profile2 --profile profile3
+rwr all --profile all
 ```
 
 ### Profile Combinations

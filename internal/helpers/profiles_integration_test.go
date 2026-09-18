@@ -21,10 +21,10 @@ func TestIntegration_RealWorldScenario(t *testing.T) {
 		filteredServices := FilterByProfiles(workstationConfig.services, activeProfiles)
 		filteredFiles := FilterByProfiles(workstationConfig.files, activeProfiles)
 
-		// Should get all items (permissive default when no profiles specified)
-		expectedPackageCount := 12 // all packages
-		expectedServiceCount := 5  // all services
-		expectedFileCount := 3     // all files
+		// Should get only base items (opt-in default when no profiles specified)
+		expectedPackageCount := 3 // base packages only
+		expectedServiceCount := 1 // base services only
+		expectedFileCount := 1    // base files only
 
 		if len(filteredPackages) != expectedPackageCount {
 			t.Errorf("Expected %d packages, got %d", expectedPackageCount, len(filteredPackages))
@@ -36,12 +36,12 @@ func TestIntegration_RealWorldScenario(t *testing.T) {
 			t.Errorf("Expected %d files, got %d", expectedFileCount, len(filteredFiles))
 		}
 
-		// Verify we got all packages (permissive default)
+		// Verify we got only the base packages (opt-in default)
 		packageNames := extractPackageNames(filteredPackages)
-		expectedAll := []string{"code", "curl", "discord", "docker", "git", "kubectl", "nodejs", "python", "steam", "terraform", "tmux", "vim"}
+		expectedBase := []string{"curl", "git", "vim"}
 		slices.Sort(packageNames)
-		if !reflect.DeepEqual(packageNames, expectedAll) {
-			t.Errorf("All packages = %v, expected %v", packageNames, expectedAll)
+		if !reflect.DeepEqual(packageNames, expectedBase) {
+			t.Errorf("Base packages = %v, expected %v", packageNames, expectedBase)
 		}
 	})
 
@@ -273,7 +273,7 @@ func TestIntegration_ComplexProfileCombinations(t *testing.T) {
 		{
 			name:             "no_profiles",
 			activeProfiles:   []string{},
-			expectedPackages: []string{"base-tool", "dev-tool", "work-tool", "shared-tool", "all-env-tool"},
+			expectedPackages: []string{"base-tool"},
 		},
 		{
 			name:             "all_profiles",

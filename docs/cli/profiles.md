@@ -75,10 +75,9 @@ rwr all
 ```
 
 > [!IMPORTANT]
-> This applies **everything**, not only the items without a `profiles` field.
-> With no active profiles the filter is skipped entirely, so profile items apply
-> too. Filtering starts as soon as you name at least one profile. If you want
-> only the base items, there is no flag for that today.
+> This applies **only the base items**: every item that carries a `profiles`
+> field is skipped until its profile is activated. Use `--profile all` when you
+> want everything regardless of profiles.
 
 ### Commands that ignore the flag
 
