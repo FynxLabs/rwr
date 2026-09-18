@@ -345,9 +345,10 @@ If a profile doesn't seem to be working:
 
 If you're getting unexpected packages:
 
-1. Check if items belong to multiple profiles you activated
-2. Remember `--profile all` activates every item, gated or not
-3. Use `--dry-run` to preview what will be installed
+1. Remember base items (no profiles field, or an empty one) always apply
+2. Check if items belong to multiple profiles you activated
+3. Remember `--profile all` activates every item, gated or not
+4. Use `--dry-run` to preview what will be installed
 
 ## Performance Considerations
 

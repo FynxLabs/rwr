@@ -746,9 +746,10 @@ Yes! Profile names are completely user-defined. Use whatever makes sense for you
 
 ### What happens if I don't specify any profiles?
 
-Everything is installed. With no active profiles RWR skips the filter entirely,
-so profile items are applied along with the base items. To install the base items
-and one profile, name that profile: `rwr all --profile work`.
+Only the base items are installed: items with one or more profiles are skipped
+until a profile is activated, while an empty `profiles` list still counts as a
+base item. To install the base items and one profile, name that profile:
+`rwr all --profile work`. To install everything, use `rwr all --profile all`.
 
 ### Can an item belong to multiple profiles?
 

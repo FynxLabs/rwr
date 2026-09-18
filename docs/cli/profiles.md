@@ -75,9 +75,10 @@ rwr all
 ```
 
 > [!IMPORTANT]
-> This applies **only the base items**: every item that carries a `profiles`
-> field is skipped until its profile is activated. Use `--profile all` when you
-> want everything regardless of profiles.
+> This applies **only the base items**: items with one or more profiles are
+> skipped until a profile is activated, while an empty `profiles` list still
+> counts as a base item. Use `--profile all` when you want everything
+> regardless of profiles.
 
 ### Commands that ignore the flag
 
