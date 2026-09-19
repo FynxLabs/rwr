@@ -11,12 +11,17 @@ import (
 )
 
 // BootstrapMarker is the on-disk record of a completed bootstrap. It records
-// the sorted set of profiles the bootstrap covered: a later run naming a
-// profile outside that set re-runs bootstrap so the newly named entries apply.
+// the sorted set of profiles the bootstrap covered, and whether the run
+// included every profile-scoped entry (--profile all). A later run re-runs
+// bootstrap only when the current run names something the marker does not
+// cover.
 type BootstrapMarker struct {
-	// Profiles is the sorted set of active profiles the bootstrap ran with.
+	// Profiles is the sorted set of named profiles the bootstrap ran with.
 	// An empty list means the run applied base entries only.
 	Profiles []string `json:"profiles"`
+	// CoveredAll records a run with the "all" profile: every gated entry
+	// applied, so no profile name can be missing from coverage.
+	CoveredAll bool `json:"covered_all,omitempty"`
 }
 
 // bootstrapMarkerPath returns the marker file's path, creating nothing.
@@ -32,19 +37,16 @@ func bootstrapMarkerPath() (string, error) {
 	return filepath.Join(configDir, "bootstrap"), nil
 }
 
-// bootstrapNeeded reports whether bootstrap must run: the marker is absent, or
-// the current run names profiles the recorded bootstrap did not cover.
-//
-// A marker with no profile list (written by older rwr versions) covers only
-// base entries, so any profile request re-runs bootstrap.
-func bootstrapNeeded(activeProfiles []string) (bool, string) {
+// readBootstrapMarker returns the recorded marker, or a zero marker when the
+// file is absent or unreadable. A zero marker covers base entries only.
+func readBootstrapMarker() BootstrapMarker {
 	bootstrapFile, err := bootstrapMarkerPath()
 	if err != nil {
-		return true, ""
+		return BootstrapMarker{}
 	}
 	data, err := os.ReadFile(bootstrapFile) // #nosec G304 -- path is operator-supplied config input
 	if err != nil {
-		return true, ""
+		return BootstrapMarker{}
 	}
 
 	var marker BootstrapMarker
@@ -52,41 +54,62 @@ func bootstrapNeeded(activeProfiles []string) (bool, string) {
 		// Unreadable marker: treat it as a bare marker from an older version.
 		// It covers base entries; any profile request re-runs bootstrap.
 		log.Debugf("Bootstrap marker is not valid JSON (%v); treating as base-only", err)
-		marker = BootstrapMarker{}
+		return BootstrapMarker{}
 	}
+	return marker
+}
 
+// covers reports whether the marker covers the given active profile set.
+func (m BootstrapMarker) covers(activeProfiles []string) bool {
+	if m.CoveredAll {
+		return true
+	}
 	for _, profile := range activeProfiles {
 		if profile == "all" {
-			continue // covered by anything: a re-run adds nothing the marker lacks
+			// "all" activates every gated entry; only a CoveredAll marker
+			// guarantees none was skipped.
+			return false
 		}
-		if !slices.Contains(marker.Profiles, profile) {
-			return true, profile
+		if !slices.Contains(m.Profiles, profile) {
+			return false
 		}
 	}
-	return false, ""
+	return true
 }
 
 // IsBootstrapped reports whether bootstrap can be skipped for this run: a
 // marker exists and covers every active profile. Legacy markers (empty file or
 // no JSON) cover base entries only, so any profile request re-runs bootstrap.
+// An absent marker never short-circuits, even for a bare run.
 func IsBootstrapped(activeProfiles []string) bool {
-	needed, _ := bootstrapNeeded(activeProfiles)
-	return !needed
+	bootstrapFile, err := bootstrapMarkerPath()
+	if err != nil {
+		return false
+	}
+	if _, err := os.Stat(bootstrapFile); err != nil {
+		return false
+	}
+	return readBootstrapMarker().covers(activeProfiles)
 }
 
-// Bootstrap creates a marker file in the rwr config directory recording that
-// bootstrap completed for the given active profiles.
+// Bootstrap updates the marker file in the rwr config directory, recording the
+// union of the profiles already covered and the ones this run covered. Union,
+// not replace: alternating between two profiles must not make each run forget
+// the other's coverage and re-run bootstrap on every switch.
 func Bootstrap(activeProfiles []string) error {
 	bootstrapFile, err := bootstrapMarkerPath()
 	if err != nil {
 		return err
 	}
 
-	covered := slices.Clone(activeProfiles)
+	previous := readBootstrapMarker()
+	covered := slices.Concat(previous.Profiles, activeProfiles)
+	covered = slices.DeleteFunc(covered, func(p string) bool { return p == "all" })
 	slices.Sort(covered)
 	covered = slices.Compact(covered)
 
-	data, err := json.Marshal(BootstrapMarker{Profiles: covered})
+	next := BootstrapMarker{Profiles: covered, CoveredAll: previous.CoveredAll || slices.Contains(activeProfiles, "all")}
+	data, err := json.Marshal(next)
 	if err != nil {
 		return err
 	}
