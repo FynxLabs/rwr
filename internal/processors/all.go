@@ -427,9 +427,6 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 // only the base items. A mistyped profile looked exactly like a working run.
 func checkRequestedProfiles(initConfig *types.InitConfig, fileOrders ...map[string][]string) error {
 	requested := initConfig.Variables.Flags.Profiles
-	if len(requested) == 0 {
-		return nil
-	}
 
 	var files map[string][]string
 	if len(fileOrders) > 0 {
@@ -438,6 +435,21 @@ func checkRequestedProfiles(initConfig *types.InitConfig, fileOrders ...map[stri
 	summary, err := collectProfiles(initConfig, files)
 	if err != nil {
 		return fmt.Errorf("could not validate requested profiles: %w", err)
+	}
+
+	if len(requested) == 0 {
+		// The inverse of the misspelled-profile hazard: a bare run on a tree
+		// that gates most entries behind profiles silently applies only the
+		// base items and exits 0. Say what was skipped rather than letting the
+		// run look like full convergence.
+		gated := 0
+		for _, count := range summary.Counts {
+			gated += count
+		}
+		if gated > 0 {
+			log.Warnf("no --profile given; %d profile-scoped %s skipped (%v). Use --profile <name> to apply them, or --profile all for everything", gated, pluralItems(gated), summary.Names)
+		}
+		return nil
 	}
 
 	invalid := helpers.ValidateProfiles(requested, summary.Names)

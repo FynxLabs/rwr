@@ -133,7 +133,9 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	if err := helpers.ValidateBootstrapCredentials(resolvedScripts, types.FormatJSON, initConfig); err != nil {
 		return err
 	}
-	if err := processBootstrapScripts(helpers.FilterByProfiles(scripts, initConfig.Variables.Flags.Profiles), osInfo, initConfig, blueprintDir); err != nil {
+	profiles := initConfig.Variables.Flags.Profiles
+	gatedBefore := helpers.CountGated(scripts, profiles)
+	if err := processBootstrapScripts(helpers.FilterByProfiles(scripts, profiles), osInfo, initConfig, blueprintDir); err != nil {
 		return err
 	}
 	if failureCount() > failuresBefore {
@@ -141,17 +143,27 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	}
 	managers := append([]types.PackageManagerInfo(nil), initConfig.PackageManagers...)
 	managers = append(managers, bootstrapData.PackageManagers...)
-	if err := preparePackageManagers(managers, osInfo, initConfig, len(helpers.FilterByProfiles(bootstrapData.Packages, initConfig.Variables.Flags.Profiles)) > 0); err != nil {
+	if err := preparePackageManagers(managers, osInfo, initConfig, len(helpers.FilterByProfiles(bootstrapData.Packages, profiles)) > 0); err != nil {
 		return err
 	}
 
-	bootstrapData.Files = helpers.FilterByProfiles(bootstrapData.Files, initConfig.Variables.Flags.Profiles)
-	bootstrapData.Directories = helpers.FilterByProfiles(bootstrapData.Directories, initConfig.Variables.Flags.Profiles)
-	bootstrapData.SSHKeys = helpers.FilterByProfiles(bootstrapData.SSHKeys, initConfig.Variables.Flags.Profiles)
-	bootstrapData.Git = helpers.FilterByProfiles(bootstrapData.Git, initConfig.Variables.Flags.Profiles)
-	bootstrapData.Services = helpers.FilterByProfiles(bootstrapData.Services, initConfig.Variables.Flags.Profiles)
-	bootstrapData.Users = helpers.FilterByProfiles(bootstrapData.Users, initConfig.Variables.Flags.Profiles)
-	bootstrapData.Groups = helpers.FilterByProfiles(bootstrapData.Groups, initConfig.Variables.Flags.Profiles)
+	// Count the gated entries this run skips before filtering them away: the
+	// run-once marker must stay honest for later profile runs (see below).
+	gatedBefore += helpers.CountGated(bootstrapData.Packages, profiles)
+	gatedBefore += helpers.CountGated(bootstrapData.Files, profiles)
+	gatedBefore += helpers.CountGated(bootstrapData.Directories, profiles)
+	gatedBefore += helpers.CountGated(bootstrapData.SSHKeys, profiles)
+	gatedBefore += helpers.CountGated(bootstrapData.Git, profiles)
+	gatedBefore += helpers.CountGated(bootstrapData.Services, profiles)
+	gatedBefore += helpers.CountGated(bootstrapData.Users, profiles)
+	gatedBefore += helpers.CountGated(bootstrapData.Groups, profiles)
+	bootstrapData.Files = helpers.FilterByProfiles(bootstrapData.Files, profiles)
+	bootstrapData.Directories = helpers.FilterByProfiles(bootstrapData.Directories, profiles)
+	bootstrapData.SSHKeys = helpers.FilterByProfiles(bootstrapData.SSHKeys, profiles)
+	bootstrapData.Git = helpers.FilterByProfiles(bootstrapData.Git, profiles)
+	bootstrapData.Services = helpers.FilterByProfiles(bootstrapData.Services, profiles)
+	bootstrapData.Users = helpers.FilterByProfiles(bootstrapData.Users, profiles)
+	bootstrapData.Groups = helpers.FilterByProfiles(bootstrapData.Groups, profiles)
 	// Process packages
 	log.Debugf("Processing packages from %s", blueprintFile)
 	packagesData := &types.PackagesData{
@@ -231,6 +243,15 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		log.Warnf("Bootstrap finished with %d failed step(s); NOT writing the run-once marker - the next run will retry bootstrap", failed)
 		return fmt.Errorf("bootstrap finished with %d failed step(s)", failed)
 	}
+	// A profile-filtered run skipped gated bootstrap entries (package managers,
+	// users, SSH keys, ...). Writing the marker here would tell every later
+	// run - including ones naming those profiles - that bootstrap is done, and
+	// the skipped entries would never apply. Leave the marker unwritten when
+	// anything was dropped; the base-only work is idempotent and re-runs fast.
+	if gatedBefore > 0 {
+		log.Warnf("%d bootstrap %s skipped by profile filtering; NOT writing the run-once marker - run again with the right --profile (or --profile all) to complete bootstrap", gatedBefore, pluralEntry(gatedBefore))
+		return nil
+	}
 	log.Debugf("Setting bootstrap fileProcessDirectories")
 	if err := writeBootstrapMarker(); err != nil {
 		log.Errorf("Error setting bootstrap file: %v", err)
@@ -250,4 +271,20 @@ func writeBootstrapMarker() error {
 		return nil
 	}
 	return helpers.Bootstrap()
+}
+
+// pluralEntry returns "entry" or "entries" for the given count.
+func pluralEntry(n int) string {
+	if n == 1 {
+		return "entry"
+	}
+	return "entries"
+}
+
+// pluralItems returns "item" or "items" for the given count.
+func pluralItems(n int) string {
+	if n == 1 {
+		return "item"
+	}
+	return "items"
 }

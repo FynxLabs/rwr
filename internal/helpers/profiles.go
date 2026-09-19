@@ -50,6 +50,23 @@ func FilterByProfiles[T interface{ GetProfiles() []string }](items []T, activePr
 	return filtered
 }
 
+// CountGated counts the items a profile-filtered run would skip: entries with
+// one or more profiles when their profile is not active. Processors use this to
+// warn about profile-scoped work a run leaves undone, and bootstrap uses it to
+// keep the run-once marker honest.
+func CountGated[T interface{ GetProfiles() []string }](items []T, activeProfiles []string) int {
+	if slices.Contains(activeProfiles, "all") {
+		return 0
+	}
+	count := 0
+	for _, item := range items {
+		if !ShouldInclude(item.GetProfiles(), activeProfiles) {
+			count++
+		}
+	}
+	return count
+}
+
 // GetUniqueProfiles extracts all unique profile names from a slice of items.
 // This is useful for discovering available profiles in a configuration.
 func GetUniqueProfiles[T interface{ GetProfiles() []string }](items []T) []string {

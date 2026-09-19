@@ -472,6 +472,58 @@ func TestFilterByProfiles_EmptyInput(t *testing.T) {
 	}
 }
 
+func TestCountGated(t *testing.T) {
+	items := []types.Package{
+		{Name: "base", Profiles: []string{}},
+		{Name: "gated", Profiles: []string{"work"}},
+		{Name: "gated-multi", Profiles: []string{"work", "dev"}},
+		{Name: "other-gated", Profiles: []string{"gaming"}},
+	}
+
+	tests := []struct {
+		name           string
+		activeProfiles []string
+		expected       int
+	}{
+		{
+			name:           "no_active_profiles_counts_all_gated",
+			activeProfiles: []string{},
+			expected:       3,
+		},
+		{
+			name:           "match_counts_unmatched_only",
+			activeProfiles: []string{"work"},
+			expected:       1, // other-gated only
+		},
+		{
+			name:           "all_match",
+			activeProfiles: []string{"work", "dev", "gaming"},
+			expected:       0,
+		},
+		{
+			name:           "all_keyword_counts_none",
+			activeProfiles: []string{"all"},
+			expected:       0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CountGated(items, tt.activeProfiles); got != tt.expected {
+				t.Errorf("CountGated() = %d, expected %d", got, tt.expected)
+			}
+		})
+	}
+
+	// Empty and nil inputs count zero.
+	if got := CountGated([]types.Package{}, []string{}); got != 0 {
+		t.Errorf("CountGated([]) = %d, expected 0", got)
+	}
+	if got := CountGated([]types.Package(nil), []string{}); got != 0 {
+		t.Errorf("CountGated(nil) = %d, expected 0", got)
+	}
+}
+
 func TestGetUniqueProfiles(t *testing.T) {
 	tests := []struct {
 		name     string
