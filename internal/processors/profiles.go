@@ -21,6 +21,10 @@ type ProfileSummary struct {
 	Counts map[string]int
 	// BaseItems is the number of entries carrying no profile, which always apply.
 	BaseItems int
+	// GatedItems is the number of entries carrying one or more profiles, which
+	// apply only when a named profile is active. Counted once per entry, not
+	// once per profile it lists.
+	GatedItems int
 	// Files is the number of blueprint files inspected.
 	Files int
 }
@@ -108,6 +112,8 @@ func collectProfiles(initConfig *types.InitConfig, files map[string][]string) (*
 				}
 				if len(entry.Profiles) == 0 {
 					summary.BaseItems++
+				} else {
+					summary.GatedItems++
 				}
 				for _, profile := range entry.Profiles {
 					if profile != "" {

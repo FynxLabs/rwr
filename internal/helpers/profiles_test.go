@@ -67,8 +67,8 @@ func TestShouldInclude(t *testing.T) {
 			name:           "single_profile_no_active",
 			itemProfiles:   []string{"work"},
 			activeProfiles: []string{},
-			expected:       true,
-			description:    "Profile items should be included when no profiles are active (permissive default)",
+			expected:       false,
+			description:    "Profile items should be excluded when no profiles are active (opt-in default)",
 		},
 		{
 			name:           "single_profile_exact_match",
@@ -97,8 +97,8 @@ func TestShouldInclude(t *testing.T) {
 			name:           "multi_profile_no_active",
 			itemProfiles:   []string{"work", "dev"},
 			activeProfiles: []string{},
-			expected:       true,
-			description:    "Multi-profile items should be included when no profiles are active (permissive default)",
+			expected:       false,
+			description:    "Multi-profile items should be excluded when no profiles are active (opt-in default)",
 		},
 		{
 			name:           "multi_profile_one_match",
@@ -229,8 +229,8 @@ func TestFilterByProfiles_Package(t *testing.T) {
 			name:           "no_active_profiles",
 			packages:       testPackages,
 			activeProfiles: []string{},
-			expectedNames:  []string{"vim", "docker", "spotify", "tmux"}, // All packages
-			description:    "All packages should be included when no profiles are active (permissive default)",
+			expectedNames:  []string{"vim"}, // Only base packages
+			description:    "Only base packages should be included when no profiles are active (opt-in default)",
 		},
 		{
 			name:           "work_profile_active",
@@ -308,7 +308,7 @@ func TestFilterByProfiles_Service(t *testing.T) {
 			name:           "no_active_profiles",
 			services:       testServices,
 			activeProfiles: []string{},
-			expectedNames:  []string{"sshd", "postgresql", "nginx"}, // All services
+			expectedNames:  []string{"sshd"}, // Only base services
 		},
 		{
 			name:           "dev_profile_active",
@@ -369,12 +369,9 @@ func TestFilterByProfiles_PackageLists(t *testing.T) {
 			packages:       testPackageLists,
 			activeProfiles: []string{},
 			expectedNames: [][]string{
-				{"vim", "git", "htop"},             // base
-				{"docker", "kubectl", "terraform"}, // work
-				{"steam", "discord"},               // gaming
-				{"tmux", "screen"},                 // multi (work, dev)
-			}, // All package lists
-			description: "All package lists should be included when no profiles are active (permissive default)",
+				{"vim", "git", "htop"}, // base
+			},
+			description: "Only base package lists should be included when no profiles are active (opt-in default)",
 		},
 		{
 			name:           "work_profile_active_lists",
@@ -472,6 +469,58 @@ func TestFilterByProfiles_EmptyInput(t *testing.T) {
 	result = FilterByProfiles([]types.Package(nil), []string{"work"})
 	if len(result) != 0 {
 		t.Errorf("FilterByProfiles(nil, [work]) should return empty slice, got %v", result)
+	}
+}
+
+func TestCountGated(t *testing.T) {
+	items := []types.Package{
+		{Name: "base", Profiles: []string{}},
+		{Name: "gated", Profiles: []string{"work"}},
+		{Name: "gated-multi", Profiles: []string{"work", "dev"}},
+		{Name: "other-gated", Profiles: []string{"gaming"}},
+	}
+
+	tests := []struct {
+		name           string
+		activeProfiles []string
+		expected       int
+	}{
+		{
+			name:           "no_active_profiles_counts_all_gated",
+			activeProfiles: []string{},
+			expected:       3,
+		},
+		{
+			name:           "match_counts_unmatched_only",
+			activeProfiles: []string{"work"},
+			expected:       1, // other-gated only
+		},
+		{
+			name:           "all_match",
+			activeProfiles: []string{"work", "dev", "gaming"},
+			expected:       0,
+		},
+		{
+			name:           "all_keyword_counts_none",
+			activeProfiles: []string{"all"},
+			expected:       0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CountGated(items, tt.activeProfiles); got != tt.expected {
+				t.Errorf("CountGated() = %d, expected %d", got, tt.expected)
+			}
+		})
+	}
+
+	// Empty and nil inputs count zero.
+	if got := CountGated([]types.Package{}, []string{}); got != 0 {
+		t.Errorf("CountGated([]) = %d, expected 0", got)
+	}
+	if got := CountGated([]types.Package(nil), []string{}); got != 0 {
+		t.Errorf("CountGated(nil) = %d, expected 0", got)
 	}
 }
 

@@ -119,7 +119,7 @@ This order ensures that the necessary dependencies and prerequisites are in plac
 
 ## Conditional Execution
 
-By default, the Bootstrap Process is only executed once during the initial setup. Subsequent runs of RWR will skip the Bootstrap Process unless explicitly specified.
+By default, the Bootstrap Process is only executed once during the initial setup. Subsequent runs of RWR will skip the Bootstrap Process, unless explicitly specified or when a run names a profile the recorded bootstrap did not cover - in that case bootstrap re-runs so the newly named entries apply.
 
 To force the execution of the Bootstrap Process on every run, you can use the `--force-bootstrap` flag:
 
@@ -140,9 +140,7 @@ An explicit invocation ignores the run-once marker (the marker exists to keep
 `rwr all` idempotent, not to refuse a direct request) and refreshes it on
 success.
 
-The "has run" state is a marker file in the RWR configuration directory. A
-`--dry-run` execution does **not** write the marker, so a real run after a
-dry-run still performs the bootstrap.
+The "has run" state is a marker file in the RWR configuration directory. The marker records the profiles the bootstrap covered: a later run re-runs bootstrap only when the marker is absent or does not cover a profile that run names. A marker that cannot be parsed (such as the empty marker an older rwr version wrote) counts as covering base entries only, so a bare run still skips bootstrap while any `--profile` request re-runs it. A run with `--profile all` records full coverage; runs naming specific profiles are unioned, so alternating between two profiles does not re-run bootstrap on every switch. A `--dry-run` execution does **not** write the marker, so a real run after a dry-run still performs the bootstrap.
 
 Like every other blueprint file, the bootstrap file may declare a
 `schema_version` at the top level to override the tree-wide version from the

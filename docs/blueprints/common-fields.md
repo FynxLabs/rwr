@@ -24,11 +24,10 @@ anything is applied.
 Every blueprint type supports `profiles`: a list of profile names the entry
 belongs to.
 
-An entry with no `profiles` is a base item and is always processed. Once you
-name at least one profile, an entry with `profiles` is processed only when one
-of those profiles is active (`rwr all --profile dev`). With no `--profile`
-flag, RWR applies every entry, including profiled ones. See
-[Profiles](../profiles.md).
+An entry with no `profiles` is a base item and is always processed. An entry
+with one or more profiles is processed only when a named profile covers it
+(`rwr all --profile dev`). With no `--profile` flag, RWR applies only the base
+items. See [Profiles](../profiles.md).
 
 ```yaml
 packages:

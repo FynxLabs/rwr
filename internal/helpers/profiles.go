@@ -9,18 +9,15 @@ import (
 // 1. It has no profiles specified (base item - always included)
 // 2. At least one of its profiles matches an active profile
 // 3. "all" is in active profiles (special case to include everything).
+// Profile-gated items are opt-in: when no active profiles are given, only base
+// items apply.
 func ShouldInclude(itemProfiles []string, activeProfiles []string) bool {
 	// If no profiles are specified for the item, it's a base item - always include
 	if len(itemProfiles) == 0 {
 		return true
 	}
 
-	// If no active profiles are specified, include ALL items (permissive default behavior)
-	if len(activeProfiles) == 0 {
-		return true
-	}
-
-	// If "all" is in active profiles, include everything
+	// "all" is a special case: include everything regardless of item profiles
 	if slices.Contains(activeProfiles, "all") {
 		return true
 	}
@@ -38,12 +35,6 @@ func ShouldInclude(itemProfiles []string, activeProfiles []string) bool {
 // FilterByProfiles filters a slice of items that have a Profiles field based on active profiles.
 // This is a generic function that works with any type that has a Profiles []string field.
 func FilterByProfiles[T interface{ GetProfiles() []string }](items []T, activeProfiles []string) []T {
-	if len(activeProfiles) == 0 {
-		// If no profiles specified, include ALL items (base behavior should be permissive)
-		// This allows RWR to work without requiring profile knowledge
-		return items
-	}
-
 	// If "all" is in active profiles, return everything
 	if slices.Contains(activeProfiles, "all") {
 		return items
@@ -57,6 +48,23 @@ func FilterByProfiles[T interface{ GetProfiles() []string }](items []T, activePr
 		}
 	}
 	return filtered
+}
+
+// CountGated counts the items a profile-filtered run would skip: entries with
+// one or more profiles when their profile is not active. Processors use this to
+// warn about profile-scoped work a run leaves undone, and bootstrap uses it to
+// keep the run-once marker honest.
+func CountGated[T interface{ GetProfiles() []string }](items []T, activeProfiles []string) int {
+	if slices.Contains(activeProfiles, "all") {
+		return 0
+	}
+	count := 0
+	for _, item := range items {
+		if !ShouldInclude(item.GetProfiles(), activeProfiles) {
+			count++
+		}
+	}
+	return count
 }
 
 // GetUniqueProfiles extracts all unique profile names from a slice of items.

@@ -31,9 +31,9 @@ Items with no profiles field    →  Always installed (the "base" concept)
 ```
 
 > [!IMPORTANT]
-> The filter only runs when you name at least one profile. `rwr all` with no
-> `--profile` installs **everything**, profile items included. Naming a profile
-> is what narrows the run down to the base items plus that profile.
+> Profile items are **opt-in**. `rwr all` with no `--profile` applies only the
+> base items; naming a profile is what adds that profile's items on top of the
+> base. Use `--profile all` when you truly want everything.
 
 ### Base Items vs Profile Items
 
@@ -113,14 +113,22 @@ applies nothing, so `rwr --profile work` does nothing at all.
 
 ### Basic Profile Commands
 
-#### Install Everything
+#### Install Base Items Only
 
 ```bash
 rwr all
 ```
 
-With no profile named, no filtering happens: every item applies, whether it
-carries a `profiles` field or not.
+With no profile named, only base items apply: every item that carries a
+`profiles` field is skipped until you activate that profile.
+
+#### Install Everything
+
+```bash
+rwr all --profile all
+```
+
+The special `all` profile activates every item, gated or not.
 
 #### Install Base + Specific Profile
 
@@ -652,10 +660,10 @@ and `work` are different profiles.
 
 #### More Items Than Expected
 
-1. If you passed no `--profile`, that is the cause: no filtering happens
-2. Check for items without a `profiles` field - they are base items and always
+1. Check for items without a `profiles` field - they are base items and always
    apply
-3. Verify multi-profile items aren't matching a profile you did not intend
+2. Verify multi-profile items aren't matching a profile you did not intend
+3. Remember `--profile all` activates every item, gated or not
 
 ### Profile Debugging Tips
 
@@ -738,9 +746,10 @@ Yes! Profile names are completely user-defined. Use whatever makes sense for you
 
 ### What happens if I don't specify any profiles?
 
-Everything is installed. With no active profiles RWR skips the filter entirely,
-so profile items are applied along with the base items. To install the base items
-and one profile, name that profile: `rwr all --profile work`.
+Only the base items are installed: items with one or more profiles are skipped
+until a profile is activated, while an empty `profiles` list still counts as a
+base item. To install the base items and one profile, name that profile:
+`rwr all --profile work`. To install everything, use `rwr all --profile all`.
 
 ### Can an item belong to multiple profiles?
 

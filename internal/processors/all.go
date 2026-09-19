@@ -425,11 +425,13 @@ func All(initConfig *types.InitConfig, osInfo *types.OSInfo, runOrder []string) 
 // A misspelled profile name was silent: FilterByProfiles matched nothing, every
 // profile-scoped entry was skipped, and the run reported success having installed
 // only the base items. A mistyped profile looked exactly like a working run.
+//
+// When no --profile is given, the check runs the other way: it warns when the
+// tree declares profile-scoped entries, so a bare run cannot masquerade as full
+// convergence. Discovery problems on that path are warned about, not fatal -
+// the warning is a convenience, and no request was made to validate.
 func checkRequestedProfiles(initConfig *types.InitConfig, fileOrders ...map[string][]string) error {
 	requested := initConfig.Variables.Flags.Profiles
-	if len(requested) == 0 {
-		return nil
-	}
 
 	var files map[string][]string
 	if len(fileOrders) > 0 {
@@ -437,7 +439,27 @@ func checkRequestedProfiles(initConfig *types.InitConfig, fileOrders ...map[stri
 	}
 	summary, err := collectProfiles(initConfig, files)
 	if err != nil {
+		if len(requested) == 0 {
+			// A bare run never asked for profile validation; discovery trouble
+			// (an import cycle, an unreadable blueprint) must not abort work
+			// that does not depend on it. Processors surface real blueprint
+			// errors themselves when they walk the same files.
+			log.Warnf("could not inspect profiles for the bare-run summary: %v", err)
+			return nil
+		}
 		return fmt.Errorf("could not validate requested profiles: %w", err)
+	}
+
+	if len(requested) == 0 {
+		// The inverse of the misspelled-profile hazard: a bare run on a tree
+		// that gates most entries behind profiles silently applies only the
+		// base items and exits 0. Say what was skipped rather than letting the
+		// run look like full convergence. GatedItems counts entries once, not
+		// once per profile they list.
+		if summary.GatedItems > 0 {
+			log.Warnf("no --profile given; %d profile-scoped %s skipped (%v). Use --profile <name> to apply them, or --profile all for everything", summary.GatedItems, pluralItems(summary.GatedItems), summary.Names)
+		}
+		return nil
 	}
 
 	invalid := helpers.ValidateProfiles(requested, summary.Names)
