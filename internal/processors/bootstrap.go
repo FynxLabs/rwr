@@ -60,7 +60,7 @@ func RunBootstrap(initConfig *types.InitConfig, osInfo *types.OSInfo) error {
 // directories, files, SSH keys, Git repos, services, groups, and users.
 // It skips execution if the system is already bootstrapped unless force is set.
 func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo *types.OSInfo) error {
-	if !initConfig.Variables.Flags.ForceBootstrap && helpers.IsBootstrapped() {
+	if !initConfig.Variables.Flags.ForceBootstrap && helpers.IsBootstrapped(initConfig.Variables.Flags.Profiles) {
 		log.Info("System is already bootstrapped. Skipping bootstrap process.")
 		return nil
 	}
@@ -243,17 +243,14 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 		log.Warnf("Bootstrap finished with %d failed step(s); NOT writing the run-once marker - the next run will retry bootstrap", failed)
 		return fmt.Errorf("bootstrap finished with %d failed step(s)", failed)
 	}
-	// A profile-filtered run skipped gated bootstrap entries (package managers,
-	// users, SSH keys, ...). Writing the marker here would tell every later
-	// run - including ones naming those profiles - that bootstrap is done, and
-	// the skipped entries would never apply. Leave the marker unwritten when
-	// anything was dropped; the base-only work is idempotent and re-runs fast.
+	// The marker records the profiles this run covered. Entries gated behind
+	// other profiles stay unapplied, but they are remembered: a later run
+	// naming one of them sees the gap and re-runs bootstrap for its entries.
 	if gatedBefore > 0 {
-		log.Warnf("%d bootstrap %s skipped by profile filtering; NOT writing the run-once marker - run again with the right --profile (or --profile all) to complete bootstrap", gatedBefore, pluralEntry(gatedBefore))
-		return nil
+		log.Warnf("%d bootstrap %s skipped by profile filtering; the marker records only the active profiles - run with the missing --profile (or --profile all) to apply them", gatedBefore, pluralEntry(gatedBefore))
 	}
 	log.Debugf("Setting bootstrap fileProcessDirectories")
-	if err := writeBootstrapMarker(); err != nil {
+	if err := writeBootstrapMarker(profiles); err != nil {
 		log.Errorf("Error setting bootstrap file: %v", err)
 		return err
 	}
@@ -262,15 +259,16 @@ func ProcessBootstrap(blueprintFile string, initConfig *types.InitConfig, osInfo
 	return nil
 }
 
-// writeBootstrapMarker records that bootstrap has run, unless this was a dry-run.
-// Writing the marker during a dry-run would make every later real run believe the
-// system is already bootstrapped and skip bootstrap entirely.
-func writeBootstrapMarker() error {
+// writeBootstrapMarker records that bootstrap has run for the given active
+// profiles, unless this was a dry-run. Writing the marker during a dry-run
+// would make every later real run believe the system is already bootstrapped
+// and skip bootstrap entirely.
+func writeBootstrapMarker(activeProfiles []string) error {
 	if system.IsDryRun() {
 		log.Infof("[DRY-RUN] Would write the bootstrap marker file")
 		return nil
 	}
-	return helpers.Bootstrap()
+	return helpers.Bootstrap(activeProfiles)
 }
 
 // pluralEntry returns "entry" or "entries" for the given count.

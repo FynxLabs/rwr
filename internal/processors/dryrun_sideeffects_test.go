@@ -93,7 +93,7 @@ func TestWriteBootstrapMarker_SkippedInDryRun(t *testing.T) {
 	marker := filepath.Join(configDir, "bootstrap")
 
 	system.SetDryRun(true)
-	if err := writeBootstrapMarker(); err != nil {
+	if err := writeBootstrapMarker(nil); err != nil {
 		t.Fatalf("writeBootstrapMarker returned an error in dry-run: %v", err)
 	}
 	system.SetDryRun(false)
@@ -102,7 +102,7 @@ func TestWriteBootstrapMarker_SkippedInDryRun(t *testing.T) {
 		t.Fatalf("dry-run wrote the bootstrap marker at %s (stat err: %v)", marker, err)
 	}
 
-	if err := writeBootstrapMarker(); err != nil {
+	if err := writeBootstrapMarker(nil); err != nil {
 		t.Fatalf("writeBootstrapMarker returned an error: %v", err)
 	}
 	if _, err := os.Stat(marker); err != nil {

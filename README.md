@@ -127,9 +127,10 @@ split work by operating system, machine, or resource type.
 | `rwr status` | Compare the desired tree with the current machine |
 | `rwr uninstall` | Reverse supported changes from the run record |
 
-Profiles are filters only when you name one. Running `rwr all` without
-`--profile` applies both unprofiled and profiled entries. See
-[Profiles](docs/profiles.md) before using profiles as an environment boundary.
+Profiles are opt-in: `rwr all` without `--profile` applies only unprofiled
+entries, and naming a profile adds its entries on top (`--profile all` applies
+everything). See [Profiles](docs/profiles.md) before using profiles as an
+environment boundary.
 
 ## What can go in a blueprint?
 

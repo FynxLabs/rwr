@@ -365,22 +365,25 @@ RWR SHALL detect a circular import and SHALL NOT loop.
 - **WHEN** both are processed
 - **THEN** both resolve the same file, relative to each importing file
 
-### Requirement: Profiles narrow what applies, permissively by default
+### Requirement: Profiles are opt-in
 
 RWR SHALL include a blueprint entry when any of these hold:
 
-- The entry declares no profiles. Such an entry is a base item and always applies.
-- No profiles are active. With no `--profile` given, everything applies.
+- The entry declares no profiles (no `profiles` field, or an empty list). Such
+  an entry is a base item and always applies.
 - `all` is an active profile.
 - One of the entry's profiles is active.
 
-The permissive default exists so a tree works without the operator knowing anything
-about profiles.
+An entry with one or more profiles applies only when a named profile covers it.
+The opt-in default keeps machine-specific entries (hardware setup, single-
+workstation mounts) from running on machines they were never meant for.
 
 #### Scenario: A run with no profile flag
 
 - **WHEN** `rwr all` runs with no `--profile`
-- **THEN** every entry applies, profiled or not
+- **THEN** entries with no profiles apply
+- **AND** entries listing one or more profiles do not
+- **AND** the run warns that profile-scoped entries were skipped
 
 #### Scenario: A run scoped to one profile
 
@@ -393,6 +396,27 @@ about profiles.
 
 - **WHEN** `rwr all --profile all` runs
 - **THEN** every entry applies
+
+### Requirement: The bootstrap marker records the profiles it covered
+
+RWR SHALL record the active profile set in the bootstrap run-once marker when
+bootstrap completes. A later run SHALL re-run bootstrap only when the marker is
+absent, unreadable, or does not cover a profile the current run names. Legacy
+markers without a profile list SHALL count as covering base entries only, so
+any profile request re-runs bootstrap.
+
+#### Scenario: A later run names a profile the marker does not cover
+
+- **GIVEN** bootstrap completed for no profiles (base entries only)
+- **WHEN** `rwr all --profile work` runs
+- **THEN** bootstrap re-runs, applying `work`-gated bootstrap entries
+- **AND** the marker is updated to record `work`
+
+#### Scenario: A later run names only covered profiles
+
+- **GIVEN** bootstrap completed for the `work` profile
+- **WHEN** `rwr all --profile work` runs again
+- **THEN** bootstrap is skipped
 
 ### Requirement: An unknown profile name is refused
 

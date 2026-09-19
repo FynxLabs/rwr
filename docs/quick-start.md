@@ -128,9 +128,10 @@ packages:
 rwr all --profile development
 ```
 
-Unprofiled items always apply. Profiled items are filtered only when at least
-one `--profile` is given; plain `rwr all` applies them all. Read
-[Profiles](profiles.md) before designing a larger profile layout.
+Unprofiled items always apply. Profiled items are opt-in: plain `rwr all`
+applies only the unprofiled ones, and `rwr all --profile development` adds the
+`development` entries on top. Read [Profiles](profiles.md) before designing a
+larger profile layout.
 
 ## Where to go next
 
