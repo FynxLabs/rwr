@@ -402,15 +402,16 @@ workstation mounts) from running on machines they were never meant for.
 RWR SHALL record in the bootstrap run-once marker the sorted set of named
 profiles the bootstrap covered, plus a `covered_all` flag when the run included
 every profile-scoped entry (`--profile all`). A later run SHALL re-run bootstrap
-only when the marker is absent, unreadable, or does not cover the profiles the
-current run names, where:
+only when the marker is absent or does not cover the profiles the current run
+names, where:
 
 - A `covered_all` marker covers every profile.
 - Any other marker covers exactly its recorded profile set; `all` is never
   covered by a profile list alone, because a base-only run legitimately skipped
   every gated entry.
-- A legacy marker without a profile list counts as covering base entries only,
-  so any profile request re-runs bootstrap.
+- A marker that cannot be parsed as JSON - including the empty marker an older
+  rwr version wrote - counts as a legacy marker covering base entries only, so
+  any profile request re-runs bootstrap but a bare run does not.
 
 When bootstrap re-runs, the marker SHALL record the union of the profiles
 already covered and the ones this run covered, so alternating between two
