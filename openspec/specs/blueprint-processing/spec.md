@@ -399,11 +399,22 @@ workstation mounts) from running on machines they were never meant for.
 
 ### Requirement: The bootstrap marker records the profiles it covered
 
-RWR SHALL record the active profile set in the bootstrap run-once marker when
-bootstrap completes. A later run SHALL re-run bootstrap only when the marker is
-absent, unreadable, or does not cover a profile the current run names. Legacy
-markers without a profile list SHALL count as covering base entries only, so
-any profile request re-runs bootstrap.
+RWR SHALL record in the bootstrap run-once marker the sorted set of named
+profiles the bootstrap covered, plus a `covered_all` flag when the run included
+every profile-scoped entry (`--profile all`). A later run SHALL re-run bootstrap
+only when the marker is absent, unreadable, or does not cover the profiles the
+current run names, where:
+
+- A `covered_all` marker covers every profile.
+- Any other marker covers exactly its recorded profile set; `all` is never
+  covered by a profile list alone, because a base-only run legitimately skipped
+  every gated entry.
+- A legacy marker without a profile list counts as covering base entries only,
+  so any profile request re-runs bootstrap.
+
+When bootstrap re-runs, the marker SHALL record the union of the profiles
+already covered and the ones this run covered, so alternating between two
+profiles does not make each run forget the other's coverage.
 
 #### Scenario: A later run names a profile the marker does not cover
 
@@ -417,6 +428,26 @@ any profile request re-runs bootstrap.
 - **GIVEN** bootstrap completed for the `work` profile
 - **WHEN** `rwr all --profile work` runs again
 - **THEN** bootstrap is skipped
+
+#### Scenario: A base-only marker does not cover the all profile
+
+- **GIVEN** bootstrap completed for no profiles (base entries only)
+- **WHEN** `rwr all --profile all` runs
+- **THEN** bootstrap re-runs, applying the gated bootstrap entries
+- **AND** the marker records `covered_all`
+
+#### Scenario: A covered_all marker covers every profile
+
+- **GIVEN** bootstrap completed with `--profile all`
+- **WHEN** `rwr all --profile work` runs
+- **THEN** bootstrap is skipped
+
+#### Scenario: Alternating profiles keep their coverage
+
+- **GIVEN** bootstrap completed for `work`, then for `personal`
+- **WHEN** `rwr all --profile work` runs
+- **THEN** bootstrap is skipped, because the marker unioned the earlier
+  coverage
 
 ### Requirement: An unknown profile name is refused
 

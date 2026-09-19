@@ -99,14 +99,12 @@ func TestBootstrapMarker_Sequence(t *testing.T) {
 }
 
 func TestBootstrapMarker_MultipleRunsInSequence(t *testing.T) {
-	configDir := withTempConfigDir(t)
+	withTempConfigDir(t)
 	if err := Bootstrap(nil); err != nil {
 		t.Fatal(err)
 	}
-	if b, err := os.ReadFile(filepath.Join(configDir, "bootstrap")); err == nil {
-		t.Logf("DEBUG marker after bare: %s", b)
-	}
-	// work then personal then work: every step covered, never a re-run trigger.
+	// work then personal: each run re-runs bootstrap for its own profile, and
+	// the union keeps earlier coverage.
 	for _, profiles := range [][]string{{"work"}, {"personal"}} {
 		if IsBootstrapped(profiles) {
 			t.Errorf("profiles %v: expected bootstrap to re-run (marker had no coverage yet)", profiles)
