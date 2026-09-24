@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Blueprints live in subdirectories - packages/, files/, services/ - which is the

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func TestLoadConfiguration_LocalYAMLFile(t *testing.T) {

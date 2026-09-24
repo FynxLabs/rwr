@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // The walk must not route the init file or bootstrap into a processor bucket:

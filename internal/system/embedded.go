@@ -11,7 +11,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 //go:embed definitions/*.cue

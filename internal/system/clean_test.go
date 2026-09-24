@@ -3,8 +3,8 @@ package system
 import (
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/exectest"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/exectest"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // PackageManagerInfo.Clean is stored pre-joined as "<bin> <clean args>". It used

@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // isLocalPath reports whether a repository URL names a file on this machine

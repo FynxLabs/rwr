@@ -11,9 +11,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fynxlabs/rwr/internal/scan"
-	"github.com/fynxlabs/rwr/internal/state"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/scan"
+	"github.com/freehold-digital/rwr/internal/state"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Change is one drift item.

@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/scan"
-	"github.com/fynxlabs/rwr/internal/state"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/scan"
+	"github.com/freehold-digital/rwr/internal/state"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func machineWith(packages ...string) Machine {
@@ -154,7 +154,7 @@ func TestCompute_JournalPathsAccountForConfigsAndCheckouts(t *testing.T) {
 	machine := Machine{
 		Home:    "/home/me",
 		Configs: []scan.ConfigResult{{Path: "/home/me/.config/nvim/init.lua", Rel: ".config/nvim/init.lua", Known: true}},
-		Git:     []scan.GitCheckout{{Path: "/home/me/src/rwr", URL: "git@github.com:FynxLabs/rwr.git"}},
+		Git:     []scan.GitCheckout{{Path: "/home/me/src/rwr", URL: "git@github.com:freehold-digital/rwr.git"}},
 	}
 	applies := []state.Entry{
 		{Processor: types.BlueprintTypeFiles,
@@ -216,7 +216,7 @@ func TestEmitBlocks_IncludesEveryListedCategory(t *testing.T) {
 		Home:     "/home/me",
 		Packages: []scan.PackageResult{{Provider: "pacman", Names: []string{"ripgrep"}}},
 		Services: []string{"sshd"},
-		Git:      []scan.GitCheckout{{Path: "/home/me/src/rwr", URL: "git@github.com:FynxLabs/rwr.git"}},
+		Git:      []scan.GitCheckout{{Path: "/home/me/src/rwr", URL: "git@github.com:freehold-digital/rwr.git"}},
 		Configs:  []scan.ConfigResult{{Path: "/home/me/.config/nvim/init.lua", Rel: ".config/nvim/init.lua", Known: true}},
 	}
 
@@ -320,7 +320,7 @@ func TestCompute_AJournaledCheckoutNameDoesNotHideAnotherPath(t *testing.T) {
 	machine := Machine{
 		Home: "/home/me",
 		Git: []scan.GitCheckout{
-			{Path: "/home/me/work/rwr", URL: "git@github.com:FynxLabs/rwr.git"},
+			{Path: "/home/me/work/rwr", URL: "git@github.com:freehold-digital/rwr.git"},
 			{Path: "/home/me/fork/rwr", URL: "git@github.com:someone/rwr.git"},
 		},
 	}

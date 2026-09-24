@@ -1,4 +1,4 @@
-module github.com/fynxlabs/rwr
+module github.com/freehold-digital/rwr
 
 go 1.26.0
 

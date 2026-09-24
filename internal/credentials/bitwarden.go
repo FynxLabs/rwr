@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // A bw: source reads a personal vault value. RWR installs, logs in and unlocks

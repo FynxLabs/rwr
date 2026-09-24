@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/helpers"
 )
 
 func TestProfileLists(t *testing.T) {

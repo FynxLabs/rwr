@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func filesTestConfig(blueprintDir string) *types.InitConfig {

@@ -3,10 +3,10 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/processors"
-	"github.com/fynxlabs/rwr/internal/state"
-	"github.com/fynxlabs/rwr/internal/status"
+	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/processors"
+	"github.com/freehold-digital/rwr/internal/state"
+	"github.com/freehold-digital/rwr/internal/status"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

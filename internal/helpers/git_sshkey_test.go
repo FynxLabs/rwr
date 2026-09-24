@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // generateKey writes a real ed25519 keypair and returns its path and PEM.

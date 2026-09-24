@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/scan"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/scan"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func testFindings(t *testing.T) Findings {

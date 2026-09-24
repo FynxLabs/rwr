@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // repositoryStepData is the value a provider's repository action steps are

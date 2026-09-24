@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/exectest"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/exectest"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Install steps staged at fixed, world-known /tmp names any local user could

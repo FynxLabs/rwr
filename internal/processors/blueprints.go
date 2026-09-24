@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 	"github.com/go-git/go-git/v5"
 )
 

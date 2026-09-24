@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="FynxLabs/rwr"
+REPO="freehold-digital/rwr"
 BINARY_PATH="/usr/local/bin"
 LICENSE_PATH="/usr/local/share/doc/rwr"
 README_PATH="/usr/local/share/doc/rwr"
@@ -173,10 +173,10 @@ fi
 # older two-file form (checksums.txt.sig + checksums.txt.pem) — both verify.
 #
 # The identity match is anchored: "github.com/$REPO" as a bare substring also
-# matched evil.github.com/FynxLabs/rwr.anything hosted by an attacker's issuer
+# matched evil.github.com/freehold-digital/rwr.anything hosted by an attacker's issuer
 # subdomain. Keyless GitHub Actions identities are always
 # https://github.com/<owner>/<repo>/<workflow path>@<ref>.
-COSIGN_IDENTITY_RE='^https://github\.com/FynxLabs/rwr/'
+COSIGN_IDENTITY_RE='^https://github\.com/freehold-digital/rwr/'
 COSIGN_ISSUER="https://token.actions.githubusercontent.com"
 
 # By default a missing signature or missing cosign only warns: an attacker with

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/system"
 )
 
 type Result struct {

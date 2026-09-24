@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/exectest"
-	"github.com/fynxlabs/rwr/internal/reporting"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/exectest"
+	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // The safety net for the reporter refactor (add-tui task 2): a headless run's

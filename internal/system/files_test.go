@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/reporting"
 )
 
 type inlineConfirmReporter struct {

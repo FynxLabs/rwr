@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/credentials"
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/reporting"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/credentials"
+	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // findBootstrapFile returns the bootstrap blueprint in dir, in whichever format it

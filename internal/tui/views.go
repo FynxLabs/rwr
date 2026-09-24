@@ -13,9 +13,9 @@ import (
 	"charm.land/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/fynxlabs/rwr/internal/display"
-	"github.com/fynxlabs/rwr/internal/reporting"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/display"
+	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // View implements tea.Model. Both layouts render from the same model, so a

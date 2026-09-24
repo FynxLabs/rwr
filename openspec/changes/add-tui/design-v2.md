@@ -1,6 +1,6 @@
 # rwr TUI Implementation Plan
 
-Target repo: `github.com/fynxlabs/rwr` (master)
+Target repo: `github.com/freehold-digital/rwr` (master)
 
 Replaces the current streaming-log output with a Bubble Tea dashboard. Non-TTY behavior is unchanged.
 

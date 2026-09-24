@@ -5,13 +5,13 @@
 On Linux and macOS:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/freehold-digital/rwr/refs/heads/master/install.sh | sudo bash
 ```
 
 On Windows, in a PowerShell that you started with "Run as administrator":
 
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.ps1'))
+Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/freehold-digital/rwr/refs/heads/master/install.ps1'))
 ```
 
 Each script finds the correct build for your machine, downloads `checksums.txt`
@@ -39,7 +39,7 @@ RWR publishes a build for each of these:
 | Windows | `x86_64`, `arm64` |
 
 These package formats are on the
-[releases page](https://github.com/fynxlabs/rwr/releases):
+[releases page](https://github.com/freehold-digital/rwr/releases):
 
 - Archives (`.tar.gz` for Linux and macOS, `.zip` for Windows)
 - Debian packages (`.deb`)
@@ -55,7 +55,7 @@ port. On that architecture, use the archive, the `.deb`, the `.rpm`, or the
 ## Install from a release
 
 1. Get the archive for your machine from the
-   [releases page](https://github.com/fynxlabs/rwr/releases).
+   [releases page](https://github.com/freehold-digital/rwr/releases).
 2. Compare the file against `checksums.txt` from the same release.
 3. Extract the archive.
 4. Move the `rwr` binary to a directory in your `PATH`.
@@ -63,12 +63,12 @@ port. On that architecture, use the archive, the `.deb`, the `.rpm`, or the
 ## Builds of the master branch
 
 Each merge to `master` publishes a prerelease with the tag
-[`nightly`](https://github.com/fynxlabs/rwr/releases/tag/nightly). Use it to test
+[`nightly`](https://github.com/freehold-digital/rwr/releases/tag/nightly). Use it to test
 a correction before the next release.
 
 WARNING: A `nightly` build is not a release. It is the master branch at the time
 of the build. The build passed CI, but nobody tested it. Use the
-[latest release](https://github.com/fynxlabs/rwr/releases/latest) for a machine
+[latest release](https://github.com/freehold-digital/rwr/releases/latest) for a machine
 that you depend on.
 
 RWR replaces the `nightly` tag and its files at each merge. The download

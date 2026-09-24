@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Validate runs blueprint and provider validation based on the provided options.

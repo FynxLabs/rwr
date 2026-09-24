@@ -1,7 +1,7 @@
 package system
 
 import (
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Executor runs commands on behalf of the processors. It exists so command

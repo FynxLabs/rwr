@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // DetectOS identifies the current operating system, distribution, and available

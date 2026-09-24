@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // examplesDir locates the repository's examples/ tree from this package.

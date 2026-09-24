@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Every processor named in the default run order must have a dispatch case in

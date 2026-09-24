@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"charm.land/huh/v2"
-	"github.com/fynxlabs/rwr/internal/diff"
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/diff"
+	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/types"
 	"github.com/spf13/cobra"
 )
 

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 const ownershipPath = ".local/state/rwr/omarchy/ownership.json"

@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/state"
-	"github.com/fynxlabs/rwr/internal/status"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/uninstall"
+	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/state"
+	"github.com/freehold-digital/rwr/internal/status"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/uninstall"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

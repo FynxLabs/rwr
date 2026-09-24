@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/exectest"
+	"github.com/freehold-digital/rwr/internal/exectest"
 )
 
 // An elevated copy has to create the target's directory with the same

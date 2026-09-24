@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/helpers"
 )
 
 const (

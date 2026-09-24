@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Resolver lives for a run, caches unavailable connections, and never acquires

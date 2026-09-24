@@ -178,18 +178,18 @@ func TestResolveInitSource_URLs(t *testing.T) {
 	}{
 		{
 			name: "github repository URL discovers its init",
-			ref:  "https://github.com/FynxLabs/blueprints",
-			want: filepath.Join("cloned", "FynxLabs", "blueprints", "init.toml"),
+			ref:  "https://github.com/freehold-digital/blueprints",
+			want: filepath.Join("cloned", "freehold-digital", "blueprints", "init.toml"),
 		},
 		{
 			name: "github clone URL discovers its init",
-			ref:  "https://github.com/FynxLabs/blueprints.git/",
-			want: filepath.Join("cloned", "FynxLabs", "blueprints", "init.toml"),
+			ref:  "https://github.com/freehold-digital/blueprints.git/",
+			want: filepath.Join("cloned", "freehold-digital", "blueprints", "init.toml"),
 		},
 		{
 			name: "raw github init clones its repository",
-			ref:  "https://raw.githubusercontent.com/FynxLabs/blueprints/refs/heads/main/macOS/init.cue",
-			want: filepath.Join("cloned", "FynxLabs", "blueprints", "init.toml"),
+			ref:  "https://raw.githubusercontent.com/freehold-digital/blueprints/refs/heads/main/macOS/init.cue",
+			want: filepath.Join("cloned", "freehold-digital", "blueprints", "init.toml"),
 		},
 		{
 			name: "raw https passes through",
@@ -198,8 +198,8 @@ func TestResolveInitSource_URLs(t *testing.T) {
 		},
 		{
 			name: "github blob init clones its repository",
-			ref:  "https://github.com/FynxLabs/blueprints/blob/main/init.yaml",
-			want: filepath.Join("cloned", "FynxLabs", "blueprints", "init.toml"),
+			ref:  "https://github.com/freehold-digital/blueprints/blob/main/init.yaml",
+			want: filepath.Join("cloned", "freehold-digital", "blueprints", "init.toml"),
 		},
 		{
 			name:    "malformed blob URL errors instead of panicking",
@@ -242,9 +242,9 @@ func TestResolveInitSource_Shorthands(t *testing.T) {
 	// only on the "dev" ref, and an explicit path exists wherever named.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/FynxLabs/blueprints/HEAD/init.toml",
-			"/FynxLabs/blueprints/dev/init.yaml",
-			"/FynxLabs/blueprints/v1.2/machines/laptop.yaml":
+		case "/freehold-digital/blueprints/HEAD/init.toml",
+			"/freehold-digital/blueprints/dev/init.yaml",
+			"/freehold-digital/blueprints/v1.2/machines/laptop.yaml":
 			w.WriteHeader(http.StatusOK)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -264,22 +264,22 @@ func TestResolveInitSource_Shorthands(t *testing.T) {
 	}{
 		{
 			name: "owner/repo probes the default branch",
-			ref:  "FynxLabs/blueprints",
-			want: server.URL + "/FynxLabs/blueprints/HEAD/init.toml",
+			ref:  "freehold-digital/blueprints",
+			want: server.URL + "/freehold-digital/blueprints/HEAD/init.toml",
 		},
 		{
 			name: "owner/repo@ref probes that ref",
-			ref:  "FynxLabs/blueprints@dev",
-			want: server.URL + "/FynxLabs/blueprints/dev/init.yaml",
+			ref:  "freehold-digital/blueprints@dev",
+			want: server.URL + "/freehold-digital/blueprints/dev/init.yaml",
 		},
 		{
 			name: "explicit path needs no probing",
-			ref:  "FynxLabs/blueprints/machines/laptop.yaml@v1.2",
-			want: server.URL + "/FynxLabs/blueprints/v1.2/machines/laptop.yaml",
+			ref:  "freehold-digital/blueprints/machines/laptop.yaml@v1.2",
+			want: server.URL + "/freehold-digital/blueprints/v1.2/machines/laptop.yaml",
 		},
 		{
 			name:    "repo without an init file names what it tried",
-			ref:     "FynxLabs/empty",
+			ref:     "freehold-digital/empty",
 			wantErr: "tried init.yaml",
 		},
 	} {

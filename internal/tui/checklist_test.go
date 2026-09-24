@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/fynxlabs/rwr/internal/reporting"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // The processor checklist is visible by default during a run: one named row

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // A template's own `variables` are overrides for that one render. They were

@@ -14,8 +14,8 @@ import (
 
 	"charm.land/huh/v2"
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/reporting"
-	"github.com/fynxlabs/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/system"
 )
 
 var offerBitwardenInstall = func() (bool, error) {

@@ -3,7 +3,7 @@ package helpers
 import (
 	"fmt"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // DecodeBlueprint reads a blueprint file as the schema version it is written in.

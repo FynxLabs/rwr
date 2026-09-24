@@ -3,7 +3,7 @@ package validate
 import (
 	"fmt"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // ValidateBootstrap validates a bootstrap configuration.

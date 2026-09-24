@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/fynxlabs/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/reporting"
 	"golang.org/x/term"
 )
 

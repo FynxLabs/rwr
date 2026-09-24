@@ -1,6 +1,6 @@
 # Rinse, Wash, Repeat (RWR)
 
-[![Build](https://github.com/FynxLabs/rwr/actions/workflows/go.yml/badge.svg)](https://github.com/FynxLabs/rwr/actions/workflows/go.yml)
+[![Build](https://github.com/freehold-digital/rwr/actions/workflows/go.yml/badge.svg)](https://github.com/freehold-digital/rwr/actions/workflows/go.yml)
 
 ![RWR Logo](img/rwr_128.gif)
 
@@ -34,7 +34,7 @@ one setup or several machine-specific configurations.
 On Linux or macOS:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/freehold-digital/rwr/refs/heads/master/install.sh | sudo bash
 ```
 
 On Windows, open PowerShell as an administrator:
@@ -42,12 +42,12 @@ On Windows, open PowerShell as an administrator:
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/FynxLabs/rwr/refs/heads/master/install.ps1'))
+iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/freehold-digital/rwr/refs/heads/master/install.ps1'))
 ```
 
 The installers select the correct release and verify its checksum. You can also
 download an archive or native package from the
-[releases page](https://github.com/FynxLabs/rwr/releases/latest). Read the
+[releases page](https://github.com/freehold-digital/rwr/releases/latest). Read the
 [installation guide](docs/install.md) for package formats, supported
 architectures, nightly builds, and pinned versions.
 
@@ -174,7 +174,7 @@ RWR uses [mise](https://mise.jdx.dev/) to install its development tools and run
 common tasks:
 
 ```bash
-git clone https://github.com/FynxLabs/rwr.git
+git clone https://github.com/freehold-digital/rwr.git
 cd rwr
 mise install
 mise run build

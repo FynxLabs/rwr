@@ -1,6 +1,6 @@
 package main
 
-import "github.com/fynxlabs/rwr/cmd"
+import "github.com/freehold-digital/rwr/cmd"
 
 // Build information. These are populated at release time by goreleaser via
 // -ldflags "-X main.version=... -X main.commit=... -X main.date=...

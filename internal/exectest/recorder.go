@@ -8,7 +8,7 @@ package exectest
 import (
 	"fmt"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Call is one recorded command.

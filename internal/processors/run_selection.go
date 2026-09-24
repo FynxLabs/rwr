@@ -1,6 +1,6 @@
 package processors
 
-import "github.com/fynxlabs/rwr/internal/types"
+import "github.com/freehold-digital/rwr/internal/types"
 
 // SelectRun is shared by command dispatch and the execution engine.
 func SelectRun(c *types.InitConfig, requested []string) (types.RunSelection, error) {

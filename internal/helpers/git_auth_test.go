@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
@@ -28,11 +28,11 @@ func TestGetAuthMethodTokenScope(t *testing.T) {
 		wantErr    bool
 		errFragmnt string
 	}{
-		{name: "github attaches token", url: "https://github.com/fynxlabs/rwr.git", wantToken: true},
-		{name: "github raw host attaches token", url: "https://raw.githubusercontent.com/fynxlabs/rwr/main/f", wantToken: true},
+		{name: "github attaches token", url: "https://github.com/freehold-digital/rwr.git", wantToken: true},
+		{name: "github raw host attaches token", url: "https://raw.githubusercontent.com/freehold-digital/rwr/main/f", wantToken: true},
 		{name: "other https host gets no token", url: "https://attacker.tld/r.git"},
 		{name: "http is refused", url: "http://attacker.tld/r.git", wantErr: true, errFragmnt: "cleartext"},
-		{name: "http github is refused too", url: "http://github.com/fynxlabs/rwr.git", wantErr: true, errFragmnt: "cleartext"},
+		{name: "http github is refused too", url: "http://github.com/freehold-digital/rwr.git", wantErr: true, errFragmnt: "cleartext"},
 	}
 
 	for _, tt := range tests {

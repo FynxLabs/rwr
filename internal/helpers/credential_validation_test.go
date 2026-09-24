@@ -3,7 +3,7 @@ package helpers
 import (
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func TestCredentialDependencyValidationWithoutValues(t *testing.T) {
