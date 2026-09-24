@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // fakeKeyring stands in for the OS keyring: CI has no Secret Service and

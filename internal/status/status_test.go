@@ -7,10 +7,10 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/fynxlabs/rwr/internal/display"
-	"github.com/fynxlabs/rwr/internal/state"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/display"
+	"github.com/freehold-digital/rwr/internal/state"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func TestFileState(t *testing.T) {

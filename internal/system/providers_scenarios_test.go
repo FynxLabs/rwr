@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // TestPackageManagerDetectionScenarios tests various scenarios for package manager detection

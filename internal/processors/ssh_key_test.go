@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/credentials"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/credentials"
+	"github.com/freehold-digital/rwr/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

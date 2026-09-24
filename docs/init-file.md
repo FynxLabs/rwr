@@ -29,9 +29,9 @@ commit, and `owner/repo/path/to/init.yaml` (optionally with `@ref`) names the
 file explicitly:
 
 ```bash
-rwr all -i fynxlabs/my-blueprints
-rwr all -i fynxlabs/my-blueprints@v1.2
-rwr all -i fynxlabs/my-blueprints/machines/laptop.yaml
+rwr all -i freehold-digital/my-blueprints
+rwr all -i freehold-digital/my-blueprints@v1.2
+rwr all -i freehold-digital/my-blueprints/machines/laptop.yaml
 ```
 
 A local path that exists always wins over shorthand interpretation, so a

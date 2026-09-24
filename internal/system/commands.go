@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/reporting"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/types"
 	"golang.org/x/term"
 )
 

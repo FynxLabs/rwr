@@ -7,7 +7,7 @@ import (
 	"runtime"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // FindTool checks if a tool exists and returns its information.

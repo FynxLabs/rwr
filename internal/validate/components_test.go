@@ -3,7 +3,7 @@ package validate
 import (
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func TestValidatePackages(t *testing.T) {

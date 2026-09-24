@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // withBWFake swaps the CLI seam for a fake and restores it. The fake keys off

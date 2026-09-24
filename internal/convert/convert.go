@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/helpers"
 )
 
 // Run walks root and converts every blueprint, init, bootstrap, and manifest

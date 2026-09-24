@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/state"
-	"github.com/fynxlabs/rwr/internal/status"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/state"
+	"github.com/freehold-digital/rwr/internal/status"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func serviceEntry(name string, identity map[string]string) state.Entry {

@@ -3,8 +3,8 @@ package processors
 import (
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/reporting"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // progress tracks per-provider lane counts for one processor and emits the

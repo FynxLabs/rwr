@@ -3,7 +3,7 @@ package system
 import (
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func TestSetDryRun_EnablesMode(t *testing.T) {

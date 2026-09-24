@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // SetLinuxDetails populates the OSInfo struct with Linux-specific package manager

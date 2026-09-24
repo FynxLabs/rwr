@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/fynxlabs/rwr/internal/processors"
-	"github.com/fynxlabs/rwr/internal/tui"
+	"github.com/freehold-digital/rwr/internal/processors"
+	"github.com/freehold-digital/rwr/internal/tui"
 	"github.com/spf13/cobra"
 )
 

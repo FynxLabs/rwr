@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/reporting"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // The guard decides which commands get the terminal when sudo is not already

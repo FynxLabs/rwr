@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/reporting"
 )
 
 // PromptUserChoice displays an interactive selection prompt and returns

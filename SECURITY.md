@@ -10,7 +10,7 @@ computers.
 **Please do not open a public issue for a security problem.**
 
 Report it privately via
-[GitHub Security Advisories](https://github.com/FynxLabs/rwr/security/advisories/new)
+[GitHub Security Advisories](https://github.com/freehold-digital/rwr/security/advisories/new)
 ("Report a vulnerability" on the Security tab). You should receive an initial
 response within a week.
 
@@ -36,7 +36,7 @@ blueprint may do what the operator could do; it must not be possible for
 
 ## Supported versions
 
-Only the [latest release](https://github.com/FynxLabs/rwr/releases/latest)
+Only the [latest release](https://github.com/freehold-digital/rwr/releases/latest)
 receives fixes. The `nightly` prerelease is a rolling build of master and is
 not a supported target, though reports against it are welcome - that's where
 fixes land first.

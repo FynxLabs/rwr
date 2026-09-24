@@ -17,7 +17,7 @@ if ($Nightly -and $Tag) {
 }
 if ($Nightly) { $Tag = 'nightly' }
 
-$REPO = "FynxLabs/rwr"
+$REPO = "freehold-digital/rwr"
 $BINARY_PATH = "$env:ProgramFiles\rwr"
 $LICENSE_PATH = "$env:ProgramFiles\rwr\doc"
 $README_PATH = "$env:ProgramFiles\rwr\doc"
@@ -130,7 +130,7 @@ try {
         Invoke-WebRequest -Uri $bundle_url -OutFile $tmp_bundle -Headers $headers -UseBasicParsing
         & $cosign.Source verify-blob $tmp_sums `
             --bundle $tmp_bundle `
-            --certificate-identity-regexp '^https://github\.com/FynxLabs/rwr/' `
+            --certificate-identity-regexp '^https://github\.com/freehold-digital/rwr/' `
             --certificate-oidc-issuer https://token.actions.githubusercontent.com 2>$null | Out-Null
         if ($LASTEXITCODE -ne 0) {
             Write-Host "cosign signature verification FAILED for checksums.txt. The release may have been tampered with. Refusing to install."

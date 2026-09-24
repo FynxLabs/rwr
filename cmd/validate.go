@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/fynxlabs/rwr/internal/types"
-	"github.com/fynxlabs/rwr/internal/validate"
+	"github.com/freehold-digital/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/validate"
 	"github.com/spf13/cobra"
 )
 

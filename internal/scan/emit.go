@@ -3,7 +3,7 @@ package scan
 import (
 	"path"
 
-	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/helpers"
 )
 
 // EmitPackages renders package results as a packages blueprint block in the

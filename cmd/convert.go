@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/fynxlabs/rwr/internal/convert"
-	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/convert"
+	"github.com/freehold-digital/rwr/internal/helpers"
 	"github.com/spf13/cobra"
 )
 

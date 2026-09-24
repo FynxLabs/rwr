@@ -6,10 +6,10 @@ import (
 	"sort"
 
 	"charm.land/huh/v2"
-	"github.com/fynxlabs/rwr/internal/capture"
-	"github.com/fynxlabs/rwr/internal/helpers"
-	"github.com/fynxlabs/rwr/internal/scan"
-	"github.com/fynxlabs/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/capture"
+	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/scan"
+	"github.com/freehold-digital/rwr/internal/system"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

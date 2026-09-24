@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // The stage-1 resolve refactor (add-tui task 1) must not change what validate

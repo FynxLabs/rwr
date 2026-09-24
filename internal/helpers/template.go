@@ -8,7 +8,7 @@ import (
 	"text/template"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // ResolveTemplate renders a Go text template with the provided variables.

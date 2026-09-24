@@ -3,8 +3,8 @@ package processors
 import (
 	"encoding/json"
 
-	"github.com/fynxlabs/rwr/internal/omarchy"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/omarchy"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func omarchyOperations(files []types.ResolvedFile, cfg *types.InitConfig) ([]omarchy.Operation, error) {

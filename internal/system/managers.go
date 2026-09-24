@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // collectAvailableManagers records every provider usable on this system in

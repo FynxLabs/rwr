@@ -12,10 +12,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fynxlabs/rwr/internal/omarchy"
-	"github.com/fynxlabs/rwr/internal/scan"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/omarchy"
+	"github.com/freehold-digital/rwr/internal/scan"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Presence is one queried actual state.

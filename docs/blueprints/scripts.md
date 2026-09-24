@@ -259,4 +259,4 @@ If you encounter issues with the Scripts blueprint, consider the following:
 - Check the RWR logs for any error messages or output related to script execution.
 - Use the `--debug` flag when running RWR to enable verbose output and gather more information.
 
-If you need further assistance, open an issue at [github.com/fynxlabs/rwr/issues](https://github.com/fynxlabs/rwr/issues).
+If you need further assistance, open an issue at [github.com/freehold-digital/rwr/issues](https://github.com/freehold-digital/rwr/issues).

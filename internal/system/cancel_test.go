@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // A run that has been cancelled refuses to start anything new, rather than

@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/exectest"
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/exectest"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // dconf load takes the keyfile on stdin. Commands run without a shell, so a

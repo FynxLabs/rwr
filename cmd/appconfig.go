@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // AppConfig owns what used to be seventeen package-level variables in this

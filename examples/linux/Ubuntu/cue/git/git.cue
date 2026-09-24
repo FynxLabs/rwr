@@ -3,7 +3,7 @@
     {
       "name": "rwr",
       "action": "clone",
-      "url": "https://github.com/FynxLabs/rwr.git",
+      "url": "https://github.com/freehold-digital/rwr.git",
       "path": "{{ .User.home }}/git/rwr",
       "private": false
     }

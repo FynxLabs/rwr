@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/system"
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 // Stage 2 fills provider states and enumerates planned resources per

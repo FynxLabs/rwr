@@ -36,7 +36,7 @@ binary is older:
 
 ```text
 rwr: a newer version is available: 0.6.0 (you have 0.5.2)
-rwr: https://github.com/fynxlabs/rwr/releases/latest (silence with --skip-version-check)
+rwr: https://github.com/freehold-digital/rwr/releases/latest (silence with --skip-version-check)
 ```
 
 The check is advisory and never fails the run: a two-second timeout, and every

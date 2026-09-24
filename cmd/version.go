@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/system"
+	"github.com/freehold-digital/rwr/internal/system"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -37,7 +37,7 @@ var buildInfo = BuildInfo{Version: "dev"}
 
 // latestReleaseURL is the GitHub API endpoint consulted by the startup version
 // check. It is a variable so tests can point it at a local server.
-var latestReleaseURL = "https://api.github.com/repos/fynxlabs/rwr/releases/latest"
+var latestReleaseURL = "https://api.github.com/repos/freehold-digital/rwr/releases/latest"
 
 // SetVersionInfo records the build metadata injected at link time. Empty
 // fields fall back to Go's embedded build info, which is what `go install`
@@ -197,7 +197,7 @@ func checkForNewVersion(app *AppConfig) {
 
 	if compareVersions(buildInfo.Version, latest) < 0 {
 		fmt.Fprintf(os.Stderr, "rwr: a newer version is available: %s (you have %s)\n", latest, buildInfo.Version)
-		fmt.Fprintf(os.Stderr, "rwr: https://github.com/fynxlabs/rwr/releases/latest (silence with --skip-version-check)\n")
+		fmt.Fprintf(os.Stderr, "rwr: https://github.com/freehold-digital/rwr/releases/latest (silence with --skip-version-check)\n")
 	}
 }
 

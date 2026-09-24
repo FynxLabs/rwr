@@ -6,7 +6,7 @@ import (
 
 	"charm.land/huh/v2"
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/reporting"
 	"golang.org/x/term"
 )
 

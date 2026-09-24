@@ -115,4 +115,4 @@ If you encounter issues while using the Git blueprint, consider the following:
 - Verify that you have provided the necessary authentication details for private repositories.
 - Check that the specified local path for cloning the repository is valid and has the required permissions.
 
-If the issue persists, open an issue at [github.com/fynxlabs/rwr/issues](https://github.com/fynxlabs/rwr/issues).
+If the issue persists, open an issue at [github.com/freehold-digital/rwr/issues](https://github.com/freehold-digital/rwr/issues).

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"charm.land/log/v2"
-	"github.com/fynxlabs/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/helpers"
 	"github.com/spf13/cobra"
 )
 

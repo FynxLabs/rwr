@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fynxlabs/rwr/internal/types"
+	"github.com/freehold-digital/rwr/internal/types"
 )
 
 func writeFixture(t *testing.T, path string, data []byte, mode os.FileMode) {
