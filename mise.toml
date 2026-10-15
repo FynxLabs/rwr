@@ -2,7 +2,9 @@
 experimental = true
 
 [tools]
-go = "1.27.1" # >=1.26.6 required: GO-2026-5856 (crypto/tls), GO-2026-6088 (encoding/xml), GO-2026-5972 (encoding/asn1) and GO-2026-5026 (net/http) are all reachable from our HTTP, provider-loading and git-auth paths
+"go:github.com/securego/gosec/v2/cmd/gosec" = "2.28.0"
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"
+go = "1.27.2" # Includes standard-library security fixes reported by govulncheck.
 goreleaser = "latest"
 gotestsum = "latest"
 golangci-lint = "2.14.0" # keep local hooks aligned with the pinned CI lint gate

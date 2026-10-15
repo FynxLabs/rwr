@@ -25,9 +25,9 @@ import (
 	"github.com/freehold-digital/rwr/internal/types"
 )
 
-const askpassInvocation = "__rwr_sudo_askpass"
-const askpassSocketEnv = "RWR_INTERNAL_ASKPASS_SOCKET"
-const askpassTokenEnv = "RWR_INTERNAL_ASKPASS_TOKEN"
+const askpassInvocation = "__rwr_sudo_askpass"         // #nosec G101 -- Internal subcommand name, not a credential.
+const askpassSocketEnv = "RWR_INTERNAL_ASKPASS_SOCKET" // #nosec G101 -- Environment variable name, not a credential.
+const askpassTokenEnv = "RWR_INTERNAL_ASKPASS_TOKEN"   // #nosec G101 -- Environment variable name; its value is generated with crypto/rand.
 
 // sudo executes SUDO_ASKPASS without arguments we control. A private helper
 // re-enters this executable; init also works when that executable is a test binary.
@@ -47,7 +47,7 @@ func askpassClient(output io.Writer) error {
 	if endpoint == "" || len(token) != 64 {
 		return errors.New("missing askpass capability")
 	}
-	conn, err := net.DialTimeout("unix", endpoint, 5*time.Second)
+	conn, err := net.DialTimeout("unix", endpoint, 5*time.Second) // #nosec G704 -- Network is hardcoded to unix: local IPC cannot make an HTTP/network SSRF request.
 	if err != nil {
 		return err
 	}
@@ -113,6 +113,7 @@ func installSudoBridge(command *exec.Cmd, spec types.Command) (func(), error) {
 	zeroBytes(tokenBytes)
 	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
 	helper := filepath.Join(dir, "askpass")
+	// #nosec G306 -- Sudo executes this owner-only helper inside a private 0700 directory; it contains no password.
 	if err = os.WriteFile(helper, []byte("#!/bin/sh\nexec "+quote(executable)+" "+askpassInvocation+"\n"), 0700); err != nil {
 		closeAskpassResource(listener)
 		cleanupDir()
@@ -121,6 +122,7 @@ func installSudoBridge(command *exec.Cmd, spec types.Command) (func(), error) {
 	// The wrapper forces askpass even for children that try a terminal first.
 	// An explicit nested sudo -n remains noninteractive, as requested by its caller.
 	wrapper := "#!/bin/sh\nexec " + quote(sudoPath) + " -A \"$@\"\n"
+	// #nosec G306 -- Owner-only executable wrapper in the private 0700 directory; contains no password.
 	if err = os.WriteFile(filepath.Join(dir, "sudo"), []byte(wrapper), 0700); err != nil {
 		closeAskpassResource(listener)
 		cleanupDir()
