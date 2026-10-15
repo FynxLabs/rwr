@@ -75,7 +75,10 @@ type RepositoryAction struct {
 
 // ActionStep defines a single step in a repository operation.
 type ActionStep struct {
-	Action string `toml:"action"`
+	// Optional per-step overrides: AUR helpers build as user but install via sudo.
+	Elevated  *bool  `toml:"elevated,omitempty"`
+	Escalates *bool  `toml:"escalates,omitempty"`
+	Action    string `toml:"action"`
 	// Path is what a "remove" step deletes. Provider definitions have always
 	// spelled it "path"; without a field to decode into, every shipped remove step
 	// arrived with nothing to act on.

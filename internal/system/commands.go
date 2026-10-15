@@ -135,9 +135,8 @@ func setupCommandEnvironment(command *exec.Cmd, cmd types.Command) {
 // The latest probe result is cached briefly whether it was warm or cold. A
 // failed policy lookup is no more likely to change between adjacent packages
 // than a successful one, and retrying a ten-second timeout for every package
-// turns the bound into an unbounded run-level delay. A cached cold result still
-// sends every potentially escalating command to the terminal, so a password
-// prompt made by the command itself remains visible.
+// turns the bound into an unbounded run-level delay. Inline displays collect
+// cold credentials through a managed prompt; headless runs retain terminal input.
 var (
 	sudoValidateMu sync.Mutex
 	sudoProbedAt   time.Time
@@ -214,16 +213,21 @@ var sudoValidate = func(ctx context.Context, input []byte) error {
 	return sudoValidationCommand(ctx, input).Run()
 }
 
-var sudoPassword = func() ([]byte, error) {
+var sudoPassword = func(ctx context.Context) ([]byte, error) { return requestSudoPassword(ctx, "sudo password") }
+var sudoRetryPassword = func(ctx context.Context) ([]byte, error) {
+	return requestSudoPassword(ctx, "sudo password — authentication failed; try again")
+}
+
+func requestSudoPassword(ctx context.Context, prompt string) ([]byte, error) {
 	if reporting.SupportsInlinePrompts() {
-		return reporting.RequestSecret("sudo password")
+		return reporting.RequestSecretContext(ctx, prompt)
 	}
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return nil, errNoSudoTerminal
 	}
 	var password []byte
 	err := reporting.WithTerminal(func() error {
-		_, _ = fmt.Fprint(os.Stderr, "sudo password: ")
+		_, _ = fmt.Fprint(os.Stderr, prompt+": ")
 		var err error
 		password, err = term.ReadPassword(int(os.Stdin.Fd()))
 		_, _ = fmt.Fprintln(os.Stderr)
@@ -243,9 +247,10 @@ func SetSudoProbeForTest(probe func(context.Context) error) (restore func()) {
 }
 
 func SetSudoPasswordForTest(prompt func() ([]byte, error)) (restore func()) {
-	previous := sudoPassword
-	sudoPassword = prompt
-	return func() { sudoPassword = previous }
+	previous, previousRetry := sudoPassword, sudoRetryPassword
+	wrapped := func(context.Context) ([]byte, error) { return prompt() }
+	sudoPassword, sudoRetryPassword = wrapped, wrapped
+	return func() { sudoPassword, sudoRetryPassword = previous, previousRetry }
 }
 
 func SetSudoValidateForTest(validate func(context.Context, []byte) error) (restore func()) {
@@ -324,23 +329,44 @@ func ensureSudoCredentials() error {
 	return nil
 }
 
-func validatedSudoPassword() ([]byte, error) {
+var sudoAuthenticationMu sync.Mutex
+
+func validatedSudoPassword() ([]byte, error) { return validatedSudoPasswordContext(RunContext()) }
+
+func validatedSudoPasswordContext(ctx context.Context) ([]byte, error) {
+	sudoAuthenticationMu.Lock()
+	defer sudoAuthenticationMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if password := cachedSudoPassword(); len(password) != 0 {
 		return password, nil
 	}
-	password, err := sudoPassword()
-	if err != nil {
-		return nil, err
-	}
-	input := passwordInput(password, "")
-	defer zeroBytes(input)
-	if err := sudoValidate(RunContext(), input); err != nil {
+	var last error
+	for attempt := 0; attempt < 3; attempt++ {
+		prompt := sudoPassword
+		if attempt > 0 {
+			prompt = sudoRetryPassword
+		}
+		password, err := prompt(ctx)
+		if err != nil {
+			return nil, err
+		}
+		input := passwordInput(password, "")
+		err = sudoValidate(ctx, input)
+		zeroBytes(input)
+		if err == nil {
+			cacheSudoPassword(password)
+			return password, nil
+		}
 		zeroBytes(password)
 		clearSudoPassword()
-		return nil, err
+		last = err
+		if Cancelled() {
+			return nil, ErrCancelled
+		}
 	}
-	cacheSudoPassword(password)
-	return password, nil
+	return nil, last
 }
 
 func markSudoWarm(fromPrompt bool) {
@@ -464,6 +490,11 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 	defer zeroBytes(sudoInput)
 	setupCommandEnvironment(command, cmd)
+	closeBridge, bridgeErr := installSudoBridge(command, cmd)
+	if bridgeErr != nil {
+		return fmt.Errorf("sudo askpass setup: %w", bridgeErr)
+	}
+	defer closeBridge()
 
 	if sudoInput != nil {
 		command.Stdin = bytes.NewReader(sudoInput)
@@ -595,6 +626,11 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 	}
 	defer zeroBytes(sudoInput)
 	setupCommandEnvironment(command, cmd)
+	closeBridge, bridgeErr := installSudoBridge(command, cmd)
+	if bridgeErr != nil {
+		return "", fmt.Errorf("sudo askpass setup: %w", bridgeErr)
+	}
+	defer closeBridge()
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

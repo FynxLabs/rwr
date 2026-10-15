@@ -27,9 +27,10 @@ func CleanPackageManagers(osInfo *types.OSInfo, initConfig *types.InitConfig) er
 		log.Debugf(" Running clean command: %s", pm.Clean)
 
 		cleanCmd := types.Command{
-			Exec:     pm.Bin,
-			Args:     cleanArgs,
-			Elevated: pm.Elevated,
+			Exec:      pm.Bin,
+			Args:      cleanArgs,
+			Elevated:  pm.Elevated,
+			Escalates: pm.Escalates,
 		}
 
 		if err := RunCommand(cleanCmd, initConfig.Variables.Flags.Debug); err != nil {

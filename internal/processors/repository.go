@@ -166,6 +166,7 @@ func processRepository(repo types.Repository, osInfo *types.OSInfo, initConfig *
 				Exec:      step.Exec,
 				Args:      step.Args,
 				Elevated:  provider.Elevated,
+				Escalates: provider.Escalates,
 				Variables: provider.Environment,
 				// Same routing as packages: terminal handover only on an
 				// explicit per-item `interactive: true`; sudo's password is
@@ -296,9 +297,10 @@ func runRepositoryUpdates(initConfig *types.InitConfig, declared map[string]bool
 
 		log.Infof("Processing %s Updates", name)
 		updateCmd := types.Command{
-			Exec:     provider.BinPath,
-			Args:     strings.Fields(provider.Commands.Update),
-			Elevated: provider.Elevated,
+			Exec:      provider.BinPath,
+			Args:      strings.Fields(provider.Commands.Update),
+			Elevated:  provider.Elevated,
+			Escalates: provider.Escalates,
 		}
 
 		if err := system.RunCommand(updateCmd, initConfig.Variables.Flags.Debug); err != nil {

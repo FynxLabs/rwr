@@ -69,15 +69,16 @@ func InitProviders() error {
 // by combining the binary path with each command template.
 func GetPackageManagerInfo(provider *types.Provider, binPath string) types.PackageManagerInfo {
 	return types.PackageManagerInfo{
-		Name:     provider.Name,
-		Bin:      binPath,
-		List:     fmt.Sprintf("%s %s", binPath, provider.Commands.List),
-		Search:   fmt.Sprintf("%s %s", binPath, provider.Commands.Search),
-		Install:  fmt.Sprintf("%s %s", binPath, provider.Commands.Install),
-		Remove:   fmt.Sprintf("%s %s", binPath, provider.Commands.Remove),
-		Update:   fmt.Sprintf("%s %s", binPath, provider.Commands.Update),
-		Clean:    fmt.Sprintf("%s %s", binPath, provider.Commands.Clean),
-		Elevated: provider.Elevated,
+		Name:      provider.Name,
+		Bin:       binPath,
+		List:      fmt.Sprintf("%s %s", binPath, provider.Commands.List),
+		Search:    fmt.Sprintf("%s %s", binPath, provider.Commands.Search),
+		Install:   fmt.Sprintf("%s %s", binPath, provider.Commands.Install),
+		Remove:    fmt.Sprintf("%s %s", binPath, provider.Commands.Remove),
+		Update:    fmt.Sprintf("%s %s", binPath, provider.Commands.Update),
+		Clean:     fmt.Sprintf("%s %s", binPath, provider.Commands.Clean),
+		Elevated:  provider.Elevated,
+		Escalates: provider.Escalates,
 	}
 }
 

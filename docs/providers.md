@@ -332,7 +332,7 @@ other.
 system-wide package managers such as `pacman` or `apt`.
 
 `escalates = true` means the provider **calls sudo itself** while RWR runs it
-unprivileged. Homebrew is the case: it refuses to run as root, so it must have
+unprivileged. AUR helpers such as yay and paru use this flag. Homebrew also needs it: it refuses to run as root, so it must have
 `elevated = false`, and a cask install still shells out to sudo to write into
 `/Applications`.
 
@@ -347,7 +347,19 @@ explicit `--cask` or local `brew info --json=v2` metadata. Formula operations
 remain captured in the TUI. When an operation really may need sudo and
 credentials are not cached, RWR collects the masked password inside the TUI;
 headless runs fall back to a masked terminal prompt. RWR validates sudo
-once, then runs the actual command captured inside the TUI. If metadata cannot
+before running the actual command captured inside the TUI. Nested sudo requests
+use a command-scoped askpass bridge, including when the sudo ticket expires or
+is not shared with a child process. Passwords travel through private sockets and
+sudo stdin, never through environment variables, arguments, or files. Failed
+authentication allows up to three masked attempts. Cancelling the command closes
+the bridge and pending prompts. Command failures never automatically retry with
+raw terminal access; terminal interaction must be explicitly requested.
+
+Install/remove command steps can override the provider defaults with `elevated`
+and `escalates`. For example, AUR helper installation elevates the pacman
+prerequisite step, keeps git clone unprivileged, and marks makepkg as self-escalating.
+
+If metadata cannot
 classify a package, RWR fails safe and treats it as potentially escalating.
 
 ## Best Practices
