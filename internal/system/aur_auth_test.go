@@ -13,7 +13,7 @@ func TestAURProvidersDeclareNestedSudo(t *testing.T) {
 			t.Fatalf("missing provider %s", name)
 		}
 		if p.Elevated || !p.Escalates {
-			t.Errorf("%s: Elevated=false and Escalates=false; nested sudo bypasses inline password handling", name)
+			t.Errorf("%s: Elevated=%v Escalates=%v; want Elevated=false Escalates=true", name, p.Elevated, p.Escalates)
 		}
 	}
 }

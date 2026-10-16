@@ -89,8 +89,8 @@ description = "Validate the CUE provider sources against their schema"
 run = "cue vet ./internal/system/definitions/"
 
 [tasks.security]
-description = "Scan for known vulnerabilities (govulncheck - staged by postinstall)"
-run = "govulncheck ./..."
+description = "Scan for known vulnerabilities"
+run = "go tool -modfile=tools/security/go.mod govulncheck ./..."
 
 [tasks.install]
 description = "Install rwr to ~/.local/bin (linux/macos); errors on windows"

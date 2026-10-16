@@ -303,3 +303,18 @@ used.
 - **AND** the keyring backend is locked, denies access, or returns a transient error
 - **THEN** RWR reports the keyring error
 - **AND** does not write `repository.ssh_private_key` to the config file
+
+### Requirement: Sudo bridge authentication creates no stored secret
+
+The managed sudo bridge SHALL authenticate helpers by kernel-reported user and
+process-session identity. It SHALL NOT generate or store an authorization token
+in environment variables, files, logs, or RWR state. Child environments MAY carry
+the non-secret endpoint and helper paths. Passwords SHALL remain in memory and
+private IPC. Per-request password buffers SHALL be cleared after use, and the
+run-scoped password cache SHALL be cleared when the run ends or is cancelled.
+
+#### Scenario: A managed sudo child is launched
+
+- **WHEN** RWR configures the child's askpass helper
+- **THEN** the environment contains only endpoint/helper paths for this protocol
+- **AND** no capability token or sudo password is exported

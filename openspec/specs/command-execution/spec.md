@@ -332,6 +332,67 @@ class of name `{{ .TempDir }}` exists to eliminate.
 - **THEN** the run stops with an error
 - **AND** no fixed fallback path is used
 
+### Requirement: Captured nested sudo uses managed prompts
+
+On Linux and macOS, captured commands marked `Escalates` SHALL use a
+command-scoped askpass bridge while an inline display owns the terminal.
+Helpers SHALL be authenticated using kernel-reported user identity and the
+command's isolated process session. Knowing the endpoint path SHALL NOT grant
+access from another session. RWR SHALL NOT export an authentication token to
+children or persist one on disk.
+
+Password bytes SHALL travel over the private socket and the askpass helper's
+stdout as consumed by sudo. The socket SHALL be owner-readable/writable, inside
+an owner-only directory. Commands explicitly marked `Interactive` SHALL retain
+the terminal handoff. A command failure SHALL NOT automatically retry with
+terminal access.
+
+#### Scenario: A child sudo cannot reuse the parent's sudo ticket
+
+- **WHEN** an unprivileged AUR helper calls sudo from a captured command
+- **AND** sudo needs authentication despite an earlier successful validation
+- **THEN** sudo obtains the password through the managed askpass bridge
+- **AND** no raw terminal password prompt overwrites the dashboard
+
+#### Scenario: Another process discovers the endpoint
+
+- **WHEN** a process outside the command's session invokes the askpass helper
+- **THEN** the bridge rejects it before prompting or returning password bytes
+
+#### Scenario: Authentication is rejected
+
+- **WHEN** sudo rejects a password
+- **THEN** RWR allows up to three masked validation attempts
+- **AND** never changes a captured command to interactive as a retry strategy
+
+#### Scenario: A pending authentication request is cancelled
+
+- **WHEN** a command finishes or the operator cancels the run
+- **THEN** its pending secret request, connections, and listener are closed
+- **AND** its private bridge directory is removed
+- **AND** whole-run cancellation is reported as `ErrCancelled`
+
+### Requirement: Provider escalation policy reaches every command path
+
+Provider `Escalates` and `Elevated` settings SHALL be preserved for package
+commands, startup dependencies, repository commands, updates, and cleanup.
+Install/remove command steps MAY override either setting explicitly.
+
+#### Scenario: Manifest selection requires a missing build dependency
+
+- **WHEN** a selected configuration declares an AUR helper
+- **AND** preparation installs a missing build dependency before bootstrap
+- **THEN** that dependency command carries the helper's self-escalation policy
+- **AND** nested sudo receives the managed password prompt
+
+#### Scenario: Installing an AUR helper
+
+- **WHEN** its prerequisite pacman step runs
+- **THEN** RWR elevates that step
+- **AND** git clone runs unprivileged without requesting sudo
+- **AND** makepkg builds as the user and uses managed nested sudo for installation
+
+
 ## Known Gaps
 
 - **The macOS account password is still passed in argv.** `dscl . -passwd` takes

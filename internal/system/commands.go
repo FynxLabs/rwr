@@ -337,6 +337,9 @@ func validatedSudoPasswordContext(ctx context.Context) ([]byte, error) {
 	sudoAuthenticationMu.Lock()
 	defer sudoAuthenticationMu.Unlock()
 	if err := ctx.Err(); err != nil {
+		if Cancelled() {
+			return nil, ErrCancelled
+		}
 		return nil, err
 	}
 	if password := cachedSudoPassword(); len(password) != 0 {
@@ -350,6 +353,9 @@ func validatedSudoPasswordContext(ctx context.Context) ([]byte, error) {
 		}
 		password, err := prompt(ctx)
 		if err != nil {
+			if Cancelled() && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) {
+				return nil, ErrCancelled
+			}
 			return nil, err
 		}
 		input := passwordInput(password, "")
@@ -490,11 +496,11 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 	defer zeroBytes(sudoInput)
 	setupCommandEnvironment(command, cmd)
-	closeBridge, bridgeErr := installSudoBridge(command, cmd)
+	bridge, bridgeErr := installSudoBridge(command, cmd)
 	if bridgeErr != nil {
 		return fmt.Errorf("sudo askpass setup: %w", bridgeErr)
 	}
-	defer closeBridge()
+	defer bridge.Close()
 
 	if sudoInput != nil {
 		command.Stdin = bytes.NewReader(sudoInput)
@@ -570,7 +576,7 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	defer protectCredentialOutput(command)()
-	if err := command.Run(); err != nil {
+	if err := bridge.Run(command); err != nil {
 		// A command killed by cancellation exits non-zero like any failure.
 		// Reporting it as one would fill the summary with "signal: killed"
 		// for work the operator deliberately stopped.
@@ -626,11 +632,11 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 	}
 	defer zeroBytes(sudoInput)
 	setupCommandEnvironment(command, cmd)
-	closeBridge, bridgeErr := installSudoBridge(command, cmd)
+	bridge, bridgeErr := installSudoBridge(command, cmd)
 	if bridgeErr != nil {
 		return "", fmt.Errorf("sudo askpass setup: %w", bridgeErr)
 	}
-	defer closeBridge()
+	defer bridge.Close()
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -642,7 +648,7 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 
-	err = command.Run()
+	err = bridge.Run(command)
 	if err != nil {
 		if Cancelled() {
 			return "", ErrCancelled

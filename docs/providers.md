@@ -350,8 +350,10 @@ headless runs fall back to a masked terminal prompt. RWR validates sudo
 before running the actual command captured inside the TUI. Nested sudo requests
 use a command-scoped askpass bridge, including when the sudo ticket expires or
 is not shared with a child process. Passwords travel through private sockets and
-sudo stdin, never through environment variables, arguments, or files. Failed
-authentication allows up to three masked attempts. Cancelling the command closes
+sudo's askpass stdout, never through environment variables, arguments, or files.
+The bridge authenticates the helper using its kernel-reported user and the
+command's isolated process session; no capability token is passed to children.
+Failed authentication allows up to three masked attempts. Cancelling the command closes
 the bridge and pending prompts. Command failures never automatically retry with
 raw terminal access; terminal interaction must be explicitly requested.
 

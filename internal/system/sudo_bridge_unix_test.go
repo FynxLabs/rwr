@@ -3,6 +3,7 @@
 package system
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -42,11 +43,11 @@ func TestNestedSudoBridgeReusesPasswordAndCleansUp(t *testing.T) {
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	command := exec.Command("sh", "-c", "sudo; sudo")
 	command.Env = os.Environ()
-	stop, err := installSudoBridge(command, types.Command{Escalates: true})
+	bridge, err := installSudoBridge(command, types.Command{Escalates: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
+	defer bridge.Close()
 	endpoint := environmentValue(command.Env, askpassSocketEnv)
 	for _, path := range []string{filepath.Dir(endpoint), endpoint} {
 		info, err := os.Stat(path)
@@ -61,7 +62,11 @@ func TestNestedSudoBridgeReusesPasswordAndCleansUp(t *testing.T) {
 			t.Fatalf("permissions %s: %v", path, info.Mode())
 		}
 	}
-	output, err := command.CombinedOutput()
+	var captured bytes.Buffer
+	command.Stdout = &captured
+	command.Stderr = &captured
+	err = bridge.Run(command)
+	output := captured.Bytes()
 	if err != nil {
 		t.Fatalf("nested sudo: %v: %s", err, output)
 	}
@@ -69,11 +74,14 @@ func TestNestedSudoBridgeReusesPasswordAndCleansUp(t *testing.T) {
 		t.Fatalf("output=%q prompts=%d", output, prompts)
 	}
 	for _, entry := range command.Env {
+		if strings.HasPrefix(entry, "RWR_INTERNAL_ASKPASS_TOKEN=") {
+			t.Fatal("capability token in environment")
+		}
 		if strings.Contains(entry, "fixture-secret") {
 			t.Fatal("password leaked into environment")
 		}
 	}
-	stop()
+	bridge.Close()
 	if _, err := os.Stat(filepath.Dir(endpoint)); !os.IsNotExist(err) {
 		t.Fatalf("bridge directory survived: %v", err)
 	}
@@ -89,24 +97,22 @@ func TestSudoBridgeCleanupCancelsPendingPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	command := exec.Command("sh")
+	command := exec.Command("sh", "-c", "exec \"$SUDO_ASKPASS\"")
 	command.Env = os.Environ()
-	stop, err := installSudoBridge(command, types.Command{Escalates: true})
+	bridge, err := installSudoBridge(command, types.Command{Escalates: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
-	helper := exec.Command(environmentValue(command.Env, "SUDO_ASKPASS"))
-	helper.Env = command.Env
+	defer bridge.Close()
 	done := make(chan error, 1)
-	go func() { done <- helper.Run() }()
+	go func() { done <- bridge.Run(command) }()
 	select {
 	case <-r.requests:
 	case <-time.After(5 * time.Second):
 		t.Fatal("no managed prompt")
 	}
 	cleaned := make(chan struct{})
-	go func() { stop(); close(cleaned) }()
+	go func() { bridge.Close(); close(cleaned) }()
 	select {
 	case <-cleaned:
 	case <-time.After(5 * time.Second):
@@ -141,11 +147,11 @@ func TestExplicitInteractiveCommandDoesNotInstallAskpass(t *testing.T) {
 	defer reporting.Set(bridgeReporter{})()
 	command := exec.Command("sh")
 	command.Env = os.Environ()
-	stop, err := installSudoBridge(command, types.Command{Interactive: true, Escalates: true})
+	bridge, err := installSudoBridge(command, types.Command{Interactive: true, Escalates: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
+	defer bridge.Close()
 	if environmentValue(command.Env, askpassSocketEnv) != "" {
 		t.Fatal("interactive terminal handoff must not wait for a suspended inline display")
 	}
@@ -172,5 +178,73 @@ func TestSudoAuthenticationRecoversAfterRejectedPassword(t *testing.T) {
 	defer zeroBytes(password)
 	if err != nil || string(password) != "correct" || prompts != 2 {
 		t.Fatalf("error=%v attempts=%d", err, prompts)
+	}
+}
+
+// Knowing the socket location and helper path must not authorize a sibling
+// process belonging to RWR's own session (or any other command session).
+func TestSudoBridgeRejectsHelperOutsideCommandSession(t *testing.T) {
+	defer reporting.Set(bridgeReporter{})()
+	prompts := 0
+	defer SetSudoPasswordForTest(func() ([]byte, error) { prompts++; return []byte("fixture-secret"), nil })()
+	defer SetSudoValidateForTest(func(context.Context, []byte) error { return nil })()
+	clearSudoPassword()
+	t.Cleanup(clearSudoPassword)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "sudo"), []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	command := exec.Command("sleep", "30")
+	command.Env = os.Environ()
+	bridge, err := installSudoBridge(command, types.Command{Escalates: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.Close()
+	done := make(chan error, 1)
+	go func() { done <- bridge.Run(command) }()
+	select {
+	case <-bridge.ready:
+	case err := <-done:
+		t.Fatalf("child exited before ready: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("child never started")
+	}
+	defer func() { _ = command.Process.Kill(); <-done }()
+	outsider := exec.Command(environmentValue(command.Env, "SUDO_ASKPASS"))
+	outsider.Env = command.Env
+	output, err := outsider.Output()
+	if err == nil || len(output) != 0 {
+		t.Fatalf("foreign helper accepted: error=%v output bytes=%d", err, len(output))
+	}
+	if prompts != 0 {
+		t.Fatalf("unauthorized helper triggered %d password prompts", prompts)
+	}
+}
+
+func TestSudoPasswordContextCancellation(t *testing.T) {
+	for _, cancelRun := range []bool{false, true} {
+		t.Run(map[bool]string{false: "command scope", true: "whole run"}[cancelRun], func(t *testing.T) {
+			defer BeginRun()()
+			ctx, cancel := context.WithCancel(RunContext())
+			defer cancel()
+			defer SetSudoPasswordForTest(func() ([]byte, error) {
+				if cancelRun {
+					Cancel()
+				} else {
+					cancel()
+				}
+				return nil, context.Canceled
+			})()
+			_, err := validatedSudoPasswordContext(ctx)
+			want := error(context.Canceled)
+			if cancelRun {
+				want = ErrCancelled
+			}
+			if !errors.Is(err, want) {
+				t.Fatalf("error=%v want %v", err, want)
+			}
+		})
 	}
 }
