@@ -8,11 +8,13 @@ import (
 	"github.com/freehold-digital/rwr/internal/types"
 )
 
+var corePackageTool = FindTool
+
 // InstallOpenSSL ensures OpenSSL is installed on the system, using the
 // default package manager to install it if not already present.
 func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Check if OpenSSL is already installed
-	opensslTool := FindTool("openssl")
+	opensslTool := corePackageTool("openssl")
 	if opensslTool.Exists {
 		log.Infof("OpenSSL is already installed at %s", opensslTool.Bin)
 		return nil
@@ -49,6 +51,7 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 		Exec:      provider.BinPath,
 		Args:      append(strings.Fields(provider.Commands.Install), packages...),
 		Elevated:  provider.Elevated,
+		Escalates: provider.Escalates,
 		Variables: provider.Environment,
 	}
 
@@ -63,9 +66,9 @@ func InstallOpenSSL(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 // the default package manager, skipping any that are already installed.
 func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) error {
 	// Check for common build tools to see if they're already installed
-	makeExists := FindTool("make").Exists
-	gccExists := FindTool("gcc").Exists
-	cmakeExists := FindTool("cmake").Exists
+	makeExists := corePackageTool("make").Exists
+	gccExists := corePackageTool("gcc").Exists
+	cmakeExists := corePackageTool("cmake").Exists
 
 	if makeExists && gccExists && cmakeExists {
 		log.Infof("Build essentials already installed (make, gcc, cmake found)")
@@ -103,6 +106,7 @@ func InstallBuildEssentials(osInfo *types.OSInfo, initConfig *types.InitConfig) 
 		Exec:      provider.BinPath,
 		Args:      append(strings.Fields(provider.Commands.Install), packages...),
 		Elevated:  provider.Elevated,
+		Escalates: provider.Escalates,
 		Variables: provider.Environment,
 	}
 

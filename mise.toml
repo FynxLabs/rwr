@@ -2,10 +2,11 @@
 experimental = true
 
 [tools]
-go = "1.27.1" # >=1.26.6 required: GO-2026-5856 (crypto/tls), GO-2026-6088 (encoding/xml), GO-2026-5972 (encoding/asn1) and GO-2026-5026 (net/http) are all reachable from our HTTP, provider-loading and git-auth paths
+# Security scanners and their analyzer dependencies are locked in tools/security/go.mod.
+go = "1.27.2" # Includes standard-library security fixes reported by govulncheck.
 goreleaser = "latest"
 gotestsum = "latest"
-golangci-lint = "2.14.0" # keep local hooks aligned with the pinned CI lint gate
+golangci-lint = "2.15.0" # keep local hooks aligned with the pinned CI lint gate
 node = "lts"
 pkl = "latest"
 hk = "latest"
@@ -29,7 +30,6 @@ postinstall = """
 
   # Pre-stage project setup so `mise install` gives a build-ready tree.
   go mod download || true
-  command -v govulncheck >/dev/null 2>&1 || go install golang.org/x/vuln/cmd/govulncheck@latest || true
 """
 
 [tasks]
@@ -89,8 +89,8 @@ description = "Validate the CUE provider sources against their schema"
 run = "cue vet ./internal/system/definitions/"
 
 [tasks.security]
-description = "Scan for known vulnerabilities (govulncheck - staged by postinstall)"
-run = "govulncheck ./..."
+description = "Scan for known vulnerabilities"
+run = "go tool -modfile=tools/security/go.mod govulncheck ./..."
 
 [tasks.install]
 description = "Install rwr to ~/.local/bin (linux/macos); errors on windows"

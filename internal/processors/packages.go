@@ -322,18 +322,12 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 				// nobody could see.
 				Escalates: escalates,
 				Variables: provider.Environment,
-				// Explicit interactive items receive the terminal. Self-escalating
-				// commands stay captured on their normal path; if pre-authentication
-				// was insufficient, the error path below retries with the terminal.
+				// Only explicitly interactive items receive the terminal. Nested sudo
+				// uses managed askpass; failures never silently change this policy.
 				Interactive: interactive,
 			}
 			started := time.Now()
 			runErr := system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
-			if runErr != nil && escalates && !interactive && !system.Cancelled() {
-				log.Warnf("%s failed while captured; retrying with terminal access in case its nested sudo requires a visible prompt", name)
-				cmd.Interactive = true
-				runErr = system.RunCommand(cmd, initConfig.Variables.Flags.Debug)
-			}
 			if runErr != nil {
 				recordFailure("packages", name, fmt.Errorf("%s failed: %w", pkg.Action, runErr))
 				track.item(provider.Name, name, pkg.Action, types.StatusFailed, runErr.Error(), time.Since(started))

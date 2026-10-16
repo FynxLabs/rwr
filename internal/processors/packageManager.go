@@ -147,6 +147,14 @@ func ProcessPackageManagers(packageManagers []types.PackageManagerInfo, osInfo *
 				return fmt.Errorf("unsupported package manager action step: %s", step.Action)
 			}
 
+			cmd.Escalates = provider.Escalates
+			if step.Elevated != nil {
+				cmd.Elevated = *step.Elevated
+			}
+			if step.Escalates != nil {
+				cmd.Escalates = *step.Escalates
+			}
+
 			if err := system.RunCommand(cmd, initConfig.Variables.Flags.Debug); err != nil {
 				if step.Optional {
 					log.Warnf("Optional %s step for %s failed (ignored): %v", pm.Action, pm.Name, err)

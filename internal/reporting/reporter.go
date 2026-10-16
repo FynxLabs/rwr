@@ -6,6 +6,7 @@
 package reporting
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -243,6 +244,13 @@ func (LogReporter) Emit(event Event) {
 }
 
 func RequestSecret(prompt string) ([]byte, error) {
+	return RequestSecretContext(context.Background(), prompt)
+}
+
+func RequestSecretContext(ctx context.Context, prompt string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if !SupportsInlinePrompts() {
 		return nil, ErrPromptUnavailable
 	}
@@ -252,6 +260,14 @@ func RequestSecret(prompt string) ([]byte, error) {
 	select {
 	case answer := <-result:
 		return answer.Value, answer.Err
+	case <-ctx.Done():
+		if !claim.CompareAndSwap(false, true) {
+			answer := <-result
+			for i := range answer.Value {
+				answer.Value[i] = 0
+			}
+		}
+		return nil, ctx.Err()
 	case <-TerminalLost():
 		if claim.CompareAndSwap(false, true) {
 			return nil, ErrPromptUnavailable

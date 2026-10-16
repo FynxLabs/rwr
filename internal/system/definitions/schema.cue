@@ -42,6 +42,8 @@ package providers
 // three actions - and staging at a literal /tmp/ path is the pre-creatable
 // world-known name {{ .TempDir }} exists to eliminate, so it cannot export.
 #InstallStep: {
+	elevated?: bool
+	escalates?: bool
 	action:  "command" | "download" | "write"
 	source?: string & !~"/tmp/"
 	dest?:   string & !~"/tmp/"
