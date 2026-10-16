@@ -316,15 +316,11 @@ jobs:
       # gosec runs with #nosec annotations honored. Every suppression in the tree is
       # scoped to its rule id and carries a justification; the ones marked TODO(PRn)
       # are removed as those PRs land, so this job gets stricter over time, never looser.
-      # Pinned: @latest meant the security gates could change (or break) under
-      # any PR with no reviewable diff. Renovate proposes updates to these pins.
+      # Scanner and analyzer dependencies are locked in tools/security/go.mod.
+      # These are the same commands used by the local Git security hooks.
       - name: gosec
-        run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
-          gosec ./...
+        run: go tool -modfile=tools/security/go.mod gosec -quiet ./...
 
       # Fails on any known vulnerability reachable from our code paths.
       - name: govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
-          govulncheck ./...
+        run: go tool -modfile=tools/security/go.mod govulncheck ./...

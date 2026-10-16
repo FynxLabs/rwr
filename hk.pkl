@@ -18,11 +18,11 @@ local linters = new Mapping<String, Step> {
 // Go anti-patterns that turn into vulns.
 local security = new Mapping<String, Step> {
   ["govulncheck"] {
-    check = "govulncheck ./..."
+    check = "go tool -modfile=tools/security/go.mod govulncheck ./..."
     exclusive = true
   }
   ["gosec"] {
-    check = "gosec -quiet -fmt=text -exclude-dir=openspec -exclude-dir=docs -exclude-dir=examples ./..."
+    check = "go tool -modfile=tools/security/go.mod gosec -quiet ./..."
     exclusive = true
   }
 }

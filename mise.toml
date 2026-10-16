@@ -2,8 +2,7 @@
 experimental = true
 
 [tools]
-"go:github.com/securego/gosec/v2/cmd/gosec" = "2.28.0"
-"go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"
+# Security scanners and their analyzer dependencies are locked in tools/security/go.mod.
 go = "1.27.2" # Includes standard-library security fixes reported by govulncheck.
 goreleaser = "latest"
 gotestsum = "latest"
@@ -31,7 +30,6 @@ postinstall = """
 
   # Pre-stage project setup so `mise install` gives a build-ready tree.
   go mod download || true
-  command -v govulncheck >/dev/null 2>&1 || go install golang.org/x/vuln/cmd/govulncheck@latest || true
 """
 
 [tasks]
