@@ -93,17 +93,18 @@ package providers
 // Parameterized by the AUR package to clone (#aur - aura ships as aura-bin,
 // pamac as pamac-aur) and the package name pacman removes (#removePkg).
 #ArchAURHelper: #PacmanFamily & {
+	escalates: true
 	#aur:       string
 	#removePkg: string | *#aur
 	name:       string
 	detection: binary: name
 	install: steps: [
-		{action: "command", exec: "pacman", args: ["-S", "--needed", "--noconfirm", "base-devel", "git"]},
-		{action: "command", exec: "git", args: ["clone", "https://aur.archlinux.org/\(#aur).git", "{{ .TempDir }}/\(name)"]},
-		{action: "command", exec: "sh", args: ["-c", "cd {{ .TempDir }}/\(name) && makepkg -si --noconfirm"]},
+		{action: "command", elevated: true, exec: "pacman", args: ["-S", "--needed", "--noconfirm", "base-devel", "git"]},
+		{action: "command", escalates: false, exec: "git", args: ["clone", "https://aur.archlinux.org/\(#aur).git", "{{ .TempDir }}/\(name)"]},
+		{action: "command", escalates: true, exec: "sh", args: ["-c", "cd {{ .TempDir }}/\(name) && makepkg -si --noconfirm"]},
 	]
 	remove: steps: [
-		{action: "command", exec: "pacman", args: ["-Rns", "--noconfirm", #removePkg]},
+		{action: "command", elevated: true, exec: "pacman", args: ["-Rns", "--noconfirm", #removePkg]},
 	]
 }
 
