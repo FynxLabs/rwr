@@ -18,6 +18,7 @@ one small text file, validates the tree, previews the change, and applies it.
 ## Operate RWR
 
 - [Install](install.md)
+- [Publish releases](releases.md)
 - [Commands and flags](cli/command-and-flags.md)
 - [Local CLI configuration](cli/configuration.md)
 - [Validate](cli/validate.md)

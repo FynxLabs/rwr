@@ -1,17 +1,29 @@
 name: RWR - Release
 
-# Only version tags cut a release. "*" meant any tag - a typo, an experiment,
-# a manually pushed `nightly` - published to GitHub, the Homebrew tap and the
-# naur dispatch. Release tags here have always been v-prefixed (v0.5.1).
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump type
+        required: false
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
 permissions:
   contents: write
-  # Keyless cosign signing exchanges the job's OIDC token for a short-lived
-  # certificate; no signing key is stored anywhere.
-  id-token: write
+  id-token: write # sigstore keyless signing
+
+# Same release pattern as reeve: never interrupt an active publish.
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
 
 jobs:
   goreleaser:
@@ -21,22 +33,53 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      # The same constraint go.yml tests with (and mise.toml pins locally for
-      # GO-2026-5856). `stable` here meant release binaries could be built by a
-      # toolchain no CI run had ever tested.
+
+      # GITHUB_TOKEN tag pushes do not retrigger the workflow. Manual runs
+      # create their tag and continue publishing in this same job, as in reeve.
+      - name: Resolve release tag
+        id: tag
+        env:
+          BUMP: ${{ inputs.bump || 'patch' }}
+        run: |
+          set -euo pipefail
+          STABLE='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -E "$STABLE" | head -1 || true)
+            LATEST="${LATEST:-v0.0.0}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "${LATEST#v}"
+            case "$BUMP" in
+              major) TAG="v$((MAJOR + 1)).0.0" ;;
+              minor) TAG="v${MAJOR}.$((MINOR + 1)).0" ;;
+              patch) TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+              *) echo "::error::Invalid version bump"; exit 1 ;;
+            esac
+            echo "Releasing $TAG (bump: $BUMP from $LATEST)"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag "$TAG"
+            git push origin "refs/tags/$TAG"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          # Pin release notes to the preceding stable tag, ignoring nightly
+          # and prereleases, just as reeve pins both ends of its notes range.
+          BASE="${TAG%%-*}"
+          PREV=$(git tag --list 'v[0-9]*' \
+            | grep -E "$STABLE" | grep -vFx "$BASE" \
+            | { cat; echo "$BASE"; } | sort -V \
+            | awk -v t="$BASE" '$0 == t {exit} {p = $0} END {print p}' || true)
+          echo "prev=$PREV" >> "$GITHUB_OUTPUT"
+
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: ">=1.27.2"
 
-      # cosign signs checksums.txt, syft writes the SBOMs - both invoked by
-      # goreleaser (signs: / sboms: in .goreleaser.yaml).
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
-          # Pin the binary, not just the action: an unpinned install tracks
-          # cosign's latest, whose sign-blob CLI has broken the signs: block
-          # before (the 3.x bundle-format switch). Renovate keeps this current.
           cosign-release: "v3.1.3"
       - name: Install syft
         uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
@@ -48,6 +91,8 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.tag.outputs.tag }}
+          GORELEASER_PREVIOUS_TAG: ${{ steps.tag.outputs.prev }}
           HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
       - name: Trigger naur repo update

@@ -143,6 +143,24 @@ and macOS.
 - **WHEN** an operator runs a command exactly as documented
 - **THEN** the command exists and behaves as described
 
+### Requirement: Operators can select a release bump in GitHub Actions
+
+The release workflow SHALL support a manual dispatch with a `major`, `minor`,
+or `patch` dropdown, defaulting to `patch`. It SHALL increment the highest
+stable `vMAJOR.MINOR.PATCH` tag, excluding nightly and prereleases, and reset
+lower components for major/minor bumps. With no stable tag, the base is `v0.0.0`.
+The tag SHALL point to the commit selected by the workflow run. The same job
+SHALL publish through the existing signed GoReleaser pipeline, with the current
+and preceding stable tags set explicitly. Version-tag pushes SHALL remain
+supported, and concurrent runs SHALL not cancel an active release.
+
+#### Scenario: A minor release after merging
+
+- **GIVEN** the latest stable version is `v0.6.3`
+- **WHEN** an operator runs RWR - Release on master and selects minor
+- **THEN** the workflow tags the selected master commit `v0.7.0`
+- **AND** publishes the release in that same run
+
 ## Known Gaps
 
 - **The test suite is not gating on macOS or Windows.** It runs on both, but with
