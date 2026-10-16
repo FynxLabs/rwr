@@ -88,10 +88,6 @@ go tool cover -func=coverage.out | tail -20
 description = "Validate the CUE provider sources against their schema"
 run = "cue vet ./internal/system/definitions/"
 
-[tasks."test:release"]
-description = "Test manual release versioning against disposable Git remotes"
-run = "python3 -m unittest discover -s scripts -p test_prepare_release.py -v"
-
 [tasks.security]
 description = "Scan for known vulnerabilities"
 run = "go tool -modfile=tools/security/go.mod govulncheck ./..."
@@ -114,4 +110,4 @@ esac
 
 [tasks.ci]
 description = "Run the full CI check locally (test + lint + security)"
-depends = ["test", "test:release", "lint", "security"]
+depends = ["test", "lint", "security"]

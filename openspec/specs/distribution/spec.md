@@ -143,66 +143,23 @@ and macOS.
 - **WHEN** an operator runs a command exactly as documented
 - **THEN** the command exists and behaves as described
 
+### Requirement: Operators can select a release bump in GitHub Actions
 
-### Requirement: Operators can select a stable release bump in GitHub Actions
+The release workflow SHALL support a manual dispatch with a `major`, `minor`,
+or `patch` dropdown, defaulting to `patch`. It SHALL increment the highest
+stable `vMAJOR.MINOR.PATCH` tag, excluding nightly and prereleases, and reset
+lower components for major/minor bumps. With no stable tag, the base is `v0.0.0`.
+The tag SHALL point to the commit selected by the workflow run. The same job
+SHALL publish through the existing signed GoReleaser pipeline, with the current
+and preceding stable tags set explicitly. Version-tag pushes SHALL remain
+supported, and concurrent runs SHALL not cancel an active release.
 
-The stable release workflow SHALL support `workflow_dispatch` with a required
-choice of `major`, `minor`, or `patch`, defaulting to `patch`. An optional full
-commit SHA SHALL select a specific commit already merged into master; otherwise
-the dispatch's master revision SHALL be used. Manual runs from another branch
-SHALL fail before creating a tag.
-
-The version base SHALL be the highest stable `vMAJOR.MINOR.PATCH` tag, ignoring
-nightly, prereleases, and non-version tags. Major/minor increments SHALL reset
-lower components. The target SHALL include the latest stable release. With no
-stable tags the base SHALL be `v0.0.0`.
-
-#### Scenario: A minor release of a specific merge
+#### Scenario: A minor release after merging
 
 - **GIVEN** the latest stable version is `v0.6.3`
-- **WHEN** an operator chooses minor and supplies a merged commit SHA
-- **THEN** the workflow creates `v0.7.0` at that exact commit
-- **AND** publishes it through the existing signed GoReleaser pipeline
-
-#### Scenario: A patch release without a commit override
-
-- **WHEN** the operator chooses patch and leaves the commit field blank
-- **THEN** the tag points to the master revision captured at dispatch time
-- **AND** subsequent master changes do not alter the release's contents
-
-### Requirement: Release reservation is serialized and retryable
-
-Manual and version-tag releases SHALL share a concurrency group that does not
-cancel an active publish. Manual version tags SHALL be annotated with their
-workflow run ID. Retrying that run SHALL reuse its reserved tag and commit,
-without force-pushing a tag or incrementing again. Another manual run for an
-already versioned commit SHALL be rejected. A conflicting remote tag SHALL fail
-rather than be overwritten.
-
-#### Scenario: Publishing fails after tag creation
-
-- **WHEN** the original workflow run is retried
-- **THEN** preparation returns the original tag and target SHA
-- **AND** does not allocate a second version
-
-#### Scenario: A non-master commit or stale target is selected
-
-- **WHEN** the selected commit is not merged into master or excludes the latest stable release
-- **THEN** preparation fails without creating a release tag
-
-### Requirement: Both release triggers use one publishing path
-
-Manual releases SHALL invoke the publishing job in the same workflow run,
-without depending on a push event from the built-in workflow token. Existing
-`v*` tag pushes SHALL continue to invoke the publisher, while the master nightly
-workflow SHALL remain separate. The publisher SHALL check out the selected tag
-and explicitly supply that tag to GoReleaser.
-
-#### Scenario: A tag is created by the manual preparation job
-
-- **WHEN** the built-in workflow token pushes the reserved tag
-- **THEN** the same run publishes the release without an extra token
-- **AND** the tag push is not required to create another workflow run
+- **WHEN** an operator runs RWR - Release on master and selects minor
+- **THEN** the workflow tags the selected master commit `v0.7.0`
+- **AND** publishes the release in that same run
 
 ## Known Gaps
 

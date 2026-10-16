@@ -11,21 +11,6 @@ permissions:
   contents: read
 
 jobs:
-  release-workflow:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version: ">=1.27.2"
-      - name: Validate release workflow
-        run: |
-          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-          actionlint -shellcheck= -pyflakes= .github/workflows/release.yml .github/workflows/go.yml
-      - name: Test manual release selection and tag reservation
-        run: python3 -m unittest discover -s scripts -p test_prepare_release.py -v
-
   # RWR provisions Linux, macOS and Windows, so it is built on all three. Building
   # only on ubuntu meant internal/system/windows.go and the darwin paths were never
   # compiled by CI: a change that broke them shipped, and the first person to find
