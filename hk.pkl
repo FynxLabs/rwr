@@ -28,6 +28,10 @@ local security = new Mapping<String, Step> {
 }
 
 local tests = new Mapping<String, Step> {
+  ["release-tests"] {
+    glob = List("scripts/*release*.py", ".github/workflows/release.yml")
+    check = "python3 -m unittest discover -s scripts -p test_prepare_release.py -v"
+  }
   ["go-test"] {
     check = "go test -race ./..."
     exclusive = true
@@ -58,6 +62,7 @@ hooks {
       ["govulncheck"] = security["govulncheck"]
       ["gosec"] = security["gosec"]
       ["go-test"] = tests["go-test"]
+      ["release-tests"] = tests["release-tests"]
     }
   }
 }

@@ -1,25 +1,72 @@
 name: RWR - Release
 
-# Only version tags cut a release. "*" meant any tag - a typo, an experiment,
-# a manually pushed `nightly` - published to GitHub, the Homebrew tap and the
-# naur dispatch. Release tags here have always been v-prefixed (v0.5.1).
+# Stable releases can be selected in Actions or started by pushing a version tag.
+# The nightly tag remains exclusive to the master prerelease workflow.
 on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Release type
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+      commit:
+        description: "Merged commit SHA (blank = master revision selected for this run)"
+        required: false
+        type: string
   push:
     tags:
       - "v*"
 permissions:
-  contents: write
-  # Keyless cosign signing exchanges the job's OIDC token for a short-lived
-  # certificate; no signing key is stored anywhere.
-  id-token: write
+  contents: read
+
+# Serialize version reservation and publishing across manual and tag-triggered
+# runs. Never cancel a release halfway through uploading artifacts.
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
 
 jobs:
-  goreleaser:
+  prepare:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      sha: ${{ steps.version.outputs.sha }}
+      previous_tag: ${{ steps.version.outputs.previous_tag }}
     steps:
-      - name: Checkout
+      - name: Checkout selected workflow revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
+      - name: Reserve the next release tag
+        id: version
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          RELEASE_COMMIT: ${{ inputs.commit }}
+        run: python3 scripts/prepare-release.py --bump "$RELEASE_TYPE" --commit "$RELEASE_COMMIT"
+
+  goreleaser:
+    permissions:
+      contents: write
+      # Keyless signing requires OIDC only in the publishing job.
+      id-token: write
+    needs: prepare
+    # Tags pushed with GITHUB_TOKEN do not start another push workflow. Publish
+    # directly in this run, and still allow ordinary version-tag pushes.
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.prepare.result == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.prepare.outputs.tag && format('refs/tags/{0}', needs.prepare.outputs.tag) || github.ref }}
           fetch-depth: 0
       # The same constraint go.yml tests with (and mise.toml pins locally for
       # GO-2026-5856). `stable` here meant release binaries could be built by a
@@ -48,6 +95,8 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ needs.prepare.outputs.tag || github.ref_name }}
+          GORELEASER_PREVIOUS_TAG: ${{ needs.prepare.outputs.previous_tag }}
           HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
 
       - name: Trigger naur repo update

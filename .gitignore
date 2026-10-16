@@ -115,3 +115,6 @@ dist/
 /os
 coverage.out
 .agents/
+
+# Python release-workflow test caches.
+__pycache__/
