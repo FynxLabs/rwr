@@ -154,8 +154,8 @@ leaves the run blocked with no indication of what it waits for.
 #### Scenario: A command that prompts for a password
 
 - **WHEN** an interactive elevated command runs and `sudo` requires a password
-- **THEN** RWR completes masked sudo validation before launching that command
-- **AND** the command receives the terminal only for its own interaction
+- **THEN** RWR collects the password through its managed masked popup
+- **AND** the command receives its popup terminal for its own interaction
 
 ### Requirement: Sudo readiness checks never prompt or delay cancellation
 
@@ -186,6 +186,16 @@ casks retain the secure validation step.
 - **THEN** RWR asks once through the TUI's masked prompt, or the masked terminal fallback when headless
 - **AND** validates the supplied password without placing it in argv
 - **AND** runs the actual command captured by the TUI
+
+#### Scenario: A warm probe does not cover the command's authorization
+
+- **WHEN** the readiness probe succeeds but an elevated command cannot reuse
+  that authorization in its session, TTY, or policy
+- **THEN** that sudo process requests the masked password popup through askpass
+- **AND** captured, interactive, and output-returning execution can authenticate
+- **AND** the command's supplied stdin remains available to the command
+- **AND** a valid ticket or password-free command runs without an extra prompt
+- **AND** canceling password entry stops the waiting command
 
 #### Scenario: A Homebrew formula with a cold sudo cache
 
@@ -395,6 +405,10 @@ class of name `{{ .TempDir }}` exists to eliminate.
 
 On Linux and macOS, captured commands marked `Escalates` SHALL use a
 command-scoped askpass bridge while an inline display owns the terminal.
+Elevated commands whose readiness probe succeeded SHALL retain managed askpass
+so a different child session or TTY cannot suppress required password entry.
+Interactive popup processes SHALL bind the bridge to their actual child session
+after startup, with the same peer validation as captured commands.
 Helpers SHALL be authenticated using kernel-reported user identity and the
 command's isolated process session. Knowing the endpoint path SHALL NOT grant
 access from another session. RWR SHALL NOT export an authentication token to

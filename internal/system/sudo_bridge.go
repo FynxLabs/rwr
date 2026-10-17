@@ -17,9 +17,17 @@ func (b *sudoBridge) Run(command *exec.Cmd) error {
 	if err := command.Start(); err != nil {
 		return err
 	}
-	b.session = command.Process.Pid
-	close(b.ready)
+	b.Started(command)
 	return command.Wait()
+}
+
+// Started binds askpass peers to the child session after either the captured
+// executor or the popup PTY starts the process. It never reads child state early.
+func (b *sudoBridge) Started(command *exec.Cmd) {
+	if b != nil {
+		b.session = command.Process.Pid
+		close(b.ready)
+	}
 }
 
 func (b *sudoBridge) Close() {

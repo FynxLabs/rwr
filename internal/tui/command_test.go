@@ -20,6 +20,91 @@ import (
 	"github.com/freehold-digital/rwr/internal/types"
 )
 
+func TestWarmSudoProbeCannotSuppressPasswordPrompt(t *testing.T) {
+	for _, mode := range []string{"captured", "interactive", "output"} {
+		for _, policy := range []string{"expired", "cached", "cancel"} {
+			t.Run(mode+"/"+policy, func(t *testing.T) {
+				dir := t.TempDir()
+				// The ambient probe is warm, but the command's session/TTY has no
+				// reusable ticket. Noninteractive sudo refuses without prompting.
+				if err := os.WriteFile(filepath.Join(dir, "sudo"), []byte(`#!/bin/sh
+case "$1" in
+  -n) printf 'sudo: a password is required\n' >&2; exit 1 ;;
+  -S)
+    IFS= read -r password
+    [ "$password" = 'warm-probe-password' ] || exit 2
+    [ "$4" = '-v' ] && exit 0
+    exit 3 ;;
+  -A)
+    if [ "$RWR_TEST_SUDO_POLICY" != 'cached' ]; then
+      password=$("$SUDO_ASKPASS") || exit 4
+      [ "$password" = 'warm-probe-password' ] || exit 5
+    fi
+    shift
+    [ "$1" = '--' ] || exit 6
+    shift
+    exec "$@" ;;
+  *) exit 7 ;;
+esac
+`), 0700); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+				release := system.BeginRun()
+				t.Cleanup(release)
+				restoreProbe := system.SetSudoProbeForTest(func(context.Context) error { return nil })
+				t.Cleanup(restoreProbe)
+				p := startFormProgram(t)
+				result := make(chan error, 1)
+				go func() {
+					choice, err := prompts.PromptGitHubAuthMethod()
+					if err == nil && choice != prompts.GitHubAuthSkip {
+						err = errors.New("unexpected GitHub choice")
+					}
+					if err == nil {
+						cmd := types.Command{Exec: "sh", Args: []string{"-c", "IFS= read -r supplied; test \"$supplied\" = child-input || exit 8; printf 'privileged-command-ran\\n'"}, Stdin: "child-input\n", Elevated: true, Interactive: mode == "interactive", Variables: map[string]string{"RWR_TEST_SUDO_POLICY": policy}}
+						if mode == "output" {
+							var output string
+							output, err = system.RunCommandOutput(cmd, false)
+							if err == nil && !strings.Contains(output, "privileged-command-ran") {
+								err = errors.New("privileged command output missing")
+							}
+						} else {
+							err = system.RunCommand(cmd, false)
+						}
+					}
+					result <- err
+				}()
+				waitFormView(t, p, "GitHub authentication required")
+				p.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+				p.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+				p.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+				if policy != "cached" {
+					waitFormView(t, p, "sudo password")
+					if policy == "cancel" {
+						p.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+					} else {
+						p.Send(tea.PasteMsg{Content: "warm-probe-password"})
+						p.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+					}
+				}
+				select {
+				case err := <-result:
+					if policy == "cancel" {
+						if err == nil {
+							t.Fatal("canceled sudo prompt ran the command")
+						}
+					} else if err != nil {
+						t.Fatal(err)
+					}
+				case <-time.After(3 * time.Second):
+					t.Fatal("sudo failed to resume its actual command after authentication")
+				}
+			})
+		}
+	}
+}
+
 func TestProductionSudoPasswordAfterGitHubPopup(t *testing.T) {
 	// Use the real executor and validation subprocess, with a local sudo
 	// fixture so the test never changes host credentials or runs as root.

@@ -83,7 +83,8 @@ type TerminalReq struct {
 	Context   context.Context
 	Done      chan error
 	Secrets   []string
-	Private   bool // authentication output is displayed but never logged
+	Private   bool            // authentication output is displayed but never logged
+	Started   func(*exec.Cmd) // optional child-session setup, called only after Start succeeds
 	// Claim makes the request run-once: the servicer and the waiter's
 	// terminal-lost fallback CAS it, and only the winner executes. Without
 	// it, a quit racing the exec callback could run the request twice.
@@ -224,7 +225,14 @@ func (LogReporter) Emit(event Event) {
 			defer stderr.Flush()
 			e.Cmd.Stdout, e.Cmd.Stderr = stdout, stderr
 		}
-		e.Done <- e.Cmd.Run()
+		if err := e.Cmd.Start(); err != nil {
+			e.Done <- err
+			return
+		}
+		if e.Started != nil {
+			e.Started(e.Cmd)
+		}
+		e.Done <- e.Cmd.Wait()
 	case TerminalFunc:
 		// Headless the terminal is already free; just run the interaction.
 		if !TryClaim(e.Claim) {

@@ -65,7 +65,7 @@ func askpassClient(output io.Writer) error {
 // installSudoBridge is per child command, not per run. Its listener and all
 // accepted connections are closed before the private directory is removed.
 func installSudoBridge(command *exec.Cmd, spec types.Command) (*sudoBridge, error) {
-	if spec.Interactive || !spec.Escalates || spec.Elevated || spec.AsUser != "" || !reporting.SupportsInlinePrompts() {
+	if !mayPromptForSudo(spec) || !reporting.SupportsInlinePrompts() {
 		return nil, nil
 	}
 	sudoPath, err := exec.LookPath("sudo")
@@ -209,7 +209,7 @@ func installSudoBridge(command *exec.Cmd, spec types.Command) (*sudoBridge, erro
 			cleanupDir()
 		})
 	}
-	// Explicit interactive commands keep the normal terminal handoff instead.
+	// Interactive children receive their own session from the popup PTY.
 	// The -A wrapper covers normal PATH lookups. Detaching captured children
 	// also prevents absolute /usr/bin/sudo from accessing /dev/tty: sudo falls back
 	// to SUDO_ASKPASS when no terminal is available.

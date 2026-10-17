@@ -261,6 +261,10 @@ func SetSudoValidateForTest(validate func(context.Context, []byte) error) (resto
 // resetSudoThrottleForTest clears the probe throttle so a test observes the
 // probe rather than a cached answer from an earlier one.
 func resetSudoThrottleForTest() {
+	resetSudoCredentials()
+}
+
+func resetSudoCredentials() {
 	sudoValidateMu.Lock()
 	defer sudoValidateMu.Unlock()
 	sudoProbedAt = time.Time{}
@@ -397,8 +401,18 @@ func zeroBytes(value []byte) {
 }
 
 func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
-	if runtime.GOOS == "windows" || (!cmd.Elevated && cmd.AsUser == "") || sudoCredentialsReusableByManagedCommand() {
+	if runtime.GOOS == "windows" || (!cmd.Elevated && cmd.AsUser == "") {
 		return buildCommand(cmd), nil, nil
+	}
+	if sudoCredentialsReusableByManagedCommand() {
+		command := buildCommand(cmd)
+		if reporting.SupportsInlinePrompts() {
+			// A ticket observed by the probe may not cover this command's
+			// session, TTY, or policy. Let this exact sudo process request
+			// the managed password popup instead of refusing with -n.
+			command.Args[1] = "-A"
+		}
+		return command, nil, nil
 	}
 	password, err := validatedSudoPassword()
 	if err != nil {
@@ -413,8 +427,8 @@ func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
 }
 
 // runOnTerminal routes tool interaction through the shared popup API.
-func runOnTerminal(command *exec.Cmd, secrets []string) error {
-	return reporting.RunInteractiveCommand(RunContext(), command, secrets, false)
+func runOnTerminal(command *exec.Cmd, secrets []string, bridge *sudoBridge) error {
+	return reporting.RunInteractiveCommandWithStart(RunContext(), command, secrets, false, bridge.Started)
 }
 
 // dryRunMode controls whether commands are actually executed.
@@ -493,7 +507,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		// Tool-owned prompts use the dashboard's private terminal popup.
 		// Headless runs retain direct terminal interaction. Per-item
 		// interactive: true uses this path too.
-		if err := runOnTerminal(command, cmd.Secrets); err != nil {
+		if err := runOnTerminal(command, cmd.Secrets, bridge); err != nil {
 			// An interactive command reaches the terminal directly, so a
 			// cancelled one comes back as its kill status rather than through
 			// the context. Without this it reports "signal: killed" and gets
