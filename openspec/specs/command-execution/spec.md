@@ -26,6 +26,12 @@ logs. Cancellation or loss of the dashboard SHALL stop the modal's background
 work and child process; Unix cancellation SHALL stop the child process group.
 Headless invocations SHALL retain direct terminal interaction.
 
+Pre-supplied interactive input SHALL be staged without echo before starting the
+child or forwarding operator input. The child SHALL retain a TTY on stdin and
+control echo for subsequent input. RWR SHALL refuse input that cannot be queued
+intact. Canceling an operator choice SHALL propagate cancellation, never approve
+its default action.
+
 #### Scenario: An external tool asks for MFA
 
 - **WHEN** an interactive credential tool requests a verification code
@@ -41,6 +47,17 @@ Headless invocations SHALL retain direct terminal interaction.
 
 - **WHEN** code requests a raw terminal callback while the dashboard is active
 - **THEN** the callback is refused without releasing the terminal
+
+#### Scenario: Initial input is followed by a password prompt
+
+- **WHEN** an interactive command receives pre-supplied input and later disables
+  echo through stdin to request a new password
+- **THEN** neither the initial input nor that password appears in the popup or log
+
+#### Scenario: The package-manager chooser is canceled
+
+- **WHEN** an operator cancels the chooser on a fresh Mac
+- **THEN** RWR returns cancellation without installing the default package manager
 
 ### Requirement: Commands execute as argv, never as a shell string
 

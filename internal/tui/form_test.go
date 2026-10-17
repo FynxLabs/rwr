@@ -12,6 +12,7 @@ import (
 	"charm.land/huh/v2"
 	"github.com/freehold-digital/rwr/internal/prompts"
 	"github.com/freehold-digital/rwr/internal/reporting"
+	"github.com/freehold-digital/rwr/internal/system"
 	"github.com/freehold-digital/rwr/internal/types"
 )
 
@@ -43,6 +44,7 @@ func startFormProgram(t *testing.T) *tea.Program {
 	done := make(chan error, 1)
 	go func() { _, err := p.Run(); done <- err }()
 	restore := reporting.Set(NewReporter(p))
+	reporting.SetCommandSink(m.store)
 	lost := make(chan struct{})
 	restoreLost := reporting.SetTerminalLost(lost)
 	t.Cleanup(func() {
@@ -58,6 +60,7 @@ func startFormProgram(t *testing.T) *tea.Program {
 		}
 		restoreLost()
 		restore()
+		reporting.SetCommandSink(nil)
 	})
 	return p
 }
@@ -110,6 +113,33 @@ func TestGitHubAuthOptionsStayInDashboard(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("choice was not delivered; embedded submission stalled or exited the dashboard")
+	}
+}
+
+func TestPackageManagerChoiceCancellationReturnsNoDefault(t *testing.T) {
+	for _, key := range []tea.KeyPressMsg{{Code: tea.KeyEscape}, {Code: 'c', Mod: tea.ModCtrl}} {
+		t.Run(key.String(), func(t *testing.T) {
+			p := startFormProgram(t)
+			type answer struct {
+				choice string
+				err    error
+			}
+			result := make(chan answer, 1)
+			go func() {
+				choice, err := system.PromptUserChoice("Choose a package manager", []string{"brew", "nix"}, "brew")
+				result <- answer{choice, err}
+			}()
+			waitFormView(t, p, "Choose a package manager")
+			p.Send(key)
+			select {
+			case got := <-result:
+				if got.choice != "" || !errors.Is(got.err, reporting.ErrPromptCancelled) {
+					t.Fatalf("cancel returned choice=%q error=%v", got.choice, got.err)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatal("package manager choice did not cancel")
+			}
+		})
 	}
 }
 

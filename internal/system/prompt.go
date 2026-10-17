@@ -12,19 +12,19 @@ import (
 )
 
 // PromptUserChoice displays an interactive selection prompt and returns
-// the user's chosen option, falling back to defaultOption on invalid input.
-func PromptUserChoice(prompt string, options []string, defaultOption string) string {
+// the user's chosen option. Cancellation and read errors are never choices.
+func PromptUserChoice(prompt string, options []string, defaultOption string) (string, error) {
 	choice := defaultOption
 	if reporting.SupportsInlinePrompts() {
 		form := huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(prompt).
 			Options(huh.NewOptions(options...)...).Value(&choice)))
 		if err := reporting.RunForm(form); err != nil {
-			return defaultOption
+			return "", err
 		}
-		return choice
+		return choice, nil
 	}
 	// The raw input loop is used only by the headless fallback.
-	_ = reporting.WithTerminal(func() error { //nolint:errcheck // a failed read falls back to the default
+	err := reporting.WithTerminal(func() error {
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			fmt.Printf("%s [%s]: ", prompt, strings.Join(options, "/"))
@@ -51,5 +51,8 @@ func PromptUserChoice(prompt string, options []string, defaultOption string) str
 			log.Warnf("Invalid input. Please choose from the available options.")
 		}
 	})
-	return choice
+	if err != nil {
+		return "", err
+	}
+	return choice, nil
 }

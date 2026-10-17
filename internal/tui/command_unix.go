@@ -3,7 +3,7 @@
 package tui
 
 import (
-	"io"
+	"context"
 	"os"
 	"os/exec"
 	"sync"
@@ -15,15 +15,16 @@ import (
 
 type unixPopupPTY struct {
 	*os.File
-	cmd      *exec.Cmd
-	mu       sync.Mutex
-	closed   bool
-	slave    *os.File
-	input    *os.File
-	inputTTY *os.File
+	cmd    *exec.Cmd
+	mu     sync.Mutex
+	closed bool
+	slave  *os.File
 }
 
-func startPopupPTY(cmd *exec.Cmd, width, height int) (popupPTY, error) {
+func startPopupPTY(ctx context.Context, cmd *exec.Cmd, width, height int) (popupPTY, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	file, slave, err := pty.Open()
 	if err != nil {
 		return nil, err
@@ -51,26 +52,14 @@ func startPopupPTY(cmd *exec.Cmd, width, height int) (popupPTY, error) {
 		closePopupIO(p)
 		return nil, err
 	}
-	initial := cmd.Stdin
-	cmd.Stdout, cmd.Stderr = slave, slave
-	cmd.Stdin = slave
-	var inputRead *os.File
-	if initial != nil {
-		inputRead, p.input, err = os.Pipe()
-		if err != nil {
-			closePopupIO(p)
-			return nil, err
-		}
-		cmd.Stdin = inputRead
-		// A separate open keeps the child's slave blocking while allowing
-		// the parent's stdin bridge to be interrupted on process exit.
-		p.inputTTY, err = os.OpenFile(slave.Name(), os.O_RDWR|syscall.O_NOCTTY|syscall.O_NONBLOCK, 0) // #nosec G304 -- PTY device path allocated by pty.Open, never operator input
-		if err != nil {
-			closePopupIO(inputRead)
+	if cmd.Stdin != nil {
+		if err := stagePopupInput(ctx, file, slave, cmd.Stdin); err != nil {
 			closePopupIO(p)
 			return nil, err
 		}
 	}
+	cmd.Stdout, cmd.Stderr = slave, slave
+	cmd.Stdin = slave
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
@@ -78,25 +67,14 @@ func startPopupPTY(cmd *exec.Cmd, width, height int) (popupPTY, error) {
 	// real RWR commands, which already request a separate process group.
 	cmd.SysProcAttr.Setpgid, cmd.SysProcAttr.Pgid = false, 0
 	cmd.SysProcAttr.Setsid, cmd.SysProcAttr.Setctty, cmd.SysProcAttr.Ctty = true, true, 1
-	err = cmd.Start()
-	if inputRead != nil {
-		closePopupIO(inputRead)
-	}
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		closePopupIO(p)
 		return nil, err
 	}
-	if initial != nil {
-		// Pre-fed sudo passwords go through a pipe, never the PTY input
-		// queue where terminal echo could expose them before sudo starts.
-		go func() {
-			if _, err := io.Copy(p.input, initial); err != nil {
-				return
-			}
-			if _, err := io.Copy(p.input, p.inputTTY); err != nil {
-				return
-			}
-		}()
+	err = cmd.Start()
+	if err != nil {
+		closePopupIO(p)
+		return nil, err
 	}
 	return p, nil
 }
@@ -118,12 +96,6 @@ func (p *unixPopupPTY) Close() error {
 	}
 	p.closed = true
 	closePopupIO(p.slave)
-	if p.input != nil {
-		closePopupIO(p.input)
-	}
-	if p.inputTTY != nil {
-		closePopupIO(p.inputTTY)
-	}
 	return p.File.Close()
 }
 
@@ -131,12 +103,6 @@ func (p *unixPopupPTY) Wait() error {
 	err := p.cmd.Wait()
 	// Release the parent's slave endpoint so the output reader sees EOF.
 	closePopupIO(p.slave)
-	if p.input != nil {
-		closePopupIO(p.input)
-	}
-	if p.inputTTY != nil {
-		closePopupIO(p.inputTTY)
-	}
 	return err
 }
 func (p *unixPopupPTY) Kill() error { return syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL) }

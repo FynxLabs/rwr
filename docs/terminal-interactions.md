@@ -22,8 +22,11 @@ pane. Keyboard input and paste go to the tool. Resizing updates the pane and its
 pseudoterminal. Ctrl-C or Ctrl-Esc cancels the tool; Esc is available to the tool's
 own menus. Unix cancellation kills the child process group.
 
-Unix commands with supplied stdin receive it through a separate pipe before
-reading popup input, so a pre-fed sudo password cannot be echoed by the PTY.
+Unix commands retain a TTY on stdin when initial input is supplied. Initial
+lines are queued with echo disabled before the child or popup input starts;
+normal terminal settings are then restored for the child to control. Initial
+input must be newline-terminated text, at most 4 KiB, and fit intact in the
+terminal's input buffer; other input requires non-interactive execution.
 Windows ConPTY commands currently require unsupplied stdin; commands that provide
 stdin must use non-interactive execution there.
 
@@ -31,6 +34,9 @@ List known credentials in `secrets` so output is scrubbed across write boundarie
 Set `private` for authentication commands: their output is displayed but never
 sent to the run log. Password echo is controlled by the tool's pseudoterminal
 settings. RWR's own credential fields always use masked input.
+
+Canceling a choice returns an error, never its default selection. A dismissed
+package-manager chooser cannot approve installation of the default manager.
 
 In headless mode these APIs use the existing terminal interaction. During a
 dashboard run, `WithTerminal` refuses raw handoffs. New code must not call

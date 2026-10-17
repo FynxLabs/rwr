@@ -87,7 +87,7 @@ func (p *commandPopup) runClaimed(size popupSize) error {
 		return fmt.Errorf("terminal emulator has no closable input")
 	}
 	defer closePopupIO(inputPipe)
-	child, err := startPopupPTY(cmd, size.width, size.height)
+	child, err := startPopupPTY(p.ctx, cmd, size.width, size.height)
 	if err != nil {
 		return err
 	}

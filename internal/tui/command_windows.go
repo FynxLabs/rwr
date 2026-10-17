@@ -3,6 +3,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -17,12 +18,19 @@ type windowsPopupPTY struct {
 	process *os.Process
 }
 
-func startPopupPTY(cmd *exec.Cmd, width, height int) (popupPTY, error) {
+func startPopupPTY(ctx context.Context, cmd *exec.Cmd, width, height int) (popupPTY, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if cmd.Stdin != nil {
 		return nil, fmt.Errorf("Windows interactive commands with supplied stdin require non-interactive execution")
 	}
 	p, err := conpty.New(width, height, 0)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		closePopupIO(p)
 		return nil, err
 	}
 	pid, handle, err := p.Spawn(cmd.Path, cmd.Args, &syscall.ProcAttr{Dir: cmd.Dir, Env: cmd.Env, Sys: cmd.SysProcAttr})
