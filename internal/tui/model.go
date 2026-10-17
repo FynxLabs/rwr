@@ -496,6 +496,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.PasteMsg:
+		if m.state == Prompting && m.secret != nil {
+			m.secretValue = append(m.secretValue, []rune(msg.Content)...)
+			return m, nil
+		}
+		if m.state == Prompting && m.confirm != nil {
+			return m, nil
+		}
 		if m.command != nil && m.form == nil && m.secret == nil && m.confirm == nil {
 			m.commandKey(msg)
 			return m, nil
@@ -547,9 +554,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if m.state == Prompting && m.form != nil {
-		return m, m.updateForm(msg)
-	}
+	// Match View's stacking order: the visible credential/confirmation
+	// dialog must own input even while a form remains underneath it.
 	if m.state == Prompting && m.secret != nil {
 		finish := func(value []byte, err error) {
 			if reporting.TryClaim(m.secret.Claim) {
@@ -564,7 +570,7 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			m.secretValue = nil
 			m.secret = nil
-			m.state = Running
+			m.resumePopup()
 		}
 		switch msg.String() {
 		case "enter":
@@ -594,7 +600,7 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.confirm.Result <- reporting.ConfirmResult{Yes: yes, All: all, Err: err}
 			}
 			m.confirm = nil
-			m.state = Running
+			m.resumePopup()
 		}
 		switch msg.String() {
 		case "d":
@@ -637,6 +643,10 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			finish(false, false, reporting.ErrPromptCancelled)
 		}
 		return m, nil
+	}
+
+	if m.state == Prompting && m.form != nil {
+		return m, m.updateForm(msg)
 	}
 
 	if m.command != nil {

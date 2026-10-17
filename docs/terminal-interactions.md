@@ -16,6 +16,11 @@ Forms render inside the dashboard's modal frame and use its colors. Esc or Ctrl-
 cancels a form; a waiting task receives a canceled context and must stop its
 network requests. Form submission never quits the parent dashboard.
 
+When dialogs overlap, masked administrator entry takes priority over confirmations
+and forms for both rendering and keyboard/paste input. Closing a dialog restores
+any waiting interaction underneath it. OAuth completion cannot hide a pending
+administrator password prompt.
+
 External tools run in a private pseudoterminal displayed inside a popup. Their
 output, cursor movement, choices, and password echo settings stay inside that
 pane. Keyboard input and paste go to the tool. Resizing updates the pane and its

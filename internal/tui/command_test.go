@@ -6,16 +6,88 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/freehold-digital/rwr/internal/prompts"
 	"github.com/freehold-digital/rwr/internal/reporting"
 	"github.com/freehold-digital/rwr/internal/system"
 	"github.com/freehold-digital/rwr/internal/types"
 )
+
+func TestProductionSudoPasswordAfterGitHubPopup(t *testing.T) {
+	// Use the real executor and validation subprocess, with a local sudo
+	// fixture so the test never changes host credentials or runs as root.
+	dir := t.TempDir()
+	err := os.WriteFile(filepath.Join(dir, "sudo"), []byte(`#!/bin/sh
+[ "$1" = '-S' ] || exit 1
+[ "$2" = '-p' ] && [ "$3" = '' ] || exit 2
+IFS= read -r password
+[ "$password" = 'sudo-fixture-password' ] || exit 3
+shift 3
+[ "$1" = '-v' ] && exit 0
+[ "$1" = '--' ] || exit 4
+shift
+exec "$@"
+`), 0700)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	release := system.BeginRun()
+	t.Cleanup(release)
+	p := startFormProgram(t)
+	result := make(chan error, 1)
+	go func() {
+		choice, err := prompts.PromptGitHubAuthMethod()
+		if err == nil && choice != prompts.GitHubAuthSkip {
+			err = errors.New("unexpected GitHub choice")
+		}
+		if err == nil {
+			err = system.RunCommand(types.Command{Exec: "sh", Args: []string{"-c", "printf 'sudo-command-completed\\n'"}, Elevated: true}, false)
+		}
+		result <- err
+	}()
+	waitFormView(t, p, "GitHub authentication required")
+	p.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+	p.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+	p.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	waitFormView(t, p, "sudo password")
+	p.Send(tea.PasteMsg{Content: "sudo-fixture-password"})
+	checked := make(chan bool, 1)
+	p.Send(inspectForm(func(m *Model) { checked <- strings.Contains(m.View().Content, "sudo-fixture-password") }))
+	if <-checked {
+		t.Fatal("sudo password was displayed")
+	}
+	p.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	select {
+	case err := <-result:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("sudo validation or elevated command stalled after GitHub popup")
+	}
+	p.Send(inspectForm(func(m *Model) {
+		completed := false
+		for _, record := range m.store.Records(m.store.NewView("")) {
+			if strings.Contains(record.Msg, "sudo-fixture-password") {
+				checked <- false
+				return
+			}
+			completed = completed || (record.Src == reporting.SrcStdout && strings.Contains(record.Msg, "sudo-command-completed"))
+		}
+		checked <- completed
+	}))
+	if !<-checked {
+		t.Fatal("elevated command output was missing or contained the sudo password")
+	}
+}
 
 func TestExternalToolUsesPopupPTYWithPrivateMaskedOutput(t *testing.T) {
 	p := startFormProgram(t)

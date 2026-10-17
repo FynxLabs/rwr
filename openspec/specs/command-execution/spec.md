@@ -26,6 +26,10 @@ logs. Cancellation or loss of the dashboard SHALL stop the modal's background
 work and child process; Unix cancellation SHALL stop the child process group.
 Headless invocations SHALL retain direct terminal interaction.
 
+Visible masked credential prompts SHALL own keyboard and paste input ahead of
+underlying forms. Completing an overlay or asynchronous form SHALL preserve any
+other pending interaction instead of returning the dashboard to running state.
+
 Pre-supplied interactive input SHALL be staged without echo before starting the
 child or forwarding operator input. The child SHALL retain a TTY on stdin and
 control echo for subsequent input. RWR SHALL refuse input that cannot be queued
@@ -42,6 +46,13 @@ its default action.
 
 - **WHEN** the operator presses Ctrl-C in the external-tool popup
 - **THEN** the tool is stopped and the dashboard remains active
+
+#### Scenario: Sudo and GitHub authentication overlap
+
+- **WHEN** a masked sudo prompt and a GitHub form are both pending
+- **THEN** the visible sudo prompt receives keyboard and paste input
+- **AND** completing it restores the GitHub form if it is still waiting
+- **AND** asynchronous GitHub completion does not hide the sudo prompt
 
 #### Scenario: A raw terminal handoff is attempted
 
