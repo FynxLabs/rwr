@@ -133,9 +133,10 @@ func TestSudoPromptDuringGitHubFormOwnsVisibleInput(t *testing.T) {
 		password <- reporting.SecretResult{Value: value, Err: err}
 	}()
 	waitFormView(t, p, "sudo password")
-	for _, r := range "fixture-password" {
+	for _, r := range "fixture-" {
 		p.Send(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
+	p.Send(tea.PasteMsg{Content: "password"})
 	p.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 	select {
 	case got := <-password:
