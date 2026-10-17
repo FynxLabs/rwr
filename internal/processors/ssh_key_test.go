@@ -1,13 +1,13 @@
 package processors
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/freehold-digital/rwr/internal/credentials"
 	"github.com/freehold-digital/rwr/internal/types"
@@ -365,23 +365,12 @@ func TestGetGitHubToken_NoToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "GITHUB_TOKEN")
 }
 
-// TestPollForAccessToken_Timeout tests timeout scenario.
-func TestPollForAccessToken_Timeout(t *testing.T) {
-	// Create server that always returns pending
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(accessTokenResponse{
-			Error: "authorization_pending",
-		})
-	}))
-	defer server.Close()
-
-	// Override timeout for testing
-	oldTimeout := 5 * time.Minute
-	_ = oldTimeout
-
-	// Note: This would require making the timeout configurable
-	// For now, we document the expected behavior
-	// In production, pollForAccessToken should timeout after 5 minutes
+func TestPollForAccessToken_Cancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	token, err := pollForAccessToken(ctx, "unused-device-code", 5)
+	assert.Empty(t, token)
+	assert.ErrorIs(t, err, context.Canceled)
 }
 
 // emptyKeyring isolates token tests from the developer's real OS keyring: a

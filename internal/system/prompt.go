@@ -6,18 +6,25 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/huh/v2"
 	"charm.land/log/v2"
 	"github.com/freehold-digital/rwr/internal/reporting"
 )
 
 // PromptUserChoice displays an interactive selection prompt and returns
-// the user's chosen option, falling back to defaultOption on invalid input.
-func PromptUserChoice(prompt string, options []string, defaultOption string) string {
+// the user's chosen option. Cancellation and read errors are never choices.
+func PromptUserChoice(prompt string, options []string, defaultOption string) (string, error) {
 	choice := defaultOption
-	// Through the terminal lease: headless this runs directly; under the TUI
-	// the dashboard suspends around it. A bare stdin read while the dashboard
-	// owns the terminal freezes the run.
-	_ = reporting.WithTerminal(func() error { //nolint:errcheck // a failed read falls back to the default
+	if reporting.SupportsInlinePrompts() {
+		form := huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(prompt).
+			Options(huh.NewOptions(options...)...).Value(&choice)))
+		if err := reporting.RunForm(form); err != nil {
+			return "", err
+		}
+		return choice, nil
+	}
+	// The raw input loop is used only by the headless fallback.
+	err := reporting.WithTerminal(func() error {
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			fmt.Printf("%s [%s]: ", prompt, strings.Join(options, "/"))
@@ -44,5 +51,8 @@ func PromptUserChoice(prompt string, options []string, defaultOption string) str
 			log.Warnf("Invalid input. Please choose from the available options.")
 		}
 	})
-	return choice
+	if err != nil {
+		return "", err
+	}
+	return choice, nil
 }

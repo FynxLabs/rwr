@@ -24,7 +24,7 @@ var offerBitwardenInstall = func() (bool, error) {
 		Title("Bitwarden isn't installed. Install it now?").
 		Description("RWR downloads the official CLI directly. Skip to continue without vault credentials.").
 		Affirmative("Install").Negative("Skip").Value(&install)))
-	err := reporting.WithTerminal(form.Run)
+	err := reporting.RunForm(form)
 	if err != nil {
 		return false, system.ErrCancelled
 	}

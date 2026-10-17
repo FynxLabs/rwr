@@ -1,8 +1,8 @@
 package processors
 
 import (
-	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/huh/v2"
 	"charm.land/log/v2"
 	"github.com/freehold-digital/rwr/internal/credentials"
 	"github.com/freehold-digital/rwr/internal/helpers"
@@ -346,12 +347,7 @@ func writeRWRSSHKeyConfig() error {
 // AuthenticateWithGitHub performs OAuth device flow authentication with GitHub,
 // returning an access token that can be used for API operations like uploading SSH keys.
 //
-// The whole flow - instructions, code, polling - runs under the terminal
-// lease. Under the TUI the instructions used to go to the log store while the
-// dashboard showed an early frame with no log panel: the operator saw
-// nothing, and the flow silently polled a URL nobody visited until it timed
-// out. The operator is actively authenticating here; holding the suspension
-// until they finish is the point.
+// Instructions and polling stay in a cancelable popup under the TUI.
 func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 	log.Debugf("Starting GitHub authentication...")
 
@@ -360,30 +356,15 @@ func AuthenticateWithGitHub(initConfig *types.InitConfig) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to request device code: %w", err)
 	}
-	log.Debugf("GitHub device flow: %s code %s", deviceResp.VerificationURI, deviceResp.UserCode)
-
-	// Steps 2+3: show instructions on the real terminal and poll there.
 	var token string
-	err = reporting.WithTerminal(func() error {
-		fmt.Println()
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Println("  GitHub Authentication Required")
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Println()
-		fmt.Printf("1. Visit: %s\n", deviceResp.VerificationURI)
-		fmt.Printf("2. Enter code: %s\n", deviceResp.UserCode)
-		fmt.Println()
-		fmt.Println("Waiting for authorization (5 minute timeout)...")
-		fmt.Println()
-
-		// Best effort: put the verification page in front of the operator.
+	form := huh.NewForm(huh.NewGroup(huh.NewNote().
+		Title("GitHub authentication").
+		Description(fmt.Sprintf("Visit: %s\n\nEnter code: %s\n\nWaiting for authorization (5 minute timeout).", deviceResp.VerificationURI, deviceResp.UserCode)).
+		Next(true).NextLabel("Waiting for authorization…")))
+	err = reporting.RunFormWithTask(form, func(ctx context.Context) error {
 		openBrowser(deviceResp.VerificationURI)
-
 		var pollErr error
-		token, pollErr = pollForAccessToken(deviceResp.DeviceCode, deviceResp.Interval)
-		if pollErr == nil {
-			fmt.Println("Authorized.")
-		}
+		token, pollErr = pollForAccessToken(ctx, deviceResp.DeviceCode, deviceResp.Interval)
 		return pollErr
 	})
 	if err != nil {
@@ -458,8 +439,8 @@ func requestDeviceCode() (*deviceCodeResponse, error) {
 }
 
 // pollForAccessToken polls GitHub for access token approval
-func pollForAccessToken(deviceCode string, interval int) (string, error) {
-	if interval == 0 {
+func pollForAccessToken(ctx context.Context, deviceCode string, interval int) (string, error) {
+	if interval <= 0 {
 		interval = 5 // Default to 5 seconds
 	}
 
@@ -470,10 +451,12 @@ func pollForAccessToken(deviceCode string, interval int) (string, error) {
 
 	for {
 		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
 		case <-timeout:
 			return "", fmt.Errorf("authentication timeout: user did not authorize within 5 minutes")
 		case <-ticker.C:
-			token, err := checkAccessToken(deviceCode)
+			token, err := checkAccessToken(ctx, deviceCode)
 			if err != nil {
 				if strings.Contains(err.Error(), "authorization_pending") {
 					continue
@@ -490,7 +473,7 @@ func pollForAccessToken(deviceCode string, interval int) (string, error) {
 }
 
 // checkAccessToken attempts to get access token
-func checkAccessToken(deviceCode string) (string, error) {
+func checkAccessToken(ctx context.Context, deviceCode string) (string, error) {
 	payload := accessTokenRequest{
 		ClientID:   githubClientID,
 		DeviceCode: deviceCode,
@@ -502,7 +485,7 @@ func checkAccessToken(deviceCode string) (string, error) {
 		return "", err
 	}
 
-	req, err := http.NewRequest("POST", githubAccessTokenURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", githubAccessTokenURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
@@ -590,16 +573,10 @@ func copySSHKeyToGitHub(sshKey types.SSHKey, initConfig *types.InitConfig) error
 			return fmt.Errorf("error getting hostname: %v", err)
 		}
 
-		// Through the terminal lease: a bare stdin read under the TUI freezes
-		// the run (the dashboard eats every keystroke, including ctrl-c).
 		var input string
-		err = reporting.WithTerminal(func() error {
-			reader := bufio.NewReader(os.Stdin)
-			fmt.Printf("Enter GitHub SSH key title (default: %s): ", hostname)
-			line, readErr := reader.ReadString('\n')
-			input = line
-			return readErr
-		})
+		form := huh.NewForm(huh.NewGroup(huh.NewInput().
+			Title("GitHub SSH key title").Placeholder(hostname).Value(&input)))
+		err = reporting.RunForm(form)
 		if err != nil {
 			return fmt.Errorf("error reading user input: %v", err)
 		}

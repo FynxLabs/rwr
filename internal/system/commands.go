@@ -17,7 +17,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"charm.land/log/v2"
@@ -413,43 +412,9 @@ func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
 	return buildAuthenticatedCommand(cmd), input, nil
 }
 
-// runOnTerminal hands cmd the real terminal via the display layer, falling
-// back to direct wiring if the dashboard dies before servicing the request -
-// bubbletea drops Sends after its context cancels, and a dropped TerminalReq
-// would otherwise block its waiter forever. The claim makes the request
-// run-once: losing it means a servicer is executing the command and its
-// callback will write done regardless of the program's lifetime, so waiting
-// is safe - and Run() is never called twice on the same *exec.Cmd.
-func runOnTerminal(command *exec.Cmd) error {
-	if len(types.ResolvedSecrets()) > 0 {
-		if command.Stdin == nil {
-			command.Stdin = os.Stdin
-		}
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-		defer protectCredentialOutput(command)()
-		return reporting.WithTerminal(command.Run)
-	}
-
-	done := make(chan error, 1)
-	claim := &atomic.Bool{}
-	reporting.Emit(reporting.TerminalReq{Cmd: command, Done: done, Claim: claim})
-	select {
-	case err := <-done:
-		return err
-	case <-reporting.TerminalLost():
-		if claim.CompareAndSwap(false, true) {
-			// Nobody serviced it; the terminal is free now - wire it
-			// directly, exactly as the LogReporter would have.
-			if command.Stdin == nil {
-				command.Stdin = os.Stdin
-			}
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-			return command.Run()
-		}
-		return <-done
-	}
+// runOnTerminal routes tool interaction through the shared popup API.
+func runOnTerminal(command *exec.Cmd, secrets []string) error {
+	return reporting.RunInteractiveCommand(RunContext(), command, secrets, false)
 }
 
 // dryRunMode controls whether commands are actually executed.
@@ -504,7 +469,7 @@ func runCommand(cmd types.Command, debug bool) error {
 
 	if sudoInput != nil {
 		command.Stdin = bytes.NewReader(sudoInput)
-		if cmd.Interactive {
+		if cmd.Interactive && !reporting.SupportsInlinePrompts() {
 			command.Stdin = io.MultiReader(command.Stdin, os.Stdin)
 		}
 	} else if cmd.Stdin != "" {
@@ -525,13 +490,10 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if cmd.Interactive {
-		// Interactive commands must reach the terminal directly - capturing
-		// stderr would swallow sudo's password prompt and hang the run. The
-		// display layer owns the terminal, so the handoff goes through the
-		// reporter: LogReporter wires os.Std* exactly as this code used to;
-		// a TUI suspends itself around the child instead. This path also
-		// serves per-item `interactive: true` inside non-interactive runs.
-		if err := runOnTerminal(command); err != nil {
+		// Tool-owned prompts use the dashboard's private terminal popup.
+		// Headless runs retain direct terminal interaction. Per-item
+		// interactive: true uses this path too.
+		if err := runOnTerminal(command, cmd.Secrets); err != nil {
 			// An interactive command reaches the terminal directly, so a
 			// cancelled one comes back as its kill status rather than through
 			// the context. Without this it reports "signal: killed" and gets

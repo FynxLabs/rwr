@@ -29,6 +29,7 @@ one small text file, validates the tree, previews the change, and applies it.
 ## Add focused capabilities
 
 - [Credentials and Bitwarden](credentials.md)
+- [Terminal interaction standard](terminal-interactions.md)
 - [Omarchy configuration tool](blueprints/omarchy.md)
 - [Package manager providers](providers.md)
 - [Bootstrap](bootstrap.md)

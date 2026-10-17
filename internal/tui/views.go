@@ -30,6 +30,11 @@ func (m *Model) View() tea.View {
 		content, cursor = m.viewSecretDialog(content)
 	} else if m.state == Prompting && m.confirm != nil {
 		content, cursor = m.viewConfirmDialog(content)
+	} else if m.state == Prompting && m.form != nil {
+		body := m.form.Form.View() + "\n\n" + style(m.theme.Subtext).Render("Esc cancel")
+		content, cursor = m.viewPromptDialog(content, body, nil)
+	} else if m.command != nil {
+		content, cursor = m.viewCommandDialog(content)
 	}
 	view := tea.NewView(m.zones.Scan(content))
 	view.Cursor = cursor

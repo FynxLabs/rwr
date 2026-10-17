@@ -78,7 +78,7 @@ func protectedEnv(overrides map[string]string) []string {
 	return env
 }
 
-// protectedLogin gives the explicit login command the terminal for vendor MFA.
+// protectedLogin routes vendor MFA through the shared terminal popup.
 // Login must use --quiet; unlock's token-bearing output uses ProtectedCommand.
 func protectedLogin(ctx context.Context, executable string, args []string, env map[string]string, _ io.Reader) ([]byte, error) {
 	if system.IsDryRun() {
@@ -86,13 +86,8 @@ func protectedLogin(ctx context.Context, executable string, args []string, env m
 	}
 	cmd := exec.CommandContext(ctx, executable, args...) // #nosec G204 -- fixed provider CLI and structured login arguments
 	cmd.Env = protectedEnv(env)
-	cmd.Stdin = os.Stdin
 	secrets := []string{env["RWR_BW_PASSWORD"], env["BW_SESSION"]}
-	stdout := types.NewSecretWriter(os.Stdout, secrets)
-	stderr := types.NewSecretWriter(os.Stderr, secrets)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	err := reporting.WithTerminal(func() error { defer stdout.Flush(); defer stderr.Flush(); return cmd.Run() })
+	err := reporting.RunInteractiveCommand(ctx, cmd, secrets, true)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}

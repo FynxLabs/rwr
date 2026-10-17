@@ -75,13 +75,15 @@ type ResourceDone struct {
 	Resource types.Resource
 }
 
-// TerminalReq asks the display layer to hand the real terminal to a command.
-// stderr of interactive commands is never piped - capturing it swallows
-// sudo's password prompt and hangs the run.
+// TerminalReq asks the display to run a command in its terminal popup.
+// The headless reporter wires the real terminal instead.
 type TerminalReq struct {
 	Processor string
 	Cmd       *exec.Cmd
+	Context   context.Context
 	Done      chan error
+	Secrets   []string
+	Private   bool // authentication output is displayed but never logged
 	// Claim makes the request run-once: the servicer and the waiter's
 	// terminal-lost fallback CAS it, and only the winner executes. Without
 	// it, a quit racing the exec callback could run the request twice.
@@ -213,8 +215,15 @@ func (LogReporter) Emit(event Event) {
 		if e.Cmd.Stdin == nil {
 			e.Cmd.Stdin = os.Stdin
 		}
-		e.Cmd.Stdout = os.Stdout
-		e.Cmd.Stderr = os.Stderr
+		secrets := append(types.ResolvedSecrets(), e.Secrets...)
+		e.Cmd.Stdout, e.Cmd.Stderr = os.Stdout, os.Stderr
+		if len(secrets) > 0 {
+			stdout := types.NewSecretWriter(os.Stdout, secrets)
+			stderr := types.NewSecretWriter(os.Stderr, secrets)
+			defer stdout.Flush()
+			defer stderr.Flush()
+			e.Cmd.Stdout, e.Cmd.Stderr = stdout, stderr
+		}
 		e.Done <- e.Cmd.Run()
 	case TerminalFunc:
 		// Headless the terminal is already free; just run the interaction.
@@ -229,6 +238,10 @@ func (LogReporter) Emit(event Event) {
 	case ConfirmReq:
 		if TryClaim(e.Claim) {
 			e.Result <- ConfirmResult{Err: ErrPromptUnavailable}
+		}
+	case FormReq:
+		if TryClaim(e.Claim) {
+			e.Done <- ErrPromptUnavailable
 		}
 	case HaltReq:
 		// Headless interactive keeps its historical behavior: the first
@@ -408,13 +421,12 @@ func requestHalt(processor string, err error, retryable bool) HaltDecision {
 	}
 }
 
-// WithTerminal runs fn with exclusive use of the real terminal. Headless it
-// runs fn directly; under the TUI the dashboard suspends itself first and
-// resumes after. Every in-process prompt (huh forms, raw stdin reads) MUST go
-// through this: a prompt that reads stdin while the dashboard owns it
-// deadlocks the run - the prompt never gets keystrokes, the dashboard keeps
-// eating them, and ctrl-c dies with both.
+// WithTerminal is reserved for headless raw-input fallbacks. Live dashboards
+// refuse it; forms and external tools must use the shared popup APIs.
 func WithTerminal(fn func() error) error {
+	if SupportsInlinePrompts() {
+		return ErrPromptUnavailable // prompts and tools must use the popup APIs
+	}
 	done := make(chan error, 1)
 	claim := &atomic.Bool{}
 	Emit(TerminalFunc{Run: fn, Done: done, Claim: claim})

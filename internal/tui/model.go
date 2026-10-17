@@ -1,12 +1,9 @@
 package tui
 
 import (
-	"io"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -159,6 +156,8 @@ type Model struct {
 	confirm         *reporting.ConfirmReq
 	confirmDetails  bool
 	confirmSelected int
+	form            *reporting.FormReq
+	command         *commandPopup
 	// resumedAt is when the terminal last came back from a child process or
 	// a prompt entered Prompting; plain keys within the grace window after
 	// it are typeahead, not commands.
@@ -349,17 +348,7 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 			m.plan.Resources = append(m.plan.Resources, res)
 		}
 	case reporting.TerminalReq:
-		m.state = Suspended
-		done := ev.Done
-		// The claim is taken inside the exec itself (which bubbletea runs
-		// inline on the event loop, where the program cannot die mid-way):
-		// claiming any earlier risks the program exiting between claim and
-		// exec, leaving a claimed-but-never-serviced request whose waiter
-		// blocks forever.
-		return tea.Exec(claimedExec{cmd: ev.Cmd, claim: ev.Claim}, func(err error) tea.Msg {
-			done <- err
-			return execDone{}
-		})
+		return m.initCommand(ev)
 	case reporting.HaltReq:
 		// Interactive halt: jump to the failing processor, unpin, apply
 		// errors-only so the operator sees why, and wait for r/R/s/q. The
@@ -375,23 +364,10 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 		m.levelFilter = "ERRO"
 		return nil
 	case reporting.TerminalFunc:
-		// Same handover as TerminalReq, for in-process interactions (huh
-		// forms, raw prompts): the program releases the terminal, the
-		// interaction runs on it, the dashboard resumes after. Claimed at
-		// run time for the same reason as TerminalReq above.
-		m.state = Suspended
-		run := ev.Run
-		claim := ev.Claim
-		done := ev.Done
-		return tea.Exec(funcExec(func() error {
-			if !reporting.TryClaim(claim) {
-				return nil // the waiter's fallback already ran it
-			}
-			return run()
-		}), func(err error) tea.Msg {
-			done <- err
-			return execDone{}
-		})
+		if reporting.TryClaim(ev.Claim) {
+			ev.Done <- reporting.ErrPromptUnavailable
+		}
+		return nil
 	case reporting.SecretReq:
 		m.state = Prompting
 		m.secret = &ev
@@ -401,6 +377,14 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 		m.scrollOffset = 0
 		m.resumedAt = time.Time{}
 		return nil
+	case reporting.FormReq:
+		m.state = Prompting
+		m.form = &ev
+		m.pinned = false
+		m.cursor = m.live
+		m.scrollOffset = 0
+		m.resumedAt = time.Time{}
+		return m.initForm()
 	case reporting.ConfirmReq:
 		m.state = Prompting
 		m.confirm = &ev
@@ -430,52 +414,6 @@ func (m *Model) apply(e reporting.Event) tea.Cmd {
 
 type execDone struct{}
 
-// claimedExec wraps an *exec.Cmd as a tea.ExecCommand whose Run first takes
-// the request's claim: if the waiter's terminal-lost fallback already ran
-// the command, Run is a no-op instead of a second execution. The io setters
-// mirror bubbletea's own osExecCommand (fill only when unset, so a preset
-// Stdin survives).
-type claimedExec struct {
-	cmd   *exec.Cmd
-	claim *atomic.Bool
-}
-
-func (c claimedExec) Run() error {
-	if !reporting.TryClaim(c.claim) {
-		return nil
-	}
-	return c.cmd.Run()
-}
-
-func (c claimedExec) SetStdin(r io.Reader) {
-	if c.cmd.Stdin == nil {
-		c.cmd.Stdin = r
-	}
-}
-
-func (c claimedExec) SetStdout(w io.Writer) {
-	if c.cmd.Stdout == nil {
-		c.cmd.Stdout = w
-	}
-}
-
-func (c claimedExec) SetStderr(w io.Writer) {
-	if c.cmd.Stderr == nil {
-		c.cmd.Stderr = w
-	}
-}
-
-// funcExec adapts a plain func to tea.ExecCommand so tea.Exec can hand the
-// terminal to an in-process interaction. The io setters are no-ops: the
-// interaction (a huh form, a stdin read) talks to the real terminal, which
-// tea has released for the duration of Run.
-type funcExec func() error
-
-func (f funcExec) Run() error        { return f() }
-func (funcExec) SetStdin(io.Reader)  {}
-func (funcExec) SetStdout(io.Writer) {}
-func (funcExec) SetStderr(io.Writer) {}
-
 // stripZone and rowZone name a processor's strip cell and list row; the ids
 // differ because a Mark of the same id overwrites the earlier zone.
 func stripZone(i int) string { return "strip:" + strconv.Itoa(i) }
@@ -498,6 +436,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case event:
 		return m, m.apply(msg.e)
+	case commandDone:
+		if m.command == msg.popup {
+			m.command = nil
+			if m.form == nil && m.secret == nil && m.confirm == nil && m.halt == nil && m.state != SummaryState {
+				m.state = Running
+			}
+			m.resumedAt = time.Now()
+		}
+		return m, nil
 	case execDone:
 		m.state = Running
 		// Typeahead guard: keystrokes buffered while a child owned the
@@ -533,6 +480,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Either threshold trips compact mode; resize promotes/demotes live
 		// with no state lost - both layouts render from this one model.
 		m.compact = msg.Width < 60 || msg.Height < 14
+		if m.command != nil {
+			m.resizeCommand()
+		}
+		if m.form != nil {
+			return m, m.resizeForm()
+		}
 		return m, nil
 	case tea.FocusMsg:
 		m.focused = true
@@ -542,6 +495,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyPressMsg:
 		return m.key(msg)
+	case tea.PasteMsg:
+		if m.command != nil && m.form == nil && m.secret == nil && m.confirm == nil {
+			m.commandKey(msg)
+			return m, nil
+		}
 	case tea.MouseClickMsg:
 		if m.state == Prompting {
 			return m, nil // the front dialog owns input; never click through it
@@ -582,10 +540,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	if m.form != nil {
+		return m, m.updateForm(msg)
+	}
 	return m, nil
 }
 
 func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if m.state == Prompting && m.form != nil {
+		return m, m.updateForm(msg)
+	}
 	if m.state == Prompting && m.secret != nil {
 		finish := func(value []byte, err error) {
 			if reporting.TryClaim(m.secret.Claim) {
@@ -672,6 +636,11 @@ func (m *Model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "esc", "ctrl+c":
 			finish(false, false, reporting.ErrPromptCancelled)
 		}
+		return m, nil
+	}
+
+	if m.command != nil {
+		m.commandKey(msg)
 		return m, nil
 	}
 

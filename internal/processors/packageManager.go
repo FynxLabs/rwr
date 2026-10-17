@@ -204,7 +204,11 @@ func preparePackageManagers(managers []types.PackageManagerInfo, osInfo *types.O
 		if !available {
 			chosen := "brew"
 			if initConfig.Variables.Flags.Interactive {
-				chosen = system.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
+				var err error
+				chosen, err = system.PromptUserChoice("Choose a package manager to install", []string{"brew", "nix"}, "brew")
+				if err != nil {
+					return fmt.Errorf("package manager selection: %w", err)
+				}
 			}
 			managers = []types.PackageManagerInfo{{Name: chosen, Action: types.ActionInstall}}
 		}

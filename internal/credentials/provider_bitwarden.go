@@ -29,16 +29,14 @@ var providerLogin = protectedLogin
 var providerPrompt = func(account string) (string, string, error) {
 	password := ""
 	choice := "continue"
-	err := reporting.WithTerminal(func() error {
-		if err := huh.NewSelect[string]().Title("Bitwarden credential setup").Options(huh.NewOption("Continue", "continue"), huh.NewOption("Skip setup", "skip")).Value(&choice).Run(); err != nil {
-			return err
-		}
-		if choice == "skip" {
-			return &Unavailable{Skipped}
-		}
-		return huh.NewForm(huh.NewGroup(huh.NewInput().Title("Bitwarden email").Value(&account), huh.NewInput().Title("Master password").EchoMode(huh.EchoModePassword).Value(&password))).Run()
-	})
-	if errors.Is(err, huh.ErrUserAborted) {
+	err := reporting.RunForm(huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Title("Bitwarden credential setup").Options(huh.NewOption("Continue", "continue"), huh.NewOption("Skip setup", "skip")).Value(&choice))))
+	if err == nil && choice == "skip" {
+		return account, "", &Unavailable{Skipped}
+	}
+	if err == nil {
+		err = reporting.RunForm(huh.NewForm(huh.NewGroup(huh.NewInput().Title("Bitwarden email").Value(&account), huh.NewInput().Title("Master password").EchoMode(huh.EchoModePassword).Value(&password))))
+	}
+	if errors.Is(err, huh.ErrUserAborted) || errors.Is(err, reporting.ErrPromptCancelled) {
 		err = system.ErrCancelled
 	}
 	return account, password, err

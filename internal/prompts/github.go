@@ -45,9 +45,7 @@ func PromptGitHubAuthMethod() (GitHubAuthChoice, error) {
 		),
 	)
 
-	// Through the terminal lease, never bare: a form that reads stdin while
-	// the TUI owns it freezes the run (and ctrl-c with it).
-	err := reporting.WithTerminal(form.Run)
+	err := reporting.RunForm(form)
 	if err != nil {
 		return "", fmt.Errorf("authentication prompt failed: %w", err)
 	}
@@ -77,7 +75,7 @@ func PromptGitHubToken() (string, error) {
 		),
 	)
 
-	err := reporting.WithTerminal(form.Run)
+	err := reporting.RunForm(form)
 	if err != nil {
 		return "", fmt.Errorf("token entry failed: %w", err)
 	}
@@ -262,7 +260,7 @@ func PromptConfirmTokenReplace() (bool, error) {
 		),
 	)
 
-	err := reporting.WithTerminal(form.Run)
+	err := reporting.RunForm(form)
 	if err != nil {
 		return false, fmt.Errorf("confirmation prompt failed: %w", err)
 	}
