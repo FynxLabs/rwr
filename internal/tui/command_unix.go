@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
+	"golang.org/x/sys/unix"
 )
 
 type unixPopupPTY struct {
@@ -29,7 +30,7 @@ func startPopupPTY(cmd *exec.Cmd, width, height int) (popupPTY, error) {
 	}
 	// pty.Open uses os.NewFile on a blocking descriptor. Reopen a duplicate
 	// as pollable so closing the popup interrupts a pending output read.
-	fd, err := syscall.Dup(int(file.Fd()))
+	fd, err := unix.FcntlInt(file.Fd(), unix.F_DUPFD_CLOEXEC, 0)
 	if err != nil {
 		closePopupIO(file)
 		closePopupIO(slave)
