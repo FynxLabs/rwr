@@ -180,6 +180,12 @@ and poll for the token at the server-provided interval (default five seconds),
 continuing on `authorization_pending` and backing off when GitHub answers
 `slow_down`. Polling SHALL give up after five minutes.
 
+While the dashboard is active, authentication choices, masked token entry,
+token-replacement confirmation, and SSH-key title entry SHALL appear as modal
+popups without releasing the terminal. OAuth SHALL display its URL and user code
+in a waiting popup and continue polling in the background. Esc or Ctrl-C SHALL
+dismiss the popup and cancel polling, including any in-flight token request.
+
 The token obtained SHALL be saved to the OS keyring when a backend is available,
 without writing it to a plaintext configuration file. When no keyring backend
 is available, RWR SHALL warn and use the owner-only (`0600`) configuration-file
@@ -205,6 +211,17 @@ with an error listing the ways to supply one - `--gh-api-key`, `--gh-auth`, or
 
 - **WHEN** five minutes pass without authorization
 - **THEN** the flow fails with a timeout error
+
+#### Scenario: Authentication is needed during a dashboard run
+
+- **WHEN** an SSH-key upload needs a token while the dashboard is active
+- **THEN** a popup offers OAuth, manual token entry, and skipping the upload
+- **AND** each subsequent authentication prompt stays inside the dashboard
+
+#### Scenario: The operator cancels an OAuth popup
+
+- **WHEN** the operator presses Esc or Ctrl-C while the OAuth popup is waiting
+- **THEN** polling is canceled and the dashboard retains the terminal
 
 #### Scenario: A token already stored
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/huh/v2"
 	"charm.land/log/v2"
 	"github.com/freehold-digital/rwr/internal/reporting"
 )
@@ -14,9 +15,15 @@ import (
 // the user's chosen option, falling back to defaultOption on invalid input.
 func PromptUserChoice(prompt string, options []string, defaultOption string) string {
 	choice := defaultOption
-	// Through the terminal lease: headless this runs directly; under the TUI
-	// the dashboard suspends around it. A bare stdin read while the dashboard
-	// owns the terminal freezes the run.
+	if reporting.SupportsInlinePrompts() {
+		form := huh.NewForm(huh.NewGroup(huh.NewSelect[string]().Title(prompt).
+			Options(huh.NewOptions(options...)...).Value(&choice)))
+		if err := reporting.RunForm(form); err != nil {
+			return defaultOption
+		}
+		return choice
+	}
+	// The raw input loop is used only by the headless fallback.
 	_ = reporting.WithTerminal(func() error { //nolint:errcheck // a failed read falls back to the default
 		reader := bufio.NewReader(os.Stdin)
 		for {

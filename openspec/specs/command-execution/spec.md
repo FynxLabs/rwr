@@ -11,6 +11,37 @@ observable in tests without spawning anything.
 
 ## Requirements
 
+### Requirement: Operator interaction stays inside the dashboard
+
+While the dashboard is active, RWR SHALL retain terminal ownership. Forms,
+credential entry, confirmations, and asynchronous authentication instructions
+SHALL use shared modal APIs. An interactive external command SHALL receive a
+private pseudoterminal rendered inside a modal, with keyboard input, paste,
+terminal sizing, and password echo behavior preserved. RWR SHALL NOT suspend
+the dashboard to let a prompt or tool own the real terminal.
+
+Known secrets SHALL be redacted from tool output across write boundaries.
+Authentication output marked private SHALL be displayed without entering run
+logs. Cancellation or loss of the dashboard SHALL stop the modal's background
+work and child process; Unix cancellation SHALL stop the child process group.
+Headless invocations SHALL retain direct terminal interaction.
+
+#### Scenario: An external tool asks for MFA
+
+- **WHEN** an interactive credential tool requests a verification code
+- **THEN** its instructions and input appear in a modal terminal pane
+- **AND** the dashboard remains visible and owns the terminal
+
+#### Scenario: A tool popup is canceled
+
+- **WHEN** the operator presses Ctrl-C in the external-tool popup
+- **THEN** the tool is stopped and the dashboard remains active
+
+#### Scenario: A raw terminal handoff is attempted
+
+- **WHEN** code requests a raw terminal callback while the dashboard is active
+- **THEN** the callback is refused without releasing the terminal
+
 ### Requirement: Commands execute as argv, never as a shell string
 
 RWR SHALL build every command as an argument vector handed directly to the kernel.
