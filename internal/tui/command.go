@@ -115,9 +115,38 @@ func (p *commandPopup) runClaimed(size popupSize) error {
 		closePopupIO(inputPipe)
 	}()
 	go func() {
-		if _, err := io.Copy(child, p.terminal); err != nil {
-			return
-		} // pipe closes on exit/cancellation
+		// Drain emulator input independently of the child. SendKey holds the
+		// emulator lock while writing; a tool that stops reading must never
+		// block View on that lock and prevent cancellation of the popup.
+		chunks := make(chan []byte, 16)
+		go func() {
+			defer close(chunks)
+			buf := make([]byte, 4096)
+			for {
+				n, err := p.terminal.Read(buf)
+				if n > 0 {
+					chunk := append([]byte(nil), buf[:n]...)
+					select {
+					case chunks <- chunk:
+					case <-p.ctx.Done():
+						return
+					default:
+						log.Warn("Tool input buffer full; canceling the tool")
+						p.cancel()
+						return
+					}
+				}
+				if err != nil {
+					return
+				}
+			}
+		}()
+		for chunk := range chunks {
+			if _, err := child.Write(chunk); err != nil {
+				p.cancel()
+				return
+			}
+		}
 	}()
 	go func() {
 		for {
@@ -192,6 +221,8 @@ func (m *Model) commandKey(msg tea.Msg) {
 	select {
 	case m.command.input <- msg:
 	default:
+		log.Warn("Tool input queue full; canceling the tool")
+		m.command.cancel()
 	}
 }
 

@@ -103,3 +103,20 @@ test "$answer" = 'continue' || exit 3
 		t.Fatal("production executor did not preserve popup input after supplied stdin")
 	}
 }
+
+func TestToolThatDoesNotReadCannotFreezeDashboardOnPaste(t *testing.T) {
+	p := startFormProgram(t)
+	result := make(chan error, 1)
+	cmd := exec.Command("sh", "-c", "stty -echo; printf 'Ready for oversized input'; sleep 30")
+	go func() { result <- reporting.RunInteractiveCommand(context.Background(), cmd, nil, true) }()
+	waitFormView(t, p, "Ready for oversized input")
+	p.Send(tea.PasteMsg{Content: strings.Repeat("x", 1<<20)})
+	select {
+	case err := <-result:
+		if !errors.Is(err, reporting.ErrPromptCancelled) {
+			t.Fatalf("overflow = %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("unread tool input froze the dashboard")
+	}
+}
