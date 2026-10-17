@@ -135,12 +135,14 @@ IFS= read -r finish
 }
 
 func TestInvalidInitialInputRefusedBeforeChildStarts(t *testing.T) {
+	t.Parallel()
 	for name, input := range map[string]string{
 		"unterminated":     "private-input",
 		"oversized":        strings.Repeat("x", 4096) + "\n",
 		"terminal control": "private\x03input\n",
 	} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			cmd := exec.Command("sh", "-c", "exit 0")
 			cmd.Stdin = strings.NewReader(input)
 			child, err := startPopupPTY(context.Background(), cmd, 56, 16)
