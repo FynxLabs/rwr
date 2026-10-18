@@ -116,6 +116,92 @@ func TestGitHubAuthOptionsStayInDashboard(t *testing.T) {
 	}
 }
 
+func TestSudoPromptDuringGitHubFormOwnsVisibleInput(t *testing.T) {
+	p := startFormProgram(t)
+	choice := make(chan prompts.GitHubAuthChoice, 1)
+	go func() {
+		got, err := prompts.PromptGitHubAuthMethod()
+		if err != nil {
+			t.Error(err)
+		}
+		choice <- got
+	}()
+	waitFormView(t, p, "GitHub authentication required")
+	password := make(chan reporting.SecretResult, 1)
+	go func() {
+		value, err := reporting.RequestSecret("sudo password")
+		password <- reporting.SecretResult{Value: value, Err: err}
+	}()
+	waitFormView(t, p, "sudo password")
+	for _, r := range "fixture-" {
+		p.Send(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	p.Send(tea.PasteMsg{Content: "password"})
+	p.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	select {
+	case got := <-password:
+		if got.Err != nil || string(got.Value) != "fixture-password" {
+			t.Fatal("visible sudo popup did not receive its password")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("visible sudo popup lost input to the GitHub form")
+	}
+	waitFormView(t, p, "GitHub authentication required")
+	p.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+	p.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+	p.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+	select {
+	case got := <-choice:
+		if got != prompts.GitHubAuthSkip {
+			t.Fatal("sudo password input changed the GitHub choice")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("GitHub form did not resume after the sudo popup")
+	}
+}
+
+func TestOAuthCompletionDoesNotHidePendingSudoPrompt(t *testing.T) {
+	p := startFormProgram(t)
+	authorized := make(chan struct{})
+	finished := make(chan error, 1)
+	go func() {
+		finished <- reporting.RunFormWithTask(huh.NewForm(huh.NewGroup(huh.NewNote().Title("Waiting for GitHub").Next(true))), func(ctx context.Context) error {
+			select {
+			case <-authorized:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+	}()
+	waitFormView(t, p, "Waiting for GitHub")
+	password := make(chan reporting.SecretResult, 1)
+	go func() {
+		value, err := reporting.RequestSecret("sudo password")
+		password <- reporting.SecretResult{Value: value, Err: err}
+	}()
+	waitFormView(t, p, "sudo password")
+	close(authorized)
+	select {
+	case err := <-finished:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("OAuth task did not complete")
+	}
+	waitFormView(t, p, "sudo password")
+	p.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+	select {
+	case got := <-password:
+		if !errors.Is(got.Err, reporting.ErrPromptCancelled) {
+			t.Fatalf("sudo cancellation = %v", got.Err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("sudo prompt became unresponsive after OAuth completion")
+	}
+}
+
 func TestPackageManagerChoiceCancellationReturnsNoDefault(t *testing.T) {
 	for _, key := range []tea.KeyPressMsg{{Code: tea.KeyEscape}, {Code: 'c', Mod: tea.ModCtrl}} {
 		t.Run(key.String(), func(t *testing.T) {

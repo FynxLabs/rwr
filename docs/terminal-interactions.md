@@ -16,6 +16,20 @@ Forms render inside the dashboard's modal frame and use its colors. Esc or Ctrl-
 cancels a form; a waiting task receives a canceled context and must stop its
 network requests. Form submission never quits the parent dashboard.
 
+When dialogs overlap, masked administrator entry takes priority over confirmations
+and forms for both rendering and keyboard/paste input. Closing a dialog restores
+any waiting interaction underneath it. OAuth completion cannot hide a pending
+administrator password prompt.
+
+A successful sudo readiness probe does not guarantee that a later command can
+reuse the same authorization: the command can have a different session or popup
+TTY. Under the dashboard, that sudo process uses managed askpass instead of
+disabling password entry with `-n`. If it needs a password, the masked popup
+appears; a valid ticket or password-free policy runs without an extra prompt.
+The bridge binds access to the actual child session after startup in both
+captured and interactive execution. Supplied command input stays separate from
+askpass authentication. Each run starts with fresh readiness state.
+
 External tools run in a private pseudoterminal displayed inside a popup. Their
 output, cursor movement, choices, and password echo settings stay inside that
 pane. Keyboard input and paste go to the tool. Resizing updates the pane and its

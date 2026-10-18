@@ -30,7 +30,7 @@ var (
 // function that releases it. Calling it again replaces the previous one, so a
 // second run in the same process starts uncancelled.
 func BeginRun() (release func()) {
-	clearSudoPassword()
+	resetSudoCredentials()
 	overwriteAll.Store(false)
 	skipAll.Store(false)
 	cancelMu.Lock()

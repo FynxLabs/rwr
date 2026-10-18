@@ -143,7 +143,7 @@ func TestSudoAuthenticationRetriesAreBounded(t *testing.T) {
 	}
 }
 
-func TestExplicitInteractiveCommandDoesNotInstallAskpass(t *testing.T) {
+func TestExplicitInteractiveCommandInstallsManagedAskpass(t *testing.T) {
 	defer reporting.Set(bridgeReporter{})()
 	command := exec.Command("sh")
 	command.Env = os.Environ()
@@ -152,8 +152,8 @@ func TestExplicitInteractiveCommandDoesNotInstallAskpass(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer bridge.Close()
-	if environmentValue(command.Env, askpassSocketEnv) != "" {
-		t.Fatal("interactive terminal handoff must not wait for a suspended inline display")
+	if environmentValue(command.Env, askpassSocketEnv) == "" {
+		t.Fatal("interactive popup needs askpass when its new TTY cannot reuse ambient sudo authorization")
 	}
 }
 

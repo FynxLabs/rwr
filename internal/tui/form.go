@@ -53,7 +53,19 @@ func (m *Model) finishForm(err error) {
 		m.form.Done <- err
 	}
 	m.form = nil
-	m.state = Running
+	m.resumePopup()
+}
+
+// Closing an overlay must not hide an interaction still waiting underneath it.
+func (m *Model) resumePopup() {
+	if m.state == SummaryState {
+		return
+	}
+	if m.secret != nil || m.confirm != nil || m.form != nil || m.command != nil || m.halt != nil {
+		m.state = Prompting
+	} else {
+		m.state = Running
+	}
 }
 
 func (m *Model) updateForm(msg tea.Msg) tea.Cmd {

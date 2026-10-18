@@ -92,6 +92,9 @@ func (p *commandPopup) runClaimed(size popupSize) error {
 		return err
 	}
 	defer closePopupIO(child)
+	if p.req.Started != nil {
+		p.req.Started(cmd)
+	}
 
 	stopped := make(chan struct{})
 	defer close(stopped)
