@@ -428,6 +428,18 @@ func TestPackageManagerUnavailableRecognizesSudoDiagnostic(t *testing.T) {
 	}
 }
 
+func TestPackageManagerUnavailableRecognizesIncorrectSudoPassword(t *testing.T) {
+	t.Parallel()
+
+	err := &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: "sudo: 3 incorrect password attempts",
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("incorrect sudo password was not classified as package-manager unavailable: %v", err)
+	}
+}
+
 func TestPackageManagerUnavailableRecognizesANSIColoredDiagnostic(t *testing.T) {
 	t.Parallel()
 

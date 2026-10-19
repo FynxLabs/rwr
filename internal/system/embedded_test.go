@@ -51,6 +51,8 @@ func TestLoadEmbeddedProviders(t *testing.T) {
 }
 
 func TestLoadEmbeddedProviders_ProviderStructure(t *testing.T) {
+	t.Parallel()
+
 	providers, err := LoadEmbeddedProviders()
 	if err != nil {
 		t.Fatalf("LoadEmbeddedProviders() failed: %v", err)

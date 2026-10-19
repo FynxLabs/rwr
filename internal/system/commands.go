@@ -481,6 +481,7 @@ func IsPackageManagerUnavailable(err error) bool {
 				"a password is required",
 				"no password was provided",
 				"authentication failure",
+				"incorrect password attempt",
 				"not in the sudoers file",
 				"not allowed to execute",
 			} {
@@ -500,6 +501,7 @@ func IsPackageManagerUnavailable(err error) bool {
 		"a password is required",
 		"no password was provided",
 		"authentication failure",
+		"incorrect password attempt",
 		"not in the sudoers file",
 		"not allowed to execute",
 	} {
