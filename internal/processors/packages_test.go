@@ -679,6 +679,38 @@ func TestProcessPackages_StopsAfterSystemicManagerFailure(t *testing.T) {
 	}
 }
 
+func TestProcessPackages_StopsAfterAPTLockFailure(t *testing.T) {
+	bin := "sh"
+	if runtime.GOOS == types.OSWindows {
+		bin = "cmd"
+	}
+	defer system.SetProvidersForTest(map[string]*types.Provider{
+		"apt": {
+			Name:     "apt",
+			Elevated: true,
+			Detection: types.DetectionConfig{
+				Binary:        bin,
+				Distributions: []string{types.OSLinux, types.OSDarwin, types.OSWindows},
+			},
+			Commands: types.CommandConfig{Install: "install -y"},
+		},
+	})()
+	rec := exectest.New()
+	rec.Err = errors.New("exit status 100: E: Could not get lock /var/lib/dpkg/lock-frontend")
+	defer system.SetExecutor(rec)()
+	resetFailures()
+	t.Cleanup(resetFailures)
+
+	data := []byte("packages:\n  - names: [tree, figlet]\n    action: install\n    package_manager: apt\n")
+	err := ProcessPackages(data, nil, t.TempDir(), "yaml", newTestOSInfo(), &types.InitConfig{})
+	if !errors.Is(err, rec.Err) {
+		t.Fatalf("ProcessPackages error = %v, want wrapped %v", err, rec.Err)
+	}
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls after APT lock failure, want 1: %v", len(rec.Calls), rec.Calls)
+	}
+}
+
 // A provider that escalates internally has to carry that onto the command, or
 // the sudo credential cache is never warmed for it and the run hangs on an
 // invisible password prompt during the install.

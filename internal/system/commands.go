@@ -468,7 +468,9 @@ func IsPackageManagerUnavailable(err error) bool {
 				strings.HasPrefix(line, "error: unable to lock database") ||
 				strings.HasPrefix(line, "error: could not lock database") ||
 				strings.HasPrefix(line, "error: failed to synchronize all databases") ||
-				strings.HasPrefix(line, "error: failed to init transaction (unable to lock database") {
+				strings.HasPrefix(line, "error: failed to init transaction (unable to lock database") ||
+				strings.HasPrefix(line, "e: could not get lock ") ||
+				strings.HasPrefix(line, "e: unable to acquire the dpkg") {
 				return true
 			}
 			if !strings.HasPrefix(line, "sudo:") {
@@ -492,6 +494,8 @@ func IsPackageManagerUnavailable(err error) bool {
 		"unable to lock database",
 		"could not lock database",
 		"failed to synchronize all databases",
+		"could not get lock",
+		"unable to acquire the dpkg",
 		"a password is required",
 		"no password was provided",
 		"authentication failure",
@@ -529,15 +533,25 @@ func (b *tailBuffer) Write(p []byte) (int, error) {
 	return written, nil
 }
 
-func (b *tailBuffer) String() string {
-	return strings.TrimSpace(types.ScrubCredentialText(string(b.buf)))
+func (b *tailBuffer) String(commandSecrets []string) string {
+	return strings.TrimSpace(scrubCommandText(string(b.buf), commandSecrets))
 }
 
-func commandFailure(err error, stderr *tailBuffer) error {
+func commandFailure(err error, stderr *tailBuffer, commandSecrets []string) error {
 	if err == nil {
 		return nil
 	}
-	return &commandExecutionError{err: err, stderr: stderr.String()}
+	return &commandExecutionError{err: err, stderr: stderr.String(commandSecrets)}
+}
+
+func scrubCommandText(text string, commandSecrets []string) string {
+	text = types.ScrubCredentialText(text)
+	for _, secret := range commandSecrets {
+		if secret != "" {
+			text = strings.ReplaceAll(text, secret, types.RedactedPlaceholder)
+		}
+	}
+	return text
 }
 
 // runOnTerminal routes tool interaction through the shared popup API.
@@ -666,7 +680,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		}
 	}
 
-	defer protectCredentialOutput(command)()
+	defer protectCredentialOutput(command, cmd.Secrets)()
 	if err := bridge.Run(command); err != nil {
 		// A command killed by cancellation exits non-zero like any failure.
 		// Reporting it as one would fill the summary with "signal: killed"
@@ -674,7 +688,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		if Cancelled() {
 			return ErrCancelled
 		}
-		failure := commandFailure(err, stderrTail)
+		failure := commandFailure(err, stderrTail, cmd.Secrets)
 		log.Errorf("Error running command: %v", failure)
 		return failure
 	}
@@ -743,7 +757,7 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		if Cancelled() {
 			return "", ErrCancelled
 		}
-		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, types.ScrubCredentialText(stderr.String()))
+		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, scrubCommandText(stderr.String(), cmd.Secrets))
 		log.Error(errMsg)
 		return "", err
 	}
@@ -839,8 +853,8 @@ func GetBinPath(binName string) (string, error) {
 	return filepath.Clean(path), nil
 }
 
-func protectCredentialOutput(command *exec.Cmd) func() {
-	secrets := types.ResolvedSecrets()
+func protectCredentialOutput(command *exec.Cmd, commandSecrets []string) func() {
+	secrets := append(types.ResolvedSecrets(), commandSecrets...)
 	if len(secrets) == 0 {
 		return func() {}
 	}
