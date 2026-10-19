@@ -331,7 +331,7 @@ func TestRunCommand_ReturnsCapturedStderr(t *testing.T) {
 
 	err := RunCommand(types.Command{
 		Exec: "/bin/sh",
-		Args: []string{"-c", "printf 'unable to lock database\\n' >&2; exit 1"},
+		Args: []string{"-c", "printf 'error: failed to synchronize all databases (unable to lock database)\\n' >&2; exit 1"},
 	}, false)
 	var commandErr *commandExecutionError
 	if !errors.As(err, &commandErr) {
@@ -366,6 +366,30 @@ func TestPackageManagerUnavailableRecognizesWrappedSudoAuthentication(t *testing
 	err := errors.Join(errors.New("credential prompt failed"), ErrSudoAuthentication)
 	if !IsPackageManagerUnavailable(err) {
 		t.Fatalf("wrapped ErrSudoAuthentication was not classified as package-manager unavailable: %v", err)
+	}
+}
+
+func TestPackageManagerUnavailableIgnoresPackageNameInCommandStderr(t *testing.T) {
+	t.Parallel()
+
+	err := &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: `Error: No available formula with the name "authentication failure".`,
+	}
+	if IsPackageManagerUnavailable(err) {
+		t.Fatalf("ordinary package failure was classified as package-manager unavailable: %v", err)
+	}
+}
+
+func TestPackageManagerUnavailableRecognizesSudoDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	err := &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: "sudo: a password is required",
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("sudo diagnostic was not classified as package-manager unavailable: %v", err)
 	}
 }
 

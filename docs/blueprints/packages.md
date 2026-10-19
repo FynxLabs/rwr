@@ -115,8 +115,9 @@ If `package_manager` is omitted, RWR uses the default detected for this machine
 (which honours `/etc/os-release` and, on Arch, the AUR helper preference order).
 If that one is unavailable it falls back to the alphabetically first available
 provider, so that an unqualified package does not get a different manager on
-each run. A named package manager that is not available on the machine logs a
-warning and skips the entry.
+each run. If an entry names a package manager that is not available on the
+machine, RWR records that entry as failed and continues processing entries whose
+managers are available.
 
 ## Examples
 

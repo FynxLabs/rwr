@@ -461,6 +461,32 @@ func IsPackageManagerUnavailable(err error) bool {
 	var commandErr *commandExecutionError
 	if errors.As(err, &commandErr) {
 		message = strings.ToLower(commandErr.stderr)
+		for _, rawLine := range strings.Split(message, "\n") {
+			line := strings.TrimSpace(rawLine)
+			if line == "unable to lock database" ||
+				line == "could not lock database" ||
+				strings.HasPrefix(line, "error: unable to lock database") ||
+				strings.HasPrefix(line, "error: could not lock database") ||
+				strings.HasPrefix(line, "error: failed to synchronize all databases") ||
+				strings.HasPrefix(line, "error: failed to init transaction (unable to lock database") {
+				return true
+			}
+			if !strings.HasPrefix(line, "sudo:") {
+				continue
+			}
+			for _, fragment := range []string{
+				"a password is required",
+				"no password was provided",
+				"authentication failure",
+				"not in the sudoers file",
+				"not allowed to execute",
+			} {
+				if strings.Contains(line, fragment) {
+					return true
+				}
+			}
+		}
+		return false
 	}
 	for _, fragment := range []string{
 		"unable to lock database",
