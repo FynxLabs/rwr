@@ -333,7 +333,11 @@ func TestRunCommand_ReturnsCapturedStderr(t *testing.T) {
 		Exec: "/bin/sh",
 		Args: []string{"-c", "printf 'unable to lock database\\n' >&2; exit 1"},
 	}, false)
-	if err == nil || !strings.Contains(err.Error(), "unable to lock database") {
+	var commandErr *commandExecutionError
+	if !errors.As(err, &commandErr) {
+		t.Fatalf("error = %v, want *commandExecutionError", err)
+	}
+	if !strings.Contains(err.Error(), "unable to lock database") {
 		t.Fatalf("error = %v, want captured stderr", err)
 	}
 	if !IsPackageManagerUnavailable(err) {
@@ -342,6 +346,8 @@ func TestRunCommand_ReturnsCapturedStderr(t *testing.T) {
 }
 
 func TestCommandFailureRetainsBoundedStderrTail(t *testing.T) {
+	t.Parallel()
+
 	stderr := &tailBuffer{}
 	prefix := strings.Repeat("x", commandErrorTailLimit)
 	_, _ = stderr.Write([]byte(prefix + "useful final diagnostic"))
@@ -351,6 +357,15 @@ func TestCommandFailureRetainsBoundedStderrTail(t *testing.T) {
 	}
 	if len(stderr.buf) != commandErrorTailLimit {
 		t.Fatalf("stderr tail size = %d, want %d", len(stderr.buf), commandErrorTailLimit)
+	}
+}
+
+func TestPackageManagerUnavailableRecognizesWrappedSudoAuthentication(t *testing.T) {
+	t.Parallel()
+
+	err := errors.Join(errors.New("credential prompt failed"), ErrSudoAuthentication)
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("wrapped ErrSudoAuthentication was not classified as package-manager unavailable: %v", err)
 	}
 }
 

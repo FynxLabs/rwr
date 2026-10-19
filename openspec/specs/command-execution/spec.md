@@ -32,7 +32,7 @@ error proves the package manager is systemically unavailable, including a locked
 pacman database or failed sudo authorization.
 
 Pacman package installation SHALL use the system's existing synchronized package
-databases and SHALL mark already-installed packages as satisfied. Installing an
+databases and SHALL mark already up-to-date packages as satisfied. Installing an
 individual package SHALL NOT refresh databases or create an Arch partial-upgrade
 state.
 

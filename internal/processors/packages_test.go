@@ -8,6 +8,7 @@ import (
 
 	"github.com/freehold-digital/rwr/internal/exectest"
 	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/reporting"
 	"github.com/freehold-digital/rwr/internal/system"
 	"github.com/freehold-digital/rwr/internal/types"
 )
@@ -667,11 +668,14 @@ func TestProcessPackages_StopsAfterSystemicManagerFailure(t *testing.T) {
 
 	data := []byte("packages:\n  - names: [tree, figlet]\n    action: install\n    package_manager: pacman\n  - name: hello\n    action: install\n    package_manager: yay\n")
 	err := ProcessPackages(data, nil, t.TempDir(), "yaml", newTestOSInfo(), &types.InitConfig{})
-	if err == nil || !strings.Contains(err.Error(), "remaining packages were not attempted") {
-		t.Fatalf("ProcessPackages error = %v", err)
+	if !errors.Is(err, rec.Err) {
+		t.Fatalf("ProcessPackages error = %v, want wrapped %v", err, rec.Err)
 	}
 	if len(rec.Calls) != 1 {
 		t.Fatalf("recorded %d calls after systemic failure, want 1: %v", len(rec.Calls), rec.Calls)
+	}
+	if got := reporting.CurrentProvider(); got != "" {
+		t.Fatalf("current provider = %q after systemic failure, want cleared", got)
 	}
 }
 

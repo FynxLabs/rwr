@@ -454,6 +454,9 @@ func IsPackageManagerUnavailable(err error) bool {
 	if err == nil {
 		return false
 	}
+	if errors.Is(err, ErrSudoAuthentication) {
+		return true
+	}
 	message := strings.ToLower(err.Error())
 	var commandErr *commandExecutionError
 	if errors.As(err, &commandErr) {

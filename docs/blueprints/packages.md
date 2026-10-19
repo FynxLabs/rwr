@@ -231,8 +231,9 @@ These examples demonstrate how to specify packages to be installed using differe
 ## Additional Notes
 
 - RWR does not check whether a package is already installed; it runs the provider's install command and lets the package manager decide. Every shipped provider's install command is idempotent for an already-installed package.
-- A package that fails to install or remove does not stop the run. Failures are collected and reported at the end.
-- If a package manager is not available on the system, RWR will skip that entry and log a warning.
+- An individual package that fails to install or remove does not stop the run. Failures are collected and reported at the end. If the error shows that the package manager itself is unavailable, such as a locked pacman database or failed sudo authentication, RWR stops issuing package commands and reports the bounded, redacted stderr diagnostic rather than repeating the same failure for every package.
+- Pacman installs use the existing synchronized package databases with `pacman -S --needed --noconfirm`. RWR does not refresh the databases for each package, and pacman treats already up-to-date targets as satisfied.
+- If a package entry names a package manager that is not available on the system, RWR records the entry as failed and continues with entries whose managers are available.
 - The `args` field allows you to pass additional arguments to the package manager. This is particularly useful for package managers like Homebrew (with `--cask`), Chocolatey (with installation parameters), or apt (with `--no-install-recommends`).
 
 For more information on using the Packages Blueprint in your RWR configuration, please refer to the [Blueprints Overview](../blueprints-general.md) and the [Commands and Flags](../cli/command-and-flags.md) pages.
