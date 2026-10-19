@@ -1,6 +1,7 @@
 package processors
 
 import (
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
@@ -653,6 +654,24 @@ func TestProcessPackages_UnavailableManagerIsFailure(t *testing.T) {
 	}
 	if !sawVim {
 		t.Fatalf("pacman entry did not run after the cargo failure; calls: %v", rec.Calls)
+	}
+}
+
+func TestProcessPackages_StopsAfterSystemicManagerFailure(t *testing.T) {
+	useTestProvider(t)
+	rec := exectest.New()
+	rec.Err = errors.New("exit status 1: error: failed to synchronize all databases (unable to lock database)")
+	defer system.SetExecutor(rec)()
+	resetFailures()
+	t.Cleanup(resetFailures)
+
+	data := []byte("packages:\n  - names: [tree, figlet]\n    action: install\n    package_manager: pacman\n  - name: hello\n    action: install\n    package_manager: yay\n")
+	err := ProcessPackages(data, nil, t.TempDir(), "yaml", newTestOSInfo(), &types.InitConfig{})
+	if err == nil || !strings.Contains(err.Error(), "remaining packages were not attempted") {
+		t.Fatalf("ProcessPackages error = %v", err)
+	}
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls after systemic failure, want 1: %v", len(rec.Calls), rec.Calls)
 	}
 }
 

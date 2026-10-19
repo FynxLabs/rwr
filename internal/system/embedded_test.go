@@ -79,7 +79,7 @@ func TestLoadEmbeddedProviders_ProviderStructure(t *testing.T) {
 
 	// Test commands
 	expectedCommands := map[string]string{
-		"install": "-Sy --noconfirm",
+		"install": "-S --needed --noconfirm",
 		"update":  "-Syu --noconfirm",
 		"remove":  "-R --noconfirm",
 		"list":    "-Q",

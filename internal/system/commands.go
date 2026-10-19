@@ -426,6 +426,91 @@ func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
 	return buildAuthenticatedCommand(cmd), input, nil
 }
 
+// commandExecutionError preserves the useful part of a failed command's
+// stderr. The TUI streams command output into its scrollback, but an operator
+// can easily land on a final failure screen after the relevant line has moved
+// out of view. Returning only exec.ExitError ("exit status 1") also leaves
+// processors unable to distinguish a missing package from a system-wide
+// package-manager failure.
+type commandExecutionError struct {
+	err    error
+	stderr string
+}
+
+func (e *commandExecutionError) Error() string {
+	if e.stderr == "" {
+		return e.err.Error()
+	}
+	return fmt.Sprintf("%v: %s", e.err, e.stderr)
+}
+
+func (e *commandExecutionError) Unwrap() error { return e.err }
+
+// IsPackageManagerUnavailable identifies failures that make retrying every
+// package through the same manager pointless. In particular, pacman returns
+// immediately for every package while its database is locked; continuing into
+// yay then makes a broken run look hung because yay uses that same database.
+func IsPackageManagerUnavailable(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	var commandErr *commandExecutionError
+	if errors.As(err, &commandErr) {
+		message = strings.ToLower(commandErr.stderr)
+	}
+	for _, fragment := range []string{
+		"unable to lock database",
+		"could not lock database",
+		"failed to synchronize all databases",
+		"a password is required",
+		"no password was provided",
+		"authentication failure",
+		"not in the sudoers file",
+		"not allowed to execute",
+	} {
+		if strings.Contains(message, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
+const commandErrorTailLimit = 32 * 1024
+
+// tailBuffer retains only the end of a stream. Package builds can emit
+// megabytes, while the diagnostic that explains a failure is normally in the
+// final lines. Keeping a bounded tail avoids turning error reporting into an
+// unbounded allocation.
+type tailBuffer struct {
+	buf []byte
+}
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	written := len(p)
+	if len(p) >= commandErrorTailLimit {
+		b.buf = append(b.buf[:0], p[len(p)-commandErrorTailLimit:]...)
+		return written, nil
+	}
+	if overflow := len(b.buf) + len(p) - commandErrorTailLimit; overflow > 0 {
+		copy(b.buf, b.buf[overflow:])
+		b.buf = b.buf[:len(b.buf)-overflow]
+	}
+	b.buf = append(b.buf, p...)
+	return written, nil
+}
+
+func (b *tailBuffer) String() string {
+	return strings.TrimSpace(types.ScrubCredentialText(string(b.buf)))
+}
+
+func commandFailure(err error, stderr *tailBuffer) error {
+	if err == nil {
+		return nil
+	}
+	return &commandExecutionError{err: err, stderr: stderr.String()}
+}
+
 // runOnTerminal routes tool interaction through the shared popup API.
 func runOnTerminal(command *exec.Cmd, secrets []string, bridge *sudoBridge) error {
 	return reporting.RunInteractiveCommandWithStart(RunContext(), command, secrets, false, bridge.Started)
@@ -525,6 +610,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		return nil
 	}
 
+	stderrTail := &tailBuffer{}
 	{
 		// Under the TUI, captured stderr streams into the log view (the `≫`
 		// lines); headless it streams to the real stderr like the pre-TUI
@@ -532,9 +618,9 @@ func runCommand(cmd types.Command, debug bool) error {
 		// accumulating hundreds of KB of compiler progress just to discard
 		// it unread was pure memory overhead.
 		if w := reporting.CommandOutputWriter(reporting.SrcStderr); w != nil {
-			command.Stderr = w
+			command.Stderr = io.MultiWriter(w, stderrTail)
 		} else {
-			command.Stderr = os.Stderr
+			command.Stderr = io.MultiWriter(os.Stderr, stderrTail)
 		}
 		logFile, err := setOutputStreams(command, debug, cmd.LogName)
 		if err != nil {
@@ -559,10 +645,9 @@ func runCommand(cmd types.Command, debug bool) error {
 		if Cancelled() {
 			return ErrCancelled
 		}
-		// stderr was streamed live (to the log view under the TUI, to the
-		// real stderr headless); repeating the blob here renders it twice.
-		log.Errorf("Error running command: %v (stderr above)", err)
-		return err
+		failure := commandFailure(err, stderrTail)
+		log.Errorf("Error running command: %v", failure)
+		return failure
 	}
 	if sudoInput != nil {
 		markSudoWarm(true)

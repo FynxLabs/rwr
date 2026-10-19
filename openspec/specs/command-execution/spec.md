@@ -26,6 +26,16 @@ logs. Cancellation or loss of the dashboard SHALL stop the modal's background
 work and child process; Unix cancellation SHALL stop the child process group.
 Headless invocations SHALL retain direct terminal interaction.
 
+A failed captured command SHALL include a bounded, redacted tail of stderr in
+its returned error. A package processor SHALL stop issuing commands when that
+error proves the package manager is systemically unavailable, including a locked
+pacman database or failed sudo authorization.
+
+Pacman package installation SHALL use the system's existing synchronized package
+databases and SHALL mark already-installed packages as satisfied. Installing an
+individual package SHALL NOT refresh databases or create an Arch partial-upgrade
+state.
+
 Visible masked credential prompts SHALL own keyboard and paste input ahead of
 underlying forms. Completing an overlay or asynchronous form SHALL preserve any
 other pending interaction instead of returning the dashboard to running state.
@@ -58,6 +68,12 @@ its default action.
 
 - **WHEN** code requests a raw terminal callback while the dashboard is active
 - **THEN** the callback is refused without releasing the terminal
+
+#### Scenario: Pacman's database is locked
+
+- **WHEN** pacman reports that its database cannot be locked
+- **THEN** the failure shown by the dashboard includes that diagnostic
+- **AND** remaining pacman and AUR package commands are not attempted
 
 #### Scenario: Initial input is followed by a password prompt
 

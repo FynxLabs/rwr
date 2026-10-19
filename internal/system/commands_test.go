@@ -1,12 +1,14 @@
 package system
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/freehold-digital/rwr/internal/reporting"
 	"github.com/freehold-digital/rwr/internal/types"
 )
 
@@ -316,6 +318,39 @@ func TestRunCommand_ExecutesArgumentsVerbatim(t *testing.T) {
 	}
 	if strings.TrimSpace(string(got)) != arg {
 		t.Errorf("echoed %q, want %q", strings.TrimSpace(string(got)), arg)
+	}
+}
+
+func TestRunCommand_ReturnsCapturedStderr(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses /bin/sh")
+	}
+	store := reporting.NewStore(20)
+	reporting.SetCommandSink(store)
+	t.Cleanup(func() { reporting.SetCommandSink(nil) })
+
+	err := RunCommand(types.Command{
+		Exec: "/bin/sh",
+		Args: []string{"-c", "printf 'unable to lock database\\n' >&2; exit 1"},
+	}, false)
+	if err == nil || !strings.Contains(err.Error(), "unable to lock database") {
+		t.Fatalf("error = %v, want captured stderr", err)
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("lock failure was not classified as package-manager unavailable: %v", err)
+	}
+}
+
+func TestCommandFailureRetainsBoundedStderrTail(t *testing.T) {
+	stderr := &tailBuffer{}
+	prefix := strings.Repeat("x", commandErrorTailLimit)
+	_, _ = stderr.Write([]byte(prefix + "useful final diagnostic"))
+	err := commandFailure(errors.New("exit status 1"), stderr)
+	if !strings.Contains(err.Error(), "useful final diagnostic") {
+		t.Fatalf("error lost stderr tail: %v", err)
+	}
+	if len(stderr.buf) != commandErrorTailLimit {
+		t.Fatalf("stderr tail size = %d, want %d", len(stderr.buf), commandErrorTailLimit)
 	}
 }
 
