@@ -51,6 +51,8 @@ func TestLoadEmbeddedProviders(t *testing.T) {
 }
 
 func TestLoadEmbeddedProviders_ProviderStructure(t *testing.T) {
+	t.Parallel()
+
 	providers, err := LoadEmbeddedProviders()
 	if err != nil {
 		t.Fatalf("LoadEmbeddedProviders() failed: %v", err)
@@ -79,7 +81,7 @@ func TestLoadEmbeddedProviders_ProviderStructure(t *testing.T) {
 
 	// Test commands
 	expectedCommands := map[string]string{
-		"install": "-Sy --noconfirm",
+		"install": "-S --needed --noconfirm",
 		"update":  "-Syu --noconfirm",
 		"remove":  "-R --noconfirm",
 		"list":    "-Q",

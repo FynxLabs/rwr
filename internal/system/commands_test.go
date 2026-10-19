@@ -1,12 +1,16 @@
 package system
 
 import (
+	"bytes"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/freehold-digital/rwr/internal/exectest"
 	"github.com/freehold-digital/rwr/internal/types"
 )
 
@@ -316,6 +320,135 @@ func TestRunCommand_ExecutesArgumentsVerbatim(t *testing.T) {
 	}
 	if strings.TrimSpace(string(got)) != arg {
 		t.Errorf("echoed %q, want %q", strings.TrimSpace(string(got)), arg)
+	}
+}
+
+func TestRunCommand_ReturnsCapturedStderr(t *testing.T) {
+	rec := exectest.New()
+	rec.Err = &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: "error: failed to synchronize all databases (unable to lock database)",
+	}
+	defer SetExecutor(rec)()
+
+	err := RunCommand(types.Command{
+		Exec: "pacman",
+		Args: []string{"-S", "tree"},
+	}, false)
+	var commandErr *commandExecutionError
+	if !errors.As(err, &commandErr) {
+		t.Fatalf("error = %v, want *commandExecutionError", err)
+	}
+	if !strings.Contains(err.Error(), "unable to lock database") {
+		t.Fatalf("error = %v, want captured stderr", err)
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("lock failure was not classified as package-manager unavailable: %v", err)
+	}
+}
+
+func TestCommandFailureRetainsBoundedStderrTail(t *testing.T) {
+	t.Parallel()
+
+	stderr := &tailBuffer{}
+	prefix := strings.Repeat("x", commandErrorTailLimit)
+	_, _ = stderr.Write([]byte(prefix + "useful final diagnostic"))
+	err := commandFailure(errors.New("exit status 1"), stderr, nil)
+	if !strings.Contains(err.Error(), "useful final diagnostic") {
+		t.Fatalf("error lost stderr tail: %v", err)
+	}
+	if len(stderr.buf) != commandErrorTailLimit {
+		t.Fatalf("stderr tail size = %d, want %d", len(stderr.buf), commandErrorTailLimit)
+	}
+}
+
+func TestCommandFailureRedactsCommandSecrets(t *testing.T) {
+	t.Parallel()
+
+	stderr := &tailBuffer{}
+	_, _ = stderr.Write([]byte("server rejected token command-specific-secret"))
+	err := commandFailure(errors.New("exit status 1"), stderr, []string{"command-specific-secret"})
+	if strings.Contains(err.Error(), "command-specific-secret") {
+		t.Fatalf("error retained command-specific secret: %v", err)
+	}
+	if !strings.Contains(err.Error(), types.RedactedPlaceholder) {
+		t.Fatalf("error = %v, want redaction marker", err)
+	}
+}
+
+func TestProtectCredentialOutputRedactsCommandSecrets(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	command := &exec.Cmd{Stdout: &stdout, Stderr: &stderr}
+	flush := protectCredentialOutput(command, []string{"command-specific-secret"})
+
+	_, _ = command.Stdout.Write([]byte("stdout command-specific-secret"))
+	_, _ = command.Stderr.Write([]byte("stderr command-specific-secret"))
+	flush()
+
+	for name, output := range map[string]string{"stdout": stdout.String(), "stderr": stderr.String()} {
+		if strings.Contains(output, "command-specific-secret") {
+			t.Fatalf("%s retained command-specific secret: %q", name, output)
+		}
+		if !strings.Contains(output, types.RedactedPlaceholder) {
+			t.Fatalf("%s = %q, want redaction marker", name, output)
+		}
+	}
+}
+
+func TestPackageManagerUnavailableRecognizesWrappedSudoAuthentication(t *testing.T) {
+	t.Parallel()
+
+	err := errors.Join(errors.New("credential prompt failed"), ErrSudoAuthentication)
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("wrapped ErrSudoAuthentication was not classified as package-manager unavailable: %v", err)
+	}
+}
+
+func TestPackageManagerUnavailableIgnoresPackageNameInCommandStderr(t *testing.T) {
+	t.Parallel()
+
+	err := &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: `Error: No available formula with the name "authentication failure".`,
+	}
+	if IsPackageManagerUnavailable(err) {
+		t.Fatalf("ordinary package failure was classified as package-manager unavailable: %v", err)
+	}
+}
+
+func TestPackageManagerUnavailableRecognizesSudoDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	err := &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: "sudo: a password is required",
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("sudo diagnostic was not classified as package-manager unavailable: %v", err)
+	}
+}
+
+func TestPackageManagerUnavailableRecognizesIncorrectSudoPassword(t *testing.T) {
+	t.Parallel()
+
+	err := &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: "sudo: 3 incorrect password attempts",
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("incorrect sudo password was not classified as package-manager unavailable: %v", err)
+	}
+}
+
+func TestPackageManagerUnavailableRecognizesANSIColoredDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	err := &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: "\x1b[31merror:\x1b[0m failed to synchronize all databases (unable to lock database)",
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("ANSI-colored lock diagnostic was not classified as package-manager unavailable: %v", err)
 	}
 }
 

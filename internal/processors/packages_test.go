@@ -1,12 +1,14 @@
 package processors
 
 import (
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/freehold-digital/rwr/internal/exectest"
 	"github.com/freehold-digital/rwr/internal/helpers"
+	"github.com/freehold-digital/rwr/internal/reporting"
 	"github.com/freehold-digital/rwr/internal/system"
 	"github.com/freehold-digital/rwr/internal/types"
 )
@@ -653,6 +655,59 @@ func TestProcessPackages_UnavailableManagerIsFailure(t *testing.T) {
 	}
 	if !sawVim {
 		t.Fatalf("pacman entry did not run after the cargo failure; calls: %v", rec.Calls)
+	}
+}
+
+func TestProcessPackages_StopsAfterSystemicManagerFailure(t *testing.T) {
+	useTestProvider(t)
+	rec := exectest.New()
+	rec.Err = errors.New("exit status 1: error: failed to synchronize all databases (unable to lock database)")
+	defer system.SetExecutor(rec)()
+	resetFailures()
+	t.Cleanup(resetFailures)
+
+	data := []byte("packages:\n  - names: [tree, figlet]\n    action: install\n    package_manager: pacman\n  - name: hello\n    action: install\n    package_manager: yay\n")
+	err := ProcessPackages(data, nil, t.TempDir(), "yaml", newTestOSInfo(), &types.InitConfig{})
+	if !errors.Is(err, rec.Err) {
+		t.Fatalf("ProcessPackages error = %v, want wrapped %v", err, rec.Err)
+	}
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls after systemic failure, want 1: %v", len(rec.Calls), rec.Calls)
+	}
+	if got := reporting.CurrentProvider(); got != "" {
+		t.Fatalf("current provider = %q after systemic failure, want cleared", got)
+	}
+}
+
+func TestProcessPackages_StopsAfterAPTLockFailure(t *testing.T) {
+	bin := "sh"
+	if runtime.GOOS == types.OSWindows {
+		bin = "cmd"
+	}
+	defer system.SetProvidersForTest(map[string]*types.Provider{
+		"apt": {
+			Name:     "apt",
+			Elevated: true,
+			Detection: types.DetectionConfig{
+				Binary:        bin,
+				Distributions: []string{types.OSLinux, types.OSDarwin, types.OSWindows},
+			},
+			Commands: types.CommandConfig{Install: "install -y"},
+		},
+	})()
+	rec := exectest.New()
+	rec.Err = errors.New("exit status 100: E: Could not get lock /var/lib/dpkg/lock-frontend")
+	defer system.SetExecutor(rec)()
+	resetFailures()
+	t.Cleanup(resetFailures)
+
+	data := []byte("packages:\n  - names: [tree, figlet]\n    action: install\n    package_manager: apt\n")
+	err := ProcessPackages(data, nil, t.TempDir(), "yaml", newTestOSInfo(), &types.InitConfig{})
+	if !errors.Is(err, rec.Err) {
+		t.Fatalf("ProcessPackages error = %v, want wrapped %v", err, rec.Err)
+	}
+	if len(rec.Calls) != 1 {
+		t.Fatalf("recorded %d calls after APT lock failure, want 1: %v", len(rec.Calls), rec.Calls)
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/freehold-digital/rwr/internal/reporting"
 	"github.com/freehold-digital/rwr/internal/types"
 	"golang.org/x/term"
@@ -426,9 +427,139 @@ func commandForRun(cmd types.Command) (*exec.Cmd, []byte, error) {
 	return buildAuthenticatedCommand(cmd), input, nil
 }
 
+// commandExecutionError preserves the useful part of a failed command's
+// stderr. The TUI streams command output into its scrollback, but an operator
+// can easily land on a final failure screen after the relevant line has moved
+// out of view. Returning only exec.ExitError ("exit status 1") also leaves
+// processors unable to distinguish a missing package from a system-wide
+// package-manager failure.
+type commandExecutionError struct {
+	err    error
+	stderr string
+}
+
+func (e *commandExecutionError) Error() string {
+	if e.stderr == "" {
+		return e.err.Error()
+	}
+	return fmt.Sprintf("%v: %s", e.err, e.stderr)
+}
+
+func (e *commandExecutionError) Unwrap() error { return e.err }
+
+// IsPackageManagerUnavailable identifies failures that make retrying every
+// package through the same manager pointless. In particular, pacman returns
+// immediately for every package while its database is locked; continuing into
+// yay then makes a broken run look hung because yay uses that same database.
+func IsPackageManagerUnavailable(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, ErrSudoAuthentication) {
+		return true
+	}
+	message := strings.ToLower(ansi.Strip(err.Error()))
+	var commandErr *commandExecutionError
+	if errors.As(err, &commandErr) {
+		message = strings.ToLower(ansi.Strip(commandErr.stderr))
+		for _, rawLine := range strings.Split(message, "\n") {
+			line := strings.TrimSpace(rawLine)
+			if line == "unable to lock database" ||
+				line == "could not lock database" ||
+				strings.HasPrefix(line, "error: unable to lock database") ||
+				strings.HasPrefix(line, "error: could not lock database") ||
+				strings.HasPrefix(line, "error: failed to synchronize all databases") ||
+				strings.HasPrefix(line, "error: failed to init transaction (unable to lock database") ||
+				strings.HasPrefix(line, "e: could not get lock ") ||
+				strings.HasPrefix(line, "e: unable to acquire the dpkg") {
+				return true
+			}
+			if !strings.HasPrefix(line, "sudo:") {
+				continue
+			}
+			for _, fragment := range []string{
+				"a password is required",
+				"no password was provided",
+				"authentication failure",
+				"incorrect password attempt",
+				"not in the sudoers file",
+				"not allowed to execute",
+			} {
+				if strings.Contains(line, fragment) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	for _, fragment := range []string{
+		"unable to lock database",
+		"could not lock database",
+		"failed to synchronize all databases",
+		"could not get lock",
+		"unable to acquire the dpkg",
+		"a password is required",
+		"no password was provided",
+		"authentication failure",
+		"incorrect password attempt",
+		"not in the sudoers file",
+		"not allowed to execute",
+	} {
+		if strings.Contains(message, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
+const commandErrorTailLimit = 32 * 1024
+
+// tailBuffer retains only the end of a stream. Package builds can emit
+// megabytes, while the diagnostic that explains a failure is normally in the
+// final lines. Keeping a bounded tail avoids turning error reporting into an
+// unbounded allocation.
+type tailBuffer struct {
+	buf []byte
+}
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	written := len(p)
+	if len(p) >= commandErrorTailLimit {
+		b.buf = append(b.buf[:0], p[len(p)-commandErrorTailLimit:]...)
+		return written, nil
+	}
+	if overflow := len(b.buf) + len(p) - commandErrorTailLimit; overflow > 0 {
+		copy(b.buf, b.buf[overflow:])
+		b.buf = b.buf[:len(b.buf)-overflow]
+	}
+	b.buf = append(b.buf, p...)
+	return written, nil
+}
+
+func (b *tailBuffer) String(commandSecrets []string) string {
+	return strings.TrimSpace(scrubCommandText(string(b.buf), commandSecrets))
+}
+
+func commandFailure(err error, stderr *tailBuffer, commandSecrets []string) error {
+	if err == nil {
+		return nil
+	}
+	return &commandExecutionError{err: err, stderr: stderr.String(commandSecrets)}
+}
+
+func scrubCommandText(text string, commandSecrets []string) string {
+	text = types.ScrubCredentialText(text)
+	for _, secret := range commandSecrets {
+		if secret != "" {
+			text = strings.ReplaceAll(text, secret, types.RedactedPlaceholder)
+		}
+	}
+	return text
+}
+
 // runOnTerminal routes tool interaction through the shared popup API.
-func runOnTerminal(command *exec.Cmd, secrets []string, bridge *sudoBridge) error {
-	return reporting.RunInteractiveCommandWithStart(RunContext(), command, secrets, false, bridge.Started)
+func runOnTerminal(command *exec.Cmd, secrets []string, bridge *sudoBridge, diagnostic io.Writer) error {
+	return reporting.RunInteractiveCommandWithDiagnostics(RunContext(), command, secrets, false, diagnostic, bridge.Started)
 }
 
 // dryRunMode controls whether commands are actually executed.
@@ -504,10 +635,11 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if cmd.Interactive {
+		stderrTail := &tailBuffer{}
 		// Tool-owned prompts use the dashboard's private terminal popup.
 		// Headless runs retain direct terminal interaction. Per-item
 		// interactive: true uses this path too.
-		if err := runOnTerminal(command, cmd.Secrets, bridge); err != nil {
+		if err := runOnTerminal(command, cmd.Secrets, bridge, stderrTail); err != nil {
 			// An interactive command reaches the terminal directly, so a
 			// cancelled one comes back as its kill status rather than through
 			// the context. Without this it reports "signal: killed" and gets
@@ -516,8 +648,9 @@ func runCommand(cmd types.Command, debug bool) error {
 			if Cancelled() {
 				return ErrCancelled
 			}
-			log.Errorf("Error running command: %v (stderr above)", err)
-			return err
+			failure := commandFailure(err, stderrTail, cmd.Secrets)
+			log.Errorf("Error running command: %v", failure)
+			return failure
 		}
 		if sudoInput != nil {
 			markSudoWarm(true)
@@ -525,6 +658,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		return nil
 	}
 
+	stderrTail := &tailBuffer{}
 	{
 		// Under the TUI, captured stderr streams into the log view (the `≫`
 		// lines); headless it streams to the real stderr like the pre-TUI
@@ -532,9 +666,9 @@ func runCommand(cmd types.Command, debug bool) error {
 		// accumulating hundreds of KB of compiler progress just to discard
 		// it unread was pure memory overhead.
 		if w := reporting.CommandOutputWriter(reporting.SrcStderr); w != nil {
-			command.Stderr = w
+			command.Stderr = io.MultiWriter(w, stderrTail)
 		} else {
-			command.Stderr = os.Stderr
+			command.Stderr = io.MultiWriter(os.Stderr, stderrTail)
 		}
 		logFile, err := setOutputStreams(command, debug, cmd.LogName)
 		if err != nil {
@@ -551,7 +685,8 @@ func runCommand(cmd types.Command, debug bool) error {
 		}
 	}
 
-	defer protectCredentialOutput(command)()
+	flushCredentialOutput := protectCredentialOutput(command, cmd.Secrets)
+	defer flushCredentialOutput()
 	if err := bridge.Run(command); err != nil {
 		// A command killed by cancellation exits non-zero like any failure.
 		// Reporting it as one would fill the summary with "signal: killed"
@@ -559,10 +694,10 @@ func runCommand(cmd types.Command, debug bool) error {
 		if Cancelled() {
 			return ErrCancelled
 		}
-		// stderr was streamed live (to the log view under the TUI, to the
-		// real stderr headless); repeating the blob here renders it twice.
-		log.Errorf("Error running command: %v (stderr above)", err)
-		return err
+		flushCredentialOutput()
+		failure := commandFailure(err, stderrTail, cmd.Secrets)
+		log.Errorf("Error running command: %v", failure)
+		return failure
 	}
 	if sudoInput != nil {
 		markSudoWarm(true)
@@ -629,7 +764,7 @@ func runCommandOutput(cmd types.Command, debug bool) (string, error) {
 		if Cancelled() {
 			return "", ErrCancelled
 		}
-		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, types.ScrubCredentialText(stderr.String()))
+		errMsg := fmt.Sprintf("Error running command: %v\nStderr: %s", err, scrubCommandText(stderr.String(), cmd.Secrets))
 		log.Error(errMsg)
 		return "", err
 	}
@@ -725,8 +860,8 @@ func GetBinPath(binName string) (string, error) {
 	return filepath.Clean(path), nil
 }
 
-func protectCredentialOutput(command *exec.Cmd) func() {
-	secrets := types.ResolvedSecrets()
+func protectCredentialOutput(command *exec.Cmd, commandSecrets []string) func() {
+	secrets := append(types.ResolvedSecrets(), commandSecrets...)
 	if len(secrets) == 0 {
 		return func() {}
 	}

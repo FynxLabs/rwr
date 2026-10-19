@@ -331,6 +331,10 @@ func ProcessPackages(data []byte, packages *types.PackagesData, blueprintDir str
 			if runErr != nil {
 				recordFailure("packages", name, fmt.Errorf("%s failed: %w", pkg.Action, runErr))
 				track.item(provider.Name, name, pkg.Action, types.StatusFailed, runErr.Error(), time.Since(started))
+				if system.IsPackageManagerUnavailable(runErr) {
+					reporting.SetCurrentProvider("")
+					return fmt.Errorf("%s is unavailable; remaining packages were not attempted: %w", provider.Name, runErr)
+				}
 				continue
 			}
 
