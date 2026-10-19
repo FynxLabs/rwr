@@ -555,8 +555,8 @@ func scrubCommandText(text string, commandSecrets []string) string {
 }
 
 // runOnTerminal routes tool interaction through the shared popup API.
-func runOnTerminal(command *exec.Cmd, secrets []string, bridge *sudoBridge) error {
-	return reporting.RunInteractiveCommandWithStart(RunContext(), command, secrets, false, bridge.Started)
+func runOnTerminal(command *exec.Cmd, secrets []string, bridge *sudoBridge, diagnostic io.Writer) error {
+	return reporting.RunInteractiveCommandWithDiagnostics(RunContext(), command, secrets, false, diagnostic, bridge.Started)
 }
 
 // dryRunMode controls whether commands are actually executed.
@@ -632,10 +632,11 @@ func runCommand(cmd types.Command, debug bool) error {
 	}
 
 	if cmd.Interactive {
+		stderrTail := &tailBuffer{}
 		// Tool-owned prompts use the dashboard's private terminal popup.
 		// Headless runs retain direct terminal interaction. Per-item
 		// interactive: true uses this path too.
-		if err := runOnTerminal(command, cmd.Secrets, bridge); err != nil {
+		if err := runOnTerminal(command, cmd.Secrets, bridge, stderrTail); err != nil {
 			// An interactive command reaches the terminal directly, so a
 			// cancelled one comes back as its kill status rather than through
 			// the context. Without this it reports "signal: killed" and gets
@@ -644,8 +645,9 @@ func runCommand(cmd types.Command, debug bool) error {
 			if Cancelled() {
 				return ErrCancelled
 			}
-			log.Errorf("Error running command: %v (stderr above)", err)
-			return err
+			failure := commandFailure(err, stderrTail, cmd.Secrets)
+			log.Errorf("Error running command: %v", failure)
+			return failure
 		}
 		if sudoInput != nil {
 			markSudoWarm(true)
@@ -680,7 +682,8 @@ func runCommand(cmd types.Command, debug bool) error {
 		}
 	}
 
-	defer protectCredentialOutput(command, cmd.Secrets)()
+	flushCredentialOutput := protectCredentialOutput(command, cmd.Secrets)
+	defer flushCredentialOutput()
 	if err := bridge.Run(command); err != nil {
 		// A command killed by cancellation exits non-zero like any failure.
 		// Reporting it as one would fill the summary with "signal: killed"
@@ -688,6 +691,7 @@ func runCommand(cmd types.Command, debug bool) error {
 		if Cancelled() {
 			return ErrCancelled
 		}
+		flushCredentialOutput()
 		failure := commandFailure(err, stderrTail, cmd.Secrets)
 		log.Errorf("Error running command: %v", failure)
 		return failure

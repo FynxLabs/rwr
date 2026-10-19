@@ -2,6 +2,7 @@ package reporting
 
 import (
 	"context"
+	"io"
 	"os/exec"
 	"sync/atomic"
 )
@@ -15,10 +16,16 @@ func RunInteractiveCommand(ctx context.Context, command *exec.Cmd, secrets []str
 // RunInteractiveCommandWithStart allows the executor to bind private askpass
 // access to the actual child session before serving its authentication requests.
 func RunInteractiveCommandWithStart(ctx context.Context, command *exec.Cmd, secrets []string, private bool, started func(*exec.Cmd)) error {
+	return RunInteractiveCommandWithDiagnostics(ctx, command, secrets, private, nil, started)
+}
+
+// RunInteractiveCommandWithDiagnostics retains redacted command diagnostics
+// while preserving the existing terminal output and child-session callback.
+func RunInteractiveCommandWithDiagnostics(ctx context.Context, command *exec.Cmd, secrets []string, private bool, diagnostic io.Writer, started func(*exec.Cmd)) error {
 	inline := SupportsInlinePrompts()
 	done := make(chan error, 1)
 	claim := &atomic.Bool{}
-	Emit(TerminalReq{Cmd: command, Context: ctx, Done: done, Claim: claim, Secrets: secrets, Private: private, Started: started})
+	Emit(TerminalReq{Cmd: command, Context: ctx, Done: done, Claim: claim, Secrets: secrets, Private: private, Started: started, Diagnostic: diagnostic})
 	select {
 	case err := <-done:
 		return err
@@ -27,7 +34,7 @@ func RunInteractiveCommandWithStart(ctx context.Context, command *exec.Cmd, secr
 			if inline {
 				return ErrPromptUnavailable
 			}
-			LogReporter{}.Emit(TerminalReq{Cmd: command, Done: done, Secrets: secrets, Private: private, Started: started})
+			LogReporter{}.Emit(TerminalReq{Cmd: command, Done: done, Secrets: secrets, Private: private, Started: started, Diagnostic: diagnostic})
 		}
 		return <-done
 	}

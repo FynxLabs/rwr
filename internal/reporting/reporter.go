@@ -8,6 +8,7 @@ package reporting
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"sync"
@@ -85,6 +86,10 @@ type TerminalReq struct {
 	Secrets   []string
 	Private   bool            // authentication output is displayed but never logged
 	Started   func(*exec.Cmd) // optional child-session setup, called only after Start succeeds
+	// Diagnostic receives the command's redacted stderr in headless mode and
+	// redacted combined terminal output in the TUI. Callers use it to retain a
+	// bounded failure tail without changing what the operator sees.
+	Diagnostic io.Writer
 	// Claim makes the request run-once: the servicer and the waiter's
 	// terminal-lost fallback CAS it, and only the winner executes. Without
 	// it, a quit racing the exec callback could run the request twice.
@@ -217,12 +222,16 @@ func (LogReporter) Emit(event Event) {
 			e.Cmd.Stdin = os.Stdin
 		}
 		secrets := append(types.ResolvedSecrets(), e.Secrets...)
-		e.Cmd.Stdout, e.Cmd.Stderr = os.Stdout, os.Stderr
+		stdoutTarget := io.Writer(os.Stdout)
+		stderrTarget := io.Writer(os.Stderr)
+		if e.Diagnostic != nil {
+			stderrTarget = io.MultiWriter(stderrTarget, e.Diagnostic)
+		}
+		e.Cmd.Stdout, e.Cmd.Stderr = stdoutTarget, stderrTarget
+		var stdout, stderr *types.SecretWriter
 		if len(secrets) > 0 {
-			stdout := types.NewSecretWriter(os.Stdout, secrets)
-			stderr := types.NewSecretWriter(os.Stderr, secrets)
-			defer stdout.Flush()
-			defer stderr.Flush()
+			stdout = types.NewSecretWriter(stdoutTarget, secrets)
+			stderr = types.NewSecretWriter(stderrTarget, secrets)
 			e.Cmd.Stdout, e.Cmd.Stderr = stdout, stderr
 		}
 		if err := e.Cmd.Start(); err != nil {
@@ -232,7 +241,12 @@ func (LogReporter) Emit(event Event) {
 		if e.Started != nil {
 			e.Started(e.Cmd)
 		}
-		e.Done <- e.Cmd.Wait()
+		err := e.Cmd.Wait()
+		if stdout != nil {
+			stdout.Flush()
+			stderr.Flush()
+		}
+		e.Done <- err
 	case TerminalFunc:
 		// Headless the terminal is already free; just run the interaction.
 		if !TryClaim(e.Claim) {

@@ -1,7 +1,10 @@
 package system
 
 import (
+	"errors"
+	"io"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/freehold-digital/rwr/internal/reporting"
@@ -10,6 +13,21 @@ import (
 
 type recordingReporter struct {
 	events []reporting.Event
+}
+
+type failingInteractiveReporter struct {
+	diagnostic string
+}
+
+func (r failingInteractiveReporter) Emit(e reporting.Event) {
+	req, ok := e.(reporting.TerminalReq)
+	if !ok {
+		return
+	}
+	if req.Diagnostic != nil {
+		_, _ = io.WriteString(req.Diagnostic, r.diagnostic)
+	}
+	req.Done <- errors.New("exit status 1")
 }
 
 func (r *recordingReporter) Emit(e reporting.Event) {
@@ -44,5 +62,23 @@ func TestRunCommand_InteractiveGoesThroughTerminalReq(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("no TerminalReq emitted; events: %#v", rec.events)
+	}
+}
+
+func TestRunCommand_InteractiveFailureRetainsManagerDiagnostic(t *testing.T) {
+	reporter := failingInteractiveReporter{
+		diagnostic: "error: failed to synchronize all databases (unable to lock database)\n",
+	}
+	defer reporting.Set(reporter)()
+
+	err := RunCommand(types.Command{Exec: "unused", Interactive: true}, false)
+	if err == nil {
+		t.Fatal("RunCommand returned nil for interactive failure")
+	}
+	if !strings.Contains(err.Error(), "unable to lock database") {
+		t.Fatalf("RunCommand error = %v, want retained diagnostic", err)
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("interactive lock failure was not classified as package-manager unavailable: %v", err)
 	}
 }

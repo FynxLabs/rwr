@@ -178,6 +178,9 @@ func (p *commandPopup) runClaimed(size popupSize) error {
 			output = io.MultiWriter(output, log)
 		}
 	}
+	if p.req.Diagnostic != nil {
+		output = io.MultiWriter(output, p.req.Diagnostic)
+	}
 	outputDone := make(chan struct{})
 	go func() {
 		defer close(outputDone)
