@@ -428,6 +428,18 @@ func TestPackageManagerUnavailableRecognizesSudoDiagnostic(t *testing.T) {
 	}
 }
 
+func TestPackageManagerUnavailableRecognizesANSIColoredDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	err := &commandExecutionError{
+		err:    errors.New("exit status 1"),
+		stderr: "\x1b[31merror:\x1b[0m failed to synchronize all databases (unable to lock database)",
+	}
+	if !IsPackageManagerUnavailable(err) {
+		t.Fatalf("ANSI-colored lock diagnostic was not classified as package-manager unavailable: %v", err)
+	}
+}
+
 func equalArgs(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

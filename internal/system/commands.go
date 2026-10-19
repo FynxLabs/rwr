@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"charm.land/log/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/freehold-digital/rwr/internal/reporting"
 	"github.com/freehold-digital/rwr/internal/types"
 	"golang.org/x/term"
@@ -457,10 +458,10 @@ func IsPackageManagerUnavailable(err error) bool {
 	if errors.Is(err, ErrSudoAuthentication) {
 		return true
 	}
-	message := strings.ToLower(err.Error())
+	message := strings.ToLower(ansi.Strip(err.Error()))
 	var commandErr *commandExecutionError
 	if errors.As(err, &commandErr) {
-		message = strings.ToLower(commandErr.stderr)
+		message = strings.ToLower(ansi.Strip(commandErr.stderr))
 		for _, rawLine := range strings.Split(message, "\n") {
 			line := strings.TrimSpace(rawLine)
 			if line == "unable to lock database" ||

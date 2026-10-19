@@ -71,11 +71,18 @@ func TestRunCommand_InteractiveFailureRetainsManagerDiagnostic(t *testing.T) {
 	}
 	defer reporting.Set(reporter)()
 
-	err := RunCommand(types.Command{Exec: "unused", Interactive: true}, false)
+	// Exercise the production implementation directly. Installing a recorder
+	// here would bypass the reporter handoff and the diagnostic capture this
+	// test exists to verify.
+	err := runCommand(types.Command{Exec: "unused", Interactive: true}, false)
 	if err == nil {
 		t.Fatal("RunCommand returned nil for interactive failure")
 	}
-	if !strings.Contains(err.Error(), "unable to lock database") {
+	var commandErr *commandExecutionError
+	if !errors.As(err, &commandErr) {
+		t.Fatalf("RunCommand error = %v, want *commandExecutionError", err)
+	}
+	if !strings.Contains(commandErr.stderr, "unable to lock database") {
 		t.Fatalf("RunCommand error = %v, want retained diagnostic", err)
 	}
 	if !IsPackageManagerUnavailable(err) {
