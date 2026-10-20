@@ -3,7 +3,7 @@ experimental = true
 
 [tools]
 # Security scanners and their analyzer dependencies are locked in tools/security/go.mod.
-go = "1.27.2" # Includes standard-library security fixes reported by govulncheck.
+go = "1.27.3" # Includes standard-library security fixes reported by govulncheck.
 goreleaser = "latest"
 gotestsum = "latest"
 golangci-lint = "2.15.0" # keep local hooks aligned with the pinned CI lint gate
